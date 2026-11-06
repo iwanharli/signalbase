@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OPEN_SCOPE } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 import { adminRoute } from "@/lib/server/auth";
 import { dailyVolume, listItems, moodBreakdown } from "@/lib/server/bank";
@@ -14,8 +15,8 @@ export const GET = adminRoute(async () => {
   const typeStats = async (type: MediaType) => {
     const [daily, moods, latest] = await Promise.all([
       dailyVolume(type),
-      moodBreakdown(type, new URLSearchParams({ from: weekStart }), []),
-      listItems(type, new URLSearchParams(), [], { limit: LATEST_PER_TYPE, offset: 0 }),
+      moodBreakdown(type, new URLSearchParams({ from: weekStart }), OPEN_SCOPE),
+      listItems(type, new URLSearchParams(), OPEN_SCOPE, { limit: LATEST_PER_TYPE, offset: 0 }),
     ]);
     return { daily, moods, latest };
   };

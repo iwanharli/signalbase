@@ -3,13 +3,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconClock, IconKey, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconClock, IconKey, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { useApi } from "@/lib/useApi";
-import { formatDate, fromNow, isRecentlyUsed, KeywordChips, type ApiKeyRow } from "./shared";
+import { formatDate, fromNow, isRecentlyUsed, KeywordChips, RestrictionChips, scopeRestrictions, useProvinceNames, type ApiKeyRow } from "./shared";
 import classes from "./apiKeys.module.css";
 
-function KeyCard({ apiKey, onRevoke }: { apiKey: ApiKeyRow; onRevoke: (key: ApiKeyRow) => void }) {
+function KeyCard({ apiKey, onRevoke, provinceName }: { apiKey: ApiKeyRow; onRevoke: (key: ApiKeyRow) => void; provinceName: (code: string) => string }) {
   const revoked = !!apiKey.revokedAt;
   const recent = isRecentlyUsed(apiKey);
   return (
@@ -26,8 +26,12 @@ function KeyCard({ apiKey, onRevoke }: { apiKey: ApiKeyRow; onRevoke: (key: ApiK
       </header>
 
       <div className={classes.cardSection}>
-        <span className={classes.sectionLabel}><IconTag size={13} />Cakupan</span>
+        <span className={classes.sectionLabel}><IconTag size={13} />Kata kunci</span>
         <KeywordChips keywords={apiKey.keywords} />
+      </div>
+      <div className={classes.cardSection}>
+        <span className={classes.sectionLabel}><IconAdjustmentsHorizontal size={13} />Parameter</span>
+        <RestrictionChips restrictions={scopeRestrictions(apiKey.scope, provinceName)} />
       </div>
 
       <dl className={classes.meta}>
@@ -63,6 +67,7 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
 /** /api-keys — every key as a card; creating one happens on /api-keys/new. */
 export function ApiKeyList() {
   const keys = useApi<ApiKeyRow[]>("/api/admin/keys");
+  const provinceName = useProvinceNames();
   const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -108,7 +113,7 @@ export function ApiKeyList() {
         {!keys.data ? (
           <div className={classes.grid}>{[0, 1].map((i) => <Skeleton key={i} h={210} radius={20} />)}</div>
         ) : active.length ? (
-          <div className={classes.grid}>{active.map((k) => <KeyCard key={k.id} apiKey={k} onRevoke={setRevoking} />)}</div>
+          <div className={classes.grid}>{active.map((k) => <KeyCard key={k.id} apiKey={k} onRevoke={setRevoking} provinceName={provinceName} />)}</div>
         ) : (
           <div className={classes.empty}>
             <IconKey size={26} /><b>Belum ada kunci aktif</b><span>Buat kunci untuk menghubungkan aplikasi.</span>
@@ -120,7 +125,7 @@ export function ApiKeyList() {
       {revoked.length > 0 && (
         <section>
           <h2 className={classes.heading}>Dicabut <span>{revoked.length}</span></h2>
-          <div className={classes.grid}>{revoked.map((k) => <KeyCard key={k.id} apiKey={k} onRevoke={setRevoking} />)}</div>
+          <div className={classes.grid}>{revoked.map((k) => <KeyCard key={k.id} apiKey={k} onRevoke={setRevoking} provinceName={provinceName} />)}</div>
         </section>
       )}
 

@@ -21,6 +21,7 @@ model ApiKey {
   prefix     String
   hash       String    @unique
   keywords   String[]  @default([]) // empty = whole bank; else items must mention one
+  scope      Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?

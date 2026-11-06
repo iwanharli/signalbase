@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OPEN_SCOPE } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { adminRoute } from "@/lib/server/auth";
 import { countExact, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
@@ -18,7 +19,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
 
   try {
     if (query.get("view") === "options") return NextResponse.json(await filterOptions(type));
-    if (query.get("view") === "count") return NextResponse.json({ total: await countExact(type, query, []) });
+    if (query.get("view") === "count") return NextResponse.json({ total: await countExact(type, query, OPEN_SCOPE) });
 
     const page = Math.max(1, Math.floor(Number(query.get("page"))) || 1);
     // The breakdown ignores the mood filter so every slice stays visible.
@@ -26,8 +27,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
     withoutMood.delete("mood");
     // One extra row tells whether another page exists without counting.
     const [rows, moods] = await Promise.all([
-      listItems(type, query, [], { limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE }),
-      page === 1 ? moodBreakdown(type, withoutMood, []) : null,
+      listItems(type, query, OPEN_SCOPE, { limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE }),
+      page === 1 ? moodBreakdown(type, withoutMood, OPEN_SCOPE) : null,
     ]);
     return NextResponse.json({ page, hasMore: rows.length > PAGE_SIZE, moods, items: rows.slice(0, PAGE_SIZE) });
   } catch (e) {

@@ -1,5 +1,6 @@
 // Builds the SQL filter for source-database queries from request parameters.
 // Every user-supplied value is passed as a bound parameter.
+import type { KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 
 /** Table aliases and columns per media type. Social: post_main p + post_analyses a; news: news_main n + news_analyses a. */
@@ -37,11 +38,31 @@ export function keywordQuery(keywords: string[]) {
 }
 
 /** Stable cache key for a filter set. */
-export const filterKey = (type: MediaType, params: URLSearchParams, keywords: string[]) =>
-  [type, keywordQuery(keywords), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
+export const filterKey = (type: MediaType, params: URLSearchParams, scope: KeyScope) =>
+  [type, JSON.stringify(scope), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
 
-/** WHERE clause and bound values for the given filters and API-key keywords. */
-export function buildWhere(type: MediaType, params: URLSearchParams, keywords: string[]) {
+/** Conditions from the API key's fixed scope. Added on top of the request filters, so they can only narrow. */
+function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown) => string) {
+  const c = COLUMNS[type];
+  const social = type === "social";
+  const where: string[] = [];
+  const keywordTs = keywordQuery(scope.keywords);
+  if (keywordTs) where.push(`${c.search} @@ to_tsquery('simple', ${bind(keywordTs)})`);
+  if (scope.analyzedOnly) where.push(`${c.mood} IS NOT NULL AND ${c.mood} <> ''`);
+  if (scope.language === "id") where.push(`${c.language} = 'id'`);
+  else if (scope.language === "other") where.push(`${c.language} IS DISTINCT FROM 'id'`);
+  if (scope.provinces.length) where.push(social ? `a.province_id = ANY(${bind(scope.provinces)}::bigint[])` : `n.region_code = ANY(${bind(scope.provinces)}::text[])`);
+  if (scope.categories.length) where.push(`lower(${c.category}) = ANY(${bind(scope.categories)}::text[])`);
+  if (social) {
+    if (scope.relevance === "relevant") where.push(`a.status_filter IS DISTINCT FROM 'exclude'`);
+    else if (scope.relevance) where.push(`a.status_filter = ${bind(scope.relevance)}`);
+    if (scope.minLevel) where.push(`a.emotion_level >= ${bind(scope.minLevel)}::int`);
+  }
+  return where;
+}
+
+/** WHERE clause and bound values for the request filters within an API key's scope. */
+export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyScope) {
   const c = COLUMNS[type];
   const social = type === "social";
   const values: unknown[] = [];
@@ -52,8 +73,7 @@ export function buildWhere(type: MediaType, params: URLSearchParams, keywords: s
   // Timestamps outside this window are scraper errors (some rows say 1925).
   where.push(`${c.timestamp} >= '2010-01-01'`, `${c.timestamp} <= now()`);
 
-  const keywordTs = keywordQuery(keywords);
-  if (keywordTs) where.push(`${c.search} @@ to_tsquery('simple', ${bind(keywordTs)})`);
+  where.push(...scopeConditions(type, scope, bind));
 
   const search = get("q")?.trim();
   if (search) where.push(`${c.search} @@ plainto_tsquery('simple', ${bind(search.slice(0, 200))})`);

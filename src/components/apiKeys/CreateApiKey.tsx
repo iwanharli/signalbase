@@ -1,18 +1,31 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CopyButton, TagsInput, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
-  IconAlertTriangle, IconArrowLeft, IconBulb, IconCheck, IconCopy, IconDatabase, IconKey, IconLock, IconPlus, IconShieldCheck, IconTag,
+  IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconBulb, IconCheck, IconCopy, IconDatabase, IconKey, IconLock, IconMapPin,
+  IconPlus, IconShieldCheck, IconTag,
 } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
-import { KeywordChips, scopeText, type CreatedKey } from "./shared";
+import { OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
+import { capitalize, humanize } from "@/lib/media/labels";
+import type { FilterOptions, MediaType } from "@/lib/media/types";
+import { useApi } from "@/lib/useApi";
+import { DarkMultiSelect, Field, Segmented } from "../media/controls";
+import { KeywordChips, keywordText, RestrictionChips, scopeRestrictions, useProvinceNames, type CreatedKey } from "./shared";
 import classes from "./apiKeys.module.css";
+
+const TYPE_OPTIONS = [{ value: "both", label: "Keduanya" }, { value: "social", label: "Media Sosial" }, { value: "online", label: "Media Online" }] as const;
+const ANALYZED_OPTIONS = [{ value: "", label: "Semua" }, { value: "yes", label: "Hanya sudah dianalisis" }] as const;
+const RELEVANCE_OPTIONS = [{ value: "", label: "Semua" }, { value: "relevant", label: "Relevan" }, { value: "include", label: "Include" }, { value: "watchlist", label: "Watchlist" }] as const;
+const LANGUAGE_OPTIONS = [{ value: "", label: "Semua" }, { value: "id", label: "Indonesia" }, { value: "other", label: "Lainnya" }] as const;
+const LEVEL_OPTIONS = [{ value: "0", label: "Semua" }, ...[2, 3, 4, 5].map((n) => ({ value: String(n), label: `≥ ${n}` }))];
 
 const TIPS = [
   { icon: IconKey, title: "Satu kunci per aplikasi", text: "Pisahkan produksi dan uji coba agar bisa dicabut sendiri-sendiri." },
-  { icon: IconTag, title: "Batasi dengan kata kunci", text: "Aplikasi hanya menerima post dan berita yang menyebut kata kunci tersebut. Frasa multi-kata dicocokkan utuh." },
+  { icon: IconTag, title: "Kata kunci diketik sendiri", text: "Aplikasi hanya menerima data yang menyebut salah satunya. Frasa multi-kata dicocokkan utuh." },
+  { icon: IconAdjustmentsHorizontal, title: "Parameter cakupan dikunci", text: "Aplikasi tetap bisa menyaring lebih sempit lewat parameter API, tapi tidak bisa melewati batas ini." },
   { icon: IconLock, title: "Simpan sebagai secret", text: "Kunci hanya ditampilkan sekali. Taruh di variabel lingkungan aplikasi, jangan di repo." },
 ];
 
@@ -22,16 +35,50 @@ function useOrigin() {
   return origin;
 }
 
+/** Filter choices for both media types, so provinces and categories cover everything the key could read. */
+function useScopeOptions() {
+  const social = useApi<FilterOptions>("/api/admin/media/social?view=options");
+  const online = useApi<FilterOptions>("/api/admin/media/online?view=options");
+  return useMemo(() => {
+    const categories = [...new Set([...(social.data?.categories ?? []), ...(online.data?.categories ?? [])])].sort();
+    return {
+      provinces: social.data?.provinces ?? online.data?.provinces ?? [],
+      categories: categories.map((c) => ({ value: c, label: capitalize(humanize(c)) })),
+    };
+  }, [social.data, online.data]);
+}
+
+function ScopePreview({ scope }: { scope: KeyScope }) {
+  const provinceName = useProvinceNames();
+  return (
+    <div className={classes.preview}>
+      <span className={classes.sectionLabel}><IconDatabase size={13} />Ringkasan cakupan</span>
+      <p>{keywordText(scope.keywords)}</p>
+      <KeywordChips keywords={scope.keywords} />
+      <RestrictionChips restrictions={scopeRestrictions(scope, provinceName)} />
+    </div>
+  );
+}
+
 function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
   const [name, setName] = useState("");
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const [scope, setScope] = useState<KeyScope>(OPEN_SCOPE);
   const [busy, setBusy] = useState(false);
+  const options = useScopeOptions();
+  const update = (patch: Partial<KeyScope>) => setScope((prev) => ({ ...prev, ...patch }));
+
+  const typeValue = scope.types.length === 1 ? scope.types[0] : "both";
+  const socialAllowed = typeValue !== "online";
+
+  const setType = (value: "both" | MediaType) =>
+    // Relevance and intensity only exist for social posts; drop them when the key can't read those.
+    update(value === "both" ? { types: [] } : value === "online" ? { types: ["online"], relevance: "", minLevel: 0 } : { types: ["social"] });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      onCreated(await post("/api/admin/keys", { name, keywords }) as CreatedKey);
+      onCreated(await post("/api/admin/keys", { name, scope }) as CreatedKey);
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
       setBusy(false);
@@ -48,16 +95,42 @@ function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
 
       <TextInput classNames={inputClasses} label="Nama aplikasi" placeholder="mis. KIPERMAS produksi" value={name} autoFocus
         onChange={(e) => setName(e.currentTarget.value)} required minLength={2} maxLength={80} />
-      <TagsInput classNames={inputClasses} label="Kata kunci" description="Pisahkan dengan koma atau spasi. Kosongkan untuk membuka seluruh bank."
-        placeholder="mis. polri, polisi" value={keywords} onChange={setKeywords} splitChars={[",", " "]} clearable />
+      <TagsInput classNames={inputClasses} label="Kata kunci" description="Ketik lalu tekan Enter, koma, atau spasi. Kosongkan untuk semua kata kunci."
+        placeholder="mis. polri, polisi" value={scope.keywords} onChange={(keywords) => update({ keywords })} splitChars={[",", " "]} clearable />
 
-      <div className={classes.preview}>
-        <span className={classes.sectionLabel}><IconDatabase size={13} />Cakupan data</span>
-        <KeywordChips keywords={keywords} />
-        <p>{scopeText(keywords)}</p>
+      <div className={classes.params}>
+        <div className={classes.paramsHead}><IconAdjustmentsHorizontal size={15} />Parameter cakupan<small>Opsional · dikunci di server</small></div>
+        <div className={classes.paramsGrid}>
+          <Field label="Jenis media" wide>
+            <Segmented full options={TYPE_OPTIONS} value={typeValue} onChange={setType} />
+          </Field>
+          <Field label="Status analisis" wide>
+            <Segmented full options={ANALYZED_OPTIONS} value={scope.analyzedOnly ? "yes" : ""} onChange={(v) => update({ analyzedOnly: v === "yes" })} />
+          </Field>
+          <Field label="Relevansi AI (media sosial)" wide>
+            <Segmented full disabled={!socialAllowed} options={RELEVANCE_OPTIONS} value={scope.relevance} onChange={(relevance) => update({ relevance })} />
+          </Field>
+          <Field label="Bahasa">
+            <Segmented full options={LANGUAGE_OPTIONS} value={scope.language} onChange={(language) => update({ language })} />
+          </Field>
+          <Field label="Intensitas emosi min.">
+            <Segmented full disabled={!socialAllowed} options={LEVEL_OPTIONS} value={String(scope.minLevel)} onChange={(v) => update({ minLevel: Number(v) })} />
+          </Field>
+          <Field label="Provinsi" wide>
+            <DarkMultiSelect leftSection={<IconMapPin size={15} />} placeholder={scope.provinces.length ? "" : "Seluruh Indonesia"}
+              data={options.provinces} value={scope.provinces} onChange={(provinces) => update({ provinces })} />
+          </Field>
+          <Field label="Kategori" wide>
+            <DarkMultiSelect leftSection={<IconTag size={15} />} placeholder={scope.categories.length ? "" : "Semua kategori"}
+              data={options.categories} value={scope.categories} onChange={(categories) => update({ categories })} />
+          </Field>
+        </div>
       </div>
 
+      <ScopePreview scope={scope} />
+
       <div className={classes.createFoot}>
+        <button type="button" className={classes.ghostLink} onClick={() => setScope(OPEN_SCOPE)}>Reset parameter</button>
         <Link href="/api-keys" className={classes.ghostLink}>Batal</Link>
         <button type="submit" className={classes.primary} disabled={busy || name.trim().length < 2}>
           <IconKey size={16} />{busy ? "Membuat…" : "Buat kunci"}
@@ -69,7 +142,8 @@ function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
 
 function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: () => void }) {
   const origin = useOrigin();
-  const example = `curl -H "Authorization: Bearer ${created.key}" \\\n  "${origin}/api/v1/media/online?size=10"`;
+  const type = created.scope.types[0] ?? "online";
+  const example = `curl -H "Authorization: Bearer ${created.key}" \\\n  "${origin}/api/v1/media/${type}?size=10"`;
   return (
     <div className={classes.created}>
       <div className={classes.createdHead}>
@@ -90,10 +164,7 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
         </CopyButton>
       </div>
 
-      <div className={classes.preview}>
-        <span className={classes.sectionLabel}><IconDatabase size={13} />Cakupan data</span>
-        <KeywordChips keywords={created.keywords} />
-      </div>
+      <ScopePreview scope={created.scope} />
 
       <span className={classes.sectionLabel}>Coba langsung</span>
       <pre className={classes.example}>{example}</pre>
@@ -106,7 +177,7 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
   );
 }
 
-/** /api-keys/new — create a key, then show its value once. */
+/** /api-keys/new — create a key with its keywords and fixed scope, then show its value once. */
 export function CreateApiKey() {
   const [created, setCreated] = useState<CreatedKey | null>(null);
 
@@ -124,7 +195,7 @@ export function CreateApiKey() {
 
       <header className={classes.titleRow}>
         <h1>{created ? "Kunci berhasil dibuat" : "Buat kunci API"}</h1>
-        <p>{created ? "Langkah terakhir: salin kuncinya." : "Beri akses baca ke aplikasi lain, dibatasi dengan kata kunci."}</p>
+        <p>{created ? "Langkah terakhir: salin kuncinya." : "Beri akses baca ke aplikasi lain, dibatasi dengan kata kunci dan parameter cakupan."}</p>
       </header>
 
       <div className={classes.createLayout}>

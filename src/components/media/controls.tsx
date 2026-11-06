@@ -1,6 +1,6 @@
 "use client";
 // Form controls styled for the dark filter surfaces.
-import { Select, type SelectProps } from "@mantine/core";
+import { MultiSelect, Select, type MultiSelectProps, type SelectProps } from "@mantine/core";
 import classes from "./controls.module.css";
 
 export type Option<T extends string> = { value: T; label: string };
@@ -61,5 +61,19 @@ export function DateRange({ from, to, onChange }: { from: string; to: string; on
         <input type="date" value={to} min={from || undefined} onChange={(e) => onChange({ from, to: e.currentTarget.value })} />
       </label>
     </div>
+  );
+}
+
+/** Searchable multi-select with the dark theme. */
+export function DarkMultiSelect(props: MultiSelectProps) {
+  return (
+    <MultiSelect
+      searchable
+      clearable
+      hidePickedOptions
+      classNames={{ input: classes.selectInput, section: classes.selectSection, dropdown: classes.selectDropdown, option: classes.selectOption, pill: classes.selectPill, inputField: classes.selectField }}
+      comboboxProps={{ withinPortal: true, zIndex: 400, transitionProps: { transition: "pop", duration: 160 } }}
+      {...props}
+    />
   );
 }

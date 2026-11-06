@@ -62,6 +62,7 @@ const FIELDS: [string, string, string][] = [
 const ERRORS: [number, string, string][] = [
   [200, "OK", "Berhasil"],
   [401, "Unauthorized", "Kunci tidak ada, salah, atau sudah dicabut"],
+  [403, "Forbidden", "Kunci tidak punya akses ke jenis media ini"],
   [404, "Not Found", "Jenis bukan social / online"],
   [502, "Bad Gateway", "Sumber data tidak bisa dihubungi"],
 ];
@@ -216,7 +217,7 @@ const { items, total, capped } = await res.json();`;
               <IconTag size={18} />
               <div>
                 <b>Cakupan kata kunci</b>
-                <p>Respons hanya berisi item yang menyebut salah satu kata kunci milik kunci tersebut (isi post untuk media sosial, judul untuk berita). Frasa multi-kata dicocokkan utuh, dan &ldquo;polisi tidur&rdquo; tidak dihitung sebagai &ldquo;polisi&rdquo;. Kunci tanpa kata kunci membaca seluruh bank. Cakupan ini tidak bisa dilewati lewat parameter.</p>
+                <p>Respons hanya berisi item yang menyebut salah satu kata kunci milik kunci tersebut (isi post untuk media sosial, judul untuk berita). Frasa multi-kata dicocokkan utuh, dan &ldquo;polisi tidur&rdquo; tidak dihitung sebagai &ldquo;polisi&rdquo;. Kunci tanpa kata kunci membaca seluruh bank. Kunci juga bisa dikunci ke jenis media, status analisis, relevansi, bahasa, provinsi, kategori, atau intensitas minimal. Parameter permintaan hanya bisa mempersempit cakupan ini, tidak bisa melewatinya.</p>
               </div>
             </div>
           </Section>

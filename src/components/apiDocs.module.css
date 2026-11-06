@@ -92,7 +92,7 @@
 .scope[data-scope="online"] { color: var(--mantine-color-cyan-9); background: var(--mantine-color-cyan-1); }
 
 /* Status codes */
-.statuses { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.statuses { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .status { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 16px; background: var(--mantine-color-gray-0); border: 1px solid var(--mantine-color-default-border); }
 .status b { font: 800 22px ui-monospace, monospace; color: var(--mantine-color-red-6); }
 .status[data-ok] b { color: var(--mantine-color-teal-6); }

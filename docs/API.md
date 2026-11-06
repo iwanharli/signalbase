@@ -36,7 +36,19 @@ Setiap kunci punya daftar kata kunci (diatur saat dibuat). Respons hanya berisi 
 - `polisi` tidak cocok dengan frasa "polisi tidur".
 - Kunci **tanpa** kata kunci membaca seluruh bank.
 
-Cakupan ini berlaku untuk daftar item maupun ringkasan, dan tidak bisa dilewati lewat parameter.
+Selain kata kunci, kunci bisa diberi **parameter cakupan tetap** saat dibuat:
+
+| Parameter | Efek |
+|---|---|
+| Jenis media | Hanya `social` atau hanya `online`. Jenis lain → `403`. |
+| Status analisis | Hanya item yang sudah punya label emosi/sentimen. |
+| Relevansi AI | Hanya relevan / include / watchlist (media sosial). |
+| Bahasa | Hanya Indonesia, atau hanya bahasa lain. |
+| Provinsi | Satu atau beberapa provinsi. |
+| Kategori | Satu atau beberapa kategori. |
+| Intensitas emosi min. | Hanya emosi dengan intensitas ≥ nilai (media sosial). |
+
+Cakupan berlaku untuk daftar item maupun ringkasan dan diterapkan **di atas** parameter permintaan: aplikasi masih bisa mempersempit hasil lewat parameter filter, tetapi tidak bisa melewati batas kunci (mis. kunci khusus Jawa Barat yang meminta `province=31` mendapat hasil kosong).
 
 ---
 
@@ -185,6 +197,7 @@ Nama akun, username, dan jumlah follower **tidak pernah** dikirim.
 |---|---|
 | `200` | Berhasil |
 | `401` | Kunci tidak ada, salah, atau dicabut — `{ "error": "Kunci API tidak valid" }` |
+| `403` | Kunci tidak punya akses ke jenis media yang diminta |
 | `404` | `type` bukan `social`/`online` |
 | `502` | Sumber data tidak bisa dihubungi — `{ "error": "Sumber data tidak bisa dihubungi" }` |
 

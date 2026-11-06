@@ -1,4 +1,5 @@
 // Reading posts and articles from the source database.
+import type { KeyScope } from "@/lib/media/keyScope";
 import type { Analysis, MediaItem, MediaType, Relevance } from "@/lib/media/types";
 import { bankPool } from "./pool";
 import { buildWhere, COLUMNS } from "./query";
@@ -79,9 +80,9 @@ export async function fetchItemsByCode(type: MediaType, codes: string[]): Promis
 }
 
 /** `limit` matching items starting at `offset`, newest first unless sort=oldest. */
-export async function listItems(type: MediaType, params: URLSearchParams, keywords: string[], { limit, offset }: { limit: number; offset: number }) {
+export async function listItems(type: MediaType, params: URLSearchParams, scope: KeyScope, { limit, offset }: { limit: number; offset: number }) {
   const c = COLUMNS[type];
-  const { where, values } = buildWhere(type, params, keywords);
+  const { where, values } = buildWhere(type, params, scope);
   const direction = params.get("sort") === "oldest" ? "ASC" : "DESC";
   const { rows } = await bankPool().query<{ code: string }>(
     `SELECT ${c.code} code FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} ${direction} LIMIT ${Math.floor(limit)} OFFSET ${Math.floor(offset)}`,

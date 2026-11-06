@@ -1,4 +1,5 @@
 // Counts and aggregates over the source database. All results are cached because the tables hold millions of rows.
+import type { KeyScope } from "@/lib/media/keyScope";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { createCache } from "./cache";
 import { bankPool, withLongTimeout } from "./pool";
@@ -13,9 +14,9 @@ const moodCache = createCache<MoodCount[]>({ ttlMs: 2 * 60_000, maxEntries: 100 
 const dailyCache = createCache<DailyCount[]>({ ttlMs: 5 * 60_000, maxEntries: 10 });
 
 /** Exact number of matches. Can take ~20 s on the full social table, so it gets a 90 s timeout. */
-export function countExact(type: MediaType, params: URLSearchParams, keywords: string[]) {
-  return exactCountCache(filterKey(type, params, keywords), () => {
-    const { where, values } = buildWhere(type, params, keywords);
+export function countExact(type: MediaType, params: URLSearchParams, scope: KeyScope) {
+  return exactCountCache(filterKey(type, params, scope), () => {
+    const { where, values } = buildWhere(type, params, scope);
     return withLongTimeout(90_000, async (client) => {
       const { rows } = await client.query<{ n: string }>(`SELECT count(*) n FROM ${COLUMNS[type].from} WHERE ${where}`, values);
       return Number(rows[0].n);
@@ -24,9 +25,9 @@ export function countExact(type: MediaType, params: URLSearchParams, keywords: s
 }
 
 /** Number of matches up to COUNT_CAP; `capped` is true when there are at least that many. Fast enough per API request. */
-export function countCapped(type: MediaType, params: URLSearchParams, keywords: string[]) {
-  return cappedCountCache(filterKey(type, params, keywords), async () => {
-    const { where, values } = buildWhere(type, params, keywords);
+export function countCapped(type: MediaType, params: URLSearchParams, scope: KeyScope) {
+  return cappedCountCache(filterKey(type, params, scope), async () => {
+    const { where, values } = buildWhere(type, params, scope);
     const { rows } = await bankPool().query<{ n: number }>(
       `SELECT count(*)::int n FROM (SELECT 1 FROM ${COLUMNS[type].from} WHERE ${where} LIMIT ${COUNT_CAP}) t`, values);
     return { total: rows[0].n, capped: rows[0].n >= COUNT_CAP };
@@ -34,10 +35,10 @@ export function countCapped(type: MediaType, params: URLSearchParams, keywords: 
 }
 
 /** Matches per emotion (social) or sentiment (online), over the newest COUNT_CAP matches. */
-export function moodBreakdown(type: MediaType, params: URLSearchParams, keywords: string[]) {
-  return moodCache(filterKey(type, params, keywords), async () => {
+export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: KeyScope) {
+  return moodCache(filterKey(type, params, scope), async () => {
     const c = COLUMNS[type];
-    const { where, values } = buildWhere(type, params, keywords);
+    const { where, values } = buildWhere(type, params, scope);
     const { rows } = await bankPool().query<MoodCount>(
       `SELECT value, count(*)::int n FROM (
          SELECT lower(${c.mood}) value FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} DESC LIMIT ${COUNT_CAP}

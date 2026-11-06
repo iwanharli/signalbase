@@ -36,3 +36,8 @@
 .date small { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.45); }
 .date input { width: 100%; min-width: 0; border: 0; outline: 0; padding: 0; background: none; color: #fff; font: 600 13px inherit; font-family: inherit; color-scheme: dark; }
 .date input::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; margin-left: 2px; }
+/* Multi-select: grows with its pills instead of a fixed height */
+.selectPill { color: #fff !important; font-weight: 700; background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,211,238,.7)) !important; }
+.selectField { color: #fff !important; }
+.selectField::placeholder { color: rgba(255,255,255,.5) !important; }
+:global(.mantine-MultiSelect-input).selectInput { height: auto !important; min-height: var(--control-height, 44px) !important; padding-top: 5px; padding-bottom: 5px; }
