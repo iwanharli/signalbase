@@ -19,7 +19,7 @@ cp .env.example .env      # isi DATABASE_URL, BANKKOMEN_DATABASE_URL, AUTH_SECRE
 createdb signalbase
 npm install
 npx prisma db push && npm run db:seed
-npm run dev               # http://localhost:3100
+./run.sh                  # atau: npm run dev → http://localhost:3100
 ```
 
 Stack: Next.js 15, PostgreSQL + Prisma, Mantine 7.
