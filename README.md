@@ -142,7 +142,8 @@ npm run dev                   # http://localhost:3100
 | Ringkasan | `/` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
-| Kunci API | `/api-keys` | Kelola kunci dan kata kuncinya. |
+| Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
+| Buat kunci | `/api-keys/new` | Form nama + kata kunci; kunci ditampilkan sekali beserta contoh curl. |
 | Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait
@@ -236,7 +237,7 @@ src/
 │   ├── (panel)/                  Halaman panel (dilindungi sesi)
 │   │   ├── page.tsx              Ringkasan
 │   │   ├── media/[type]/         Media Sosial / Media Online
-│   │   ├── api-keys/             Kunci API
+│   │   ├── api-keys/             Kunci API (daftar) · api-keys/new (buat kunci)
 │   │   └── docs/                 Dokumentasi API
 │   ├── login/                    Halaman login
 │   └── api/
@@ -258,7 +259,8 @@ src/
 │   │   └── controls.tsx          Kontrol form bertema gelap
 │   ├── Overview.tsx              Halaman Ringkasan
 │   ├── Shell.tsx                 Topbar & tata letak
-│   ├── ApiKeys.tsx / ApiDocs.tsx
+│   ├── apiKeys/                  Daftar kunci (ApiKeyList) dan halaman buat kunci (CreateApiKey)
+│   ├── ApiDocs.tsx
 │   └── Logo.tsx
 ├── lib/
 │   ├── media/                    Dipakai client & server
