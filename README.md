@@ -145,6 +145,9 @@ npm run dev                   # http://localhost:3100
 | Media Online | `/media/online` | Jelajah berita. |
 | Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
 | Buat kunci | `/api-keys/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
+| Detail kunci | `/api-keys/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
+| Kategorisasi AI kunci | `/api-keys/[id]/ai` | Penyedia, prompt, kategori, batas harian, progres, dan sebaran per kategori. |
+| Pengaturan AI | `/settings/ai` | Penyedia AI (Claude, DeepSeek, OpenAI, kompatibel OpenAI) dan uji koneksi. |
 | Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait

@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAdjustmentsHorizontal, IconArrowRight, IconClock, IconRobot, IconKey, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconArrowRight, IconClock, IconKey, IconPencil, IconRobot, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
@@ -17,10 +17,10 @@ function KeyCard({ apiKey, onRevoke, provinceName }: { apiKey: ApiKeyRow; onRevo
     <article className={classes.card} data-revoked={revoked || undefined}>
       <header className={classes.cardHead}>
         <span className={classes.cardIcon} data-live={(!revoked && recent) || undefined}><IconPlugConnected size={18} /></span>
-        <div className={classes.cardTitle}>
+        <Link href={`/api-keys/${apiKey.id}`} className={`${classes.cardTitle} ${classes.cardTitleLink}`}>
           <b>{apiKey.name}</b>
           <code>{apiKey.prefix}••••••••</code>
-        </div>
+        </Link>
         <span className={classes.status} data-state={revoked ? "revoked" : recent ? "live" : "idle"}>
           {revoked ? "Dicabut" : recent ? "Aktif dipakai" : "Aktif"}
         </span>
@@ -52,7 +52,10 @@ function KeyCard({ apiKey, onRevoke, provinceName }: { apiKey: ApiKeyRow; onRevo
         {revoked && <div><dt>Dicabut</dt><dd>{formatDate(apiKey.revokedAt!)}</dd></div>}
       </dl>
 
-      {!revoked && <button type="button" className={classes.revoke} onClick={() => onRevoke(apiKey)}><IconShieldOff size={15} />Cabut kunci</button>}
+      <div className={classes.cardActions}>
+        <Link href={`/api-keys/${apiKey.id}`} className={classes.editLink}><IconPencil size={15} />{revoked ? "Lihat detail" : "Lihat & edit"}</Link>
+        {!revoked && <button type="button" className={classes.revoke} onClick={() => onRevoke(apiKey)}><IconShieldOff size={15} />Cabut kunci</button>}
+      </div>
     </article>
   );
 }
