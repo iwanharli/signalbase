@@ -67,7 +67,7 @@ export function StatsBar({ type, filters, total, totalError, shown, moods, busy,
   busy: boolean;
   onMoodChange: (mood: string | null) => void;
 }) {
-  const Icon = type === "sosial" ? IconMessages : IconWorldWww;
+  const Icon = type === "social" ? IconMessages : IconWorldWww;
   return (
     <section className={classes.bar} data-busy={busy || undefined}>
       <div className={classes.identity}><span className={classes.icon}><Icon size={18} /></span>{MEDIA_TYPE_LABEL[type]}</div>

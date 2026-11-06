@@ -51,7 +51,7 @@ export function moodBreakdown(type: MediaType, params: URLSearchParams, keywords
 /** Items per calendar day over the last `days` days (whole bank, no filters), oldest first. */
 export function dailyVolume(type: MediaType, days = 14) {
   return dailyCache(`${type}|${days}`, async () => {
-    const [table, ts] = type === "sosial" ? ["post_main", "post_timestamps"] : ["news_main", "news_timestamp"];
+    const [table, ts] = type === "social" ? ["post_main", "post_timestamps"] : ["news_main", "news_timestamp"];
     const { rows } = await bankPool().query<DailyCount>(
       `SELECT to_char(${ts}::date, 'YYYY-MM-DD') AS day, count(*)::int AS n FROM ${table}
        WHERE ${ts} >= current_date - ${Math.floor(days) - 1} AND ${ts} <= now() GROUP BY 1 ORDER BY 1`);

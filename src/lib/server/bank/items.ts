@@ -12,12 +12,12 @@ const toStrings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x 
 // Both selects return the same column names so one mapper handles either type.
 // Author, username, post URL and follower counts are deliberately never read.
 const SELECT = {
-  sosial: `
+  social: `
     p.post_code code, p.post_source source, NULL title, p.post_content content, NULL url, NULL image, p.post_timestamps ts,
     p.post_type "postType", p.additional_data extra, a.category, a.location, lower(a.emotion) mood, a.emotion_level "moodLevel", pr.name province,
     a.id analysis_id, a.summaries summary, a.emotion_target target, a.emotion_score score, a.signal signals, a.factors,
     a.dashboard dashboards, a.status_filter relevance, NULL topics
-    FROM ${COLUMNS.sosial.from} LEFT JOIN region_indonesia_provinces pr ON pr.province_code = a.province_id::text
+    FROM ${COLUMNS.social.from} LEFT JOIN region_indonesia_provinces pr ON pr.province_code = a.province_id::text
     WHERE p.post_code = ANY($1)`,
   online: `
     n.news_code code, n.news_source source, n.news_title title, n.news_preview content, n.news_url url, n.news_image image, n.news_timestamp ts,

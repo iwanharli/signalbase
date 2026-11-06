@@ -9,10 +9,10 @@ import classes from "./shell.module.css";
 
 const NAV = [
   { href: "/", label: "Ringkasan", icon: IconLayoutDashboard },
-  { href: "/media/sosial", label: "Media Sosial", icon: IconMessages },
+  { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
-  { href: "/kunci-api", label: "Kunci API", icon: IconKey },
-  { href: "/dokumentasi", label: "Dokumentasi", icon: IconBook2 },
+  { href: "/api-keys", label: "Kunci API", icon: IconKey },
+  { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
 ];
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 

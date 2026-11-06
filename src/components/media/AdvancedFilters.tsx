@@ -53,7 +53,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
   total: number | null;
 }) {
   useEscape(open && escapeEnabled, onClose);
-  const social = type === "sosial";
+  const social = type === "social";
   const unanalyzed = filters.analyzed === "no";
 
   return (

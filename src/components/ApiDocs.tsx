@@ -8,7 +8,7 @@ import classes from "./apiDocs.module.css";
 
 // ── Content ────────────────────────────────────────────────────────────────────
 
-type Scope = "all" | "sosial" | "online";
+type Scope = "all" | "social" | "online";
 type Param = { name: string; values: string; description: string; scope?: Scope };
 
 const PARAM_GROUPS: { title: string; params: Param[] }[] = [
@@ -36,9 +36,9 @@ const PARAM_GROUPS: { title: string; params: Param[] }[] = [
   {
     title: "Khusus jenis media",
     params: [
-      { name: "relevance", values: "relevant | include | watchlist | exclude", description: "Penilaian relevansi AI; relevant = semua kecuali exclude", scope: "sosial" },
-      { name: "postType", values: "post | reply | quote | repost", description: "Jenis post", scope: "sosial" },
-      { name: "level", values: "1–5", description: "Intensitas emosi minimal", scope: "sosial" },
+      { name: "relevance", values: "relevant | include | watchlist | exclude", description: "Penilaian relevansi AI; relevant = semua kecuali exclude", scope: "social" },
+      { name: "postType", values: "post | reply | quote | repost", description: "Jenis post", scope: "social" },
+      { name: "level", values: "1–5", description: "Intensitas emosi minimal", scope: "social" },
       { name: "image", values: "yes", description: "Hanya berita bergambar", scope: "online" },
     ],
   },
@@ -46,7 +46,7 @@ const PARAM_GROUPS: { title: string; params: Param[] }[] = [
 
 const FIELDS: [string, string, string][] = [
   ["id", "string", "Kode unik item"],
-  ["type", "sosial | online", "Jenis media"],
+  ["type", "social | online", "Jenis media"],
   ["source", "string", "Platform atau kode media"],
   ["title", "string | null", "Judul (berita)"],
   ["content", "string | null", "Isi post / cuplikan berita"],
@@ -62,7 +62,7 @@ const FIELDS: [string, string, string][] = [
 const ERRORS: [number, string, string][] = [
   [200, "OK", "Berhasil"],
   [401, "Unauthorized", "Kunci tidak ada, salah, atau sudah dicabut"],
-  [404, "Not Found", "Jenis bukan sosial / online"],
+  [404, "Not Found", "Jenis bukan social / online"],
   [502, "Bad Gateway", "Sumber data tidak bisa dihubungi"],
 ];
 
@@ -170,8 +170,8 @@ export function ApiDocs() {
   const active = useActiveSection();
   const endpoint = `${origin}/api/v1/media`;
   const listExample = `curl -H "Authorization: Bearer $SIGNALBASE_KEY" \\\n  "${endpoint}/online?from=2026-11-01&mood=negative&size=50"`;
-  const summaryExample = `curl -H "x-api-key: $SIGNALBASE_KEY" \\\n  "${endpoint}/sosial?view=summary&from=2026-10-31"`;
-  const fetchExample = `const res = await fetch("${endpoint}/sosial?relevance=relevant&level=4", {
+  const summaryExample = `curl -H "x-api-key: $SIGNALBASE_KEY" \\\n  "${endpoint}/social?view=summary&from=2026-10-31"`;
+  const fetchExample = `const res = await fetch("${endpoint}/social?relevance=relevant&level=4", {
   headers: { Authorization: \`Bearer \${process.env.SIGNALBASE_KEY}\` },
 });
 if (!res.ok) throw new Error((await res.json()).error);
@@ -187,7 +187,7 @@ const { items, total, capped } = await res.json();`;
           <p>Baca post media sosial dan berita online dari bank data, lengkap dengan analisis AI. Setiap kunci hanya melihat data yang sesuai kata kuncinya.</p>
           <div className={classes.baseUrl}>
             <span className={classes.method}>GET</span>
-            <code>{endpoint}/<b>{"{sosial|online}"}</b></code>
+            <code>{endpoint}/<b>{"{social|online}"}</b></code>
             <Copy value={`${endpoint}/`} label="Salin URL" />
           </div>
         </div>
@@ -223,7 +223,7 @@ const { items, total, capped } = await res.json();`;
 
           <Section id="endpoints" icon={IconRoute} title="Endpoint">
             <article className={classes.endpoint}>
-              <header><span className={classes.method}>GET</span><code>/api/v1/media/{"{sosial|online}"}</code></header>
+              <header><span className={classes.method}>GET</span><code>/api/v1/media/{"{social|online}"}</code></header>
               <p>Daftar item terpaginasi, terbaru lebih dulu. Menerima semua parameter filter.</p>
               <div className={classes.split}>
                 <CodeBlock language="bash" code={listExample} />
@@ -233,8 +233,8 @@ const { items, total, capped } = await res.json();`;
             </article>
 
             <article className={classes.endpoint}>
-              <header><span className={classes.method}>GET</span><code>/api/v1/media/{"{sosial|online}"}<b>?view=summary</b></code></header>
-              <p>Total dan sebaran emosi (sosial) atau sentimen (online) untuk filter yang sama.</p>
+              <header><span className={classes.method}>GET</span><code>/api/v1/media/{"{social|online}"}<b>?view=summary</b></code></header>
+              <p>Total dan sebaran emosi (social) atau sentimen (online) untuk filter yang sama.</p>
               <div className={classes.split}>
                 <CodeBlock language="bash" code={summaryExample} />
                 <CodeBlock language="json · 200" code={SUMMARY_RESPONSE} />

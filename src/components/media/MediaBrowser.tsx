@@ -32,7 +32,7 @@ function ScrollTopButton() {
   );
 }
 
-/** Browse every post (sosial) or article (online) in the bank, with filters, infinite scroll and a detail modal. */
+/** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal. */
 export function MediaBrowser({ type }: { type: MediaType }) {
   const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
   const feed = useMediaFeed(type, query);

@@ -1,10 +1,13 @@
 // Shared media types, safe to import from both server and client code.
 
-// URL segment and API value for each media kind. "sosial" is kept as-is because it is part of
-// the public API contract (/api/v1/media/sosial) used by other applications.
-export const MEDIA_TYPES = ["sosial", "online"] as const;
+// URL segment and API value for each media kind.
+export const MEDIA_TYPES = ["social", "online"] as const;
 export type MediaType = (typeof MEDIA_TYPES)[number];
 export const isMediaType = (value: string): value is MediaType => (MEDIA_TYPES as readonly string[]).includes(value);
+
+// Earlier releases used the Indonesian "sosial"; the public API still accepts it.
+const LEGACY_TYPES: Record<string, MediaType> = { sosial: "social" };
+export const resolveMediaType = (value: string): MediaType | null => (isMediaType(value) ? value : LEGACY_TYPES[value] ?? null);
 
 export type Relevance = "include" | "watchlist" | "exclude";
 

@@ -16,7 +16,7 @@ dayjs.extend(relativeTime);
 
 type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 type ApiKeySummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
-type OverviewStats = { sosial: TypeStats; online: TypeStats; keys: ApiKeySummary[]; at: string };
+type OverviewStats = { social: TypeStats; online: TypeStats; keys: ApiKeySummary[]; at: string };
 
 const CHART_DAYS = 14;
 const LEGEND_SIZE = 6;
@@ -24,7 +24,7 @@ const RECENTLY_USED_MS = 60 * 60_000;
 const COUNT_UP_MS = 1100;
 
 const TYPE_STYLE = {
-  sosial: { icon: IconMessages, from: "#7c3aed", to: "#c084fc" },
+  social: { icon: IconMessages, from: "#7c3aed", to: "#c084fc" },
   online: { icon: IconWorldWww, from: "#0891b2", to: "#22d3ee" },
 } as const;
 const KEYS_STYLE = { from: "#059669", to: "#34d399" };
@@ -125,7 +125,7 @@ function TypePanel({ type, stats }: { type: MediaType; stats?: TypeStats }) {
 /** Newest items of both types, merged by time. */
 function LatestFeed({ stats }: { stats: OverviewStats | null }) {
   const items = stats
-    ? [...stats.sosial.latest.map((item) => ({ item, type: "sosial" as const })), ...stats.online.latest.map((item) => ({ item, type: "online" as const }))]
+    ? [...stats.social.latest.map((item) => ({ item, type: "social" as const })), ...stats.online.latest.map((item) => ({ item, type: "online" as const }))]
       .sort((a, b) => b.item.publishedAt.localeCompare(a.item.publishedAt))
     : [];
   return (
@@ -159,7 +159,7 @@ function ConnectedApps({ keys }: { keys: ApiKeySummary[] | null }) {
     <section className={classes.panel}>
       <header className={classes.panelHead}>
         <div><h3>Aplikasi terhubung</h3><p>Kunci API aktif dan cakupannya</p></div>
-        <Link href="/kunci-api" className={classes.more}>Kelola <IconArrowRight size={14} /></Link>
+        <Link href="/api-keys" className={classes.more}>Kelola <IconArrowRight size={14} /></Link>
       </header>
       <div className={classes.keys}>
         {!keys && <Skeleton h={120} radius="md" />}
@@ -194,9 +194,9 @@ export function Overview() {
           <p>Arus post media sosial dan berita online yang dibuka untuk aplikasi lain lewat kunci API.{data && <> Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</>}</p>
         </div>
         <div className={classes.tiles}>
-          <VolumeTile type="sosial" stats={data?.sosial} />
+          <VolumeTile type="social" stats={data?.social} />
           <VolumeTile type="online" stats={data?.online} />
-          <Link href="/kunci-api" className={classes.tile} style={gradientVars(KEYS_STYLE)}>
+          <Link href="/api-keys" className={classes.tile} style={gradientVars(KEYS_STYLE)}>
             <span className={classes.tileIcon}><IconKey size={20} /></span>
             <span className={classes.tileLabel}>Kunci API aktif</span>
             <b className={classes.tileValue}>{data ? <CountUp value={data.keys.length} /> : "—"}</b>
@@ -208,7 +208,7 @@ export function Overview() {
       {error && <Alert color="red" mb="lg">{error}</Alert>}
 
       <div className={classes.two}>
-        <TypePanel type="sosial" stats={data?.sosial} />
+        <TypePanel type="social" stats={data?.social} />
         <TypePanel type="online" stats={data?.online} />
       </div>
 

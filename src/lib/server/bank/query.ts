@@ -4,7 +4,7 @@ import type { MediaType } from "@/lib/media/types";
 
 /** Table aliases and columns per media type. Social: post_main p + post_analyses a; news: news_main n + news_analyses a. */
 export const COLUMNS = {
-  sosial: {
+  social: {
     from: "post_main p LEFT JOIN post_analyses a ON a.post_id = p.id",
     code: "p.post_code", timestamp: "p.post_timestamps", search: "p.post_content_tsv", source: "p.post_source",
     language: "p.post_language", mood: "a.emotion", category: "a.category",
@@ -43,7 +43,7 @@ export const filterKey = (type: MediaType, params: URLSearchParams, keywords: st
 /** WHERE clause and bound values for the given filters and API-key keywords. */
 export function buildWhere(type: MediaType, params: URLSearchParams, keywords: string[]) {
   const c = COLUMNS[type];
-  const social = type === "sosial";
+  const social = type === "social";
   const values: unknown[] = [];
   const bind = (value: unknown) => `$${values.push(value)}`;
   const where: string[] = [];

@@ -21,8 +21,8 @@ export const GET = adminRoute(async () => {
   };
 
   try {
-    const [sosial, online, keys] = await Promise.all([
-      typeStats("sosial"),
+    const [social, online, keys] = await Promise.all([
+      typeStats("social"),
       typeStats("online"),
       prisma.apiKey.findMany({
         where: { revokedAt: null },
@@ -30,7 +30,7 @@ export const GET = adminRoute(async () => {
         select: { id: true, name: true, keywords: true, lastUsedAt: true },
       }),
     ]);
-    return NextResponse.json({ sosial, online, keys, at: new Date().toISOString() });
+    return NextResponse.json({ social, online, keys, at: new Date().toISOString() });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }

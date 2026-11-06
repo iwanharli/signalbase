@@ -88,7 +88,7 @@
 .param { white-space: nowrap; padding: 2px 7px; border-radius: 7px; font: 700 12.5px ui-monospace, monospace; color: #fff; background: linear-gradient(135deg, #6d28d9, #7c3aed); }
 .values { font: 500 12.5px ui-monospace, monospace; color: var(--mantine-color-cyan-9); }
 .scope { white-space: nowrap; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-1); }
-.scope[data-scope="sosial"] { color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-1); }
+.scope[data-scope="social"] { color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-1); }
 .scope[data-scope="online"] { color: var(--mantine-color-cyan-9); background: var(--mantine-color-cyan-1); }
 
 /* Status codes */

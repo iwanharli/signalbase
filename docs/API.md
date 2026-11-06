@@ -46,7 +46,7 @@ Cakupan ini berlaku untuk daftar item maupun ringkasan, dan tidak bisa dilewati 
 GET /api/v1/media/{type}
 ```
 
-`type`: `sosial` (post media sosial) atau `online` (berita online).
+`type`: `social` (post media sosial) atau `online` (berita online).
 
 | Parameter | Nilai | Default | Keterangan |
 |---|---|---|---|
@@ -92,7 +92,7 @@ Menerima parameter filter yang sama.
 }
 ```
 
-- `moods`: jumlah per emosi (sosial) atau sentimen (online), dari 10.000 item terbaru yang cocok, urut terbanyak.
+- `moods`: jumlah per emosi (social) atau sentimen (online), dari 10.000 item terbaru yang cocok, urut terbanyak.
 - `moods` **mengabaikan** filter `mood` agar semua bagian tetap terlihat; `total` tetap mengikutinya.
 
 ---
@@ -109,9 +109,9 @@ Menerima parameter filter yang sama.
 | `lang` | `id` \| `other` | semua | Hanya bahasa Indonesia / selain Indonesia |
 | `province` | kode BPS | semua | Mis. `31` DKI Jakarta, `32` Jawa Barat, `35` Jawa Timur |
 | `category` | teks | semua | Kategori, mis. `politik`, `hukum`, `kamtibmas` |
-| `relevance` | `relevant` \| `include` \| `watchlist` \| `exclude` | sosial | Penilaian relevansi AI. `relevant` = semua kecuali `exclude` |
-| `postType` | `post` \| `reply` \| `quote` \| `repost` | sosial | Jenis post |
-| `level` | 1–5 | sosial | Intensitas emosi minimal |
+| `relevance` | `relevant` \| `include` \| `watchlist` \| `exclude` | social | Penilaian relevansi AI. `relevant` = semua kecuali `exclude` |
+| `postType` | `post` \| `reply` \| `quote` \| `repost` | social | Jenis post |
+| `level` | 1–5 | social | Intensitas emosi minimal |
 | `image` | `yes` | online | Hanya berita bergambar |
 
 Parameter yang tidak dikirim tidak menyaring apa pun. Post bertipe `spam` dan item dengan tanggal tidak wajar (sebelum 2010 atau di masa depan) selalu disembunyikan.
@@ -153,29 +153,29 @@ Parameter yang tidak dikirim tidak menyaring apa pun. Post bertipe `spam` dan it
 | Field | Tipe | Keterangan |
 |---|---|---|
 | `id` | string | Kode unik di bankkomen |
-| `type` | `sosial` \| `online` | |
+| `type` | `social` \| `online` | |
 | `source` | string | Platform atau kode media |
 | `title` | string \| null | Judul (hanya berita) |
 | `content` | string \| null | Isi post / cuplikan berita |
 | `url` | string \| null | Tautan berita. **Selalu null untuk media sosial** (privasi) |
 | `image` | string \| null | Gambar berita (http/https saja) |
-| `postType` | string \| null | Jenis post (sosial) |
+| `postType` | string \| null | Jenis post (social) |
 | `category` | string \| null | Kategori |
 | `province` | string \| null | Nama provinsi |
-| `location` | string \| null | Lokasi yang disebut (sosial) |
+| `location` | string \| null | Lokasi yang disebut (social) |
 | `publishedAt` | ISO 8601 | Waktu terbit (UTC) |
-| `mood` | string \| null | Emosi (sosial) / sentimen (online), huruf kecil |
-| `moodLevel` | 1–5 \| null | Intensitas emosi (sosial) |
+| `mood` | string \| null | Emosi (social) / sentimen (online), huruf kecil |
+| `moodLevel` | 1–5 \| null | Intensitas emosi (social) |
 | `metrics` | objek | `likes`, `comments`, `shares`, `views`; null bila platform tidak menyediakan |
 | `analysis` | objek \| null | null bila item belum dianalisis |
-| `analysis.summary` | string \| null | Ringkasan/alasan AI (sosial) |
-| `analysis.target` | string \| null | Sasaran emosi, mis. "pemerintah" (sosial) |
-| `analysis.score` | number \| null | Skor emosi, negatif ↔ positif, kira-kira −3…+3 (sosial) |
-| `analysis.signals` | string[] | Penanda isi, mis. `sarkasme`, `lokasi`, `waktu` (sosial) |
+| `analysis.summary` | string \| null | Ringkasan/alasan AI (social) |
+| `analysis.target` | string \| null | Sasaran emosi, mis. "pemerintah" (social) |
+| `analysis.score` | number \| null | Skor emosi, negatif ↔ positif, kira-kira −3…+3 (social) |
+| `analysis.signals` | string[] | Penanda isi, mis. `sarkasme`, `lokasi`, `waktu` (social) |
 | `analysis.topics` | string[] | Topik berita (online) |
-| `analysis.factors` | objek \| null | Skor 1–5: `jenis`, `korban`, `pelaku`, `kerugian`, `intensitas` (sosial) |
-| `analysis.dashboards` | string[] | Label dashboard tujuan (sosial) |
-| `analysis.relevance` | `include` \| `watchlist` \| `exclude` \| null | Penilaian relevansi AI (sosial) |
+| `analysis.factors` | objek \| null | Skor 1–5: `jenis`, `korban`, `pelaku`, `kerugian`, `intensitas` (social) |
+| `analysis.dashboards` | string[] | Label dashboard tujuan (social) |
+| `analysis.relevance` | `include` \| `watchlist` \| `exclude` \| null | Penilaian relevansi AI (social) |
 
 Nama akun, username, dan jumlah follower **tidak pernah** dikirim.
 
@@ -187,7 +187,7 @@ Nama akun, username, dan jumlah follower **tidak pernah** dikirim.
 |---|---|
 | `200` | Berhasil |
 | `401` | Kunci tidak ada, salah, atau dicabut — `{ "error": "Kunci API tidak valid" }` |
-| `404` | `type` bukan `sosial`/`online` |
+| `404` | `type` bukan `social`/`online` |
 | `502` | Sumber data tidak bisa dihubungi — `{ "error": "Sumber data tidak bisa dihubungi" }` |
 
 Hasil hitungan di-cache ±2 menit per kombinasi filter; data baru bisa muncul dengan jeda tersebut pada `total`.
@@ -207,14 +207,14 @@ Post relevan berintensitas tinggi di DKI Jakarta:
 
 ```bash
 curl -H "x-api-key: $SIGNALBASE_KEY" \
-  "https://<host>/api/v1/media/sosial?relevance=relevant&level=4&province=31"
+  "https://<host>/api/v1/media/social?relevance=relevant&level=4&province=31"
 ```
 
 Sebaran emosi 7 hari terakhir:
 
 ```bash
 curl -H "x-api-key: $SIGNALBASE_KEY" \
-  "https://<host>/api/v1/media/sosial?view=summary&from=2026-10-31"
+  "https://<host>/api/v1/media/social?view=summary&from=2026-10-31"
 ```
 
 TypeScript:

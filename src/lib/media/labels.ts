@@ -1,9 +1,9 @@
 // User-facing labels (Indonesian) and small formatting helpers for media data.
 import type { MediaType, Relevance } from "./types";
 
-export const MEDIA_TYPE_LABEL: Record<MediaType, string> = { sosial: "Media Sosial", online: "Media Online" };
-export const MOOD_KIND_LABEL: Record<MediaType, string> = { sosial: "Emosi", online: "Sentimen" };
-export const SOURCE_KIND_LABEL: Record<MediaType, string> = { sosial: "Platform", online: "Media" };
+export const MEDIA_TYPE_LABEL: Record<MediaType, string> = { social: "Media Sosial", online: "Media Online" };
+export const MOOD_KIND_LABEL: Record<MediaType, string> = { social: "Emosi", online: "Sentimen" };
+export const SOURCE_KIND_LABEL: Record<MediaType, string> = { social: "Platform", online: "Media" };
 
 const PLATFORM_LABEL: Record<string, string> = {
   twitter: "X / Twitter", threads: "Threads", instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", youtube: "YouTube",

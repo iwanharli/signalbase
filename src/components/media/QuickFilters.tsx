@@ -52,7 +52,7 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
       <label className={classes.search}>
         <IconSearch size={18} />
         <input ref={searchRef} value={filters.search} onChange={(e) => onChange({ search: e.currentTarget.value })}
-          placeholder={type === "sosial" ? "Cari isi post…" : "Cari judul berita…"} />
+          placeholder={type === "social" ? "Cari isi post…" : "Cari judul berita…"} />
         {filters.search
           ? <button type="button" onClick={() => onChange({ search: "" })} aria-label="Hapus pencarian"><IconX size={15} /></button>
           : <kbd>/</kbd>}

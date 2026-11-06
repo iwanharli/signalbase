@@ -52,7 +52,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca bankkomen se
 - **Kunci API** — buat kunci (ditampilkan sekali), batasi dengan kata kunci, cabut, lihat terakhir dipakai.
 - **Dokumentasi API** — referensi endpoint di dalam panel.
 
-**API publik** `GET /api/v1/media/{sosial|online}` — daftar item terpaginasi atau ringkasan (`view=summary`), dibatasi kata kunci milik kunci API.
+**API publik** `GET /api/v1/media/{social|online}` — daftar item terpaginasi atau ringkasan (`view=summary`), dibatasi kata kunci milik kunci API.
 
 ---
 
@@ -139,10 +139,10 @@ npm run dev                   # http://localhost:3100
 |---|---|---|
 | Login | `/login` | Username & password admin. 5 kali gagal per 15 menit → dikunci sementara. |
 | Ringkasan | `/` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
-| Media Sosial | `/media/sosial` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
+| Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
-| Kunci API | `/kunci-api` | Kelola kunci dan kata kuncinya. |
-| Dokumentasi API | `/dokumentasi` | Referensi API di dalam panel. |
+| Kunci API | `/api-keys` | Kelola kunci dan kata kuncinya. |
+| Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait
 
@@ -236,8 +236,8 @@ src/
 │   ├── (panel)/                  Halaman panel (dilindungi sesi)
 │   │   ├── page.tsx              Ringkasan
 │   │   ├── media/[type]/         Media Sosial / Media Online
-│   │   ├── kunci-api/            Kunci API
-│   │   └── dokumentasi/          Dokumentasi API
+│   │   ├── api-keys/             Kunci API
+│   │   └── docs/                 Dokumentasi API
 │   ├── login/                    Halaman login
 │   └── api/
 │       ├── auth/                 login, logout
@@ -299,7 +299,7 @@ prisma/
 ## Konvensi
 
 - Nama di kode (fungsi, variabel, tipe, class CSS) memakai **bahasa Inggris**; teks yang tampil ke pengguna memakai **bahasa Indonesia**.
-- Nilai `sosial` / `online` dipertahankan karena bagian dari kontrak URL dan API publik.
+- Route dan nilai di URL/API juga berbahasa Inggris (`/media/social`, `/api-keys`, `/docs`). URL lama (`/kunci-api`, `/dokumentasi`, `/media/sosial`) dialihkan otomatis, dan API v1 tetap menerima `sosial` sebagai alias `social`.
 - Satu komponen = satu file; CSS Modules per komponen. Kontrol dan bagian yang dipakai ulang ada di `controls.tsx` / `itemParts.tsx`.
 - Logika domain (aturan filter, pemetaan kolom, label) berada di `lib/`, bukan di komponen.
 - Sebelum commit: `npx tsc --noEmit && npm run lint`.

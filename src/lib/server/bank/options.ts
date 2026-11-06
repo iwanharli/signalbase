@@ -9,7 +9,7 @@ const SENTIMENTS = ["positive", "neutral", "negative"];
 const POST_TYPES = ["post", "reply", "quote", "repost"];
 
 const QUERIES = {
-  sosial: {
+  social: {
     sources: `SELECT DISTINCT post_source value FROM post_main
               WHERE post_timestamps > now() - interval '30 days' AND post_source IS NOT NULL ORDER BY 1`,
     moods: `SELECT lower(emotion) value, count(*) n FROM post_analyses
@@ -44,7 +44,7 @@ export function filterOptions(type: MediaType): Promise<FilterOptions> {
       moods,
       categories: values(categories.rows),
       provinces: provinces.rows.map((r) => ({ value: String(r.value), label: r.label })),
-      postTypes: type === "sosial" ? POST_TYPES : [],
+      postTypes: type === "social" ? POST_TYPES : [],
     };
   });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isMediaType } from "@/lib/media/types";
+import { resolveMediaType } from "@/lib/media/types";
 import { apiRoute } from "@/lib/server/apiKey";
 import { countCapped, listItems, moodBreakdown } from "@/lib/server/bank";
 
@@ -9,12 +9,12 @@ const MAX_PAGE_SIZE = 100;
 type Context = { params: Promise<{ type: string }> };
 
 // Public read API over bankkomen, limited to the API key's keywords.
-//   GET /api/v1/media/{sosial|online}?from=&to=&q=&source=&mood=&sort=&page=&size=&…
-//   GET /api/v1/media/{sosial|online}?view=summary&…   total + split by mood
+//   GET /api/v1/media/{social|online}?from=&to=&q=&source=&mood=&sort=&page=&size=&…
+//   GET /api/v1/media/{social|online}?view=summary&…   total + split by mood
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
 export const GET = apiRoute(async (req: Request, { params }: Context, keywords: string[]) => {
-  const { type } = await params;
-  if (!isMediaType(type)) return NextResponse.json({ error: "Jenis tidak dikenal: pakai sosial atau online" }, { status: 404 });
+  const type = resolveMediaType((await params).type);
+  if (!type) return NextResponse.json({ error: "Jenis tidak dikenal: pakai social atau online" }, { status: 404 });
   const query = new URL(req.url).searchParams;
 
   try {

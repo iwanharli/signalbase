@@ -24,7 +24,7 @@ export type MediaFilters = {
 
 export const defaultFilters = (type: MediaType): MediaFilters => ({
   search: "", from: "", to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
-  province: null, category: null, relevance: type === "sosial" ? "relevant" : "", postType: "", minLevel: "", withImage: false,
+  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false,
 });
 
 /** Query-string parameters for the API. `search` must already be debounced/trimmed by the caller. */
