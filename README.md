@@ -308,6 +308,16 @@ prisma/
 
 ## Deploy produksi
 
+Produksi: **https://signalbase.kecup.in** — server bersama, kode di `/var/www/signalbase` (checkout git), PM2 `signalbase-3720` (127.0.0.1:3720), nginx `signalbase.kecup.in` di belakang Cloudflare. `.env` server tidak pernah ditimpa.
+
+Update dari mesin lokal (setelah commit):
+
+```bash
+./deploy.sh        # push main, lalu di server: pull, npm ci, prisma db push, build, restart PM2, cek login
+```
+
+Pemasangan dari nol:
+
 ```bash
 npm ci
 npx prisma db push

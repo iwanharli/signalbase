@@ -44,9 +44,11 @@
 }
 
 /* ── Advanced filter drawer: pushes the page on wide screens, overlays on small ones ── */
-.drawer { --drawer-width: 340px; position: sticky; top: 82px; z-index: 60; flex-shrink: 0; width: 0; height: calc(100vh - 96px); overflow: hidden;
+.drawer { --drawer-width: 340px; --drawer-top: 104px; --drawer-gap: 16px;
+  /* Sticks at its natural offset (the page top padding) so it never extends past the viewport, and keeps a gap below. */
+  position: sticky; top: var(--drawer-top); z-index: 60; flex-shrink: 0; width: 0;
+  height: calc(100vh - var(--drawer-top) - var(--drawer-gap)); height: calc(100dvh - var(--drawer-top) - var(--drawer-gap)); overflow: hidden;
   transition: width 480ms cubic-bezier(.22,1,.36,1), margin-right 480ms cubic-bezier(.22,1,.36,1); }
-:global(html[data-scrolled]) .drawer { top: 70px; height: calc(100vh - 84px); }
 .drawer[data-open] { width: var(--drawer-width); margin-right: 20px; }
 
 .panel { width: var(--drawer-width); height: 100%; display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; color: #fff;
