@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// A reviewed post or article. Approved items are a frozen snapshot, so consumers never depend on the source DB.
+model Item {
+  id          String   @id @default(uuid())
+  type        String // "sosial" | "online"
+  code        String // post_code / news_code in bankkomen
+  status      String // "approved" | "rejected"
+  source      String
+  title       String?
+  content     String?
+  url         String?
+  image       String?
+  postType    String?
+  category    String?
+  province    String?
+  location    String?
+  publishedAt DateTime
+  moodSource  String? // label from bankkomen analysis
+  mood        String? // final label (curator's correction, else source)
+  moodLevel   Int?
+  metrics     Json?
+  note        String?
+  reviewedBy  String
+  reviewedAt  DateTime @default(now())
+
+  @@unique([type, code])
+  @@index([type, status, publishedAt])
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  name       String
+  prefix     String
+  hash       String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+}
