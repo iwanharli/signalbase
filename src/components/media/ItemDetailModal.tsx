@@ -7,7 +7,7 @@ import "dayjs/locale/id";
 import { humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
-import { DashboardTags, FactorGrid, MetricList, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
+import { FactorGrid, MetricList, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
 import classes from "./modal.module.css";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -18,7 +18,7 @@ function AnalysisSection({ item, analysis, type }: { item: MediaItem; analysis: 
   const mood = item.mood ? moodInfo(item.mood) : null;
   const factors = numericFactors(analysis.factors);
   const tags = [...analysis.signals, ...analysis.topics];
-  const hasContent = analysis.summary || analysis.target || tags.length || analysis.score != null || factors.length || analysis.dashboards.length;
+  const hasContent = analysis.summary || analysis.target || tags.length || analysis.score != null || factors.length;
   if (!hasContent) return null;
 
   return (
@@ -35,7 +35,6 @@ function AnalysisSection({ item, analysis, type }: { item: MediaItem; analysis: 
         {analysis.relevance && <Row label="Relevansi">{RELEVANCE_LABEL[analysis.relevance]}</Row>}
         {analysis.score != null && <Row label="Skor emosi"><ScoreMeter score={analysis.score} /></Row>}
         {tags.length > 0 && <Row label={analysis.topics.length ? "Topik & sinyal" : "Sinyal"}><Tags values={tags} /></Row>}
-        {analysis.dashboards.length > 0 && <Row label="Dashboard"><DashboardTags values={analysis.dashboards} /></Row>}
       </div>
       {factors.length > 0 && <FactorGrid factors={factors} />}
     </section>

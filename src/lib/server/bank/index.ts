@@ -1,4 +1,4 @@
-// Read-only access to bankkomen (social posts and online news). Server-only.
+// Read-only access to the source database (social posts and online news). Server-only.
 //
 //   pool.ts     connection pool (read-only transactions)
 //   query.ts    filter parameters → SQL WHERE clause

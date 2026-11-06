@@ -144,7 +144,6 @@ Parameter yang tidak dikirim tidak menyaring apa pun. Post bertipe `spam` dan it
     "signals": [],
     "topics": ["hukum"],
     "factors": null,
-    "dashboards": [],
     "relevance": null
   }
 }
@@ -152,7 +151,7 @@ Parameter yang tidak dikirim tidak menyaring apa pun. Post bertipe `spam` dan it
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `id` | string | Kode unik di bankkomen |
+| `id` | string | Kode unik di database sumber |
 | `type` | `social` \| `online` | |
 | `source` | string | Platform atau kode media |
 | `title` | string \| null | Judul (hanya berita) |
@@ -174,7 +173,6 @@ Parameter yang tidak dikirim tidak menyaring apa pun. Post bertipe `spam` dan it
 | `analysis.signals` | string[] | Penanda isi, mis. `sarkasme`, `lokasi`, `waktu` (social) |
 | `analysis.topics` | string[] | Topik berita (online) |
 | `analysis.factors` | objek \| null | Skor 1–5: `jenis`, `korban`, `pelaku`, `kerugian`, `intensitas` (social) |
-| `analysis.dashboards` | string[] | Label dashboard tujuan (social) |
 | `analysis.relevance` | `include` \| `watchlist` \| `exclude` \| null | Penilaian relevansi AI (social) |
 
 Nama akun, username, dan jumlah follower **tidak pernah** dikirim.

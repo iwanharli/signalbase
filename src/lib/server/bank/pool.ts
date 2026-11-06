@@ -1,12 +1,12 @@
 import { Pool, type PoolClient } from "pg";
 
-// Read-only connection to bankkomen, the raw social media and online news collection.
+// Read-only connection to the source database: the raw social media and online news collection.
 // Kept on globalThis so dev hot reloads don't open a new pool each time.
 const globalRef = globalThis as unknown as { bankPool?: Pool };
 
 export function bankPool() {
-  const connectionString = process.env.BANKKOMEN_DATABASE_URL;
-  if (!connectionString) throw new Error("BANKKOMEN_DATABASE_URL belum diatur");
+  const connectionString = process.env.SOURCE_DATABASE_URL;
+  if (!connectionString) throw new Error("SOURCE_DATABASE_URL belum diatur");
   globalRef.bankPool ??= new Pool({
     connectionString,
     max: 4,

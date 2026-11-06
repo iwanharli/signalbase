@@ -64,9 +64,6 @@ export function Tags({ values, limit, children }: { values: string[]; limit?: nu
   );
 }
 
-export function DashboardTags({ values }: { values: string[] }) {
-  return <div className={classes.tags}>{values.map((v) => <span key={v} className={classes.dashboard}>{v}</span>)}</div>;
-}
 
 export function ScoreMeter({ score }: { score: number }) {
   const tone = score < 0 ? "negative" : score > 0 ? "positive" : "neutral";

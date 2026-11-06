@@ -6,7 +6,6 @@
 .tag { padding: 1px 7px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--mantine-color-violet-7); background: rgba(255,255,255,.7); }
 .target { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: #fff;
   background: linear-gradient(135deg, #7c3aed, #a855f7); }
-.dashboard { padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: var(--mantine-color-cyan-9); background: var(--mantine-color-cyan-1); }
 
 /* Emotion score on a red → grey → green track */
 .score { display: grid; grid-template-columns: 1fr auto; min-width: 180px; align-items: center; gap: 8px; font-size: 11.5px; padding-top: 2px; }

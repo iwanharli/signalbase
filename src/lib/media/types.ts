@@ -21,7 +21,6 @@ export type Analysis = {
   signals: string[];
   topics: string[];
   factors: Record<string, number> | null;
-  dashboards: string[];
   relevance: Relevance | null;
 };
 

@@ -28,7 +28,7 @@ if [ ! -f .env ]; then
   ADMIN_PASSWORD="$(node -e 'console.log(require("crypto").randomBytes(6).toString("base64url"))')"
   cat > .env <<ENV
 DATABASE_URL="postgresql://$(whoami)@localhost:5432/signalbase"
-BANKKOMEN_DATABASE_URL=""
+SOURCE_DATABASE_URL=""
 AUTH_SECRET="$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')"
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="$ADMIN_PASSWORD"
@@ -38,7 +38,7 @@ fi
 
 set -a; source .env; set +a
 [ -n "${DATABASE_URL:-}" ] || fail "DATABASE_URL kosong di .env"
-[ -n "${BANKKOMEN_DATABASE_URL:-}" ] || fail "BANKKOMEN_DATABASE_URL kosong di .env (sumber data media)."
+[ -n "${SOURCE_DATABASE_URL:-}" ] || fail "SOURCE_DATABASE_URL kosong di .env (sumber data media)."
 
 # 2. Database: pastikan server hidup dan database ada.
 DB_NAME="$(node -e 'console.log(new URL(process.env.DATABASE_URL).pathname.slice(1))')"

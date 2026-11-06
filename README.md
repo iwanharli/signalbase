@@ -1,10 +1,10 @@
 # Signalbase
 
-**Bank data media** — panel dan API yang membuka koleksi post media sosial dan berita online (sumber: database *bankkomen*) untuk aplikasi lain, misalnya KIPERMAS, lewat kunci API yang cakupannya bisa dibatasi dengan kata kunci.
+**Bank data media** — panel dan API yang membuka koleksi post media sosial dan berita online (dari database sumber) untuk aplikasi lain, misalnya KIPERMAS, lewat kunci API yang cakupannya bisa dibatasi dengan kata kunci.
 
 ```
 ┌──────────────┐  read-only   ┌──────────────────────────────┐  HTTPS + kunci API  ┌────────────┐
-│  bankkomen   │ ───────────▶ │  Signalbase                   │ ──────────────────▶ │  KIPERMAS  │
+│  DB sumber   │ ───────────▶ │  Signalbase                   │ ──────────────────▶ │  KIPERMAS  │
 │  (Postgres)  │              │  • panel admin (jelajah data) │   /api/v1/media/*   │  & aplikasi│
 │  post, berita│              │  • kunci API + kata kunci     │                     │  lain      │
 │  analisis AI │              │  • API publik berkunci        │                     └────────────┘
@@ -15,7 +15,7 @@
                                      └────────────────┘
 ```
 
-Signalbase **tidak menyalin** data media: setiap permintaan membaca bankkomen secara langsung (transaksi read-only). Database Signalbase sendiri hanya menyimpan akun admin dan kunci API.
+Signalbase **tidak menyalin** data media: setiap permintaan membaca database sumber secara langsung (transaksi read-only). Database Signalbase sendiri hanya menyimpan akun admin dan kunci API.
 
 ---
 
@@ -43,9 +43,9 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca bankkomen se
 **Panel admin** (login dengan akun admin)
 
 - **Ringkasan** — volume 7 hari per jenis media (dengan perubahan vs minggu sebelumnya), grafik batang 14 hari, sebaran emosi/sentimen, sinyal terbaru, dan daftar aplikasi terhubung.
-- **Media Sosial / Media Online** — jelajah seluruh isi bankkomen:
+- **Media Sosial / Media Online** — jelajah seluruh isi database sumber:
   - kartu *masonry* dengan *infinite scroll*, gambar berita, metrik interaksi, ringkasan AI;
-  - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, dashboard, relevansi), kategori, lokasi, tautan sumber;
+  - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, relevansi), kategori, lokasi, tautan sumber;
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
   - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi.
@@ -63,7 +63,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca bankkomen se
 | Framework | Next.js 15 (App Router, Turbopack di dev), React 19, TypeScript |
 | UI | Mantine 7, Tabler Icons, CSS Modules |
 | Database Signalbase | PostgreSQL + Prisma 6 |
-| Sumber data | PostgreSQL bankkomen via `pg` (read-only) |
+| Sumber data | PostgreSQL database sumber via `pg` (read-only) |
 | Auth panel | Sesi JWT (HS256, `jose`) di cookie httpOnly; password admin bcrypt |
 | Validasi | Zod |
 
@@ -82,7 +82,7 @@ PORT=4100 ./run.sh  # port lain
 ```
 
 `run.sh` akan:
-1. membuat `.env` dengan `AUTH_SECRET` dan password admin acak bila belum ada (isi `BANKKOMEN_DATABASE_URL` sendiri);
+1. membuat `.env` dengan `AUTH_SECRET` dan password admin acak bila belum ada (isi `SOURCE_DATABASE_URL` sendiri);
 2. memastikan PostgreSQL hidup dan database Signalbase ada (dibuat otomatis);
 3. memasang dependensi bila `package-lock.json` berubah;
 4. menyinkronkan skema Prisma dan membuat admin awal;
@@ -108,10 +108,11 @@ npm run dev                   # http://localhost:3100
 | Nama | Wajib | Keterangan |
 |---|---|---|
 | `DATABASE_URL` | ya | Postgres milik Signalbase (admin & kunci API). Contoh: `postgresql://user@localhost:5432/signalbase` |
-| `BANKKOMEN_DATABASE_URL` | ya | Postgres bankkomen (sumber data). Cukup akun **read-only**; koneksi juga dipaksa `default_transaction_read_only=on`. |
+| `SOURCE_DATABASE_URL` | ya | Postgres database sumber (data media). Cukup akun **read-only**; koneksi juga dipaksa `default_transaction_read_only=on`. |
 | `AUTH_SECRET` | ya | Kunci tanda tangan sesi, minimal 32 byte acak. Buat dengan `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `ADMIN_USERNAME` | seed | Username admin pertama (default `admin`). |
 | `ADMIN_PASSWORD` | seed | Password admin pertama. Hanya dipakai saat seed. |
+| `HIDDEN_SUMMARY_TERMS` | tidak | Nama dashboard internal (dipisah koma). Anak kalimat ringkasan AI yang menyebutnya, atau kata "dashboard", dibuang sebelum dikirim. |
 | `PORT` | tidak | Port untuk `run.sh` (default 3100). |
 | `NEXT_DIST_DIR` | tidak | Folder build alternatif agar server kedua tidak berbagi `.next`. |
 
@@ -186,13 +187,12 @@ curl -H "Authorization: Bearer $SIGNALBASE_KEY" \
 | `mood` | `a.emotion` (emosi) | `a.sentiment` (positive/neutral/negative) |
 | `moodLevel` | `a.emotion_level` (1–5) | — |
 | `metrics` | `p.additional_data` (like, comment/reply, retweet/repost/share, view) | — |
-| `analysis.summary` | `a.summaries` | — |
+| `analysis.summary` | `a.summaries` (tanpa catatan dashboard internal) | — |
 | `analysis.target` | `a.emotion_target` | — |
 | `analysis.score` | `a.emotion_score` | — |
 | `analysis.signals` | `a.signal` | — |
 | `analysis.topics` | — | `a.topics.items` |
 | `analysis.factors` | `a.factors` (jenis, korban, pelaku, kerugian, intensitas) | — |
-| `analysis.dashboards` | `a.dashboard` | — |
 | `analysis.relevance` | `a.status_filter` (include/watchlist/exclude) | — |
 
 Penyaringan tetap:
@@ -203,7 +203,7 @@ Penyaringan tetap:
 
 ## Performa & cache
 
-Tabel bankkomen berisi jutaan baris, jadi:
+Tabel database sumber berisi jutaan baris, jadi:
 
 | Data | Strategi | Cache |
 |---|---|---|
@@ -220,10 +220,10 @@ Cache berada di memori proses (`lib/server/bank/cache.ts`) dan menyimpan *promis
 
 ## Keamanan & privasi
 
-- **Read-only ke bankkomen**: setiap transaksi `default_transaction_read_only=on`; semua nilai filter dikirim sebagai parameter terikat (bebas SQL injection).
+- **Read-only ke database sumber**: setiap transaksi `default_transaction_read_only=on`; semua nilai filter dikirim sebagai parameter terikat (bebas SQL injection).
 - **Kunci API** hanya disimpan sebagai hash SHA-256; nilai asli ditampilkan sekali saat dibuat. Kunci bisa dicabut kapan saja.
 - **Sesi admin**: JWT HS256 di cookie `httpOnly`, `sameSite=lax`, `secure` di produksi, berlaku 12 jam. Middleware menjaga semua halaman panel dan `/api/admin/*`.
-- **Privasi**: nama akun, username, URL post media sosial, dan jumlah follower **tidak pernah dibaca** dari bankkomen.
+- **Privasi**: nama akun, username, URL post media sosial, dan jumlah follower **tidak pernah dibaca** dari database sumber.
 - **Tanpa secret di repo**: `.env*` diabaikan git; `.env.example` hanya berisi placeholder.
 
 ---
@@ -267,7 +267,7 @@ src/
 │   │   ├── mood.ts               Label & warna emosi/sentimen
 │   │   └── filters.ts            State filter ↔ query string, preset tanggal
 │   ├── server/
-│   │   ├── bank/                 Akses bankkomen
+│   │   ├── bank/                 Akses database sumber
 │   │   │   ├── pool.ts           Koneksi read-only
 │   │   │   ├── query.ts          Parameter filter → WHERE SQL
 │   │   │   ├── items.ts          Daftar item & pemetaan baris
@@ -337,7 +337,7 @@ PORT=3100 npm start      # atau lewat PM2: pm2 start "npm start" --name signalba
 
 | Gejala | Penyebab & solusi |
 |---|---|
-| `BANKKOMEN_DATABASE_URL belum diatur` | Isi variabel itu di `.env`, lalu restart server. |
+| `SOURCE_DATABASE_URL belum diatur` | Isi variabel itu di `.env`, lalu restart server. |
 | Total "menghitung…" lama | Hitungan pasti atas jutaan baris bisa 5–20 detik pertama kali; berikutnya dari cache. Persempit rentang tanggal untuk mempercepat. |
 | Semua halaman error 500 setelah ubah CSS | Biasanya galat sintaks CSS Module; cek pesan di terminal dev. |
 | Kolom baru di Prisma tidak terbaca | Jalankan `npx prisma db push` lalu restart server dev (client Prisma dimuat saat start). |

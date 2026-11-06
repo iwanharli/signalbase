@@ -56,7 +56,7 @@ const FIELDS: [string, string, string][] = [
   ["category · province · location", "string | null", "Kategori, nama provinsi, lokasi yang disebut"],
   ["mood · moodLevel", "string · 1–5", "Emosi/sentimen dan intensitasnya"],
   ["metrics", "objek", "likes, comments, shares, views (null bila tidak tersedia)"],
-  ["analysis", "objek | null", "summary, target, score, signals, topics, factors, dashboards, relevance"],
+  ["analysis", "objek | null", "summary, target, score, signals, topics, factors, relevance"],
 ];
 
 const ERRORS: [number, string, string][] = [

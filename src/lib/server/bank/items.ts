@@ -1,7 +1,8 @@
-// Reading posts and articles from bankkomen.
+// Reading posts and articles from the source database.
 import type { Analysis, MediaItem, MediaType, Relevance } from "@/lib/media/types";
 import { bankPool } from "./pool";
 import { buildWhere, COLUMNS } from "./query";
+import { cleanSummary } from "./summary";
 
 const RELEVANCE: Relevance[] = ["include", "watchlist", "exclude"];
 
@@ -16,13 +17,13 @@ const SELECT = {
     p.post_code code, p.post_source source, NULL title, p.post_content content, NULL url, NULL image, p.post_timestamps ts,
     p.post_type "postType", p.additional_data extra, a.category, a.location, lower(a.emotion) mood, a.emotion_level "moodLevel", pr.name province,
     a.id analysis_id, a.summaries summary, a.emotion_target target, a.emotion_score score, a.signal signals, a.factors,
-    a.dashboard dashboards, a.status_filter relevance, NULL topics
+    a.status_filter relevance, NULL topics
     FROM ${COLUMNS.social.from} LEFT JOIN region_indonesia_provinces pr ON pr.province_code = a.province_id::text
     WHERE p.post_code = ANY($1)`,
   online: `
     n.news_code code, n.news_source source, n.news_title title, n.news_preview content, n.news_url url, n.news_image image, n.news_timestamp ts,
     NULL "postType", NULL extra, n.news_category_label category, NULL location, lower(a.sentiment) mood, NULL "moodLevel", pr.name province,
-    a.id analysis_id, NULL summary, NULL target, NULL score, NULL signals, NULL factors, NULL dashboards, NULL relevance, a.topics
+    a.id analysis_id, NULL summary, NULL target, NULL score, NULL signals, NULL factors, NULL relevance, a.topics
     FROM ${COLUMNS.online.from} LEFT JOIN region_indonesia_provinces pr ON pr.province_code = n.region_code
     WHERE n.news_code = ANY($1)`,
 };
@@ -31,12 +32,11 @@ const SELECT = {
 function toAnalysis(row: any): Analysis | null {
   if (row.analysis_id == null) return null;
   return {
-    summary: row.summary || null,
+    summary: cleanSummary(row.summary),
     target: row.target || null,
     score: row.score == null ? null : Number(row.score),
     signals: toStrings(row.signals),
     topics: toStrings(row.topics?.items),
-    dashboards: toStrings(row.dashboards),
     factors: row.factors && typeof row.factors === "object" && !Array.isArray(row.factors) ? row.factors : null,
     relevance: RELEVANCE.includes(row.relevance) ? row.relevance : null,
   };

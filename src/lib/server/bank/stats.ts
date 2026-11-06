@@ -1,4 +1,4 @@
-// Counts and aggregates over bankkomen. All results are cached because the tables hold millions of rows.
+// Counts and aggregates over the source database. All results are cached because the tables hold millions of rows.
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { createCache } from "./cache";
 import { bankPool, withLongTimeout } from "./pool";

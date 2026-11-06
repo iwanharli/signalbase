@@ -1,4 +1,4 @@
-// Builds the SQL filter for bankkomen queries from request parameters.
+// Builds the SQL filter for source-database queries from request parameters.
 // Every user-supplied value is passed as a bound parameter.
 import type { MediaType } from "@/lib/media/types";
 

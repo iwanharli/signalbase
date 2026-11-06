@@ -8,7 +8,7 @@ const MAX_PAGE_SIZE = 100;
 
 type Context = { params: Promise<{ type: string }> };
 
-// Public read API over bankkomen, limited to the API key's keywords.
+// Public read API over the source database, limited to the API key's keywords.
 //   GET /api/v1/media/{social|online}?from=&to=&q=&source=&mood=&sort=&page=&size=&…
 //   GET /api/v1/media/{social|online}?view=summary&…   total + split by mood
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
