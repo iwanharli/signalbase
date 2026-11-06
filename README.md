@@ -146,8 +146,7 @@ npm run dev                   # http://localhost:3100
 | Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
 | Buat kunci | `/api-keys/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
 | Detail kunci | `/api-keys/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
-| Kategorisasi AI kunci | `/api-keys/[id]/ai` | Penyedia, prompt, kategori, batas harian, progres, dan sebaran per kategori. |
-| Pengaturan AI | `/settings/ai` | Penyedia AI (Claude, DeepSeek, OpenAI, kompatibel OpenAI) dan uji koneksi. |
+| Kategorisasi AI kunci | `/api-keys/[id]/ai` | Penyedia, prompt, kategori, progres, dan sebaran per kategori. |
 | Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait
@@ -226,7 +225,7 @@ Cache berada di memori proses (`lib/server/bank/cache.ts`) dan menyimpan *promis
 ## Keamanan & privasi
 
 - **Read-only ke database sumber**: setiap transaksi `default_transaction_read_only=on`; semua nilai filter dikirim sebagai parameter terikat (bebas SQL injection).
-- **Kunci API** hanya disimpan sebagai hash SHA-256; nilai asli ditampilkan sekali saat dibuat. Kunci bisa dicabut kapan saja.
+- **Kunci API** diperiksa lewat hash SHA-256. Nilai lengkapnya juga disimpan terenkripsi AES-256-GCM (kunci enkripsi diturunkan dari `AUTH_SECRET`) agar admin bisa menyalinnya lagi dari panel; kunci yang dibuat sebelum fitur ini hanya punya hash dan perlu **dibuat ulang** sekali agar bisa disalin. Kunci bisa dibuat ulang (nilai lama langsung tidak berlaku) atau dicabut kapan saja.
 - **Sesi admin**: JWT HS256 di cookie `httpOnly`, `sameSite=lax`, `secure` di produksi, berlaku 12 jam. Middleware menjaga semua halaman panel dan `/api/admin/*`.
 - **Privasi**: nama akun, username, URL post media sosial, dan jumlah follower **tidak pernah dibaca** dari database sumber.
 - **Tanpa secret di repo**: `.env*` diabaikan git; `.env.example` hanya berisi placeholder.
@@ -316,14 +315,14 @@ prisma/
 
 Setiap kunci API bisa diberi kategorisasi AI: setiap post/berita dalam cakupan kunci mendapat **satu kategori** (atau `none`) yang dikirim lewat API sebagai `classification`, bisa difilter dengan `aiCategory`, dan diringkas di `view=summary`.
 
-1. **Pengaturan AI** (`/settings/ai`) — hubungkan penyedia: Claude (SDK resmi Anthropic), DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI (`/chat/completions`). API key disimpan terenkripsi AES-256-GCM (kunci diturunkan dari `AUTH_SECRET`; mengganti `AUTH_SECRET` berarti API key penyedia harus diisi ulang). Tombol *Uji koneksi* mengirim dua contoh teks.
-2. **Per kunci** — saat membuat kunci (`/api-keys/new`) atau dari kartu kunci (`/api-keys/[id]/ai`): pilih penyedia, tulis prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**), dan batas item per hari.
+1. **Per kunci** — saat membuat kunci (`/api-keys/new`, langkah *Kategorisasi AI*) atau dari halaman AI kunci (`/api-keys/[id]/ai`): pilih penyedia (Claude lewat SDK resmi Anthropic, DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI `/chat/completions`), isi model dan **API key penyedia milik kunci itu sendiri**, lalu prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**). Setiap kunci bisa memakai penyedia dan API key AI yang berbeda.
+2. **Kredensial** — API key penyedia disimpan terenkripsi AES-256-GCM (kunci enkripsi diturunkan dari `AUTH_SECRET`; mengganti `AUTH_SECRET` berarti API key penyedia harus diisi ulang) dan tidak pernah dikembalikan ke browser, hanya empat karakter terakhirnya. Tombol *Uji koneksi* mengirim dua contoh teks memakai isian form (atau API key yang sudah tersimpan bila kolomnya dikosongkan).
 3. **Worker** — proses terpisah `npm run classifier` (PM2 `signalbase-classifier`). Tiap menit, untuk setiap kunci aktif: data baru lebih dulu, lalu mundur ke data lama sampai seluruh cakupan selesai. Item dikirim 20 per permintaan; progres disimpan sebagai cursor sehingga worker bisa dihentikan dan dilanjutkan kapan saja.
 
 Catatan:
-- Mengubah prompt, kategori, atau penyedia **menghapus hasil lama** dan mengulang dari awal; menjeda atau mengubah batas harian tidak.
+- Mengubah prompt, kategori, penyedia, atau model **menghapus hasil lama** dan mengulang dari awal; mengganti API key AI atau menjeda tidak.
 - Claude dipanggil dengan structured output (JSON schema), effort `low`, dan prompt caching untuk instruksi yang sama di setiap batch; model Claude 5.x memakai fallback penolakan sisi server.
-- **Biaya:** kira-kira 150–250 token masuk dan 30–40 token keluar per item. Untuk ratusan ribu item, pilih model dan batas harian dengan sadar (mis. Claude Haiku/Sonnet atau DeepSeek jauh lebih murah dari Opus).
+- **Biaya:** kira-kira 150–250 token masuk dan 30–40 token keluar per item. Tidak ada batas harian: worker memproses sekitar 100 item per menit per kunci sampai seluruh cakupan selesai, jadi pilih model dengan sadar untuk ratusan ribu item (mis. Claude Haiku/Sonnet atau DeepSeek jauh lebih murah dari Opus); jeda kategorisasi bila perlu menahan biaya.
 
 ## Deploy produksi
 

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
-import { IconAdjustmentsHorizontal, IconBrandX, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconBrandX, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
+import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { MediaFilters } from "@/lib/media/filters";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
@@ -38,7 +39,7 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 }
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, aiCategories, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
@@ -51,6 +52,8 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
   advancedCount: number;
   /** Exact total for the current filters, or null while counting. */
   total: number | null;
+  /** Categories of the API key being browsed through, when it uses AI categorisation. */
+  aiCategories?: Category[] | null;
 }) {
   useEscape(open && escapeEnabled, onClose);
   const social = type === "social";
@@ -69,6 +72,16 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
           </header>
 
           <div className={classes.panelBody}>
+            {aiCategories && (
+              <Section icon={IconRobot} title="Kategorisasi AI">
+                <Field label="Kategori AI" wide>
+                  <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
+                    data={[...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
+                    onChange={(aiCategory) => onChange({ aiCategory })} />
+                  {filters.aiCategory && <small className={classes.fieldNote}>Saat kategori AI dipilih, hanya rentang tanggal dan urutan yang berlaku.</small>}
+                </Field>
+              </Section>
+            )}
             <Section icon={IconSparkles} title="Analisis AI">
               <Field label="Status analisis" wide>
                 <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />

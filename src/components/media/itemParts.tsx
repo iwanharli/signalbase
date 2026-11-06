@@ -1,16 +1,31 @@
 "use client";
 // Small presentational pieces shared by the item card and the detail modal.
 import { Badge, Group } from "@mantine/core";
-import { IconEye, IconHeart, IconMessageCircle, IconRepeat, IconTarget } from "@tabler/icons-react";
+import { IconEye, IconHeart, IconMessageCircle, IconRepeat, IconRobot, IconTarget } from "@tabler/icons-react";
 import { FACTOR_LABEL, formatNumber, humanize } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { MediaItem, Metrics } from "@/lib/media/types";
 import classes from "./item.module.css";
+import { Tip } from "../ui/Tip";
 
 /** Scores from the AI range roughly from -3 to +3. */
 const SCORE_RANGE = 3;
 
 export const moodTone = (item: MediaItem) => `var(--mantine-color-${item.mood ? moodInfo(item.mood).color : "gray"}-5)`;
+
+/** AI category from the API key being browsed through; "none" is shown muted. */
+export function AiCategoryBadge({ item, detailed }: { item: MediaItem; detailed?: boolean }) {
+  const c = item.classification;
+  if (!c) return null;
+  return (
+    <Tip label={c.reason}>
+      <span className={classes.aiCategory} data-none={c.category === "none" || undefined}>
+        <IconRobot size={12} /><b>{c.category === "none" ? "—" : c.category}</b>{c.label}
+        {detailed && c.confidence != null && <em>{Math.round(c.confidence * 100)}%</em>}
+      </span>
+    </Tip>
+  );
+}
 
 export function MoodBadges({ item }: { item: MediaItem }) {
   const mood = item.mood ? moodInfo(item.mood) : null;

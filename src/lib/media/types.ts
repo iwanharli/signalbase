@@ -41,7 +41,11 @@ export type MediaItem = {
   moodLevel: number | null;
   metrics: Metrics;
   analysis: Analysis | null;
+  /** AI category, present only when browsing through an API key that uses AI categorisation. */
+  classification?: ItemClassification | null;
 };
+
+export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null };
 
 export type MoodCount = { value: string; n: number };
 export type DailyCount = { day: string; n: number };

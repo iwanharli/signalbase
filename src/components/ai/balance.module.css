@@ -1,0 +1,18 @@
+.card { --text: var(--mantine-color-text); --dim: var(--mantine-color-dimmed); --surface: var(--mantine-color-body); --border: var(--mantine-color-default-border);
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--border); }
+.card[data-on-dark] { --text: #fff; --dim: rgba(255,255,255,.55); --surface: rgba(255,255,255,.04); --border: rgba(255,255,255,.1); }
+.head { display: flex; align-items: center; gap: 8px; }
+.head b { flex: 1; font-size: 13px; font-weight: 800; }
+.icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #059669, #34d399); }
+.amount { display: flex; flex-direction: column; gap: 2px; }
+.amount strong { font-size: 24px; font-weight: 800; letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
+.amount strong[data-low] { color: #f97316; }
+.amount small, .meta { font-size: 12px; color: var(--dim); }
+.note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--dim); }
+.error { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #f43f5e; }
+.card[data-on-dark] .error { color: #fda4af; }
+.link { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; text-decoration: none; color: var(--mantine-color-violet-6); }
+.card[data-on-dark] .link { color: #a5b4fc; }
+.skeleton { height: 44px; border-radius: 10px; background: linear-gradient(90deg, rgba(127,127,160,.12), rgba(127,127,160,.22), rgba(127,127,160,.12)); background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }

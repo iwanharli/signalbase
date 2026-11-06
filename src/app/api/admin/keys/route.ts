@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { classifierInputSchema } from "@/lib/ai/classifier";
+import { classifierInputSchema, providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, parseKeyScope } from "@/lib/media/keyScope";
 import { saveClassifier } from "@/lib/server/ai/admin";
 import { createKey } from "@/lib/server/apiKey";
@@ -19,18 +19,21 @@ export const GET = adminRoute(async () => {
   const rows = await prisma.apiKey.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      id: true, name: true, prefix: true, keywords: true, scope: true, createdAt: true, lastUsedAt: true, revokedAt: true,
-      classifier: { select: { enabled: true, processed: true, lastError: true, provider: { select: { name: true } } } },
+      id: true, name: true, prefix: true, keywords: true, scope: true, createdBy: true, createdAt: true, lastUsedAt: true, revokedAt: true, keyEnc: true,
+      classifier: { select: { enabled: true, processed: true, lastError: true, providerKind: true, providerBaseUrl: true, providerModel: true } },
     },
   });
-  return NextResponse.json(rows.map(({ scope, keywords, classifier, ...row }) => ({
-    ...row, keywords, scope: parseKeyScope(scope, keywords),
-    classifier: classifier && { enabled: classifier.enabled, processed: classifier.processed, lastError: classifier.lastError, providerName: classifier.provider.name },
+  return NextResponse.json(rows.map(({ scope, keywords, classifier, keyEnc, ...row }) => ({
+    ...row, keywords, scope: parseKeyScope(scope, keywords), copyable: !!keyEnc,
+    classifier: classifier && {
+      enabled: classifier.enabled, processed: classifier.processed, lastError: classifier.lastError,
+      providerName: `${providerLabel(classifier.providerKind, classifier.providerBaseUrl)} · ${classifier.providerModel}`,
+    },
   })));
 });
 
 // Creates a key and returns its full value once.
-export const POST = adminRoute(async (req: Request) => {
+export const POST = adminRoute(async (req: Request, _ctx, user) => {
   const parsed = createKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -43,10 +46,10 @@ export const POST = adminRoute(async (req: Request) => {
     provinces: [...new Set(parsed.data.scope.provinces)],
     categories: [...new Set(parsed.data.scope.categories)],
   };
-  if (parsed.data.classifier && !(await prisma.aiProvider.findUnique({ where: { id: parsed.data.classifier.providerId } }))) {
-    return NextResponse.json({ error: "Penyedia AI tidak ditemukan" }, { status: 400 });
+  if (parsed.data.classifier && !parsed.data.classifier.provider.apiKey) {
+    return NextResponse.json({ error: "Kategorisasi AI: API key penyedia AI wajib diisi" }, { status: 400 });
   }
-  const { id, name, prefix, key } = await createKey(parsed.data.name, scope);
+  const { id, name, prefix, key } = await createKey(parsed.data.name, scope, user);
   if (parsed.data.classifier) await saveClassifier(id, parsed.data.classifier);
   return NextResponse.json({ id, name, prefix, key, scope, classifier: !!parsed.data.classifier });
 });

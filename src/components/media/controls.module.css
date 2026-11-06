@@ -3,7 +3,7 @@
 /* Segmented control */
 .segmented { position: relative; display: inline-flex; padding: 4px; gap: 2px; border-radius: 13px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); }
 .segmented button { position: relative; height: var(--segment-height, 34px); padding: 0 13px; border: 0; border-radius: 9px; cursor: pointer; white-space: nowrap; background: none;
-  color: rgba(255,255,255,.6); font: 600 13px/1 inherit; font-family: inherit; transition: color 180ms, background 220ms, box-shadow 220ms; }
+  color: rgba(255,255,255,.6); font-weight: 600; font-size: 13px; line-height: 1; font-family: inherit; transition: color 180ms, background 220ms, box-shadow 220ms; }
 .segmented button:hover { color: #fff; }
 .segmented button:disabled { opacity: .35; cursor: not-allowed; }
 .segmented button[data-active] { color: #fff; background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,211,238,.75));
@@ -34,8 +34,22 @@
   background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); transition: border-color 200ms, box-shadow 200ms; }
 .date:focus-within { border-color: rgba(167,139,250,.8); box-shadow: 0 0 0 4px rgba(124,58,237,.18); }
 .date small { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.45); }
-.date input { width: 100%; min-width: 0; border: 0; outline: 0; padding: 0; background: none; color: #fff; font: 600 13px inherit; font-family: inherit; color-scheme: dark; }
-.date input::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; margin-left: 2px; }
+.dateInput { height: 20px !important; min-height: 20px !important; padding: 0 !important; color: #fff !important; font-weight: 600; font-size: 13px !important; line-height: 20px !important; }
+.dateInput[data-placeholder], .dateInput:empty { color: rgba(255,255,255,.4) !important; }
+.date button[data-mantine-close-button], .date :global(.mantine-CloseButton-root) { color: rgba(255,255,255,.55); }
+.dateDropdown { padding: 12px !important; color: #fff; background: rgba(17,14,38,.97) !important; backdrop-filter: blur(14px); border: 1px solid rgba(167,139,250,.25) !important;
+  border-radius: 16px !important; box-shadow: 0 24px 50px -18px rgba(0,0,0,.7) !important; }
+.dateControl { color: #fff !important; font-weight: 700; border-radius: 9px !important; }
+.dateControl:hover:not([data-disabled]) { background: rgba(255,255,255,.08) !important; }
+.dateControl[data-disabled] { opacity: .3; }
+.dateWeekday { color: rgba(255,255,255,.4) !important; font-size: 11px !important; font-weight: 700; text-transform: uppercase; }
+.dateDay { color: rgba(255,255,255,.85) !important; border-radius: 9px !important; font-weight: 600; }
+.dateDay:hover:not([data-disabled]):not([data-selected]) { background: rgba(124,58,237,.3) !important; }
+.dateDay[data-outside] { color: rgba(255,255,255,.25) !important; }
+.dateDay[data-weekend]:not([data-selected]):not([data-outside]) { color: #fda4af !important; }
+.dateDay[data-today]:not([data-selected]) { box-shadow: inset 0 0 0 1px rgba(103,232,249,.6); }
+.dateDay[data-selected] { color: #fff !important; background: linear-gradient(135deg, #7c3aed, #22d3ee) !important; }
+.dateDay[data-disabled] { color: rgba(255,255,255,.15) !important; cursor: not-allowed; }
 /* Multi-select: grows with its pills instead of a fixed height */
 .selectPill { color: #fff !important; font-weight: 700; background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,211,238,.7)) !important; }
 .selectField { color: #fff !important; }

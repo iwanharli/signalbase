@@ -20,11 +20,13 @@ export type MediaFilters = {
   minLevel: string;
   // Online news only
   withImage: boolean;
+  /** AI category code; only used when browsing through an API key with AI categorisation. */
+  aiCategory: string | null;
 };
 
 export const defaultFilters = (type: MediaType): MediaFilters => ({
   search: "", from: "", to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
-  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false,
+  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null,
 });
 
 /** Query-string parameters for the API. `search` must already be debounced/trimmed by the caller. */
@@ -44,6 +46,7 @@ export function toSearchParams(f: MediaFilters) {
   set("postType", f.postType);
   set("level", f.minLevel);
   set("image", f.withImage && "yes");
+  set("aiCategory", f.aiCategory);
   return p;
 }
 
@@ -79,7 +82,7 @@ export function countAdvanced(f: MediaFilters, type: MediaType) {
   const d = defaultFilters(type);
   const customRange = !activePreset(f) && (f.from || f.to);
   return [customRange, f.source, f.mood, f.language, f.analyzed !== d.analyzed, f.province, f.category,
-    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance].filter(Boolean).length;
+    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance, f.aiCategory].filter(Boolean).length;
 }
 
 /** All filters that differ from their defaults, including the quick ones. */

@@ -28,7 +28,7 @@
 .moodBar button[data-dim] { opacity: .2; }
 .legend { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .legend::-webkit-scrollbar { display: none; }
-.legend button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 99px; cursor: pointer; font: 600 12.5px inherit; font-family: inherit;
+.legend button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 99px; cursor: pointer; font-weight: 600; font-size: 12.5px; font-family: inherit;
   color: rgba(255,255,255,.75); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); transition: background 180ms, border-color 180ms, transform 180ms; }
 .legend button:hover { transform: translateY(-1px); background: rgba(255,255,255,.09); }
 .legend button[data-active] { color: #fff; border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.14); }

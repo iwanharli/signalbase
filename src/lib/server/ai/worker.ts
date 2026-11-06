@@ -7,6 +7,7 @@ import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { listItemsFromCursor, type TimeCursor } from "../bank";
 import { prisma } from "../db";
+import { providerConfig } from "./admin";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "./providers";
 
 const BATCH_SIZE = 20;
@@ -45,19 +46,19 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
 
 /** Runs up to `budget` items for one classifier. */
 async function runClassifier(classifierId: string) {
-  const row = await prisma.classifier.findUnique({ where: { apiKeyId: classifierId }, include: { provider: true, apiKey: true } });
+  const row = await prisma.classifier.findUnique({ where: { apiKeyId: classifierId }, include: { apiKey: true } });
   if (!row || !row.enabled || row.apiKey.revokedAt) return;
 
   const today = todayInJakarta();
   let todayCount = row.todayDate === today ? row.todayCount : 0;
-  let budget = Math.min(row.dailyLimit - todayCount, BATCH_SIZE * MAX_BATCHES_PER_TICK);
-  if (budget <= 0) return;
+  // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
+  let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
 
   const categories = categorySchema.array().parse(row.categories);
   const job: Job = {
     apiKeyId: row.apiKeyId,
     scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
-    provider: { kind: row.provider.kind as ProviderConfig["kind"], baseUrl: row.provider.baseUrl, model: row.provider.model, apiKeyEnc: row.provider.apiKeyEnc },
+    provider: providerConfig(row),
     prompt: row.prompt,
     categories,
   };

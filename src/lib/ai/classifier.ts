@@ -12,15 +12,22 @@ export const PROVIDER_PRESETS = [
   { id: "custom", label: "Lainnya (kompatibel OpenAI)", kind: "openai_compatible", baseUrl: "", model: "" },
 ] as const;
 
-export const providerInputSchema = z.object({
-  name: z.string().trim().min(2).max(60),
+/** Short display name of a provider: "Claude", a preset name, or the endpoint host. */
+export function providerLabel(kind: string, baseUrl: string | null | undefined) {
+  if (kind === "anthropic") return "Claude";
+  const preset = PROVIDER_PRESETS.find((p) => p.baseUrl && baseUrl?.replace(/\/+$/, "") === p.baseUrl);
+  if (preset) return preset.label;
+  try { return new URL(baseUrl ?? "").host; } catch { return "Kompatibel OpenAI"; }
+}
+
+/** The AI service a key uses. `apiKey` is required the first time; on later saves empty keeps the stored one. */
+export const providerSchema = z.object({
   kind: z.enum(PROVIDER_KINDS),
-  baseUrl: z.string().trim().url().max(300).or(z.literal("")).default(""),
-  model: z.string().trim().min(2).max(100),
-  /** Required on create; on update, empty keeps the stored key. */
+  baseUrl: z.string().trim().url("Base URL tidak valid").max(300).or(z.literal("")).default(""),
+  model: z.string().trim().min(2, "Model wajib diisi").max(100),
   apiKey: z.string().trim().max(400).default(""),
-});
-export type ProviderInput = z.infer<typeof providerInputSchema>;
+}).refine((p) => p.kind !== "openai_compatible" || !!p.baseUrl, { message: "Base URL wajib diisi", path: ["baseUrl"] });
+export type ProviderInput = z.infer<typeof providerSchema>;
 
 /** Reserved category for items that fit none of the categories. */
 export const NO_CATEGORY = "none";
@@ -33,12 +40,11 @@ export const categorySchema = z.object({
 export type Category = z.infer<typeof categorySchema>;
 
 export const classifierInputSchema = z.object({
-  providerId: z.string().uuid(),
+  provider: providerSchema,
   enabled: z.boolean().default(true),
   prompt: z.string().trim().min(10).max(6000),
   categories: z.array(categorySchema).min(2).max(30)
     .refine((list) => new Set(list.map((c) => c.code.toUpperCase())).size === list.length, "Kode kategori harus unik"),
-  dailyLimit: z.number().int().min(10).max(200_000).default(5000),
 });
 export type ClassifierInput = z.infer<typeof classifierInputSchema>;
 

@@ -24,3 +24,11 @@
 .dots { display: flex; gap: 3px; }
 .dots i { width: 7px; height: 7px; border-radius: 2px; background: var(--mantine-color-gray-3); }
 .dots i[data-on] { background: linear-gradient(135deg, #7c3aed, #22d3ee); }
+
+/* AI category of the API key being browsed through */
+.aiCategory { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;
+  color: var(--mantine-color-teal-9); background: var(--mantine-color-teal-0); border: 1px solid var(--mantine-color-teal-2); }
+.aiCategory b { font: 800 11px ui-monospace, monospace; padding: 0 6px; border-radius: 6px; color: #fff; background: linear-gradient(135deg, #059669, #10b981); }
+.aiCategory em { font-style: normal; font-weight: 700; color: var(--mantine-color-teal-7); }
+.aiCategory[data-none] { color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-0); border-color: var(--mantine-color-gray-2); }
+.aiCategory[data-none] b { background: var(--mantine-color-gray-5); }

@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { humanize, sourceLabel } from "@/lib/media/labels";
 import type { Analysis, MediaItem } from "@/lib/media/types";
-import { MetaItem, MetricList, MoodBadges, moodTone, Tags, TargetTag } from "./itemParts";
+import { AiCategoryBadge, MetaItem, MetricList, MoodBadges, moodTone, Tags, TargetTag } from "./itemParts";
 import classes from "./card.module.css";
 
 const MAX_CARD_TAGS = 4;
@@ -56,6 +56,7 @@ export function ItemCard({ item, delay, onOpen }: { item: MediaItem; delay: numb
         {item.content && (
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={item.title ? 3 : 7} className={classes.content}>{item.content}</Text>
         )}
+        <AiCategoryBadge item={item} />
         {item.analysis && <AnalysisPreview analysis={item.analysis} />}
         <div className={classes.footer}>
           <Group gap={10}>

@@ -6,6 +6,7 @@ import { formatNumber, MEDIA_TYPE_LABEL, MOOD_KIND_LABEL, SOURCE_KIND_LABEL, sou
 import { moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { MediaType, MoodCount } from "@/lib/media/types";
 import classes from "./stats.module.css";
+import { Tip } from "../ui/Tip";
 
 const LEGEND_SIZE = 6;
 const ANALYZED_LABEL = { yes: "Sudah", no: "Belum", "": "Semua" } as const;
@@ -38,8 +39,10 @@ function MoodBreakdown({ type, moods, selected, onSelect }: {
         <>
           <div className={classes.moodBar}>
             {moods.map((m) => (
-              <button key={m.value} type="button" title={`${moodInfo(m.value).label}: ${formatNumber(m.n)} (${percent(m.n)}%)`}
-                data-dim={(selected && selected !== m.value) || undefined} style={{ flexGrow: m.n, background: moodColorVar(m.value) }} onClick={() => toggle(m.value)} />
+              <Tip key={m.value} label={`${moodInfo(m.value).label}: ${formatNumber(m.n)} (${percent(m.n)}%)`}>
+                <button type="button" aria-label={moodInfo(m.value).label}
+                  data-dim={(selected && selected !== m.value) || undefined} style={{ flexGrow: m.n, background: moodColorVar(m.value) }} onClick={() => toggle(m.value)} />
+              </Tip>
             ))}
           </div>
           <div className={classes.legend}>

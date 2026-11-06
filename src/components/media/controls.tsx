@@ -1,6 +1,9 @@
 "use client";
 // Form controls styled for the dark filter surfaces.
 import { MultiSelect, Select, type MultiSelectProps, type SelectProps } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
+import dayjs from "dayjs";
+import "dayjs/locale/id";
 import classes from "./controls.module.css";
 
 export type Option<T extends string> = { value: T; label: string };
@@ -49,17 +52,26 @@ export function DarkSelect(props: SelectProps) {
   );
 }
 
+const toDate = (value: string) => (value ? dayjs(value).toDate() : null);
+const toValue = (date: Date | null) => (date ? dayjs(date).format("YYYY-MM-DD") : "");
+
+function DateField({ label, value, min, max, onChange }: { label: string; value: string; min?: string; max?: string; onChange: (value: string) => void }) {
+  return (
+    <div className={classes.date}>
+      <small>{label}</small>
+      <DatePickerInput value={toDate(value)} onChange={(d) => onChange(toValue(d))} minDate={toDate(min ?? "") ?? undefined} maxDate={toDate(max ?? "") ?? undefined}
+        locale="id" valueFormat="D MMM YYYY" placeholder="Pilih tanggal" clearable variant="unstyled" size="xs" firstDayOfWeek={1}
+        classNames={{ input: classes.dateInput, day: classes.dateDay, calendarHeaderControl: classes.dateControl, calendarHeaderLevel: classes.dateControl, weekday: classes.dateWeekday, monthsListControl: classes.dateDay, yearsListControl: classes.dateDay }}
+        popoverProps={{ withinPortal: true, zIndex: 400, classNames: { dropdown: classes.dateDropdown }, transitionProps: { transition: "pop", duration: 160 } }} />
+    </div>
+  );
+}
+
 export function DateRange({ from, to, onChange }: { from: string; to: string; onChange: (range: { from: string; to: string }) => void }) {
   return (
     <div className={classes.dateRange}>
-      <label className={classes.date}>
-        <small>Dari</small>
-        <input type="date" value={from} max={to || undefined} onChange={(e) => onChange({ from: e.currentTarget.value, to })} />
-      </label>
-      <label className={classes.date}>
-        <small>Sampai</small>
-        <input type="date" value={to} min={from || undefined} onChange={(e) => onChange({ from, to: e.currentTarget.value })} />
-      </label>
+      <DateField label="Dari" value={from} max={to || undefined} onChange={(v) => onChange({ from: v, to })} />
+      <DateField label="Sampai" value={to} min={from || undefined} onChange={(v) => onChange({ from, to: v })} />
     </div>
   );
 }

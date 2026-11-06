@@ -13,8 +13,10 @@ dayjs.extend(relativeTime);
 
 export type ApiKeyRow = {
   id: string; name: string; prefix: string; keywords: string[]; scope: KeyScope;
-  createdAt: string; lastUsedAt: string | null; revokedAt: string | null;
+  createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null;
   classifier: { enabled: boolean; processed: number; lastError: string | null; providerName: string } | null;
+  /** The full value is stored encrypted and can be copied (false for keys made before that). */
+  copyable: boolean;
 };
 export type CreatedKey = { name: string; key: string; scope: KeyScope };
 

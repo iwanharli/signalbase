@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
@@ -18,14 +19,15 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const key = await prisma.apiKey.findUnique({
     where: { id },
-    include: { classifier: { include: { provider: { select: { name: true, model: true } } } }, _count: { select: { classifications: true } } },
+    include: { classifier: true, _count: { select: { classifications: true } } },
   });
   if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
   return NextResponse.json({
-    id: key.id, name: key.name, prefix: key.prefix, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
+    id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
+    copyable: !!key.keyEnc,
     classifier: key.classifier && {
-      enabled: key.classifier.enabled, providerName: key.classifier.provider.name, model: key.classifier.provider.model,
+      enabled: key.classifier.enabled, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,
     },
   });

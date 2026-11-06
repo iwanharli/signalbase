@@ -1,0 +1,77 @@
+/* Shared panel UI: buttons and status pills.
+   One gradient (primary) per view; everything else is neutral so the main action stands out. */
+
+.button { --h: 40px; --px: 16px; --fs: 13.5px; --r: 11px; --icon: var(--mantine-color-violet-6);
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: var(--h); padding: 0 var(--px);
+  border: 1px solid transparent; border-radius: var(--r); cursor: pointer; white-space: nowrap; text-decoration: none;
+  font-weight: 650; font-size: var(--fs); line-height: 1; font-family: inherit; letter-spacing: -.1px;
+  transition: transform 140ms ease, box-shadow 180ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease; }
+.button[data-size="sm"] { --h: 32px; --px: 11px; --fs: 12.5px; --r: 9px; gap: 6px; }
+.button[data-block] { width: 100%; }
+.button svg { flex-shrink: 0; color: var(--icon); transition: color 160ms ease, transform 200ms ease; }
+.button:active:not(:disabled) { transform: translateY(1px); }
+.button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--mantine-color-violet-2), 0 0 0 1px var(--mantine-color-violet-5) inset; }
+.button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+.button[data-loading] { cursor: progress; }
+.button[data-loading] svg { animation: pulse 900ms ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* Icon-only: square, label goes to the tooltip / aria-label */
+.button[data-icon-only] { width: var(--h); padding: 0; }
+.button[data-icon-only] > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* primary — the one main action of a view */
+.button[data-variant="primary"] { --icon: #fff; color: #fff; background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 45%, #0891b2 100%);
+  box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 8px 20px -10px rgba(109,40,217,.75); }
+.button[data-variant="primary"]:hover:not(:disabled) { box-shadow: 0 1px 0 rgba(255,255,255,.3) inset, 0 12px 26px -10px rgba(8,145,178,.7); filter: brightness(1.06); }
+
+/* secondary — neutral surface, coloured icon */
+.button[data-variant="secondary"] { color: var(--mantine-color-gray-8); background: var(--mantine-color-body); border-color: var(--mantine-color-gray-3);
+  box-shadow: 0 1px 2px rgba(15,10,40,.05); }
+.button[data-variant="secondary"]:hover:not(:disabled) { color: var(--mantine-color-violet-8); border-color: var(--mantine-color-violet-3); background: var(--mantine-color-violet-0); }
+.button[data-variant="secondary"][data-on-dark] { --icon: #a5b4fc; color: rgba(255,255,255,.88); background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); box-shadow: none; }
+.button[data-variant="secondary"][data-on-dark]:hover:not(:disabled) { --icon: #67e8f9; color: #fff; background: rgba(255,255,255,.11); border-color: rgba(167,139,250,.45); }
+
+/* subtle — text-like, for low-priority actions */
+.button[data-variant="subtle"] { --icon: var(--mantine-color-gray-6); color: var(--mantine-color-gray-7); background: transparent; }
+.button[data-variant="subtle"]:hover:not(:disabled) { --icon: var(--mantine-color-violet-6); color: var(--mantine-color-gray-9); background: var(--mantine-color-gray-1); }
+.button[data-variant="subtle"][data-on-dark] { --icon: rgba(255,255,255,.55); color: rgba(255,255,255,.65); }
+.button[data-variant="subtle"][data-on-dark]:hover:not(:disabled) { --icon: #fff; color: #fff; background: rgba(255,255,255,.08); }
+
+/* danger — irreversible actions */
+.button[data-variant="danger"] { --icon: #fff; color: #fff; background: linear-gradient(135deg, #be123c, #e11d48);
+  box-shadow: 0 1px 0 rgba(255,255,255,.2) inset, 0 8px 20px -10px rgba(190,18,60,.7); }
+.button[data-variant="danger"]:hover:not(:disabled) { filter: brightness(1.08); }
+
+/* dangerOutline — neutral until hovered, so a row of actions stays calm */
+.button[data-variant="dangerOutline"] { --icon: var(--mantine-color-red-6); color: var(--mantine-color-red-7); background: var(--mantine-color-body);
+  border-color: var(--mantine-color-gray-3); box-shadow: 0 1px 2px rgba(15,10,40,.05); }
+.button[data-variant="dangerOutline"]:hover:not(:disabled) { --icon: #fff; color: #fff; background: var(--mantine-color-red-6); border-color: var(--mantine-color-red-6); }
+.button[data-variant="dangerOutline"][data-on-dark] { --icon: #fda4af; color: #fda4af; background: transparent; border-color: rgba(244,63,94,.35); box-shadow: none; }
+.button[data-variant="dangerOutline"][data-on-dark]:hover:not(:disabled) { --icon: #fff; color: #fff; background: #e11d48; border-color: #e11d48; }
+
+/* Tooltip wrapper must not break layout or the group's border joins */
+.tipTarget { display: inline-flex; }
+.group > .tipTarget > .button { border-radius: 0; box-shadow: none; }
+.group > .tipTarget + .tipTarget, .group > .tipTarget + .button, .group > .button + .tipTarget { margin-left: -1px; }
+.group > :first-child, .group > :first-child > .button { border-top-left-radius: var(--r, 9px); border-bottom-left-radius: var(--r, 9px); }
+.group > :last-child, .group > :last-child > .button { border-top-right-radius: var(--r, 9px); border-bottom-right-radius: var(--r, 9px); }
+
+/* Grouped buttons share borders, like a toolbar */
+.group { display: inline-flex; }
+.group > .button { border-radius: 0; box-shadow: none; }
+.group > .button + .button { margin-left: -1px; }
+.group > .button:first-child { border-top-left-radius: var(--r); border-bottom-left-radius: var(--r); }
+.group > .button:last-child { border-top-right-radius: var(--r); border-bottom-right-radius: var(--r); }
+.group > .button:hover { z-index: 1; }
+
+/* Status pill */
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-1); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .8; }
+.pill[data-tone="success"] { color: var(--mantine-color-teal-8); background: var(--mantine-color-teal-0); }
+.pill[data-tone="info"] { color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-0); }
+.pill[data-tone="warning"] { color: var(--mantine-color-orange-8); background: var(--mantine-color-orange-0); }
+.pill[data-tone="danger"] { color: var(--mantine-color-red-8); background: var(--mantine-color-red-0); }
+
+@media (prefers-reduced-motion: reduce) { .button, .button svg { transition: none; } .button[data-loading] svg { animation: none; } }

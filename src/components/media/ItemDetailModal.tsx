@@ -7,7 +7,7 @@ import "dayjs/locale/id";
 import { humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
-import { FactorGrid, MetricList, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
+import { AiCategoryBadge, FactorGrid, MetricList, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
 import classes from "./modal.module.css";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -88,6 +88,8 @@ export function ItemDetailModal({ item, type, onClose }: { item: MediaItem | nul
 
           <div className={classes.body}>
             <MoodBadges item={shown} />
+            <AiCategoryBadge item={shown} detailed />
+            {shown.classification?.reason && <p className={classes.aiReason}>{shown.classification.reason}</p>}
             {shown.title && <h2 className={classes.title}>{shown.title}</h2>}
             {shown.content && <p className={classes.text}>{shown.content}</p>}
             <div className={classes.metrics}><MetricList metrics={shown.metrics} /></div>

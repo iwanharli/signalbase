@@ -2,15 +2,33 @@ import { createHash, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { prisma } from "./db";
+import { decryptSecret, encryptSecret } from "./secrets";
 
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 
-// Keys are shown once on creation; only their SHA-256 is stored.
-export async function createKey(name: string, scope: KeyScope) {
+// A key is checked by its SHA-256 hash. The full value is also stored encrypted so an admin can copy it again.
+function newKey() {
   const key = `sb_${randomBytes(24).toString("base64url")}`;
+  return { key, fields: { prefix: key.slice(0, 10), hash: hash(key), keyEnc: encryptSecret(key) } };
+}
+
+export async function createKey(name: string, scope: KeyScope, createdBy: string) {
+  const { key, fields } = newKey();
   const { keywords, ...rest } = scope;
-  const row = await prisma.apiKey.create({ data: { name, prefix: key.slice(0, 10), hash: hash(key), keywords, scope: rest } });
+  const row = await prisma.apiKey.create({ data: { name, createdBy, ...fields, keywords, scope: rest } });
   return { ...row, key };
+}
+
+/** Replaces a key's value (the old value stops working at once); name, scope and AI labels are kept. */
+export async function rotateKey(id: string) {
+  const { key, fields } = newKey();
+  const row = await prisma.apiKey.update({ where: { id }, data: { ...fields, lastUsedAt: null } });
+  return { ...row, key };
+}
+
+/** The full key for copying, or null for keys created before encrypted storage. */
+export function revealKey(keyEnc: string | null) {
+  return keyEnc ? decryptSecret(keyEnc) : null;
 }
 
 // Wraps public API handlers: requires `Authorization: Bearer <key>` or `x-api-key`.

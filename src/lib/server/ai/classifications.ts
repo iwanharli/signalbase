@@ -1,9 +1,7 @@
 // Reading stored AI categories for the public API.
 import { categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
-import type { MediaType } from "@/lib/media/types";
+import type { ItemClassification, MediaType } from "@/lib/media/types";
 import { prisma } from "../db";
-
-export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null };
 
 /** The key's category list, or null when the key has no (enabled) categorisation. */
 export async function keyCategories(apiKeyId: string): Promise<Category[] | null> {

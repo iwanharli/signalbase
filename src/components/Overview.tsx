@@ -11,6 +11,7 @@ import { moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
+import { Tip } from "./ui/Tip";
 
 dayjs.extend(relativeTime);
 
@@ -107,7 +108,7 @@ function TypePanel({ type, stats }: { type: MediaType; stats?: TypeStats }) {
       {!stats ? <Skeleton h={40} radius="md" /> : moodTotal === 0 ? <p className={classes.empty}>Belum ada data teranalisis.</p> : (
         <>
           <div className={classes.spectrum}>
-            {stats.moods.map((m) => <i key={m.value} title={`${moodInfo(m.value).label}: ${formatNumber(m.n)}`} style={{ flexGrow: m.n, background: moodColorVar(m.value) }} />)}
+            {stats.moods.map((m) => <Tip key={m.value} label={`${moodInfo(m.value).label}: ${formatNumber(m.n)}`}><i style={{ flexGrow: m.n, background: moodColorVar(m.value) }} /></Tip>)}
           </div>
           <div className={classes.legend}>
             {stats.moods.slice(0, LEGEND_SIZE).map((m) => (

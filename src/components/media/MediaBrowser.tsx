@@ -1,18 +1,25 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Alert, Button, Group, Loader, Skeleton, Text } from "@mantine/core";
 import { IconArrowUp } from "@tabler/icons-react";
+import type { Category } from "@/lib/ai/classifier";
+import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import type { FilterOptions, MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { AdvancedFilters } from "./AdvancedFilters";
 import { ItemCard } from "./ItemCard";
 import { ItemDetailModal } from "./ItemDetailModal";
+import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
 import { Masonry } from "./Masonry";
 import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
 import { useMediaFilters } from "./useMediaFilters";
 import classes from "./browser.module.css";
+import keyViewClasses from "./keyView.module.css";
+
+type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classifier: { enabled: boolean; categories: Category[] } | null };
 
 const SKELETON_HEIGHTS = [260, 180, 320, 220];
 const CARD_STAGGER_MS = 30;
@@ -32,9 +39,20 @@ function ScrollTopButton() {
   );
 }
 
-/** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal. */
+/** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal.
+ *  With ?key=<id> the page shows the bank as that API key sees it: its scope, and its AI categories. */
 export function MediaBrowser({ type }: { type: MediaType }) {
-  const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
+  const keyId = useSearchParams().get("key");
+  const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/keys/${keyId}/classifier` : null);
+  const view: KeyView | null = keyInfo.data
+    ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
+    : null;
+  const aiCategories = keyInfo.data?.classifier?.enabled ? keyInfo.data.classifier.categories : null;
+  const blocked = !!view && !allowsType(view.scope, type);
+
+  const { filters, update, reset, query: filterQuery, advancedCount, activeCount } = useMediaFilters(type);
+  // Every request carries the key, so the server applies its scope.
+  const query = keyId ? `${filterQuery}&key=${encodeURIComponent(keyId)}` : filterQuery;
   const feed = useMediaFeed(type, query);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<MediaItem | null>(null);
@@ -60,12 +78,21 @@ export function MediaBrowser({ type }: { type: MediaType }) {
         onChange={update}
         onReset={reset}
         options={options.data}
+        aiCategories={aiCategories}
         activeCount={activeCount}
         advancedCount={advancedCount}
         total={total}
       />
 
       <div className={classes.content}>
+        {view && <KeyViewBanner view={view} type={type} />}
+        {keyInfo.error && <Alert color="red" mb="md" title="Kunci tidak bisa dimuat">{keyInfo.error}</Alert>}
+        {blocked ? (
+          <div className={keyViewClasses.blocked}>
+            <b>Kunci ini tidak punya akses ke {type === "social" ? "media sosial" : "media online"}</b>
+            <span>Pilih jenis media lain di banner di atas.</span>
+          </div>
+        ) : (<>
         <StatsBar
           type={type}
           filters={filters}
@@ -107,6 +134,8 @@ export function MediaBrowser({ type }: { type: MediaType }) {
         <div ref={sentinel} />
         {feed.loading && feed.items.length > 0 && <Group justify="center" py="lg"><Loader type="dots" color="violet" /></Group>}
         {feed.loaded && !feed.hasMore && feed.items.length > 0 && <Text ta="center" fz={12.5} c="dimmed" py="xl">Semua data sudah ditampilkan.</Text>}
+
+        </>)}
 
         <ScrollTopButton />
         <ItemDetailModal item={selected} type={type} onClose={() => setSelected(null)} />

@@ -39,7 +39,8 @@ export function KeywordsInput({ scope, onChange }: { scope: KeyScope; onChange: 
   );
 }
 
-export function ScopeParams({ scope, onChange }: { scope: KeyScope; onChange: (scope: KeyScope) => void }) {
+/** `bare` renders only the fields, for use inside a panel that already has its own title. */
+export function ScopeParams({ scope, onChange, bare }: { scope: KeyScope; onChange: (scope: KeyScope) => void; bare?: boolean }) {
   const options = useScopeOptions();
   const update = (patch: Partial<KeyScope>) => onChange({ ...scope, ...patch });
   const typeValue = scope.types.length === 1 ? scope.types[0] : "both";
@@ -49,9 +50,7 @@ export function ScopeParams({ scope, onChange }: { scope: KeyScope; onChange: (s
     // Relevance and intensity only exist for social posts; drop them when the key can't read those.
     update(value === "both" ? { types: [] } : value === "online" ? { types: ["online"], relevance: "", minLevel: 0 } : { types: ["social"] });
 
-  return (
-    <div className={classes.params}>
-      <div className={classes.paramsHead}><IconAdjustmentsHorizontal size={15} />Parameter cakupan<small>Opsional · dikunci di server</small></div>
+  const grid = (
       <div className={classes.paramsGrid}>
         <Field label="Jenis media" wide>
           <Segmented full options={TYPE_OPTIONS} value={typeValue} onChange={setType} />
@@ -77,6 +76,12 @@ export function ScopeParams({ scope, onChange }: { scope: KeyScope; onChange: (s
             data={options.categories} value={scope.categories} onChange={(categories) => update({ categories })} />
         </Field>
       </div>
+  );
+  if (bare) return <div className={classes.paramsBare}>{grid}</div>;
+  return (
+    <div className={classes.params}>
+      <div className={classes.paramsHead}><IconAdjustmentsHorizontal size={15} />Parameter cakupan<small>Opsional · dikunci di server</small></div>
+      {grid}
     </div>
   );
 }
