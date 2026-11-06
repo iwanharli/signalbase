@@ -42,6 +42,12 @@ const PARAM_GROUPS: { title: string; params: Param[] }[] = [
       { name: "image", values: "yes", description: "Hanya berita bergambar", scope: "online" },
     ],
   },
+  {
+    title: "Kategorisasi AI (kunci dengan AI aktif)",
+    params: [
+      { name: "aiCategory", values: "kode, mis. QW3", description: "Item dalam satu kategori AI. Hanya from, to, sort, page, size yang berlaku bersama parameter ini." },
+    ],
+  },
 ];
 
 const FIELDS: [string, string, string][] = [
@@ -57,6 +63,7 @@ const FIELDS: [string, string, string][] = [
   ["mood · moodLevel", "string · 1–5", "Emosi/sentimen dan intensitasnya"],
   ["metrics", "objek", "likes, comments, shares, views (null bila tidak tersedia)"],
   ["analysis", "objek | null", "summary, target, score, signals, topics, factors, relevance"],
+  ["classification", "objek | null", "Hanya untuk kunci dengan kategorisasi AI: category, label, confidence, reason"],
 ];
 
 const ERRORS: [number, string, string][] = [

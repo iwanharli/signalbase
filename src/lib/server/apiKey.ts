@@ -14,7 +14,10 @@ export async function createKey(name: string, scope: KeyScope) {
 }
 
 // Wraps public API handlers: requires `Authorization: Bearer <key>` or `x-api-key`.
-export function apiRoute<C>(handler: (req: Request, ctx: C, scope: KeyScope) => Promise<Response>) {
+/** The authenticated key, as passed to public API handlers. */
+export type ApiCaller = { keyId: string; scope: KeyScope };
+
+export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
     const raw = req.headers.get("x-api-key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const row = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
@@ -22,6 +25,6 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, scope: KeyScope) => 
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    return handler(req, ctx, parseKeyScope(row.scope, row.keywords));
+    return handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords) });
   };
 }

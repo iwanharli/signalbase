@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Menu, Text, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconRobot, IconWorldWww, IconX } from "@tabler/icons-react";
 import { LogoMark } from "./Logo";
 import classes from "./shell.module.css";
 
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
   { href: "/api-keys", label: "Kunci API", icon: IconKey },
+  { href: "/settings/ai", label: "AI", icon: IconRobot },
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
 ];
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));

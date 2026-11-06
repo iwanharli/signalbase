@@ -14,6 +14,7 @@ dayjs.extend(relativeTime);
 export type ApiKeyRow = {
   id: string; name: string; prefix: string; keywords: string[]; scope: KeyScope;
   createdAt: string; lastUsedAt: string | null; revokedAt: string | null;
+  classifier: { enabled: boolean; processed: number; lastError: string | null; providerName: string } | null;
 };
 export type CreatedKey = { name: string; key: string; scope: KeyScope };
 

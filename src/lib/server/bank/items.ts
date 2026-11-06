@@ -90,3 +90,31 @@ export async function listItems(type: MediaType, params: URLSearchParams, scope:
   );
   return fetchItemsByCode(type, rows.map((r) => r.code));
 }
+
+export type TimeCursor = { ts: string; code: string };
+
+/**
+ * Items within a scope, walking the timeline from a cursor (ts, code) — used by the background
+ * classifier. "older" walks back from the cursor (newest first), "newer" walks forward (oldest first).
+ * The tuple comparison keeps items sharing a timestamp from being skipped at batch boundaries.
+ */
+export async function listItemsFromCursor(type: MediaType, scope: KeyScope, direction: "older" | "newer", cursor: TimeCursor | null, limit: number) {
+  const c = COLUMNS[type];
+  const { where, values } = buildWhere(type, new URLSearchParams(), scope);
+  const conditions = [where];
+  if (cursor) {
+    values.push(cursor.ts, cursor.code);
+    const ts = `$${values.length - 1}::timestamp`, code = `$${values.length}`;
+    conditions.push(direction === "older" ? `(${c.timestamp}, ${c.code}) < (${ts}, ${code})` : `(${c.timestamp}, ${c.code}) > (${ts}, ${code})`);
+  }
+  const order = direction === "older" ? "DESC" : "ASC";
+  const { rows } = await bankPool().query<{ code: string; ts: string }>(
+    `SELECT ${c.code} code, to_char(${c.timestamp}, 'YYYY-MM-DD"T"HH24:MI:SS.US') ts FROM ${c.from}
+     WHERE ${conditions.join(" AND ")} ORDER BY ${c.timestamp} ${order}, ${c.code} ${order} LIMIT ${Math.floor(limit)}`,
+    values,
+  );
+  const items = await fetchItemsByCode(type, rows.map((r) => r.code));
+  // The raw timestamp (not the ISO conversion) is what the next cursor must compare against.
+  const toCursor = (row?: { ts: string; code: string }) => (row ? { ts: row.ts, code: row.code } : null);
+  return { items, first: toCursor(rows[0]), next: toCursor(rows.at(-1)) };
+}

@@ -6,6 +6,6 @@
 //   stats.ts    counts, mood breakdown, daily volume (cached)
 //   options.ts  filter dropdown choices (cached)
 //   cache.ts    shared TTL cache helper
-export { listItems } from "./items";
+export { fetchItemsByCode, listItems, listItemsFromCursor, type TimeCursor } from "./items";
 export { filterOptions } from "./options";
 export { countCapped, countExact, dailyVolume, moodBreakdown } from "./stats";

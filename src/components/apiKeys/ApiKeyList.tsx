@@ -3,8 +3,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAdjustmentsHorizontal, IconClock, IconKey, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconArrowRight, IconClock, IconRobot, IconKey, IconPlugConnected, IconPlus, IconShieldOff, IconTag } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
+import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { formatDate, fromNow, isRecentlyUsed, KeywordChips, RestrictionChips, scopeRestrictions, useProvinceNames, type ApiKeyRow } from "./shared";
 import classes from "./apiKeys.module.css";
@@ -33,6 +34,17 @@ function KeyCard({ apiKey, onRevoke, provinceName }: { apiKey: ApiKeyRow; onRevo
         <span className={classes.sectionLabel}><IconAdjustmentsHorizontal size={13} />Parameter</span>
         <RestrictionChips restrictions={scopeRestrictions(apiKey.scope, provinceName)} />
       </div>
+
+      <Link href={`/api-keys/${apiKey.id}/ai`} className={classes.aiRow} data-state={!apiKey.classifier ? "off" : apiKey.classifier.lastError ? "error" : apiKey.classifier.enabled ? "on" : "paused"}>
+        <IconRobot size={16} />
+        <span>
+          <b>Kategorisasi AI</b>
+          <small>{!apiKey.classifier ? "Belum diatur"
+            : apiKey.classifier.lastError ? `Error: ${apiKey.classifier.lastError}`
+            : `${apiKey.classifier.enabled ? "Aktif" : "Dijeda"} · ${apiKey.classifier.providerName} · ${formatNumber(apiKey.classifier.processed)} item`}</small>
+        </span>
+        <IconArrowRight size={15} />
+      </Link>
 
       <dl className={classes.meta}>
         <div><dt>Dibuat</dt><dd>{formatDate(apiKey.createdAt)}</dd></div>

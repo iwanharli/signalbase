@@ -191,12 +191,35 @@ Nama akun, username, dan jumlah follower **tidak pernah** dikirim.
 
 ---
 
+## Kategorisasi AI
+
+Kunci yang memakai **kategorisasi AI** (diatur admin di panel) mendapat tambahan berikut. Kunci lain tidak berubah.
+
+**Setiap item** membawa `classification` (atau `null` bila belum diproses):
+
+```json
+"classification": { "category": "QW3", "label": "Bersih Judi Daring dan Penipuan Digital", "confidence": 0.86, "reason": "Melaporkan penangkapan admin situs judi online" }
+```
+
+`category` adalah salah satu kode kategori milik kunci, atau `none` bila tidak cocok dengan kategori mana pun.
+
+**Filter per kategori:** `?aiCategory=QW3` mengembalikan item berkategori itu, terbaru lebih dulu. Pada mode ini hanya `from`, `to`, `sort`, `page`, dan `size` yang berlaku; filter lain diabaikan. `total` di sini adalah jumlah pasti item yang sudah dikategorikan.
+
+**Ringkasan** (`view=summary`) menambahkan `aiCategories`:
+
+```json
+"aiCategories": [{ "code": "QW1", "label": "Ruang Publik Aman", "n": 1240 }, …, { "code": "none", "label": "Tidak termasuk", "n": 5120 }]
+```
+
+Kategorisasi berjalan di background (data baru lebih dulu, lalu mundur ke data lama) dengan batas harian, jadi item terbaru bisa butuh beberapa menit sampai mendapat `classification`.
+
 ## Kode status & galat
 
 | Status | Arti |
 |---|---|
 | `200` | Berhasil |
 | `401` | Kunci tidak ada, salah, atau dicabut — `{ "error": "Kunci API tidak valid" }` |
+| `400` | `aiCategory` dipakai pada kunci tanpa kategorisasi AI |
 | `403` | Kunci tidak punya akses ke jenis media yang diminta |
 | `404` | `type` bukan `social`/`online` |
 | `502` | Sumber data tidak bisa dihubungi — `{ "error": "Sumber data tidak bisa dihubungi" }` |

@@ -130,6 +130,7 @@ npm run dev                   # http://localhost:3100
 | `npm run lint` | ESLint |
 | `npm run db:push` | Sinkronkan skema Prisma ke database |
 | `npm run db:seed` | Buat admin pertama (aman dijalankan berulang) |
+| `npm run classifier` | Worker kategorisasi AI (berjalan terus) |
 | `npx tsc --noEmit` | Pemeriksaan tipe |
 
 ---
@@ -308,6 +309,19 @@ prisma/
 
 ---
 
+## Kategorisasi AI
+
+Setiap kunci API bisa diberi kategorisasi AI: setiap post/berita dalam cakupan kunci mendapat **satu kategori** (atau `none`) yang dikirim lewat API sebagai `classification`, bisa difilter dengan `aiCategory`, dan diringkas di `view=summary`.
+
+1. **Pengaturan AI** (`/settings/ai`) — hubungkan penyedia: Claude (SDK resmi Anthropic), DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI (`/chat/completions`). API key disimpan terenkripsi AES-256-GCM (kunci diturunkan dari `AUTH_SECRET`; mengganti `AUTH_SECRET` berarti API key penyedia harus diisi ulang). Tombol *Uji koneksi* mengirim dua contoh teks.
+2. **Per kunci** — saat membuat kunci (`/api-keys/new`) atau dari kartu kunci (`/api-keys/[id]/ai`): pilih penyedia, tulis prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**), dan batas item per hari.
+3. **Worker** — proses terpisah `npm run classifier` (PM2 `signalbase-classifier`). Tiap menit, untuk setiap kunci aktif: data baru lebih dulu, lalu mundur ke data lama sampai seluruh cakupan selesai. Item dikirim 20 per permintaan; progres disimpan sebagai cursor sehingga worker bisa dihentikan dan dilanjutkan kapan saja.
+
+Catatan:
+- Mengubah prompt, kategori, atau penyedia **menghapus hasil lama** dan mengulang dari awal; menjeda atau mengubah batas harian tidak.
+- Claude dipanggil dengan structured output (JSON schema), effort `low`, dan prompt caching untuk instruksi yang sama di setiap batch; model Claude 5.x memakai fallback penolakan sisi server.
+- **Biaya:** kira-kira 150–250 token masuk dan 30–40 token keluar per item. Untuk ratusan ribu item, pilih model dan batas harian dengan sadar (mis. Claude Haiku/Sonnet atau DeepSeek jauh lebih murah dari Opus).
+
 ## Deploy produksi
 
 Produksi: **https://signalbase.kecup.in** — server bersama, kode di `/var/www/signalbase` (checkout git), PM2 `signalbase-3720` (127.0.0.1:3720), nginx `signalbase.kecup.in` di belakang Cloudflare. `.env` server tidak pernah ditimpa.
@@ -327,6 +341,7 @@ npx prisma db push
 npm run db:seed          # sekali, untuk admin pertama
 npm run build
 PORT=3100 npm start      # atau lewat PM2: pm2 start "npm start" --name signalbase
+npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name signalbase-classifier -- run classifier)
 ```
 
 - Pasang di belakang reverse proxy (nginx) dengan HTTPS; middleware membaca `x-forwarded-host` / `x-forwarded-proto` untuk redirect yang benar.

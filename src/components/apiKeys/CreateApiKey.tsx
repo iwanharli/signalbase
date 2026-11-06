@@ -5,13 +5,14 @@ import { CopyButton, TagsInput, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
   IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconBulb, IconCheck, IconCopy, IconDatabase, IconKey, IconLock, IconMapPin,
-  IconPlus, IconShieldCheck, IconTag,
+  IconPlus, IconRobot, IconShieldCheck, IconTag,
 } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
 import { capitalize, humanize } from "@/lib/media/labels";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
+import { ClassifierEditor, draftProblems, emptyDraft, type ClassifierDraft, type ProviderOption } from "../ai/ClassifierEditor";
 import { DarkMultiSelect, Field, Segmented } from "../media/controls";
 import { KeywordChips, keywordText, RestrictionChips, scopeRestrictions, useProvinceNames, type CreatedKey } from "./shared";
 import classes from "./apiKeys.module.css";
@@ -64,6 +65,9 @@ function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
   const [name, setName] = useState("");
   const [scope, setScope] = useState<KeyScope>(OPEN_SCOPE);
   const [busy, setBusy] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiDraft, setAiDraft] = useState<ClassifierDraft>(emptyDraft);
+  const providers = useApi<ProviderOption[]>("/api/admin/ai-providers");
   const options = useScopeOptions();
   const update = (patch: Partial<KeyScope>) => setScope((prev) => ({ ...prev, ...patch }));
 
@@ -76,9 +80,11 @@ function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const problems = aiEnabled ? draftProblems(aiDraft) : [];
+    if (problems.length) return notifications.show({ color: "red", message: `Kategorisasi AI: ${problems[0]}` });
     setBusy(true);
     try {
-      onCreated(await post("/api/admin/keys", { name, scope }) as CreatedKey);
+      onCreated(await post("/api/admin/keys", { name, scope, classifier: aiEnabled ? aiDraft : null }) as CreatedKey);
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
       setBusy(false);
@@ -125,6 +131,16 @@ function CreateForm({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
               data={options.categories} value={scope.categories} onChange={(categories) => update({ categories })} />
           </Field>
         </div>
+      </div>
+
+      <div className={classes.params}>
+        <div className={classes.paramsHead}>
+          <IconRobot size={15} />Kategorisasi AI<small>Opsional · berjalan di background</small>
+          <Segmented options={[{ value: "off", label: "Mati" }, { value: "on", label: "Aktif" }]} value={aiEnabled ? "on" : "off"} onChange={(v) => setAiEnabled(v === "on")} />
+        </div>
+        {aiEnabled
+          ? <ClassifierEditor draft={aiDraft} onChange={setAiDraft} providers={providers.data} providersLoading={providers.loading} />
+          : <p className={classes.paramsNote}>Beri setiap post dan berita dalam cakupan kunci ini satu kategori (mis. 8 Quick Win Kapolri) memakai Claude, DeepSeek, atau penyedia lain. Bisa juga diatur nanti dari daftar kunci.</p>}
       </div>
 
       <ScopePreview scope={scope} />

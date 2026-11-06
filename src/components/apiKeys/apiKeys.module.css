@@ -173,3 +173,19 @@
 .chip[data-kind="filter"] { color: #cffafe; background: rgba(34,211,238,.16); border: 1px solid rgba(34,211,238,.3); }
 .card .chip[data-kind="filter"] { color: var(--mantine-color-cyan-9); background: var(--mantine-color-cyan-0); border-color: var(--mantine-color-cyan-2); }
 @media (max-width: 620px) { .paramsGrid { grid-template-columns: 1fr; } }
+
+/* AI categorisation row on a key card */
+.aiRow { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; text-decoration: none; color: inherit;
+  background: var(--mantine-color-gray-0); border: 1px solid var(--mantine-color-default-border); transition: border-color 160ms, background 160ms; }
+.aiRow:hover { border-color: var(--mantine-color-violet-3); background: var(--mantine-color-violet-0); }
+.aiRow > svg:first-child { flex-shrink: 0; color: var(--mantine-color-gray-5); }
+.aiRow span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.aiRow b { font-size: 13px; }
+.aiRow small { font-size: 12px; color: var(--mantine-color-dimmed); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aiRow[data-state="on"] > svg:first-child { color: var(--mantine-color-teal-6); }
+.aiRow[data-state="paused"] > svg:first-child { color: var(--mantine-color-orange-6); }
+.aiRow[data-state="error"] > svg:first-child, .aiRow[data-state="error"] small { color: var(--mantine-color-red-6); }
+.aiRow > svg:last-child { flex-shrink: 0; color: var(--mantine-color-violet-5); }
+
+.paramsHead > div[role="group"] { margin-left: 6px; --segment-height: 28px; }
+.paramsNote { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(255,255,255,.55); }

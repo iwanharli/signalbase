@@ -25,4 +25,60 @@ model ApiKey {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+
+  classifier      Classifier?
+  classifications Classification[]
+}
+
+// An AI service the admin has connected (Claude, DeepSeek, OpenAI, or any OpenAI-compatible endpoint).
+model AiProvider {
+  id          String       @id @default(uuid())
+  name        String
+  kind        String // "anthropic" | "openai_compatible"
+  baseUrl     String? // openai_compatible only, e.g. https://api.deepseek.com
+  model       String
+  apiKeyEnc   String // AES-256-GCM, see lib/server/secrets.ts
+  apiKeyHint  String // last 4 characters, for display only
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  classifiers Classifier[]
+}
+
+// AI categorisation settings and progress for one API key.
+model Classifier {
+  apiKeyId   String     @id
+  apiKey     ApiKey     @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   AiProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  enabled    Boolean    @default(true)
+  prompt     String
+  categories Json // [{ code, label, description }]
+  dailyLimit Int        @default(5000) // max items classified per day, to cap cost
+  // Progress per media type: { social: { newest, oldest, done }, online: {...} } (ISO timestamps)
+  cursors    Json       @default("{}")
+  processed  Int        @default(0)
+  failed     Int        @default(0)
+  todayCount Int        @default(0)
+  todayDate  String     @default("")
+  lastError  String?
+  lastRunAt  DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+// One item's category for one API key.
+model Classification {
+  apiKeyId    String
+  apiKey      ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  type        String // "social" | "online"
+  code        String // item code in the source database
+  category    String // a category code, or "none"
+  confidence  Float?
+  reason      String?
+  publishedAt DateTime
+  model       String
+  createdAt   DateTime @default(now())
+
+  @@id([apiKeyId, type, code])
+  @@index([apiKeyId, type, category, publishedAt])
 }
