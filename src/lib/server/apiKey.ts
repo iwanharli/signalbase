@@ -5,14 +5,14 @@ import { prisma } from "./db";
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 
 // Keys are shown once on creation; only their SHA-256 is stored.
-export async function createKey(name: string) {
+export async function createKey(name: string, keywords: string[] = []) {
   const key = `sb_${randomBytes(24).toString("base64url")}`;
-  const row = await prisma.apiKey.create({ data: { name, prefix: key.slice(0, 10), hash: hash(key) } });
+  const row = await prisma.apiKey.create({ data: { name, prefix: key.slice(0, 10), hash: hash(key), keywords } });
   return { ...row, key };
 }
 
 // Wraps public API handlers: requires `Authorization: Bearer <key>` or `x-api-key`.
-export function apiRoute<C>(handler: (req: Request, ctx: C) => Promise<Response>) {
+export function apiRoute<C>(handler: (req: Request, ctx: C, keywords: string[]) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
     const raw = req.headers.get("x-api-key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const row = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
@@ -20,6 +20,6 @@ export function apiRoute<C>(handler: (req: Request, ctx: C) => Promise<Response>
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    return handler(req, ctx);
+    return handler(req, ctx, row.keywords);
   };
 }

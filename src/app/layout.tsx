@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Signalbase · Bank Data Media",
-  description: "Kurasi data media sosial dan media online sebelum dipakai aplikasi lain",
+  description: "Bank data media sosial dan media online untuk aplikasi lain",
   robots: { index: false, follow: false },
 };
 

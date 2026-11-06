@@ -1,25 +1,37 @@
 import { NextResponse } from "next/server";
+import type { MediaType } from "@/lib/media/types";
 import { adminRoute } from "@/lib/server/auth";
+import { dailyVolume, listItems, moodBreakdown } from "@/lib/server/bank";
 import { prisma } from "@/lib/server/db";
 
-// Reviewed counts per type and status, plus today's and the last 14 days of approvals.
+const LATEST_PER_TYPE = 4;
+
+// Overview page data: per media type the last 14 days of volume, the mood split of the
+// last 7 days and the newest items; plus the active API keys.
 export const GET = adminRoute(async () => {
-  const today = new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00+07:00");
-  const [groups, todayGroups, daily, moods, keys] = await Promise.all([
-    prisma.item.groupBy({ by: ["type", "status"], _count: true }),
-    prisma.item.groupBy({ by: ["status"], where: { reviewedAt: { gte: today } }, _count: true }),
-    prisma.$queryRaw<{ day: string; n: number }[]>`
-      select to_char(("reviewedAt" at time zone 'UTC') at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as day, count(*)::int n
-      from "Item" where status = 'approved' and "reviewedAt" > now() - interval '14 days' group by 1 order by 1`,
-    prisma.item.groupBy({ by: ["type", "mood"], where: { status: "approved" }, _count: true }),
-    prisma.apiKey.count({ where: { revokedAt: null } }),
-  ]);
-  const count = (type: string, status: string) => groups.find((g) => g.type === type && g.status === status)?._count ?? 0;
-  return NextResponse.json({
-    sosial: { approved: count("sosial", "approved"), rejected: count("sosial", "rejected") },
-    online: { approved: count("online", "approved"), rejected: count("online", "rejected") },
-    today: { approved: todayGroups.find((g) => g.status === "approved")?._count ?? 0, rejected: todayGroups.find((g) => g.status === "rejected")?._count ?? 0 },
-    daily, keys,
-    moods: moods.map((m) => ({ type: m.type, mood: m.mood, n: m._count })),
-  });
+  const weekStart = new Date(Date.now() - 6 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+
+  const typeStats = async (type: MediaType) => {
+    const [daily, moods, latest] = await Promise.all([
+      dailyVolume(type),
+      moodBreakdown(type, new URLSearchParams({ from: weekStart }), []),
+      listItems(type, new URLSearchParams(), [], { limit: LATEST_PER_TYPE, offset: 0 }),
+    ]);
+    return { daily, moods, latest };
+  };
+
+  try {
+    const [sosial, online, keys] = await Promise.all([
+      typeStats("sosial"),
+      typeStats("online"),
+      prisma.apiKey.findMany({
+        where: { revokedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, keywords: true, lastUsedAt: true },
+      }),
+    ]);
+    return NextResponse.json({ sosial, online, keys, at: new Date().toISOString() });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+  }
 });

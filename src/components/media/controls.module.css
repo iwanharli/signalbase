@@ -1,0 +1,38 @@
+/* Form controls on the dark filter surfaces (quick bar and advanced drawer). */
+
+/* Segmented control */
+.segmented { position: relative; display: inline-flex; padding: 4px; gap: 2px; border-radius: 13px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); }
+.segmented button { position: relative; height: var(--segment-height, 34px); padding: 0 13px; border: 0; border-radius: 9px; cursor: pointer; white-space: nowrap; background: none;
+  color: rgba(255,255,255,.6); font: 600 13px/1 inherit; font-family: inherit; transition: color 180ms, background 220ms, box-shadow 220ms; }
+.segmented button:hover { color: #fff; }
+.segmented button:disabled { opacity: .35; cursor: not-allowed; }
+.segmented button[data-active] { color: #fff; background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,211,238,.75));
+  box-shadow: 0 0 18px rgba(124,58,237,.5), inset 0 1px 0 rgba(255,255,255,.25); }
+/* Full-width variant (drawer): wraps instead of overflowing */
+.segmented[data-full] { display: flex; width: 100%; flex-wrap: wrap; }
+.segmented[data-full] button { flex: 1 1 auto; min-width: 0; padding: 0 10px; font-size: 12.5px; }
+
+/* Labelled field */
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field[data-wide] { grid-column: 1 / -1; }
+.fieldLabel { font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.45); }
+
+/* Select (Mantine) */
+.selectInput { height: var(--control-height, 44px) !important; min-height: 0 !important; border-radius: 13px !important; background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.08) !important;
+  color: #fff !important; font-weight: 600; transition: border-color 200ms, box-shadow 200ms; }
+.selectInput::placeholder { color: rgba(255,255,255,.5) !important; }
+.selectInput:focus { border-color: rgba(167,139,250,.8) !important; box-shadow: 0 0 0 4px rgba(124,58,237,.18); }
+.selectSection { color: rgba(255,255,255,.55) !important; }
+.selectDropdown { background: rgba(17,14,38,.96) !important; backdrop-filter: blur(14px); border: 1px solid rgba(167,139,250,.25) !important; border-radius: 14px !important;
+  box-shadow: 0 20px 50px -20px rgba(46,16,101,.9); }
+.selectOption { color: rgba(255,255,255,.8) !important; border-radius: 9px !important; }
+.selectOption:hover, .selectOption[data-combobox-selected] { background: linear-gradient(90deg, rgba(124,58,237,.6), rgba(34,211,238,.25)) !important; color: #fff !important; }
+
+/* Date range: two stacked-label inputs side by side */
+.dateRange { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.date { display: flex; flex-direction: column; gap: 1px; padding: var(--date-padding, 7px 12px); border-radius: 13px; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); transition: border-color 200ms, box-shadow 200ms; }
+.date:focus-within { border-color: rgba(167,139,250,.8); box-shadow: 0 0 0 4px rgba(124,58,237,.18); }
+.date small { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.45); }
+.date input { width: 100%; min-width: 0; border: 0; outline: 0; padding: 0; background: none; color: #fff; font: 600 13px inherit; font-family: inherit; color-scheme: dark; }
+.date input::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; margin-left: 2px; }

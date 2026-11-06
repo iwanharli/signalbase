@@ -1,94 +1,221 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Badge, Card, Group, Progress, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core";
-import { IconArrowRight, IconCircleCheck, IconCircleX, IconKey, IconLayoutDashboard, IconMessages, IconWorldWww } from "@tabler/icons-react";
+import { Alert, Skeleton } from "@mantine/core";
+import { IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconKey, IconMessages, IconPlugConnected, IconWorldWww } from "@tabler/icons-react";
+import dayjs from "dayjs";
+import "dayjs/locale/id";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { formatNumber, MEDIA_TYPE_LABEL, MOOD_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
+import { moodColorVar, moodInfo } from "@/lib/media/mood";
+import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
-import { moodInfo } from "@/lib/mood";
-import { PageHeader } from "./PageHeader";
+import classes from "./overview.module.css";
 
-type Stats = {
-  sosial: { approved: number; rejected: number }; online: { approved: number; rejected: number };
-  today: { approved: number; rejected: number }; daily: { day: string; n: number }[]; keys: number;
-  moods: { type: string; mood: string | null; n: number }[];
-};
-const fmt = (n: number) => n.toLocaleString("id-ID");
+dayjs.extend(relativeTime);
 
-function Stat({ label, value, icon: I, color, hint }: { label: string; value: number | undefined; icon: typeof IconKey; color: string; hint: string }) {
+type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
+type ApiKeySummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
+type OverviewStats = { sosial: TypeStats; online: TypeStats; keys: ApiKeySummary[]; at: string };
+
+const CHART_DAYS = 14;
+const LEGEND_SIZE = 6;
+const RECENTLY_USED_MS = 60 * 60_000;
+const COUNT_UP_MS = 1100;
+
+const TYPE_STYLE = {
+  sosial: { icon: IconMessages, from: "#7c3aed", to: "#c084fc" },
+  online: { icon: IconWorldWww, from: "#0891b2", to: "#22d3ee" },
+} as const;
+const KEYS_STYLE = { from: "#059669", to: "#34d399" };
+
+const gradientVars = (style: { from: string; to: string }) => ({ ["--c1" as string]: style.from, ["--c2" as string]: style.to });
+const sum = (counts: { n: number }[]) => counts.reduce((total, c) => total + c.n, 0);
+
+/** The last CHART_DAYS days, oldest first, with missing days filled with 0. */
+function fillDays(daily: DailyCount[]): DailyCount[] {
+  const byDay = new Map(daily.map((d) => [d.day, d.n]));
+  return Array.from({ length: CHART_DAYS }, (_, i) => {
+    const day = dayjs().subtract(CHART_DAYS - 1 - i, "day").format("YYYY-MM-DD");
+    return { day, n: byDay.get(day) ?? 0 };
+  });
+}
+
+/** Number that counts up from 0 with an ease-out curve. */
+function CountUp({ value }: { value: number }) {
+  const [current, setCurrent] = useState(0);
+  useEffect(() => {
+    let frame = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
+      setCurrent(value * (1 - Math.pow(1 - progress, 4)));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <>{formatNumber(current)}</>;
+}
+
+/** Hero tile: this week's volume and the change from the week before. */
+function VolumeTile({ type, stats }: { type: MediaType; stats?: TypeStats }) {
+  const style = TYPE_STYLE[type];
+  const days = stats ? fillDays(stats.daily) : [];
+  const thisWeek = sum(days.slice(7));
+  const lastWeek = sum(days.slice(0, 7));
+  const change = lastWeek ? ((thisWeek - lastWeek) / lastWeek) * 100 : 0;
   return (
-    <Card p="lg">
-      <Group justify="space-between" align="flex-start">
-        <div>
-          <Text fz={13} c="dimmed" fw={600}>{label}</Text>
-          {value == null ? <Skeleton h={32} w={80} mt={6} /> : <Text fz={30} fw={800} lh={1.2} mt={4}>{fmt(value)}</Text>}
-          <Text fz={12} c="dimmed" mt={4}>{hint}</Text>
-        </div>
-        <I size={28} color={`var(--mantine-color-${color}-6)`} stroke={1.6} />
-      </Group>
-    </Card>
+    <Link href={`/media/${type}`} className={classes.tile} style={gradientVars(style)}>
+      <span className={classes.tileIcon}><style.icon size={20} /></span>
+      <span className={classes.tileLabel}>{MEDIA_TYPE_LABEL[type]} · 7 hari</span>
+      <b className={classes.tileValue}>{stats ? <CountUp value={thisWeek} /> : "—"}</b>
+      {stats && lastWeek > 0 && (
+        <span className={classes.delta} data-down={change < 0 || undefined}>
+          {change < 0 ? <IconArrowDownRight size={14} /> : <IconArrowUpRight size={14} />}{Math.abs(change).toFixed(1)}% vs 7 hari sebelumnya
+        </span>
+      )}
+    </Link>
   );
 }
 
-function TypeCard({ type, label, icon: I, data, moods }: { type: string; label: string; icon: typeof IconKey; data?: { approved: number; rejected: number }; moods: Stats["moods"] }) {
-  const own = moods.filter((m) => m.type === type && m.mood).sort((a, b) => b.n - a.n);
-  const total = own.reduce((t, m) => t + m.n, 0);
+/** Daily volume bars plus the week's mood breakdown for one media type. */
+function TypePanel({ type, stats }: { type: MediaType; stats?: TypeStats }) {
+  const days = stats ? fillDays(stats.daily) : [];
+  const peak = Math.max(1, ...days.map((d) => d.n));
+  const moodTotal = sum(stats?.moods ?? []);
   return (
-    <Card p="lg">
-      <Group justify="space-between" mb="md">
-        <Group gap="sm"><I size={22} /><Text fw={700}>{label}</Text></Group>
-        <Link href={`/kurasi/${type}`} style={{ fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>Buka antrean <IconArrowRight size={14} /></Link>
-      </Group>
-      <Group gap="xl" mb="md">
-        <div><Text fz={24} fw={800} c="teal.7">{data ? fmt(data.approved) : "–"}</Text><Text fz={12} c="dimmed">Disetujui</Text></div>
-        <div><Text fz={24} fw={800} c="red.7">{data ? fmt(data.rejected) : "–"}</Text><Text fz={12} c="dimmed">Ditolak</Text></div>
-      </Group>
-      <Text fz={12} fw={700} c="dimmed" mb={6}>{type === "sosial" ? "Emosi" : "Sentimen"} data terbit</Text>
-      {total ? (
-        <Stack gap={6}>
-          {own.slice(0, 5).map((m) => {
-            const info = moodInfo(m.mood!);
-            return (
-              <div key={m.mood}>
-                <Group justify="space-between" mb={2}><Text fz={13}>{info.label}</Text><Text fz={12} c="dimmed">{fmt(m.n)} · {Math.round((m.n / total) * 100)}%</Text></Group>
-                <Progress value={(m.n / total) * 100} color={info.color} size="sm" />
+    <section className={classes.panel} style={gradientVars(TYPE_STYLE[type])}>
+      <header className={classes.panelHead}>
+        <div><h3>{MEDIA_TYPE_LABEL[type]}</h3><p>Volume harian, 14 hari terakhir</p></div>
+        <Link href={`/media/${type}`} className={classes.more}>Jelajahi <IconArrowRight size={14} /></Link>
+      </header>
+
+      {!stats ? <Skeleton h={170} radius="md" /> : (
+        <div className={classes.chart}>
+          {days.map((d, i) => (
+            <div key={d.day} className={classes.col} data-today={i === CHART_DAYS - 1 || undefined}>
+              <span className={classes.tip}>{dayjs(d.day).locale("id").format("D MMM")}<b>{formatNumber(d.n)}</b></span>
+              <i style={{ height: `${Math.max(2, (d.n / peak) * 100)}%`, animationDelay: `${i * 35}ms` }} />
+              <small>{dayjs(d.day).format("D")}</small>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={classes.moodHead}>{MOOD_KIND_LABEL[type]} · 7 hari</div>
+      {!stats ? <Skeleton h={40} radius="md" /> : moodTotal === 0 ? <p className={classes.empty}>Belum ada data teranalisis.</p> : (
+        <>
+          <div className={classes.spectrum}>
+            {stats.moods.map((m) => <i key={m.value} title={`${moodInfo(m.value).label}: ${formatNumber(m.n)}`} style={{ flexGrow: m.n, background: moodColorVar(m.value) }} />)}
+          </div>
+          <div className={classes.legend}>
+            {stats.moods.slice(0, LEGEND_SIZE).map((m) => (
+              <Link key={m.value} href={`/media/${type}?mood=${encodeURIComponent(m.value)}`}>
+                <i style={{ background: moodColorVar(m.value) }} />{moodInfo(m.value).label}<b>{Math.round((m.n / moodTotal) * 100)}%</b>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Newest items of both types, merged by time. */
+function LatestFeed({ stats }: { stats: OverviewStats | null }) {
+  const items = stats
+    ? [...stats.sosial.latest.map((item) => ({ item, type: "sosial" as const })), ...stats.online.latest.map((item) => ({ item, type: "online" as const }))]
+      .sort((a, b) => b.item.publishedAt.localeCompare(a.item.publishedAt))
+    : [];
+  return (
+    <section className={classes.panel}>
+      <header className={classes.panelHead}><div><h3>Sinyal terbaru</h3><p>Data paling baru yang masuk ke bank</p></div></header>
+      <div className={classes.feed}>
+        {!stats && Array.from({ length: 5 }, (_, i) => <Skeleton key={i} h={58} radius="md" />)}
+        {items.map(({ item, type }, i) => {
+          const mood = item.mood ? moodInfo(item.mood) : null;
+          const Icon = TYPE_STYLE[type].icon;
+          return (
+            <Link key={item.code} href={`/media/${type}`} className={classes.feedItem} style={{ animationDelay: `${i * 60}ms` }}>
+              <span className={classes.feedIcon} data-t={type}><Icon size={16} /></span>
+              <span className={classes.feedBody}>
+                <span className={classes.feedText}>{item.title ?? item.content}</span>
+                <span className={classes.feedMeta}>
+                  {sourceLabel(item.source)} · {dayjs(item.publishedAt).locale("id").fromNow()}
+                  {mood && <em style={{ color: `var(--mantine-color-${mood.color}-6)` }}> · {mood.label}</em>}
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ConnectedApps({ keys }: { keys: ApiKeySummary[] | null }) {
+  return (
+    <section className={classes.panel}>
+      <header className={classes.panelHead}>
+        <div><h3>Aplikasi terhubung</h3><p>Kunci API aktif dan cakupannya</p></div>
+        <Link href="/kunci-api" className={classes.more}>Kelola <IconArrowRight size={14} /></Link>
+      </header>
+      <div className={classes.keys}>
+        {!keys && <Skeleton h={120} radius="md" />}
+        {keys?.map((key) => {
+          const recentlyUsed = !!key.lastUsedAt && Date.now() - new Date(key.lastUsedAt).getTime() < RECENTLY_USED_MS;
+          return (
+            <div key={key.id} className={classes.key}>
+              <span className={classes.keyIcon} data-fresh={recentlyUsed || undefined}><IconPlugConnected size={17} /></span>
+              <div>
+                <b>{key.name}</b>
+                <small>{key.lastUsedAt ? `Terakhir dipakai ${dayjs(key.lastUsedAt).locale("id").fromNow()}` : "Belum pernah dipakai"}</small>
+                <div className={classes.kw}>{key.keywords.length ? key.keywords.map((w) => <span key={w}>{w}</span>) : <span>semua data</span>}</div>
               </div>
-            );
-          })}
-        </Stack>
-      ) : <Text fz={13} c="dimmed">Belum ada data yang disetujui.</Text>}
-    </Card>
+            </div>
+          );
+        })}
+        {keys && !keys.length && <p className={classes.empty}>Belum ada kunci aktif.</p>}
+      </div>
+    </section>
   );
 }
 
 export function Overview() {
-  const { data } = useApi<Stats>("/api/admin/stats");
-  const max = Math.max(1, ...(data?.daily ?? []).map((d) => d.n));
+  const { data, error } = useApi<OverviewStats>("/api/admin/stats");
   return (
-    <>
-      <PageHeader icon={IconLayoutDashboard} title="Ringkasan" subtitle="Status kurasi bank data media" />
-      <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} mb="lg">
-        <Stat label="Terbit" value={data ? data.sosial.approved + data.online.approved : undefined} icon={IconCircleCheck} color="teal" hint="Bisa dibaca aplikasi lain" />
-        <Stat label="Ditolak" value={data ? data.sosial.rejected + data.online.rejected : undefined} icon={IconCircleX} color="red" hint="Tidak diteruskan" />
-        <Stat label="Dikurasi hari ini" value={data ? data.today.approved + data.today.rejected : undefined} icon={IconLayoutDashboard} color="violet" hint={data ? `${fmt(data.today.approved)} disetujui · ${fmt(data.today.rejected)} ditolak` : " "} />
-        <Stat label="Kunci API aktif" value={data?.keys} icon={IconKey} color="cyan" hint="Aplikasi yang terhubung" />
-      </SimpleGrid>
-      <SimpleGrid cols={{ base: 1, md: 2 }} mb="lg">
-        <TypeCard type="sosial" label="Media Sosial" icon={IconMessages} data={data?.sosial} moods={data?.moods ?? []} />
-        <TypeCard type="online" label="Media Online" icon={IconWorldWww} data={data?.online} moods={data?.moods ?? []} />
-      </SimpleGrid>
-      <Card p="lg">
-        <Group justify="space-between" mb="md"><Text fw={700}>Persetujuan 14 hari terakhir</Text><Badge variant="light">{fmt((data?.daily ?? []).reduce((t, d) => t + d.n, 0))} item</Badge></Group>
-        {data && !data.daily.length ? <Text fz={13} c="dimmed">Belum ada aktivitas.</Text> : (
-          <Group align="flex-end" gap={6} h={140} wrap="nowrap">
-            {(data?.daily ?? []).map((d) => (
-              <Stack key={d.day} gap={4} align="center" style={{ flex: 1, minWidth: 0 }}>
-                <Text fz={11} c="dimmed">{d.n}</Text>
-                <div title={`${d.day}: ${d.n}`} style={{ width: "100%", maxWidth: 36, height: `${(d.n / max) * 100}px`, minHeight: 3, borderRadius: 6, background: "linear-gradient(180deg, var(--mantine-color-violet-5), var(--mantine-color-cyan-5))" }} />
-                <Text fz={10} c="dimmed">{d.day.slice(8)}/{d.day.slice(5, 7)}</Text>
-              </Stack>
-            ))}
-          </Group>
-        )}
-      </Card>
-    </>
+    <div className={classes.page}>
+      <section className={classes.hero}>
+        <div className={classes.heroGrid} aria-hidden />
+        <div className={classes.heroText}>
+          <span className={classes.live}><i />Data langsung</span>
+          <h1>Pusat <em>Sinyal</em> Media</h1>
+          <p>Arus post media sosial dan berita online yang dibuka untuk aplikasi lain lewat kunci API.{data && <> Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</>}</p>
+        </div>
+        <div className={classes.tiles}>
+          <VolumeTile type="sosial" stats={data?.sosial} />
+          <VolumeTile type="online" stats={data?.online} />
+          <Link href="/kunci-api" className={classes.tile} style={gradientVars(KEYS_STYLE)}>
+            <span className={classes.tileIcon}><IconKey size={20} /></span>
+            <span className={classes.tileLabel}>Kunci API aktif</span>
+            <b className={classes.tileValue}>{data ? <CountUp value={data.keys.length} /> : "—"}</b>
+            <span className={classes.delta}>Aplikasi terhubung</span>
+          </Link>
+        </div>
+      </section>
+
+      {error && <Alert color="red" mb="lg">{error}</Alert>}
+
+      <div className={classes.two}>
+        <TypePanel type="sosial" stats={data?.sosial} />
+        <TypePanel type="online" stats={data?.online} />
+      </div>
+
+      <div className={classes.two} data-wide-left>
+        <LatestFeed stats={data} />
+        <ConnectedApps keys={data?.keys ?? null} />
+      </div>
+    </div>
   );
 }

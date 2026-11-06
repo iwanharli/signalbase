@@ -28,7 +28,7 @@ export default function LoginPage() {
         <Stack gap="lg">
           <Logo />
           <div>
-            <Title order={2} fz={24}>Masuk ke panel kurasi</Title>
+            <Title order={2} fz={24}>Masuk ke panel Signalbase</Title>
             <Text c="dimmed" fz={14} mt={4}>Saring data media sebelum diteruskan ke aplikasi lain.</Text>
           </div>
           {error && <Alert color="red" variant="light">{error}</Alert>}

@@ -1,0 +1,31 @@
+/* Item card in the masonry feed. `--tone` is the item's mood colour. */
+.card { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: 18px; cursor: pointer; outline: none;
+  background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); box-shadow: 0 1px 2px rgba(15,10,40,.04);
+  transition: transform 260ms cubic-bezier(.2,.8,.2,1), box-shadow 260ms ease, border-color 260ms ease; animation: enter 480ms cubic-bezier(.2,.8,.2,1) both; }
+.card::before { content: ""; position: absolute; inset: 0 0 auto; z-index: 1; height: 3px; opacity: .85; background: linear-gradient(90deg, var(--tone), transparent); }
+.card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 45%, var(--mantine-color-default-border));
+  box-shadow: 0 22px 44px -24px color-mix(in srgb, var(--tone) 60%, rgba(46,16,101,.6)); }
+.card:focus-visible { border-color: var(--mantine-color-violet-5); box-shadow: 0 0 0 3px var(--mantine-color-violet-2); }
+@keyframes enter { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+
+.media { overflow: hidden; background: var(--mantine-color-gray-1); }
+.media img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; transition: transform 500ms cubic-bezier(.2,.8,.2,1); }
+.card:hover .media img { transform: scale(1.05); }
+
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+.content { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* AI summary box */
+.analysis { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--mantine-color-violet-1) 70%, transparent), color-mix(in srgb, var(--mantine-color-cyan-0) 70%, transparent));
+  border: 1px solid color-mix(in srgb, var(--mantine-color-violet-3) 45%, transparent); }
+.summary { margin: 0; display: flex; gap: 7px; font-size: 12.5px; line-height: 1.5; color: var(--mantine-color-violet-9); }
+.summary svg { flex-shrink: 0; margin-top: 2px; color: var(--mantine-color-violet-6); }
+.summary span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.footer { margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--mantine-color-default-border); display: flex; flex-direction: column; gap: 6px; }
+.detailHint { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--mantine-color-violet-6); transition: gap 200ms; }
+.card:hover .detailHint { gap: 6px; color: var(--mantine-color-cyan-7); }
+
+@media (max-width: 480px) { .body { padding: 12px 14px; } }
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } .card, .media img { transition: none; } }
