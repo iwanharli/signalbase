@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Deploy the pushed `main` branch to production.
 #
-#   ./deploy.sh                    uses root@217.76.51.113 (prompts for the SSH password)
+#   ./deploy.sh                    host from .env.deploy (DEPLOY_HOST=user@host), not committed
 #   DEPLOY_HOST=user@host ./deploy.sh
 #
 # On the server: /var/www/signalbase (git checkout), PM2 process `signalbase-3720`,
 # nginx site signalbase.kecup.in. The server's .env is never touched.
 set -euo pipefail
 
-HOST="${DEPLOY_HOST:-root@217.76.51.113}"
+[ -f .env.deploy ] && . ./.env.deploy
+HOST="${DEPLOY_HOST:?Set DEPLOY_HOST=user@host in .env.deploy or the environment}"
 APP_DIR="/var/www/signalbase"
 PROCESS="signalbase-3720"
 

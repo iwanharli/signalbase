@@ -313,6 +313,7 @@ Produksi: **https://signalbase.kecup.in** — server bersama, kode di `/var/www/
 Update dari mesin lokal (setelah commit):
 
 ```bash
+echo 'DEPLOY_HOST=user@host' > .env.deploy   # sekali; diabaikan git
 ./deploy.sh        # push main, lalu di server: pull, npm ci, prisma db push, build, restart PM2, cek login
 ```
 
