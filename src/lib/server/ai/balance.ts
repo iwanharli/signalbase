@@ -90,3 +90,25 @@ export async function costPerItem(apiKeyId: string): Promise<{ currency: string;
   if (items < 50 || !snapshots.length) return null;
   return { currency: snapshots[0].currency, perItem: spent / items, sample: items };
 }
+
+export const AUTO_PAUSE_PREFIX = "Dijeda otomatis";
+
+/** Why the classifier must stop now, from recorded balances: credit below the floor or today's spend at the cap. */
+export async function spendingStop(apiKeyId: string, minBalance: number | null, dailyBudget: number | null): Promise<string | null> {
+  if (minBalance == null && dailyBudget == null) return null;
+  const { prisma } = await import("../db");
+  const latest = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId }, orderBy: { at: "desc" } });
+  if (!latest) return null;
+  const fmt = (n: number) => `${latest.currency} ${n.toFixed(2)}`;
+  if (minBalance != null && latest.total < minBalance) return `${AUTO_PAUSE_PREFIX}: saldo ${fmt(latest.total)} di bawah batas ${fmt(minBalance)}. Isi saldo lalu lanjutkan.`;
+  if (dailyBudget != null) {
+    const midnight = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" })}T00:00:00+07:00`);
+    const points = await prisma.balanceSnapshot.findMany({ where: { apiKeyId, currency: latest.currency, at: { gte: midnight } }, orderBy: { at: "asc" } });
+    const before = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId, currency: latest.currency, at: { lt: midnight } }, orderBy: { at: "desc" } });
+    const series = before ? [before, ...points] : points;
+    let spent = 0;
+    for (let i = 1; i < series.length; i++) spent += Math.max(0, series[i - 1].total - series[i].total);
+    if (spent >= dailyBudget) return `${AUTO_PAUSE_PREFIX}: pemakaian hari ini ${fmt(spent)} mencapai batas ${fmt(dailyBudget)}. Lanjutkan besok atau naikkan batas.`;
+  }
+  return null;
+}

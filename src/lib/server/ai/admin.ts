@@ -14,7 +14,7 @@ import { categoriesForType } from "@/lib/ai/classifier";
 export const publicClassifier = (c: Classifier) => ({
   apiKeyId: c.apiKeyId,
   provider: { kind: c.providerKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyHint: c.providerKeyHint },
-  enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories, labelledOnly: c.labelledOnly, startFrom: c.startFrom,
+  enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories, labelledOnly: c.labelledOnly, minBalance: c.minBalance, dailyBudget: c.dailyBudget, startFrom: c.startFrom,
   cursors: c.cursors, processed: c.processed, failed: c.failed, todayCount: c.todayCount, todayDate: c.todayDate,
   lastError: c.lastError, lastRunAt: c.lastRunAt, updatedAt: c.updatedAt,
 });
@@ -42,7 +42,7 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
     ...(input.provider.apiKey ? { providerKeyEnc: encryptSecret(input.provider.apiKey), providerKeyHint: secretHint(input.provider.apiKey) } : {}),
   };
   const startFrom = input.startFrom ? new Date(input.startFrom) : null;
-  const data = { ...provider, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, startFrom };
+  const data = { ...provider, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, minBalance: input.minBalance, dailyBudget: input.dailyBudget, startFrom };
 
   if (!existing) {
     return prisma.classifier.create({ data: { apiKeyId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });
@@ -64,11 +64,17 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
   const everything = restart.length === MEDIA_TYPES.length;
   return prisma.$transaction(async (tx) => {
     let removed = 0;
-    if (restart.length) removed = (await tx.classification.deleteMany({ where: { apiKeyId, type: { in: restart } } })).count;
+    for (const type of restart) {
+      // Manual corrections survive a restart while their category still exists in the new list.
+      const codes = [...(categoriesForType({ categories: input.categories, onlineCategories: input.onlineCategories }, type) as { code: string }[]).map((c) => c.code), "none"];
+      removed += (await tx.classification.deleteMany({ where: { apiKeyId, type, OR: [{ manual: false }, { category: { notIn: codes } }] } })).count;
+    }
     return tx.classifier.update({
       where: { apiKeyId },
       data: {
         ...data, cursors: cursors as Prisma.InputJsonValue,
+        // Turning it back on clears an automatic pause message.
+        ...(input.enabled && !existing.enabled ? { lastError: null } : {}),
         ...(everything ? { processed: 0, failed: 0, lastError: null } : restart.length ? { processed: Math.max(0, existing.processed - removed), lastError: null } : {}),
       },
     });

@@ -39,3 +39,4 @@
 .relevance[data-watchlist]::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--mantine-color-yellow-6); }
 
 @media (max-width: 380px) { .factors { grid-template-columns: minmax(0, 1fr); } }
+.aiCategory[data-pending] { color: var(--mantine-color-dimmed) !important; background: transparent !important; border: 1px dashed var(--mantine-color-default-border) !important; font-weight: 600; }

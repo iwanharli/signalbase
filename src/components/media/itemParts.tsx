@@ -17,12 +17,14 @@ export const moodTone = (item: MediaItem) => `var(--mantine-color-${item.mood ? 
 /** AI category from the API key being browsed through; "none" is shown muted. */
 export function AiCategoryBadge({ item, detailed }: { item: MediaItem; detailed?: boolean }) {
   const c = item.classification;
-  if (!c) return null;
+  if (c === undefined) return null;
+  if (c === null) return <span className={classes.aiCategory} data-pending><IconRobot size={12} />Belum dikategorikan</span>;
   return (
     <Tip label={c.reason}>
       <span className={classes.aiCategory} data-none={c.category === "none" || undefined}>
         <IconRobot size={12} /><b>{c.category === "none" ? "—" : c.category}</b>{c.label}
         {detailed && c.confidence != null && <em>{Math.round(c.confidence * 100)}%</em>}
+        {c.manual && <em>manual</em>}
       </span>
     </Tip>
   );

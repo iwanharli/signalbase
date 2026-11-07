@@ -1,9 +1,9 @@
 // Reading stored AI categories for the public API.
-import { ANY_CATEGORY, categoriesForType, categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
+import { ANY_CATEGORY, LOW_CONFIDENCE, LOW_CONFIDENCE_FILTER, categoriesForType, categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { ItemClassification, MediaType } from "@/lib/media/types";
 import { prisma } from "../db";
 
-/** The key's category list, or null when the key has no (enabled) categorisation. */
+/** The key's category list, or null when the key has no categorisation. Paused keys keep serving stored labels. */
 /** The category filter a request gets: the one asked for, else "any" when the key serves labelled items only. */
 export async function effectiveCategoryFilter(apiKeyId: string, requested: string | null) {
   if (requested) return requested;
@@ -12,8 +12,8 @@ export async function effectiveCategoryFilter(apiKeyId: string, requested: strin
 }
 
 export async function keyCategories(apiKeyId: string, type: MediaType): Promise<Category[] | null> {
-  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { enabled: true, categories: true, onlineCategories: true } });
-  if (!classifier?.enabled) return null;
+  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { categories: true, onlineCategories: true } });
+  if (!classifier) return null;
   const parsed = categorySchema.array().safeParse(categoriesForType(classifier, type));
   return parsed.success ? parsed.data : null;
 }
@@ -25,7 +25,7 @@ const labelOf = (categories: Category[], code: string) =>
 export async function classificationsFor(apiKeyId: string, type: MediaType, codes: string[], categories: Category[], includeMetadata = false) {
   if (!codes.length) return new Map<string, ItemClassification>();
   const rows = await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } } });
-  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason, ...(includeMetadata ? { model: r.model, categorizedAt: r.createdAt.toISOString() } : {}) }]));
+  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason, manual: r.manual, correctedBy: r.correctedBy, ...(includeMetadata ? { model: r.model, categorizedAt: r.createdAt.toISOString() } : {}) }]));
 }
 
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -37,7 +37,8 @@ export async function codesInCategory(apiKeyId: string, type: MediaType, categor
     ...(isDate(from) ? { gte: new Date(`${from}T00:00:00+07:00`) } : {}),
     ...(isDate(to) ? { lt: new Date(new Date(`${to}T00:00:00+07:00`).getTime() + 86_400_000) } : {}),
   };
-  const where = { apiKeyId, type, ...(category === ANY_CATEGORY ? {} : { category }), ...(Object.keys(publishedAt).length ? { publishedAt } : {}) };
+  const where = { apiKeyId, type,
+    ...(category === ANY_CATEGORY ? {} : category === LOW_CONFIDENCE_FILTER ? { manual: false, confidence: { lt: LOW_CONFIDENCE } } : { category }), ...(Object.keys(publishedAt).length ? { publishedAt } : {}) };
   const [total, rows] = await Promise.all([
     prisma.classification.count({ where }),
     prisma.classification.findMany({

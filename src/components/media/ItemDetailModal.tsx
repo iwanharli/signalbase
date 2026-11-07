@@ -1,7 +1,10 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { CopyButton, Modal, Tabs, Tooltip } from "@mantine/core";
+import { CopyButton, Modal, Select, Tabs, Tooltip } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { post } from "@/lib/api-client";
+import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { useReducedMotion } from "@mantine/hooks";
 import { IconCheck, IconClock, IconCopy, IconDatabase, IconInfoCircle, IconMessage, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
 import { humanize, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
@@ -10,7 +13,7 @@ import { threadsPost } from "@/lib/media/threadsPost";
 import { publicVideo } from "@/lib/media/publicVideo";
 import { xPostId } from "@/lib/media/xPost";
 import { formatWibDate, languageLabel, uniqueTags } from "@/lib/media/presentation";
-import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
+import type { Analysis, ItemClassification, MediaItem, MediaType } from "@/lib/media/types";
 import { AiCategoryBadge, FactorGrid, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
 import { Button } from "../ui/Button";
 import { PostContent } from "./PostContent";
@@ -78,9 +81,19 @@ function ContextSection({ item, type, keyName }: { item: MediaItem; type: MediaT
   );
 }
 
-function KeyAnalysis({ item, keyName, type }: { item: MediaItem; keyName?: string; type: MediaType }) {
+function KeyAnalysis({ item, keyName, type, correction }: { item: MediaItem; keyName?: string; type: MediaType; correction?: Correction }) {
   const result = item.classification;
-  if (!result) return null;
+  if (result === undefined) return null;
+  // null: the key categorises, but the worker has not reached this item yet.
+  if (result === null) {
+    return (
+      <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI kunci">
+        <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI kunci</h3></div>
+        <p className={classes.sectionNote}>Belum dikategorikan. Item ini akan diberi kategori saat worker {keyName ? `kunci “${keyName}”` : "kunci ini"} sampai ke tanggal terbitnya.</p>
+        {correction && <CorrectionField item={item} type={type} correction={correction} />}
+      </section>
+    );
+  }
   const confidence = result.confidence;
   return (
     <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI kunci">
@@ -92,13 +105,47 @@ function KeyAnalysis({ item, keyName, type }: { item: MediaItem; keyName?: strin
         <Row label="Keyakinan model"><Tooltip label="Estimasi keyakinan dari model, bukan ukuran akurasi yang telah diverifikasi." multiline maw={280} withArrow events={{ hover: true, focus: true, touch: true }}><span className={classes.confidence} tabIndex={0}>{confidence != null && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1 ? `${Math.round(confidence * 100)}%` : "Tidak tersedia"}</span></Tooltip></Row>
         {(type === "social" || result.model) && <Row label="Model">{result.model || "Tidak tersedia"}</Row>}
         {(type === "social" || result.categorizedAt) && <Row label="Dikategorikan">{formatWibDate(result.categorizedAt)}</Row>}
+        {result.manual && <Row label="Koreksi">Manual{result.correctedBy ? ` oleh ${result.correctedBy}` : ""}</Row>}
       </dl>
+      {correction && <CorrectionField item={item} type={type} correction={correction} />}
     </section>
   );
 }
 
+export type Correction = { keyId: string; categories: Category[]; onSaved: (code: string, classification: ItemClassification) => void };
+
+/** Set the key's category for this item by hand; the worker keeps manual labels. */
+function CorrectionField({ item, type, correction }: { item: MediaItem; type: MediaType; correction: Correction }) {
+  const current = item.classification?.category ?? null;
+  const [value, setValue] = useState<string | null>(current);
+  const [busy, setBusy] = useState(false);
+  const options = [...correction.categories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }];
+  const save = async () => {
+    if (!value) return;
+    setBusy(true);
+    try {
+      const res = await post(`/api/admin/keys/${correction.keyId}/classifications`, { type, code: item.code, category: value }, "PUT") as { category: string; correctedBy: string; reason: string | null };
+      const label = value === NO_CATEGORY ? "Tidak termasuk" : correction.categories.find((c) => c.code === value)?.label ?? value;
+      correction.onSaved(item.code, { ...(item.classification ?? {}), category: res.category, label, confidence: null, reason: res.reason, manual: true, correctedBy: res.correctedBy });
+      notifications.show({ color: "teal", message: value === current ? "Kategori dikonfirmasi" : `Kategori diubah ke ${value === NO_CATEGORY ? "Tidak termasuk" : value}` });
+    } catch (e) {
+      notifications.show({ color: "red", message: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={classes.correction}>
+      <Select size="sm" radius="md" value={value} onChange={setValue} data={options} placeholder="Pilih kategori yang benar" aria-label="Koreksi kategori" comboboxProps={{ withinPortal: true, zIndex: 500 }} className={classes.correctionSelect} />
+      <Button size="sm" variant="primary" onClick={save} loading={busy} disabled={!value || (value === current && !!item.classification?.manual)}>
+        {value === current && current ? "Konfirmasi" : "Simpan koreksi"}
+      </Button>
+    </div>
+  );
+}
+
 /** Keyed by item so opening another post starts at the top with fresh image state. */
-function DetailContent({ item, type, keyName, onClose }: { item: MediaItem; type: MediaType; keyName?: string; onClose: () => void }) {
+function DetailContent({ item, type, keyName, onClose, correction }: { item: MediaItem; type: MediaType; keyName?: string; onClose: () => void; correction?: Correction }) {
   const [hasImage, setHasImage] = useState(true);
   const originalId = type === "social" ? xPostId(item.socialMetadata?.sourceUrl) : null;
   const video = type === "social" ? publicVideo(item.socialMetadata?.sourceUrl) : null;
@@ -141,9 +188,10 @@ function DetailContent({ item, type, keyName, onClose }: { item: MediaItem; type
         <Tabs.Panel value="analysis" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
         {!item.analysis && !item.classification && <p className={classes.sectionNote}>Belum ada rincian analisis yang tersedia.</p>}
         {item.analysis && <AnalysisSection analysis={item.analysis} type={type} />}
-        <KeyAnalysis item={item} type={type} keyName={keyName} />
+        <KeyAnalysis item={item} type={type} keyName={keyName} correction={correction} />
         </Tabs.Panel>
         <Tabs.Panel value="info" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
+        <KeyAnalysis item={item} type={type} keyName={keyName} correction={correction} />
         <ContextSection item={item} type={type} keyName={keyName} />
         {type !== "social" && !item.category && !item.province && !item.location && <p className={classes.sectionNote}>Belum ada informasi tambahan yang tersedia.</p>}
         {type === "social" && <section className={classes.technical} aria-label="Informasi teknis">
@@ -158,7 +206,7 @@ function DetailContent({ item, type, keyName, onClose }: { item: MediaItem; type
   );
 }
 
-export function ItemDetailModal({ item, type, onClose, keyName }: { item: MediaItem | null; type: MediaType; onClose: () => void; keyName?: string }) {
+export function ItemDetailModal({ item, type, onClose, keyName, correction }: { item: MediaItem | null; type: MediaType; onClose: () => void; keyName?: string; correction?: Correction }) {
   const [lastItem, setLastItem] = useState<MediaItem | null>(item);
   const reducedMotion = useReducedMotion();
   useEffect(() => { if (item) setLastItem(item); }, [item]);
@@ -169,7 +217,7 @@ export function ItemDetailModal({ item, type, onClose, keyName }: { item: MediaI
       transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
       <Modal.Overlay backgroundOpacity={0.48} blur={3} />
       <Modal.Content className={classes.content} aria-label={label} style={{ ["--tone" as string]: shown ? moodTone(shown) : undefined }}>
-        <Modal.Body>{shown && <DetailContent key={`${type}:${shown.code}`} item={shown} type={type} keyName={keyName} onClose={onClose} />}</Modal.Body>
+        <Modal.Body>{shown && <DetailContent key={`${type}:${shown.code}`} item={shown} type={type} keyName={keyName} onClose={onClose} correction={correction} />}</Modal.Body>
       </Modal.Content>
     </Modal.Root>
   );

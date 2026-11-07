@@ -10,7 +10,7 @@ import classes from "./stats.module.css";
 import { Tip } from "../ui/Tip";
 
 const LEGEND_SIZE = 6;
-const ANALYZED_LABEL = { yes: "Ada label", no: "Tanpa label", "": "Semua" } as const;
+const ANALYZED_LABEL = { yes: "Sudah dianalisis", no: "Belum dianalisis", "": "Semua" } as const;
 const LANGUAGE_LABEL = { id: "Indonesia", other: "Bahasa lain", "": "Semua" } as const;
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {

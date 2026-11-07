@@ -21,11 +21,12 @@ const viewHref = (key: ApiKeyRow) => `/media/${key.scope.types[0] ?? "social"}?k
 function AiCell({ apiKey }: { apiKey: ApiKeyRow }) {
   const ai = apiKey.classifier;
   if (!ai) return <span className={classes.muted}>—</span>;
-  const tone = ai.lastError ? "danger" : ai.enabled ? "success" : "warning";
+  const autoPaused = !ai.enabled && !!ai.lastError?.startsWith("Dijeda otomatis");
+  const tone = autoPaused ? "warning" : ai.lastError ? "danger" : ai.enabled ? "success" : "warning";
   return (
     <Tip label={ai.lastError ?? `${ai.providerName} · ${formatNumber(ai.processed)} item`}>
       <span className={classes.aiCell}>
-        <StatusPill tone={tone}>{ai.lastError ? "Error" : ai.enabled ? "Aktif" : "Dijeda"}</StatusPill>
+        <StatusPill tone={tone}>{autoPaused ? "Dijeda otomatis" : ai.lastError ? "Error" : ai.enabled ? "Aktif" : "Dijeda"}</StatusPill>
         <small>{formatNumber(ai.processed)} item</small>
       </span>
     </Tip>

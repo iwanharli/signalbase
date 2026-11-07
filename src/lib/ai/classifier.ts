@@ -33,6 +33,10 @@ export type ProviderInput = z.infer<typeof providerSchema>;
 /** Matches any stored category in a category filter. */
 export const ANY_CATEGORY = "*";
 
+/** Category filter: labels the model was unsure about (confidence below LOW_CONFIDENCE), not yet corrected. */
+export const LOW_CONFIDENCE_FILTER = "~low";
+export const LOW_CONFIDENCE = 0.6;
+
 export const NO_CATEGORY = "none";
 
 export const categorySchema = z.object({
@@ -54,6 +58,9 @@ export const classifierInputSchema = z.object({
   onlineCategories: categoryListSchema.nullable().default(null),
   /** Serve only labelled items through the API (and the key's data view). */
   labelledOnly: z.boolean().default(false),
+  /** Spending guards, in the provider's currency; need a provider with a balance API. */
+  minBalance: z.number().min(0).max(100000).nullable().default(1),
+  dailyBudget: z.number().min(0).max(100000).nullable().default(null),
   /** ISO date: label items published from here up to the present, then keep labelling new ones. null = everything. */
   startFrom: z.string().refine((v) => !Number.isNaN(Date.parse(v)), "Tanggal mulai tidak valid").nullable().default(null),
 });

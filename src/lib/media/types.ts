@@ -47,7 +47,7 @@ export type MediaItem = {
   socialMetadata?: { sourceUrl?: string | null; language: string | null; matchedKeywords: string[]; keywordRestricted: boolean };
 };
 
-export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null; model?: string; categorizedAt?: string };
+export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null; manual?: boolean; correctedBy?: string | null; model?: string; categorizedAt?: string };
 
 export const MOOD_SAMPLE_LIMIT = 10_000;
 

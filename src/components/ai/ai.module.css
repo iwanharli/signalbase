@@ -104,3 +104,5 @@
 .estimateCost b { color: #fff; }
 .estimateCost b:nth-of-type(2) { color: #6ee7b7; }
 .estimateCost span { display: inline !important; color: rgba(255,255,255,.45); }
+.guardFields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .guardFields { grid-template-columns: 1fr; } }

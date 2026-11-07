@@ -57,3 +57,5 @@
 @media (prefers-reduced-motion: reduce) { .close { transition: none; } }
 
 .contentSource { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 4px 0; color: var(--mantine-color-gray-6); font-size: 10.5px; font-weight: 600; }
+.correction { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--mantine-color-default-border); }
+.correctionSelect { flex: 1 1 220px; }

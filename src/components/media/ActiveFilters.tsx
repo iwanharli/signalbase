@@ -16,7 +16,7 @@ export function ActiveFilters({ filters: f, options, onChange }: {
   if (f.from || f.to) add("date", rangeLabel(f), { from: "", to: "" });
   if (f.source) add("source", sourceLabel(f.source), { source: null });
   if (f.mood) add("mood", moodInfo(f.mood).label, { mood: null });
-  if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Memiliki label AI" : "Tanpa label AI", { analyzed: "" });
+  if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Sudah dianalisis sumber" : "Belum dianalisis sumber", { analyzed: "" });
   if (f.language) add("language", f.language === "id" ? "Bahasa Indonesia" : "Bahasa lain", { language: "" });
   if (f.province) add("province", options?.provinces.find((p) => p.value === f.province)?.label ?? `Provinsi ${f.province}`, { province: null });
   if (f.category) add("category", `Kategori: ${humanize(f.category)}`, { category: null });
@@ -24,7 +24,7 @@ export function ActiveFilters({ filters: f, options, onChange }: {
   if (f.postType) add("postType", POST_TYPE_LABEL[f.postType] ?? f.postType, { postType: "" });
   if (f.minLevel) add("level", `Intensitas ≥ ${f.minLevel}`, { minLevel: "" });
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
-  if (f.aiCategory) add("aiCategory", `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
+  if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
   const visible = f.aiCategory ? chips.filter((chip) => chip.key === "date" || chip.key === "aiCategory") : chips;
   if (!visible.length) return null;
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">

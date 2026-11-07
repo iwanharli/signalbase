@@ -143,7 +143,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
     if (!data.data || draft) return;
     const c = data.data.classifier;
     setDraft(c
-      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" }, enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories ?? null, labelledOnly: c.labelledOnly ?? false, startFrom: c.startFrom ?? null }
+      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" }, enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories ?? null, labelledOnly: c.labelledOnly ?? false, minBalance: c.minBalance ?? null, dailyBudget: c.dailyBudget ?? null, startFrom: c.startFrom ?? null }
       : emptyDraft());
   }, [data.data, draft]);
 
@@ -241,7 +241,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
         <section className={classes.editorCard}>
           {!draft ? <EditorSkeleton /> : (
             <>
-              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} apiKeyId={keyId} />
+              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} apiKeyId={keyId} types={types} />
               <footer className={classes.actions}>
                 {state && (
                   <>

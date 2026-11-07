@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { IconAdjustmentsHorizontal, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
-import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
+import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { MediaFilters } from "@/lib/media/filters";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
@@ -10,7 +10,7 @@ import { DarkSelect, DateRange, Field, Segmented } from "./controls";
 import { PlatformMark } from "./PlatformIcon";
 import classes from "./filters.module.css";
 
-const ANALYZED_OPTIONS = [{ value: "yes", label: "Ada label" }, { value: "no", label: "Tanpa label" }, { value: "", label: "Semua" }] as const;
+const ANALYZED_OPTIONS = [{ value: "yes", label: "Sudah dianalisis" }, { value: "no", label: "Belum" }, { value: "", label: "Semua" }] as const;
 const RELEVANCE_OPTIONS = [
   { value: "relevant", label: "Relevan" }, { value: "watchlist", label: "Watchlist" }, { value: "exclude", label: "Tidak relevan" }, { value: "", label: "Semua" },
 ] as const;
@@ -77,7 +77,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
               <Section icon={IconRobot} title="Kategorisasi AI">
                 <Field label="Kategori AI" wide>
                   <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
-                    data={[...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
+                    data={[{ value: ANY_CATEGORY, label: "Semua yang sudah dikategorikan" }, { value: LOW_CONFIDENCE_FILTER, label: "Keyakinan rendah (< 60%), belum dikoreksi" }, ...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
                     onChange={(aiCategory) => onChange({ aiCategory })} />
                   {filters.aiCategory && <small className={classes.fieldNote}>Saat kategori AI dipilih, hanya rentang tanggal dan urutan yang berlaku.</small>}
                 </Field>

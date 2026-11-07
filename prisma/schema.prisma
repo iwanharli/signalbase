@@ -47,6 +47,8 @@ model Classifier {
   prompt          String
   categories      Json // [{ code, label, description }]
   onlineCategories Json? // online news' own categories; null = same as `categories`
+  minBalance      Float?    @default(1) // pause when provider credit drops below this; null = no floor
+  dailyBudget     Float? // pause once today's spend reaches this; null = no cap
   labelledOnly    Boolean   @default(false) // API returns only items the AI has labelled
   startFrom       DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
   // Progress per media type: { social: { newest, oldest, done }, online: {...} } (ISO timestamps)
@@ -72,6 +74,8 @@ model Classification {
   reason      String?
   publishedAt DateTime
   model       String
+  manual      Boolean  @default(false) // set by an admin; the worker never overwrites it
+  correctedBy String?
   createdAt   DateTime @default(now())
 
   @@id([apiKeyId, type, code])

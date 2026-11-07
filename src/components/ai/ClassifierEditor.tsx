@@ -2,8 +2,8 @@
 // Editor for a key's AI categorisation: its own AI provider and key, prompt, categories.
 // Used on the create-key wizard and on a key's AI settings page.
 import { useState } from "react";
-import { Loader, PasswordInput, Switch, Textarea, TextInput } from "@mantine/core";
-import { IconBrandX, IconCalendarEvent, IconWorld, IconCheck, IconChevronDown, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
+import { Loader, NumberInput, PasswordInput, Switch, Textarea, TextInput } from "@mantine/core";
+import { IconBrandX, IconCalendarEvent, IconShieldDollar, IconWorld, IconCheck, IconChevronDown, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
@@ -12,6 +12,7 @@ import { DatePickerInput } from "@mantine/dates";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { Button } from "../ui/Button";
+import { PromptPreview } from "./PromptPreview";
 import classes from "./ai.module.css";
 
 /** Start of the day N days ago, as ISO. */
@@ -97,7 +98,7 @@ function RangeField({ value, onChange, apiKeyId }: { value: string | null; onCha
 }
 
 export type ProviderDraft = { kind: ProviderKind; baseUrl: string; model: string; apiKey: string };
-export type ClassifierDraft = { provider: ProviderDraft; enabled: boolean; prompt: string; categories: Category[]; onlineCategories: Category[] | null; labelledOnly: boolean; startFrom: string | null };
+export type ClassifierDraft = { provider: ProviderDraft; enabled: boolean; prompt: string; categories: Category[]; onlineCategories: Category[] | null; labelledOnly: boolean; minBalance: number | null; dailyBudget: number | null; startFrom: string | null };
 type TestResult = { ok: boolean; ms: number; error?: string; results?: { text: string; category?: string; reason?: string | null }[] };
 
 const providerFromPreset = (id: string): ProviderDraft => {
@@ -107,7 +108,7 @@ const providerFromPreset = (id: string): ProviderDraft => {
 const presetOf = (provider: ProviderDraft) =>
   provider.kind === "anthropic" ? "claude" : PROVIDER_PRESETS.find((p) => p.baseUrl && p.baseUrl === provider.baseUrl.replace(/\/+$/, ""))?.id ?? "custom";
 
-export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset("claude"), enabled: true, prompt: "", categories: [], onlineCategories: null, labelledOnly: false, startFrom: daysAgo(7) });
+export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset("claude"), enabled: true, prompt: "", categories: [], onlineCategories: null, labelledOnly: false, minBalance: 1, dailyBudget: null, startFrom: daysAgo(7) });
 
 /** Rough checks shown before saving; the server validates again. `hasStoredKey`: an empty API key keeps the saved one. */
 export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
@@ -183,13 +184,15 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
   );
 }
 
-export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
+export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId, types }: {
   draft: ClassifierDraft;
   onChange: (draft: ClassifierDraft) => void;
   /** Last four characters of the saved provider key, when editing. */
   storedKeyHint?: string | null;
   /** The Signalbase API key being edited, so the connection test can use its saved provider key. */
   apiKeyId?: string | null;
+  /** Media types in the key's scope, for the prompt test. */
+  types?: ("social" | "online")[];
 }) {
   const [categoryTab, setCategoryTab] = useState<"social" | "online">("social");
   const update = (patch: Partial<ClassifierDraft>) => onChange({ ...draft, ...patch });
@@ -209,6 +212,20 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
             ? "API hanya mengirim item yang sudah diberi kategori (termasuk \"Tidak termasuk\"). Item yang belum diproses disembunyikan sampai selesai."
             : "API mengirim semua item dalam cakupan; item yang belum diproses punya classification: null."}
           classNames={{ label: classes.switchLabel, description: classes.switchDescription }} />
+      </div>
+
+      <div className={classes.range}>
+        <div className={classes.rangeHead}>
+          <span><IconShieldDollar size={14} />Batas biaya</span>
+          <small>Kategorisasi dijeda otomatis bila salah satu batas tercapai.</small>
+        </div>
+        <div className={classes.guardFields}>
+          <NumberInput classNames={inputClasses} label="Jeda bila saldo di bawah" description="Kosongkan untuk tanpa batas" prefix="US$ " decimalScale={2} min={0} step={0.5}
+            value={draft.minBalance ?? ""} onChange={(v) => update({ minBalance: v === "" ? null : Number(v) })} />
+          <NumberInput classNames={inputClasses} label="Batas pemakaian per hari" description="Kosongkan untuk tanpa batas" prefix="US$ " decimalScale={2} min={0} step={0.5}
+            value={draft.dailyBudget ?? ""} onChange={(v) => update({ dailyBudget: v === "" ? null : Number(v) })} />
+        </div>
+        <p className={classes.hint}>Memakai saldo yang dicatat dari penyedia, jadi hanya berlaku untuk penyedia yang saldonya bisa dicek (saat ini DeepSeek).</p>
       </div>
 
       <div className={classes.presetBar}>
@@ -246,6 +263,8 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
             : <CategoryList key="online" categories={draft.onlineCategories} onChange={(onlineCategories) => update({ onlineCategories })} />}
         </>
       )}
+
+      {apiKeyId && <PromptPreview apiKeyId={apiKeyId} draft={draft} types={types ?? ["social", "online"]} />}
 
       <p className={classes.hint}>
         Data dikategorikan dari yang terbaru mundur ke tanggal mulai, sekitar 100 item per menit. Memajukan tanggal mulai tidak menghapus hasil; memundurkannya melanjutkan ke data yang lebih lama.

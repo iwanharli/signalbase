@@ -8,14 +8,21 @@ import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { listItemsFromCursor, type TimeCursor } from "../bank";
 import { prisma } from "../db";
 import { providerConfig } from "./admin";
-import { snapshotIfDue } from "./balance";
+import { snapshotIfDue, spendingStop } from "./balance";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "./providers";
 
 const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
 const MAX_BATCHES_PER_TICK = 5;
 
-type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean };
+type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean; sweptAt?: number };
+
+// Late arrivals: the source can store a post hours after its publish time, behind the forward cursor.
+// Every SWEEP_EVERY_MS the worker rescans the last SWEEP_WINDOW_MS for items still without a label.
+const SWEEP_EVERY_MS = 10 * 60_000;
+const SWEEP_WINDOW_MS = 3 * 24 * 3_600_000;
+/** Most items read from the source per sweep, so a sweep stays cheap. */
+const SWEEP_SCAN_LIMIT = 3_000;
 type Cursors = Partial<Record<MediaType, TypeCursors>>;
 
 const todayInJakarta = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -51,6 +58,7 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
 async function runClassifier(classifierId: string) {
   const row = await prisma.classifier.findUnique({ where: { apiKeyId: classifierId }, include: { apiKey: true } });
   if (!row || !row.enabled || row.apiKey.revokedAt) return;
+  if (await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name)) return;
 
   const today = todayInJakarta();
   let todayCount = row.todayDate === today ? row.todayCount : 0;
@@ -105,6 +113,30 @@ async function runClassifier(classifierId: string) {
         processed += labelled; failed += skipped; todayCount += inRange.length; budget -= inRange.length;
         if (inRange.length < page.items.length) { state.backfillDone = true; break; }
       }
+
+      // 3. Sweep: label items that reached the source late, behind the forward cursor.
+      if (budget > 0 && state.newest && Date.now() - (state.sweptAt ?? 0) >= SWEEP_EVERY_MS) {
+        const floor = Math.max(job.startFrom?.getTime() ?? 0, Date.now() - SWEEP_WINDOW_MS);
+        let cursor: TimeCursor | null = state.newest, scanned = 0;
+        while (budget > 0 && cursor && scanned < SWEEP_SCAN_LIMIT) {
+          const page = await listItemsFromCursor(type, job.scope, "older", cursor, 200);
+          if (!page.items.length) break;
+          scanned += page.items.length;
+          cursor = page.next ?? null;
+          const inWindow = page.items.filter((i) => new Date(i.publishedAt).getTime() >= floor && itemText(i));
+          const labelled = new Set((await prisma.classification.findMany({
+            where: { apiKeyId: job.apiKeyId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
+          })).map((r) => r.code));
+          const missing = inWindow.filter((i) => !labelled.has(i.code)).slice(0, budget);
+          for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+            const batch = missing.slice(i, i + BATCH_SIZE);
+            const result = await processBatch(job, type, batch);
+            processed += result.labelled; failed += result.skipped; todayCount += batch.length; budget -= batch.length;
+          }
+          if (new Date(page.items.at(-1)!.publishedAt).getTime() < floor) break; // walked past the window
+        }
+        state.sweptAt = Date.now();
+      }
     }
   } catch (error) {
     // Cursors only advance after a batch is stored, so the failed batch is retried next tick.
@@ -113,6 +145,16 @@ async function runClassifier(classifierId: string) {
   }
   await save();
   await snapshotIfDue(row.apiKeyId, providerConfig(row));
+  await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name);
+}
+
+/** Stops a classifier whose spending guard tripped; the reason is shown on the key. */
+async function pauseIfOverBudget(apiKeyId: string, minBalance: number | null, dailyBudget: number | null, name: string) {
+  const reason = await spendingStop(apiKeyId, minBalance, dailyBudget);
+  if (!reason) return false;
+  await prisma.classifier.update({ where: { apiKeyId }, data: { enabled: false, lastError: reason } });
+  console.warn(`[classifier] ${name}: ${reason}`);
+  return true;
 }
 
 /** One pass over every enabled classifier. */

@@ -56,7 +56,7 @@ export function MediaBrowser({ type }: { type: MediaType }) {
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
     : null;
-  const aiCategories = keyInfo.data?.classifier?.enabled ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
+  const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
   const { filters, update, reset, query: filterQuery, advancedCount, activeCount } = useMediaFilters(type);
@@ -153,7 +153,13 @@ export function MediaBrowser({ type }: { type: MediaType }) {
         </>)}
 
         <ScrollTopButton />
-        <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={() => setSelected(null)} />
+        <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={() => setSelected(null)}
+          correction={view && aiCategories ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
+            // The card shares this object with the feed, so updating it in place refreshes both.
+            const target = feed.items.find((i) => i.code === code);
+            if (target) target.classification = classification;
+            setSelected((s) => (s && s.code === code ? { ...s, classification } : s));
+          } } : undefined} />
       </div>
     </div>
   );
