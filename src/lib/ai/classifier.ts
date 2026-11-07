@@ -26,7 +26,18 @@ export const providerSchema = z.object({
   baseUrl: z.string().trim().url("Base URL tidak valid").max(300).or(z.literal("")).default(""),
   model: z.string().trim().min(2, "Model wajib diisi").max(100),
   apiKey: z.string().trim().max(400).default(""),
-}).refine((p) => p.kind !== "openai_compatible" || !!p.baseUrl, { message: "Base URL wajib diisi", path: ["baseUrl"] });
+}).refine((p) => p.kind !== "openai_compatible" || !!p.baseUrl, { message: "Base URL wajib diisi", path: ["baseUrl"] })
+  .refine((p) => !p.apiKey || !apiKeyProblem(p.kind, p.baseUrl, p.apiKey), { message: "API key penyedia AI tidak terlihat seperti API key", path: ["apiKey"] });
+
+/** Why a provider key looks wrong, e.g. a password the browser autofilled; null when it looks fine. */
+export function apiKeyProblem(kind: string, baseUrl: string, apiKey: string): string | null {
+  const key = apiKey.trim();
+  if (/\s/.test(key)) return "API key tidak boleh berisi spasi";
+  if (key.length < 20) return "API key terlalu pendek. Pastikan yang ditempel API key, bukan kata sandi yang diisi otomatis oleh browser";
+  const known = kind === "anthropic" || /(^|\.)(deepseek|openai)\.com/i.test(baseUrl);
+  if (known && !key.startsWith("sk-")) return "API key Claude, DeepSeek, dan OpenAI diawali \"sk-\"";
+  return null;
+}
 export type ProviderInput = z.infer<typeof providerSchema>;
 
 /** Reserved category for items that fit none of the categories. */

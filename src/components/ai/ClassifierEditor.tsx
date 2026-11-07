@@ -3,11 +3,12 @@
 // Used on the create-key wizard and on a key's AI settings page.
 import { useState } from "react";
 import { Loader, NumberInput, PasswordInput, Switch, Textarea, TextInput } from "@mantine/core";
-import { IconBrandX, IconCalendarEvent, IconShieldDollar, IconWorld, IconCheck, IconChevronDown, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
-import { post } from "@/lib/api-client";
+import { IconBrandX, IconCalendarEvent, IconShieldDollar, IconWorld, IconCheck, IconChevronDown, IconCopy, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
+import { api, post } from "@/lib/api-client";
+import { notifications } from "@mantine/notifications";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
-import { PROVIDER_PRESETS, QUICK_WIN_PRESET, type Category, type ProviderKind } from "@/lib/ai/classifier";
+import { apiKeyProblem, PROVIDER_PRESETS, QUICK_WIN_PRESET, type Category, type ProviderKind } from "@/lib/ai/classifier";
 import { DatePickerInput } from "@mantine/dates";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -114,6 +115,8 @@ export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset
 export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
   const problems: string[] = [];
   if (!draft.provider.apiKey.trim() && !hasStoredKey) problems.push("Isi API key penyedia AI");
+  const keyProblem = draft.provider.apiKey.trim() ? apiKeyProblem(draft.provider.kind, draft.provider.baseUrl, draft.provider.apiKey) : null;
+  if (keyProblem) problems.push(keyProblem);
   if (draft.provider.model.trim().length < 2) problems.push("Isi model AI");
   if (draft.provider.kind === "openai_compatible" && !/^https?:\/\//.test(draft.provider.baseUrl.trim())) problems.push("Isi base URL penyedia AI");
   if (draft.prompt.trim().length < 10) problems.push("Prompt minimal 10 karakter");
@@ -129,6 +132,27 @@ export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
     if (list.some((c) => c.label.trim().length < 2)) problems.push(`Setiap kategori perlu nama${where}`);
   }
   return problems;
+}
+
+/** Copies the stored provider key; fetched only on click. */
+function CopyProviderKey({ apiKeyId }: { apiKeyId: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
+  const copy = async () => {
+    setState("loading");
+    try {
+      const { apiKey } = await api<{ apiKey: string }>(`/api/admin/keys/${apiKeyId}/classifier/provider-key`);
+      await navigator.clipboard.writeText(apiKey);
+      setState("copied");
+      setTimeout(() => setState("idle"), 1600);
+    } catch (e) {
+      setState("idle");
+      notifications.show({ color: "red", message: (e as Error).message || "Gagal menyalin API key" });
+    }
+  };
+  return (
+    <Button size="sm" variant="subtle" onDark iconOnly icon={state === "copied" ? IconCheck : IconCopy} loading={state === "loading"} onClick={copy}
+      className={classes.keyCopy}>{state === "copied" ? "Tersalin" : "Salin API key tersimpan"}</Button>
+  );
 }
 
 /** Provider, model, endpoint and API key of one key's categorisation, with a connection test. */
@@ -169,9 +193,13 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
               onChange={(e) => onChange({ ...provider, baseUrl: e.currentTarget.value })} description="Endpoint yang menyediakan /chat/completions" />
           : <div />}
       </div>
-      <PasswordInput classNames={inputClasses} label="API key penyedia AI" value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
+      <PasswordInput classNames={inputClasses}
+        label={<span className={classes.keyLabel}>API key penyedia AI{storedKeyHint && apiKeyId && <CopyProviderKey apiKeyId={apiKeyId} />}</span>} value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
         placeholder={storedKeyHint ? `Tersimpan ••••${storedKeyHint} — kosongkan bila tidak diganti` : "Tempel API key"}
-        leftSection={<IconShieldLock size={15} />} autoComplete="off" />
+        leftSection={<IconShieldLock size={15} />}
+        // Not a login field: stop browsers and password managers from filling in the admin password.
+        autoComplete="new-password" name="ai-provider-api-key" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
+        error={provider.apiKey ? apiKeyProblem(provider.kind, provider.baseUrl, provider.apiKey) : null} />
       <div className={classes.testRow}>
         <Button size="sm" onDark variant="secondary" icon={IconPlayerPlay} onClick={runTest} loading={testing}>{testing ? "Menguji…" : "Uji koneksi"}</Button>
         {test && (
