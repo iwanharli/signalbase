@@ -309,3 +309,10 @@ button.tile:disabled { cursor: default; }
 .restartList li + li { border-top: 1px solid var(--mantine-color-default-border); }
 .restartList span { color: var(--mantine-color-dimmed); }
 .restartList b { font-size: 13px !important; font-weight: 700 !important; }
+
+.page[data-dirty] { padding-bottom: 110px; }
+@media (max-width: 620px) { .page[data-dirty] { padding-bottom: 160px; } }
+.detailHero { box-shadow: 0 8px 24px -20px rgba(46,16,101,.5) !important; }
+.heroIcon, .aiEmptyIcon { box-shadow: none; }
+.tile small, .aiStats small { font-size: 12px; letter-spacing: .2px; color: rgba(255,255,255,.72); }
+.stepHint, .keyBox p { color: rgba(255,255,255,.75); }

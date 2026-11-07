@@ -27,7 +27,7 @@ const PARAM_GROUPS: { title: string; params: Param[] }[] = [
       { name: "q", values: "teks", description: "Pencarian teks penuh di isi post / judul berita" },
       { name: "source", values: "teks", description: "Platform (twitter, threads, …) atau kode media (news-kompas, …)" },
       { name: "mood", values: "teks", description: "Emosi (marah, menolak, …) atau sentimen (positive, neutral, negative)" },
-      { name: "analyzed", values: "yes | no", description: "Hanya yang sudah / belum punya label emosi atau sentimen" },
+      { name: "analyzed", values: "yes | no", description: "Hanya yang memiliki / belum memiliki label emosi atau sentimen" },
       { name: "lang", values: "id | other", description: "Hanya bahasa Indonesia / selain Indonesia" },
       { name: "province", values: "kode BPS", description: "Mis. 31 DKI Jakarta, 32 Jawa Barat, 35 Jawa Timur" },
       { name: "category", values: "teks", description: "Kategori, mis. politik, hukum, kamtibmas" },
@@ -211,7 +211,7 @@ const { items, total, capped } = await res.json();`;
         <div className={classes.content}>
           <Section id="quickstart" icon={IconBolt} title="Mulai cepat">
             <ol className={classes.steps}>
-              <li><b>Buat kunci</b><span>Di halaman Kunci API, beri nama aplikasi dan kata kunci (mis. polri, polisi). Salin kuncinya, hanya muncul sekali.</span></li>
+              <li><b>Buat kunci</b><span>Di halaman Kunci API, beri nama aplikasi dan kata kunci (mis. polri, polisi). Salin kuncinya dari halaman detail. Kunci baru dapat disalin kembali oleh admin.</span></li>
               <li><b>Simpan sebagai secret</b><span>Taruh di variabel lingkungan aplikasi, mis. <code>SIGNALBASE_KEY</code>. Jangan commit ke repo.</span></li>
               <li><b>Panggil endpoint</b><span>Kirim kunci di header setiap permintaan, lalu baca <code>items</code> dari respons.</span></li>
             </ol>
@@ -300,7 +300,7 @@ const { items, total, capped } = await res.json();`;
           <Section id="privacy" icon={IconShieldLock} title="Privasi & batas">
             <ul className={classes.facts}>
               <li><IconShieldLock size={16} />Nama akun, username, URL post media sosial, dan jumlah follower tidak pernah dikirim.</li>
-              <li><IconKey size={16} />Kunci hanya disimpan sebagai hash; cabut kapan saja dari halaman Kunci API.</li>
+              <li><IconKey size={16} />Kunci diperiksa melalui hash. Nilai lengkap kunci baru disimpan terenkripsi agar admin dapat menyalinnya kembali; cabut akses dari halaman Kunci API.</li>
               <li><IconBolt size={16} />Hitungan di-cache sekitar 2 menit per kombinasi filter; data baru bisa muncul dengan jeda tersebut.</li>
               <li><IconTable size={16} />Post spam dan item bertanggal tidak wajar (sebelum 2010 atau di masa depan) selalu disembunyikan.</li>
             </ul>

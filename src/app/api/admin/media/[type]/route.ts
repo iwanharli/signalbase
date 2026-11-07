@@ -4,6 +4,7 @@ import { isMediaType } from "@/lib/media/types";
 import { classificationsFor, codesInCategory, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
+import { socialMetadata } from "@/lib/server/bank/socialMetadata";
 import { prisma } from "@/lib/server/db";
 
 const PAGE_SIZE = 24;
@@ -63,10 +64,18 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
       hasMore = rows.length > PAGE_SIZE;
     }
 
-    const labels = categories ? await classificationsFor(keyId!, type, items.map((i) => i.code), categories) : null;
+    const codes = items.map((item) => item.code);
+    const [labels, metadata] = await Promise.all([
+      categories ? classificationsFor(keyId!, type, codes, categories, type === "social") : null,
+      type === "social" ? socialMetadata(codes, keyId ? scope.keywords : []) : null,
+    ]);
     return NextResponse.json({
       page, hasMore, moods: await moods,
-      items: labels ? items.map((i) => ({ ...i, classification: labels.get(i.code) ?? null })) : items,
+      items: items.map((item) => ({
+        ...item,
+        ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
+        ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),
+      })),
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });

@@ -1,73 +1,100 @@
 "use client";
 import { useState } from "react";
-import { Group, Text } from "@mantine/core";
-import { IconArrowRight, IconClock, IconMapPin, IconSparkles } from "@tabler/icons-react";
+import { Text } from "@mantine/core";
+import { IconArrowRight, IconClock, IconMapPin } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { humanize, sourceLabel } from "@/lib/media/labels";
-import type { Analysis, MediaItem } from "@/lib/media/types";
-import { AiCategoryBadge, MetaItem, MetricList, MoodBadges, moodTone, Tags, TargetTag } from "./itemParts";
+import { uniqueTags } from "@/lib/media/presentation";
+import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
+import { AiCategoryBadge, MetricList, MoodBadges, moodTone, Tags } from "./itemParts";
+import { PostText } from "./PostText";
+import { PlatformIcon } from "./PlatformIcon";
+import { PostTypeBadge } from "./PostTypeBadge";
+import { SourceLink } from "./SourceLink";
 import classes from "./card.module.css";
 
-const MAX_CARD_TAGS = 4;
+const MAX_CARD_TAGS = 3;
 
-// AI summary and tags only; the full analysis lives in the detail modal.
+// Cards show only topics; signals, targets and summaries stay in the detail modal.
 function AnalysisPreview({ analysis }: { analysis: Analysis }) {
-  const tags = [...analysis.signals, ...analysis.topics];
-  if (!analysis.summary && !analysis.target && !tags.length) return null;
+  const tags = uniqueTags(analysis.topics);
+  if (!tags.length) return null;
   return (
-    <div className={classes.analysis}>
-      {analysis.summary && <p className={classes.summary}><IconSparkles size={14} /><span>{analysis.summary}</span></p>}
-      {(analysis.target || tags.length > 0) && (
-        <Tags values={tags} limit={MAX_CARD_TAGS}>{analysis.target && <TargetTag target={analysis.target} />}</Tags>
-      )}
+    <div className={classes.analysis} data-tags-only>
+      <Tags values={tags} limit={MAX_CARD_TAGS} />
     </div>
   );
 }
 
-export function ItemCard({ item, delay, onOpen }: { item: MediaItem; delay: number; onOpen: (item: MediaItem) => void }) {
-  const [hasImage, setHasImage] = useState(!!item.image);
+export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const hasImage = !!item.image && item.image !== failedImage;
+  const editorial = type === "online" && !hasImage;
+  const publisher = sourceLabel(item.source);
   const place = item.province ?? item.location;
+  const hasMetrics = Object.values(item.metrics).some((value) => value != null);
+  const published = dayjs(item.publishedAt).locale("id");
   const open = () => onOpen(item);
 
   return (
     <article
       className={classes.card}
-      role="button"
-      tabIndex={0}
-      aria-label="Lihat detail"
+      data-editorial={editorial || undefined}
+      data-type={type}
       onClick={open}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}
       style={{ animationDelay: `${delay}ms`, ["--tone" as string]: moodTone(item) }}
     >
       {hasImage && (
         <div className={classes.media}>
           {/* Remote images from many news hosts; next/image would need every domain allow-listed. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.image!} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setHasImage(false)} />
+          <img src={item.image!} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailedImage(item.image)} />
         </div>
       )}
       <div className={classes.body}>
-        <Group gap={8} justify="space-between" wrap="nowrap">
-          <Text fz={12.5} fw={800} truncate>{sourceLabel(item.source)}</Text>
-          <MoodBadges item={item} />
-        </Group>
-        {item.title && <Text fw={700} fz={15} lh={1.35} lineClamp={3}>{item.title}</Text>}
+        <div className={classes.sourceRow}>
+          {editorial ? (
+            <div className={classes.publisher}>
+              <span className={classes.publisherMark} aria-hidden>{publisher.charAt(0)}</span>
+              <div><small>Media online</small><Text className={classes.sourceName} fz={12.5} fw={700} truncate>{publisher}</Text></div>
+            </div>
+          ) : <div className={classes.platformName}>
+            {type === "social" && <PlatformIcon source={item.source} />}
+            <Text className={classes.sourceName} fz={12.5} fw={800} truncate>{publisher}</Text>
+          </div>}
+          <MoodBadges item={item} type={type} />
+        </div>
+        {type === "social" && (item.postType || item.category) && (
+          <div className={classes.postMeta}>
+            {item.postType && <PostTypeBadge value={item.postType} />}
+            {item.category && <span className={classes.postCategory} title={humanize(item.category)}>{humanize(item.category)}</span>}
+          </div>
+        )}
+        {item.title && <Text className={classes.headline} lineClamp={3}>{item.title}</Text>}
         {item.content && (
-          <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={item.title ? 3 : 7} className={classes.content}>{item.content}</Text>
+          <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
         <AiCategoryBadge item={item} />
         {item.analysis && <AnalysisPreview analysis={item.analysis} />}
+        {type === "social" && hasMetrics && <div className={classes.socialMetrics} role="group" aria-label="Interaksi post"><MetricList metrics={item.metrics} compact /></div>}
         <div className={classes.footer}>
-          <Group gap={10}>
-            <MetaItem icon={IconClock}>{dayjs(item.publishedAt).locale("id").format("D MMM YYYY, HH:mm")}</MetaItem>
-            {place && <MetaItem icon={IconMapPin}>{place}</MetaItem>}
-            {item.category && <MetaItem capitalize>#{humanize(item.category)}</MetaItem>}
-          </Group>
-          <Group gap={10} justify="space-between">
-            <Group gap={10}><MetricList metrics={item.metrics} /></Group>
-            <span className={classes.detailHint}>Detail <IconArrowRight size={13} /></span>
-          </Group>
+          <div className={classes.footerMeta}>
+            <time dateTime={item.publishedAt} title={published.format("D MMMM YYYY, HH:mm")}>
+              <IconClock size={13} aria-hidden />{published.format("D MMM · HH:mm")}
+            </time>
+            {place && <span className={classes.footerPlace} title={place}><IconMapPin size={13} aria-hidden /><span>{place}</span></span>}
+            {type !== "social" && item.category && <span className={classes.footerCategory} title={humanize(item.category)}>#{humanize(item.category)}</span>}
+          </div>
+          <div className={classes.footerActions}>
+            <SourceLink item={item} type={type} />
+            <button type="button" className={classes.detailHint} aria-label={`Lihat detail: ${item.title || item.content?.slice(0, 100) || publisher}`} onClick={(event) => { event.stopPropagation(); open(); }}>Detail <IconArrowRight size={13} aria-hidden /></button>
+          </div>
+          {type !== "social" && hasMetrics && (
+            <div className={classes.footerBottom}>
+              <div className={classes.footerMetrics}><MetricList metrics={item.metrics} /></div>
+            </div>
+          )}
         </div>
       </div>
     </article>

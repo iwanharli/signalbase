@@ -53,7 +53,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
 
   const items: SectionItem<Step>[] = [
     { id: "identity", label: "Identitas", icon: IconId, summary: name.trim() || "Nama aplikasi", done: nameValid },
-    { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Semua kata kunci", done: visited.has("keywords") },
+    { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Tidak dibatasi kata kunci", done: visited.has("keywords") },
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", done: visited.has("scope") },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiEnabled ? (aiProblems.length ? "Belum lengkap" : `${aiDraft.categories.length} kategori`) : "Tidak dipakai",
       done: visited.has("ai") && !aiProblems.length },
@@ -146,7 +146,7 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
         <div><b>Kunci untuk {created.name} siap</b><small>Salin dan simpan sebagai secret di aplikasi tersebut.</small></div>
       </div>
 
-      <div className={classes.warning}><IconAlertTriangle size={17} />Kunci ini hanya ditampilkan sekali. Setelah halaman ditutup, kunci tidak bisa dilihat lagi.</div>
+      <div className={classes.warning}><IconAlertTriangle size={17} />Simpan kunci sebagai secret di aplikasi. Admin dapat menyalinnya kembali dari halaman detail kunci.</div>
 
       <div className={classes.secret}>
         <code>{created.key}</code>

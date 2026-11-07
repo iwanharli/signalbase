@@ -1,6 +1,7 @@
 /node_modules
 /.next/
 /.next-verify/
+/.next-design-review/
 /out/
 .DS_Store
 *.pem

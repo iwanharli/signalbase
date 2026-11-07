@@ -28,7 +28,7 @@ export function SectionNav<T extends string>({ items, active, onSelect, numbered
     <nav className={classes.nav} aria-label="Bagian">
       {items.map((item, index) => (
         <button key={item.id} type="button" className={classes.navItem} data-active={item.id === active || undefined} data-tone={item.tone}
-          aria-current={item.id === active ? "step" : undefined} onClick={() => onSelect(item.id)}>
+          aria-current={item.id === active ? (numbered ? "step" : "true") : undefined} onClick={() => onSelect(item.id)}>
           <span className={classes.navIcon} data-done={item.done || undefined}>
             {item.done && item.id !== active ? <IconCheck size={15} /> : numbered ? index + 1 : <item.icon size={16} />}
           </span>

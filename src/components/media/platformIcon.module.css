@@ -1,0 +1,6 @@
+.mark { --platform-ink: #475569; --platform-bg: #f1f5f9; --platform-light: #cbd5e1; display: inline-grid; place-items: center; width: 25px; height: 25px; flex-shrink: 0; border-radius: 7px; color: var(--platform-ink); background: var(--platform-bg); }
+.mark[data-platform="twitter"], .mark[data-platform="x"], .mark[data-platform="threads"], .mark[data-platform="tiktok"] { --platform-ink: #27272a; --platform-bg: #f4f4f5; --platform-light: #f4f4f5; }
+.mark[data-platform="instagram"] { --platform-ink: #be185d; --platform-bg: #fdf2f8; --platform-light: #f9a8d4; }
+.mark[data-platform="facebook"] { --platform-ink: #1d4ed8; --platform-bg: #eff6ff; --platform-light: #93c5fd; }
+.mark[data-platform="youtube"] { --platform-ink: #dc2626; --platform-bg: #fef2f2; --platform-light: #fca5a5; }
+.mark[data-on-dark] { color: var(--platform-light); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.07); }

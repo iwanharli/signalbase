@@ -3,7 +3,7 @@
 // Used on the create-key wizard and on a key's AI settings page.
 import { useState } from "react";
 import { PasswordInput, Textarea, TextInput } from "@mantine/core";
-import { IconCheck, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
+import { IconCheck, IconChevronDown, IconPlayerPlay, IconPlus, IconRobot, IconShieldLock, IconSparkles, IconTrash, IconX } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { PROVIDER_PRESETS, QUICK_WIN_PRESET, type Category, type ProviderKind } from "@/lib/ai/classifier";
 import { Button } from "../ui/Button";
@@ -98,6 +98,7 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
   /** The Signalbase API key being edited, so the connection test can use its saved provider key. */
   apiKeyId?: string | null;
 }) {
+  const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
   const update = (patch: Partial<ClassifierDraft>) => onChange({ ...draft, ...patch });
   const setCategory = (index: number, patch: Partial<Category>) =>
     update({ categories: draft.categories.map((c, i) => (i === index ? { ...c, ...patch } : c)) });
@@ -110,7 +111,7 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
 
       <div className={classes.presetBar}>
         <span><IconSparkles size={14} />Mulai dari preset</span>
-        <button type="button" onClick={() => update({ prompt: QUICK_WIN_PRESET.prompt, categories: QUICK_WIN_PRESET.categories.map((c) => ({ ...c })) })}>
+        <button type="button" onClick={() => { update({ prompt: QUICK_WIN_PRESET.prompt, categories: QUICK_WIN_PRESET.categories.map((c) => ({ ...c })) }); setExpandedCategory(0); }}>
           8 Quick Win Kapolri
         </button>
       </div>
@@ -122,24 +123,42 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId }: {
       <div className={classes.categories}>
         <div className={classes.categoriesHead}>
           <span>Kategori <b>{draft.categories.length}</b></span>
-          <small>Satu item mendapat satu kategori, atau &ldquo;none&rdquo; bila tidak cocok.</small>
+          <small>Pilih kategori untuk melihat atau mengubah detailnya.</small>
         </div>
         {draft.categories.map((category, index) => (
           <div key={index} className={classes.category}>
-            <TextInput classNames={{ input: classes.input }} aria-label="Kode" placeholder="QW1" value={category.code}
-              onChange={(e) => setCategory(index, { code: e.currentTarget.value.toUpperCase() })} className={classes.code} />
-            <div className={classes.categoryBody}>
-              <TextInput classNames={{ input: classes.input }} aria-label="Nama kategori" placeholder="Nama kategori" value={category.label}
-                onChange={(e) => setCategory(index, { label: e.currentTarget.value })} />
-              <Textarea classNames={{ input: classes.input }} aria-label="Deskripsi" placeholder="Apa saja yang termasuk kategori ini (membantu AI)"
-                autosize minRows={1} maxRows={4} value={category.description} onChange={(e) => setCategory(index, { description: e.currentTarget.value })} />
+            <div className={classes.categoryTop}>
+              <button type="button" className={classes.categoryToggle} aria-expanded={expandedCategory === index}
+                onClick={() => setExpandedCategory(expandedCategory === index ? null : index)}>
+                <span className={classes.categorySummaryCode}>{category.code || `K${index + 1}`}</span>
+                <span className={classes.categorySummary}>
+                  <b>{category.label || "Kategori tanpa nama"}</b>
+                  <small>{category.description || "Belum ada deskripsi"}</small>
+                </span>
+                <IconChevronDown size={17} className={classes.categoryChevron} data-open={expandedCategory === index || undefined} />
+              </button>
+              <button type="button" className={classes.remove} aria-label={`Hapus kategori ${category.label || index + 1}`}
+                onClick={() => { update({ categories: draft.categories.filter((_, i) => i !== index) }); setExpandedCategory((current) => current === index ? null : current !== null && current > index ? current - 1 : current); }}>
+                <IconTrash size={16} />
+              </button>
             </div>
-            <button type="button" className={classes.remove} aria-label="Hapus kategori"
-              onClick={() => update({ categories: draft.categories.filter((_, i) => i !== index) })}><IconTrash size={16} /></button>
+            {expandedCategory === index && (
+              <div className={classes.categoryFields}>
+                <TextInput classNames={{ input: classes.input }} aria-label="Kode" placeholder="QW1" value={category.code}
+                  onChange={(e) => setCategory(index, { code: e.currentTarget.value.toUpperCase() })} className={classes.code} />
+                <div className={classes.categoryBody}>
+                  <TextInput classNames={{ input: classes.input }} aria-label="Nama kategori" placeholder="Nama kategori" value={category.label}
+                    onChange={(e) => setCategory(index, { label: e.currentTarget.value })} />
+                  <Textarea classNames={{ input: classes.input }} aria-label="Deskripsi" placeholder="Apa saja yang termasuk kategori ini (membantu AI)"
+                    autosize minRows={1} maxRows={4} value={category.description} onChange={(e) => setCategory(index, { description: e.currentTarget.value })} />
+                  <small className={classes.categoryHelp}>Satu item mendapat satu kategori, atau &ldquo;none&rdquo; bila tidak cocok.</small>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         <button type="button" className={classes.add} disabled={draft.categories.length >= 30}
-          onClick={() => update({ categories: [...draft.categories, { code: `K${draft.categories.length + 1}`, label: "", description: "" }] })}>
+          onClick={() => { setExpandedCategory(draft.categories.length); update({ categories: [...draft.categories, { code: `K${draft.categories.length + 1}`, label: "", description: "" }] }); }}>
           <IconPlus size={15} />Tambah kategori
         </button>
       </div>

@@ -1,14 +1,26 @@
 .root { position: relative; min-height: 100vh; background: var(--mantine-color-gray-0); isolation: isolate; }
 
-/* Ambient background: faint grid + drifting glow orbs. */
+/* Quiet architectural decoration: static color washes, a fading grid and fine arcs. */
 .backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-  background-image: linear-gradient(rgba(124,58,237,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,.05) 1px, transparent 1px);
-  background-size: 44px 44px; mask-image: linear-gradient(180deg, #000 0%, transparent 70%); }
-.backdrop span { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(90px); opacity: .22; animation: drift 22s ease-in-out infinite alternate; }
-.backdrop span:nth-child(1) { background: #7c3aed; top: -220px; left: -120px; }
-.backdrop span:nth-child(2) { background: #22d3ee; top: -260px; right: -140px; animation-delay: -7s; }
-.backdrop span:nth-child(3) { background: #c026d3; top: 40%; left: 45%; opacity: .1; animation-delay: -14s; }
-@keyframes drift { to { transform: translate(80px, 60px) scale(1.15); } }
+  background: radial-gradient(ellipse 70% 52% at 0% 0%, rgba(124,58,237,.09), transparent 72%),
+    radial-gradient(ellipse 58% 60% at 100% 8%, rgba(8,145,178,.075), transparent 72%),
+    radial-gradient(ellipse 58% 46% at 100% 100%, rgba(139,92,246,.045), transparent 75%),
+    linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.55) 55%, transparent); }
+.backdrop::before { content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(100,90,140,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(100,90,140,.045) 1px, transparent 1px);
+  background-size: 64px 64px; mask-image: linear-gradient(180deg, #000, rgba(0,0,0,.2) 42%, transparent 75%); }
+.backdrop span { position: absolute; pointer-events: none; }
+.backdrop span:nth-child(1) { width: 760px; height: 760px; top: -590px; left: -170px; border-radius: 50%;
+  border: 1px solid rgba(124,58,237,.1); box-shadow: 0 0 0 30px rgba(124,58,237,.022), 0 0 0 90px rgba(124,58,237,.015); }
+.backdrop span:nth-child(2) { width: 640px; height: 640px; top: 16%; right: -540px; border-radius: 50%;
+  border: 1px solid rgba(8,145,178,.12); box-shadow: 0 0 0 28px rgba(8,145,178,.018), 0 0 0 70px rgba(8,145,178,.012); }
+.backdrop span:nth-child(3) { width: 44vw; height: 1px; top: 76%; left: -12%; transform: rotate(-24deg);
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,.09), transparent); }
+@media (max-width: 720px) {
+  .backdrop::before { background-size: 48px 48px; opacity: .65; }
+  .backdrop span:nth-child(1) { left: -420px; }
+  .backdrop span:nth-child(2), .backdrop span:nth-child(3) { display: none; }
+}
 
 /* Floating bar */
 .bar { position: fixed; top: 14px; left: 50%; z-index: 200; width: calc(100% - 24px); transform: translateX(-50%);
@@ -67,8 +79,8 @@
 .main { padding: 104px 12px 48px; animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 
-@media (max-width: 1080px) { .link span { display: none; } .link { padding: 8px 11px; } }
-@media (max-width: 720px) {
+@media (max-width: 1200px) { .link { padding: 8px 9px; font-size: 13px; } .live { display: none; } }
+@media (max-width: 1000px) {
   .nav, .live { display: none; }
   .frame { grid-template-columns: 1fr auto; }
   .burger { display: grid; }
@@ -89,3 +101,9 @@
   .bar, .main, .backdrop span, .frame::before, .frame::after, .mark i, .live i { animation: none !important; }
   .pill { transition: none; }
 }
+
+/* Keep the workspace still while users read and compare data. */
+.frame::before, .frame::after { animation: none; }
+.frame::before { background: linear-gradient(110deg, rgba(167,139,250,.35), rgba(34,211,238,.18)); }
+.frame::after { display: none; }
+.link:focus-visible, .sheetLink:focus-visible, .burger:focus-visible, .user:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }

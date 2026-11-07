@@ -1,4 +1,5 @@
 // Reading posts and articles from the source database.
+import { decodeTextEntities } from "@/lib/media/text";
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { Analysis, MediaItem, MediaType, Relevance } from "@/lib/media/types";
 import { bankPool } from "./pool";
@@ -9,7 +10,7 @@ const RELEVANCE: Relevance[] = ["include", "watchlist", "exclude"];
 
 const safeUrl = (url: string | null) => (url && /^https?:\/\//i.test(url) ? url : null);
 const toNumber = (v: unknown) => (v === undefined || v === null || v === "" ? null : Number(v) || 0);
-const toStrings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x) : []);
+const toStrings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x).map((x) => decodeTextEntities(x)) : []);
 
 // Both selects return the same column names so one mapper handles either type.
 // Author, username, post URL and follower counts are deliberately never read.
@@ -33,8 +34,8 @@ const SELECT = {
 function toAnalysis(row: any): Analysis | null {
   if (row.analysis_id == null) return null;
   return {
-    summary: cleanSummary(row.summary),
-    target: row.target || null,
+    summary: cleanSummary(decodeTextEntities(row.summary)),
+    target: decodeTextEntities(row.target) || null,
     score: row.score == null ? null : Number(row.score),
     signals: toStrings(row.signals),
     topics: toStrings(row.topics?.items),
@@ -48,8 +49,8 @@ function toItem(row: any): MediaItem {
   return {
     code: row.code,
     source: row.source,
-    title: row.title,
-    content: row.content,
+    title: decodeTextEntities(row.title),
+    content: decodeTextEntities(row.content),
     url: safeUrl(row.url),
     image: safeUrl(row.image),
     postType: row.postType,

@@ -1,12 +1,13 @@
 // Counts and aggregates over the source database. All results are cached because the tables hold millions of rows.
 import type { KeyScope } from "@/lib/media/keyScope";
+import { MOOD_SAMPLE_LIMIT } from "@/lib/media/types";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { createCache } from "./cache";
 import { bankPool, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 
 /** Upper bound for the fast (capped) count and for the rows sampled by the mood breakdown. */
-export const COUNT_CAP = 10_000;
+export const COUNT_CAP = MOOD_SAMPLE_LIMIT;
 
 const exactCountCache = createCache<number>({ ttlMs: 10 * 60_000 });
 const cappedCountCache = createCache<{ total: number; capped: boolean }>({ ttlMs: 2 * 60_000, maxEntries: 100 });

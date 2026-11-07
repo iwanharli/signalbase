@@ -1,15 +1,16 @@
 "use client";
 import { useEffect } from "react";
-import { IconAdjustmentsHorizontal, IconBrandX, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
 import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { MediaFilters } from "@/lib/media/filters";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { DarkSelect, DateRange, Field, Segmented } from "./controls";
+import { PlatformMark } from "./PlatformIcon";
 import classes from "./filters.module.css";
 
-const ANALYZED_OPTIONS = [{ value: "yes", label: "Sudah" }, { value: "no", label: "Belum" }, { value: "", label: "Semua" }] as const;
+const ANALYZED_OPTIONS = [{ value: "yes", label: "Ada label" }, { value: "no", label: "Tanpa label" }, { value: "", label: "Semua" }] as const;
 const RELEVANCE_OPTIONS = [
   { value: "relevant", label: "Relevan" }, { value: "watchlist", label: "Watchlist" }, { value: "exclude", label: "Tidak relevan" }, { value: "", label: "Semua" },
 ] as const;
@@ -82,8 +83,9 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
                 </Field>
               </Section>
             )}
+            <fieldset className={classes.filterGroup} disabled={!!filters.aiCategory}>
             <Section icon={IconSparkles} title="Analisis AI">
-              <Field label="Status analisis" wide>
+              <Field label={social ? "Label emosi" : "Label sentimen"} wide>
                 <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
               </Field>
               {social && (
@@ -105,7 +107,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
 
             <Section icon={IconNews} title="Sumber & konten">
               <Field label={SOURCE_KIND_LABEL[type]}>
-                <DarkSelect leftSection={social ? <IconBrandX size={15} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
+                <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
                   value={filters.source} data={(options?.sources ?? []).map((v) => ({ value: v, label: sourceLabel(v) }))} onChange={(source) => onChange({ source })} />
               </Field>
               <Field label="Kategori">
@@ -129,19 +131,20 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
               )}
             </Section>
 
+            </fieldset>
             <Section icon={IconCalendar} title="Waktu & lokasi">
               <Field label="Rentang tanggal" wide>
                 <DateRange from={filters.from} to={filters.to} onChange={onChange} />
               </Field>
               <Field label="Provinsi" wide>
-                <DarkSelect leftSection={<IconMapPin size={15} />} placeholder="Seluruh Indonesia" value={filters.province}
+                <DarkSelect disabled={!!filters.aiCategory} leftSection={<IconMapPin size={15} />} placeholder="Seluruh Indonesia" value={filters.province}
                   data={options?.provinces ?? []} onChange={(province) => onChange({ province })} />
               </Field>
             </Section>
           </div>
 
           <footer className={classes.panelFooter}>
-            <button type="button" className={classes.secondary} onClick={onReset} disabled={!activeCount}>Reset semua</button>
+            <button type="button" className={classes.secondary} onClick={onReset} disabled={!activeCount}>Reset ke awal</button>
             <button type="button" className={classes.primary} onClick={onClose}>{total != null ? `Lihat ${formatNumber(total)} data` : "Menghitung…"}</button>
           </footer>
         </div>

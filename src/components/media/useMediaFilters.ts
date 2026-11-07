@@ -1,7 +1,7 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { countActive, countAdvanced, defaultFilters, toSearchParams, type MediaFilters } from "@/lib/media/filters";
+import { countActive, countAdvanced, defaultFilters, filtersFromSearchParams, browserFilterParams, toSearchParams, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
@@ -19,12 +19,23 @@ function applyRules(next: MediaFilters, patch: Partial<MediaFilters>): MediaFilt
 }
 
 export function useMediaFilters(type: MediaType) {
-  // ?mood= lets other pages (e.g. the overview legend) deep-link into a filtered view.
-  const initialMood = useSearchParams().get("mood");
-  const [filters, setFilters] = useState<MediaFilters>(() => ({ ...defaultFilters(type), mood: initialMood }));
+  const searchParams = useSearchParams();
+  const filters = useMemo(() => filtersFromSearchParams(new URLSearchParams(searchParams.toString()), type), [searchParams, type]);
 
-  const update = useCallback((patch: Partial<MediaFilters>) => setFilters((prev) => applyRules({ ...prev, ...patch }, patch)), []);
-  const reset = useCallback(() => setFilters(defaultFilters(type)), [type]);
+  const write = useCallback((next: MediaFilters, replace = false) => {
+    const url = new URL(window.location.href);
+    const params = browserFilterParams(next);
+    // Preserve the key context and unrelated URL settings.
+    for (const key of ["q", "from", "to", "sort", "source", "mood", "analyzed", "lang", "province", "category", "relevance", "postType", "level", "image", "aiCategory"]) url.searchParams.delete(key);
+    params.forEach((value, key) => url.searchParams.set(key, value));
+    if (replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
+  }, []);
+  const update = useCallback((patch: Partial<MediaFilters>) => {
+    const current = filtersFromSearchParams(new URLSearchParams(window.location.search), type);
+    write(applyRules({ ...current, ...patch }, patch), Object.keys(patch).length === 1 && "search" in patch);
+  }, [type, write]);
+  const reset = useCallback(() => write(defaultFilters(type)), [type, write]);
 
   // Typing in the search box shouldn't scan the bank on every keystroke.
   const search = useDebouncedValue(filters.search.trim(), SEARCH_DEBOUNCE_MS);

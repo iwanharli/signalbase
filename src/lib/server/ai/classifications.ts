@@ -15,10 +15,10 @@ const labelOf = (categories: Category[], code: string) =>
   code === NO_CATEGORY ? "Tidak termasuk" : categories.find((c) => c.code === code)?.label ?? code;
 
 /** Stored categories for the given items, keyed by item code. Items not labelled yet are absent. */
-export async function classificationsFor(apiKeyId: string, type: MediaType, codes: string[], categories: Category[]) {
+export async function classificationsFor(apiKeyId: string, type: MediaType, codes: string[], categories: Category[], includeMetadata = false) {
   if (!codes.length) return new Map<string, ItemClassification>();
   const rows = await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } } });
-  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason }]));
+  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason, ...(includeMetadata ? { model: r.model, categorizedAt: r.createdAt.toISOString() } : {}) }]));
 }
 
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);

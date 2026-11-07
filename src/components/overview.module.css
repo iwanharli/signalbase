@@ -108,3 +108,8 @@
   .panel { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .hero, .tile, .panel, .feedItem, .col i, .spectrum i, .heroGrid, .live i, .keyIcon::after { animation: none !important; } }
+
+.delta, .delta[data-down] { color: #c4b5fd; }
+.col:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 3px; border-radius: 6px; }
+.col:focus .tip { opacity: 1; transform: translate(-50%, 0); }
+.heroGrid, .keyIcon::after { animation: none; }

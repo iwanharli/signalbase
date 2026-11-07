@@ -1,115 +1,176 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Badge, Modal, ScrollArea } from "@mantine/core";
-import { IconClock, IconExternalLink, IconSparkles, IconX } from "@tabler/icons-react";
-import dayjs from "dayjs";
-import "dayjs/locale/id";
-import { humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
-import { moodInfo } from "@/lib/media/mood";
+import { CopyButton, Modal, Tabs, Tooltip } from "@mantine/core";
+import { useReducedMotion } from "@mantine/hooks";
+import { IconCheck, IconClock, IconCopy, IconDatabase, IconInfoCircle, IconMessage, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
+import { humanize, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
+import { metaPost } from "@/lib/media/metaPost";
+import { threadsPost } from "@/lib/media/threadsPost";
+import { publicVideo } from "@/lib/media/publicVideo";
+import { xPostId } from "@/lib/media/xPost";
+import { formatWibDate, languageLabel, uniqueTags } from "@/lib/media/presentation";
 import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
-import { AiCategoryBadge, FactorGrid, MetricList, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
+import { AiCategoryBadge, FactorGrid, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
+import { Button } from "../ui/Button";
+import { PostContent } from "./PostContent";
+import { PlatformIcon } from "./PlatformIcon";
+import { PostTypeBadge } from "./PostTypeBadge";
+import { SourceLink } from "./SourceLink";
 import classes from "./modal.module.css";
 
+const OriginalXPost = dynamic(() => import("./OriginalXPost").then((module) => module.OriginalXPost));
+
+const OriginalPublicVideo = dynamic(() => import("./OriginalPublicVideo").then((module) => module.OriginalPublicVideo));
+
+const OriginalThreadsPost = dynamic(() => import("./OriginalThreadsPost").then((module) => module.OriginalThreadsPost));
+
+const OriginalMetaPost = dynamic(() => import("./OriginalMetaPost").then((module) => module.OriginalMetaPost));
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className={classes.row}><span className={classes.rowLabel}>{label}</span><div>{children}</div></div>;
+  return <div className={classes.row}><dt>{label}</dt><dd>{children}</dd></div>;
 }
 
-function AnalysisSection({ item, analysis, type }: { item: MediaItem; analysis: Analysis; type: MediaType }) {
-  const mood = item.mood ? moodInfo(item.mood) : null;
+function AnalysisSection({ analysis, type }: { analysis: Analysis; type: MediaType }) {
   const factors = numericFactors(analysis.factors);
-  const tags = [...analysis.signals, ...analysis.topics];
-  const hasContent = analysis.summary || analysis.target || tags.length || analysis.score != null || factors.length;
-  if (!hasContent) return null;
+  const signals = uniqueTags(analysis.signals);
+  const topics = uniqueTags(analysis.topics);
+  const hasDetails = analysis.target || analysis.relevance || analysis.score != null || signals.length || topics.length;
+  const hasContent = analysis.summary || hasDetails || factors.length;
+  if (!hasContent && type !== "social") return null;
 
   return (
-    <section className={classes.analysis}>
-      <h3><IconSparkles size={15} />Analisis AI</h3>
-      {analysis.summary && <p className={classes.summary}>{analysis.summary}</p>}
-      <div className={classes.rows}>
-        {mood && (
-          <Row label={MOOD_KIND_LABEL[type]}>
-            <Badge variant="light" color={mood.color}>{mood.label}{item.moodLevel ? ` · intensitas ${item.moodLevel}/5` : ""}</Badge>
-          </Row>
-        )}
+    <section className={classes.analysis} aria-label="Analisis sumber">
+      <div className={classes.sectionHead}><IconSparkles size={16} aria-hidden /><h3>Analisis sumber</h3></div>
+      {!hasContent && <p className={classes.sectionNote}>Belum ada rincian hasil analisis yang tersedia.</p>}
+      {analysis.summary && <div className={classes.summaryBlock}><h4>Ringkasan AI</h4><p className={classes.summary}>{analysis.summary}</p></div>}
+      {!!hasDetails && <dl className={classes.rows}>
         {analysis.target && <Row label="Target"><TargetTag target={analysis.target} /></Row>}
         {analysis.relevance && <Row label="Relevansi">{RELEVANCE_LABEL[analysis.relevance]}</Row>}
-        {analysis.score != null && <Row label="Skor emosi"><ScoreMeter score={analysis.score} /></Row>}
-        {tags.length > 0 && <Row label={analysis.topics.length ? "Topik & sinyal" : "Sinyal"}><Tags values={tags} /></Row>}
-      </div>
-      {factors.length > 0 && <FactorGrid factors={factors} />}
+        {analysis.score != null && <Row label="Skor emosi"><div className={classes.scoreDetail}><ScoreMeter score={analysis.score} /><span className={classes.fieldNote}>Acuan visual sekitar −3 hingga +3: negatif → positif. Berbeda dari intensitas emosi 1–5.</span></div></Row>}
+        {signals.length > 0 && <Row label="Sinyal"><Tags values={signals} /></Row>}
+        {topics.length > 0 && <Row label="Topik"><Tags values={topics} /></Row>}
+      </dl>}
+      {factors.length > 0 && <div className={classes.factorSection}><h4>Faktor analisis</h4><FactorGrid factors={factors} /></div>}
     </section>
   );
 }
 
-/** Full item: complete text, all metadata and the whole AI analysis. */
-export function ItemDetailModal({ item, type, onClose }: { item: MediaItem | null; type: MediaType; onClose: () => void }) {
-  // Keep showing the last item while the close animation runs.
-  const [shown, setShown] = useState<MediaItem | null>(item);
-  const [hasImage, setHasImage] = useState(true);
-  useEffect(() => {
-    if (!item) return;
-    setShown(item);
-    setHasImage(true);
-  }, [item]);
-
+function ContextSection({ item, type, keyName }: { item: MediaItem; type: MediaType; keyName?: string }) {
+  const metadata = item.socialMetadata;
+  if (type !== "social" && !item.category && !item.province && !item.location) return null;
   return (
-    <Modal
-      opened={!!item}
-      onClose={onClose}
-      size="lg"
-      radius={22}
-      padding={0}
-      centered
-      withCloseButton={false}
-      overlayProps={{ backgroundOpacity: 0.55, blur: 6 }}
-      transitionProps={{ transition: "pop", duration: 260, timingFunction: "cubic-bezier(.22,1,.36,1)" }}
-      classNames={{ content: classes.content }}
-      scrollAreaComponent={ScrollArea.Autosize}
-    >
-      {shown && (
-        <div style={{ ["--tone" as string]: moodTone(shown) }}>
-          <header className={classes.header}>
-            <div className={classes.heading}>
-              <span className={classes.source}>
-                {sourceLabel(shown.source)}
-                {shown.postType && <em>{POST_TYPE_LABEL[shown.postType] ?? shown.postType}</em>}
-              </span>
-              <span className={classes.time}><IconClock size={13} />{dayjs(shown.publishedAt).locale("id").format("dddd, D MMMM YYYY · HH:mm")}</span>
-            </div>
-            <button type="button" className={classes.close} onClick={onClose} aria-label="Tutup"><IconX size={18} /></button>
-          </header>
+    <section className={classes.contextSection} aria-label={type === "social" ? "Konteks post" : "Konteks berita"}>
+      <h3>{type === "social" ? "Konteks post" : "Konteks berita"}</h3>
+      <dl className={classes.rows}>
+        {item.category && <Row label="Kategori"><span className={classes.category}>{humanize(item.category)}</span></Row>}
+        {type === "social" && <Row label="Bahasa">{languageLabel(metadata?.language)}</Row>}
+        {item.province && <Row label="Provinsi">{item.province}</Row>}
+        {item.location && item.location !== item.province && <Row label="Lokasi disebut">{item.location}</Row>}
+        {type === "social" && keyName && metadata && !metadata.keywordRestricted && <Row label="Kata kunci"><span className={classes.fieldNote}>Kunci ini tidak membatasi kata kunci.</span></Row>}
+        {type === "social" && metadata?.keywordRestricted && <Row label="Kata kunci cocok">
+          {metadata.matchedKeywords.length
+            ? <div className={classes.keywordMatches}>{metadata.matchedKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>
+            : <span className={classes.fieldNote}>Tidak ditemukan kecocokan pada indeks post saat ini.</span>}
+        </Row>}
+      </dl>
+    </section>
+  );
+}
 
-          {shown.image && hasImage && (
-            <div className={classes.media}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- remote images from many news hosts */}
-              <img src={shown.image} alt="" referrerPolicy="no-referrer" onError={() => setHasImage(false)} />
-            </div>
-          )}
+function KeyAnalysis({ item, keyName, type }: { item: MediaItem; keyName?: string; type: MediaType }) {
+  const result = item.classification;
+  if (!result) return null;
+  const confidence = result.confidence;
+  return (
+    <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI kunci">
+      <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI kunci</h3></div>
+      <p className={classes.sectionNote}>Kategori khusus untuk {keyName ? `kunci “${keyName}”` : "kunci API ini"}, terpisah dari analisis sumber.</p>
+      <AiCategoryBadge item={item} />
+      {result.reason && <div className={classes.summaryBlock}><h4>Alasan kategorisasi</h4><p className={classes.classificationReason}>{result.reason}</p></div>}
+      <dl className={classes.rows}>
+        <Row label="Keyakinan model"><Tooltip label="Estimasi keyakinan dari model, bukan ukuran akurasi yang telah diverifikasi." multiline maw={280} withArrow events={{ hover: true, focus: true, touch: true }}><span className={classes.confidence} tabIndex={0}>{confidence != null && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1 ? `${Math.round(confidence * 100)}%` : "Tidak tersedia"}</span></Tooltip></Row>
+        {(type === "social" || result.model) && <Row label="Model">{result.model || "Tidak tersedia"}</Row>}
+        {(type === "social" || result.categorizedAt) && <Row label="Dikategorikan">{formatWibDate(result.categorizedAt)}</Row>}
+      </dl>
+    </section>
+  );
+}
 
-          <div className={classes.body}>
-            <MoodBadges item={shown} />
-            <AiCategoryBadge item={shown} detailed />
-            {shown.classification?.reason && <p className={classes.aiReason}>{shown.classification.reason}</p>}
-            {shown.title && <h2 className={classes.title}>{shown.title}</h2>}
-            {shown.content && <p className={classes.text}>{shown.content}</p>}
-            <div className={classes.metrics}><MetricList metrics={shown.metrics} /></div>
-
-            {shown.analysis && <AnalysisSection item={shown} analysis={shown.analysis} type={type} />}
-
-            <div className={classes.rows}>
-              {shown.category && <Row label="Kategori"><span style={{ textTransform: "capitalize" }}>{humanize(shown.category)}</span></Row>}
-              {shown.province && <Row label="Provinsi">{shown.province}</Row>}
-              {shown.location && <Row label="Lokasi">{shown.location}</Row>}
-            </div>
+/** Keyed by item so opening another post starts at the top with fresh image state. */
+function DetailContent({ item, type, keyName, onClose }: { item: MediaItem; type: MediaType; keyName?: string; onClose: () => void }) {
+  const [hasImage, setHasImage] = useState(true);
+  const originalId = type === "social" ? xPostId(item.socialMetadata?.sourceUrl) : null;
+  const video = type === "social" ? publicVideo(item.socialMetadata?.sourceUrl) : null;
+  const thread = type === "social" ? threadsPost(item.socialMetadata?.sourceUrl) : null;
+  const meta = type === "social" ? metaPost(item.socialMetadata?.sourceUrl) : null;
+  const storedContent = <PostContent text={item.content} title={item.title} metrics={item.metrics} />;
+  return (
+    <div className={classes.scroll}>
+      <header className={classes.header}>
+        <div className={classes.heading}>
+          <h2 className={classes.source}>{type === "social" && <PlatformIcon source={item.source} onDark />}{sourceLabel(item.source)}{item.postType && <PostTypeBadge value={item.postType} onDark />}</h2>
+          <div className={classes.headerMeta}>
+            <time className={classes.time} dateTime={item.publishedAt}><IconClock size={13} aria-hidden /><span>{formatWibDate(item.publishedAt)}</span></time>
+            <MoodBadges item={item} type={type} onDark />
           </div>
-
-          {shown.url && (
-            <footer className={classes.footer}>
-              <a href={shown.url} target="_blank" rel="noopener noreferrer nofollow" className={classes.sourceLink}>Baca di sumber <IconExternalLink size={15} /></a>
-            </footer>
-          )}
         </div>
-      )}
-    </Modal>
+        <div className={classes.headerActions}>
+          <SourceLink item={item} type={type} onDark />
+          <button type="button" data-autofocus className={classes.close} onClick={onClose} aria-label="Tutup detail"><IconX size={18} aria-hidden /></button>
+        </div>
+      </header>
+      <Tabs defaultValue="post" keepMounted={false} className={classes.detailTabs}>
+        <Tabs.List grow className={classes.detailTabList} aria-label="Bagian detail media">
+          <Tabs.Tab value="post" className={classes.detailTab} leftSection={<IconMessage size={15} aria-hidden />}>{type === "social" ? "Postingan" : "Berita"}</Tabs.Tab>
+          <Tabs.Tab value="analysis" className={classes.detailTab} leftSection={<IconSparkles size={15} aria-hidden />}>Analisis</Tabs.Tab>
+          <Tabs.Tab value="info" className={classes.detailTab} leftSection={<IconInfoCircle size={15} aria-hidden />}>Informasi</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="post" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
+      {item.image && hasImage && <div className={classes.media}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- source-hosted artwork */}
+        <img src={item.image} alt="" referrerPolicy="no-referrer" onError={() => setHasImage(false)} />
+      </div>}
+        <section className={classes.postSection} aria-label={type === "social" ? "Isi post" : "Cuplikan berita"}>
+          {originalId ? <OriginalXPost key={originalId} id={originalId} fallback={storedContent} /> : video ? <OriginalPublicVideo key={video.url} video={video} storedText={item.content} fallback={storedContent} /> : thread ? <OriginalThreadsPost key={thread.id} post={thread} fallback={storedContent} /> : meta ? <OriginalMetaPost key={meta.url} post={meta} fallback={storedContent} /> : <>
+            {type === "social" && <span className={classes.contentSource}><IconDatabase size={12} aria-hidden />Data tersimpan</span>}
+            {storedContent}
+          </>}
+        </section>
+        </Tabs.Panel>
+        <Tabs.Panel value="analysis" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
+        {!item.analysis && !item.classification && <p className={classes.sectionNote}>Belum ada rincian analisis yang tersedia.</p>}
+        {item.analysis && <AnalysisSection analysis={item.analysis} type={type} />}
+        <KeyAnalysis item={item} type={type} keyName={keyName} />
+        </Tabs.Panel>
+        <Tabs.Panel value="info" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
+        <ContextSection item={item} type={type} keyName={keyName} />
+        {type !== "social" && !item.category && !item.province && !item.location && <p className={classes.sectionNote}>Belum ada informasi tambahan yang tersedia.</p>}
+        {type === "social" && <section className={classes.technical} aria-label="Informasi teknis">
+          <h3>Informasi teknis</h3>
+          <dl className={classes.rows}><Row label="Kode post"><div className={classes.codeRow}><code>{item.code}</code>
+            <CopyButton value={item.code}>{({ copied, copy }) => <Button size="sm" variant="subtle" icon={copied ? IconCheck : IconCopy} onClick={copy}>{copied ? "Tersalin" : "Salin"}</Button>}</CopyButton>
+          </div></Row></dl>
+        </section>}
+        </Tabs.Panel>
+      </Tabs>
+    </div>
+  );
+}
+
+export function ItemDetailModal({ item, type, onClose, keyName }: { item: MediaItem | null; type: MediaType; onClose: () => void; keyName?: string }) {
+  const [lastItem, setLastItem] = useState<MediaItem | null>(item);
+  const reducedMotion = useReducedMotion();
+  useEffect(() => { if (item) setLastItem(item); }, [item]);
+  const shown = item ?? lastItem;
+  const label = shown ? `Detail ${type === "social" ? "post" : "berita"} ${sourceLabel(shown.source)}: ${(shown.title || shown.content || shown.code).slice(0, 100)}` : "Detail media";
+  return (
+    <Modal.Root opened={!!item} onClose={onClose} size={700} radius={18} padding={0} centered yOffset={16} xOffset={12}
+      transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
+      <Modal.Overlay backgroundOpacity={0.48} blur={3} />
+      <Modal.Content className={classes.content} aria-label={label} style={{ ["--tone" as string]: shown ? moodTone(shown) : undefined }}>
+        <Modal.Body>{shown && <DetailContent key={`${type}:${shown.code}`} item={shown} type={type} keyName={keyName} onClose={onClose} />}</Modal.Body>
+      </Modal.Content>
+    </Modal.Root>
   );
 }

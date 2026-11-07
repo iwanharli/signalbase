@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CopyButton, Modal, Skeleton, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -9,7 +9,7 @@ import {
   IconRobot, IconShieldLock, IconShieldOff, IconTag,
 } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
-import type { KeyScope } from "@/lib/media/keyScope";
+import { keyScopeSchema, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
@@ -74,7 +74,15 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const router = useRouter();
   const detail = useApi<KeyDetail>(`/api/admin/keys/${keyId}`);
   const provinceName = useProvinceNames();
-  const [tab, setTab] = useState<Tab>("overview");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tabs: Tab[] = ["overview", "identity", "keywords", "scope", "ai", "security"];
+  const tab = tabs.includes(requestedTab as Tab) ? requestedTab as Tab : "overview";
+  const setTab = (next: Tab) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.pushState(null, "", url);
+  };
   const [name, setName] = useState("");
   const [scope, setScope] = useState<KeyScope | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,12 +91,33 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const [restart, setRestart] = useState<RestartRequest | null>(null);
   const [rotated, setRotated] = useState<string | null>(null);
 
-  // Seed the form from the stored key (and again after each save).
+  const draftKey = `signalbase:key-draft:${keyId}`;
+  const initialized = useRef(false);
+  // Restore only drafts based on this exact saved configuration.
+  // This also preserves edits when browser Back leaves the page.
+
   useEffect(() => {
     if (!detail.data) return;
+    if (!initialized.current) {
+      initialized.current = true;
+      try {
+        const raw = sessionStorage.getItem(draftKey);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          const parsed = keyScopeSchema.safeParse(draft.scope);
+          if (!detail.data.revokedAt && draft.base === JSON.stringify([detail.data.name, detail.data.scope]) && typeof draft.name === "string" && parsed.success) {
+            setName(draft.name);
+            setScope(parsed.data);
+            notifications.show({ color: "blue", message: "Perubahan yang belum disimpan dipulihkan dari sesi ini." });
+            return;
+          }
+          sessionStorage.removeItem(draftKey);
+        }
+      } catch { /* Storage may be unavailable; the navigation guard still works. */ }
+    }
     setName(detail.data.name);
     setScope(detail.data.scope);
-  }, [detail.data]);
+  }, [detail.data, draftKey]);
 
   const data = detail.data;
   const revoked = !!data?.revokedAt;
@@ -100,6 +129,34 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const paramsChanged = ready && !sameScope({ ...scope, keywords: [] }, { ...data.scope, keywords: [] });
   const dirty = nameChanged || scopeChanged;
   const restrictions = scope ? scopeRestrictions(scope, provinceName) : [];
+
+  useEffect(() => {
+    if (!dirty || revoked) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const onLink = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const next = new URL(link.href, window.location.href);
+      if (next.pathname === window.location.pathname && next.search === window.location.search) return;
+      if (!window.confirm("Ada perubahan yang belum disimpan. Tinggalkan halaman dan buang perubahan?")) {
+        event.preventDefault(); event.stopPropagation();
+      } else {
+        try { sessionStorage.removeItem(draftKey); } catch { /* Storage is optional. */ }
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onLink, true);
+    return () => { window.removeEventListener("beforeunload", beforeUnload); document.removeEventListener("click", onLink, true); };
+  }, [dirty, revoked, draftKey]);
+
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      if (dirty && !revoked) sessionStorage.setItem(draftKey, JSON.stringify({ base: JSON.stringify([data.name, data.scope]), name, scope }));
+      else sessionStorage.removeItem(draftKey);
+    } catch { /* Editing remains available when session storage is disabled. */ }
+  }, [ready, dirty, revoked, draftKey, data, name, scope]);
 
   const reset = () => { if (data) { setName(data.name); setScope(data.scope); } };
 
@@ -117,7 +174,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     try {
       const result = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean };
       notifications.show({ color: "teal", message: result.aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : "Perubahan disimpan" });
-      detail.reload();
+      await detail.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
@@ -132,7 +189,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
       const { key } = await post(`/api/admin/keys/${keyId}/rotate`, {}) as { key: string };
       setConfirmRotate(false);
       setRotated(key);
-      detail.reload();
+      await detail.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
@@ -164,14 +221,14 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const items: SectionItem<Tab>[] = ready ? [
     { id: "overview", label: "Ringkasan", icon: IconLayoutDashboard, summary: revoked ? "Dicabut" : data.lastUsedAt ? `Dipakai ${fromNow(data.lastUsedAt)}` : "Belum pernah dipakai" },
     { id: "identity", label: "Identitas", icon: IconId, summary: name.trim() || "—", badge: nameChanged ? "diubah" : undefined },
-    { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Semua kata kunci", badge: keywordsChanged ? "diubah" : undefined },
+    { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Tidak dibatasi kata kunci", badge: keywordsChanged ? "diubah" : undefined },
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", badge: paramsChanged ? "diubah" : undefined },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiStatus(data.classifier).text },
-    { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Kunci sudah dicabut" : "Cabut kunci", tone: "danger" },
+    { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Kunci sudah dicabut" : "Salin, buat ulang, atau cabut" },
   ] : [];
 
   return (
-    <div className={classes.page}>
+    <div className={classes.page} data-dirty={(dirty && !revoked) || undefined}>
       <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Kunci API</Link>
 
       {!ready ? <Skeleton h={120} radius={22} /> : (
@@ -202,17 +259,17 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
       {ready && (
         <SectionLayout nav={<SectionNav items={items} active={tab} onSelect={setTab} />}>
           {tab === "overview" && (
-            <SectionPanel icon={IconLayoutDashboard} title="Ringkasan" description="Data yang bisa dibaca aplikasi lewat kunci ini.">
+            <SectionPanel icon={IconLayoutDashboard} title="Ringkasan" description={dirty ? "Pratinjau perubahan. Simpan untuk menerapkan cakupan ini ke aplikasi." : "Konfigurasi tersimpan yang berlaku untuk aplikasi."}>
               <div className={classes.tiles}>
                 <button type="button" className={classes.tile} onClick={() => setTab("keywords")} disabled={revoked}>
                   <small><IconTag size={13} />Kata kunci</small>
-                  {data.scope.keywords.length
-                    ? <span className={classes.tileChips}>{data.scope.keywords.map((w) => <em key={w}>{w}</em>)}</span>
-                    : <b>Semua kata kunci</b>}
+                  {scope.keywords.length
+                    ? <span className={classes.tileChips}>{scope.keywords.map((w) => <em key={w}>{w}</em>)}</span>
+                    : <b>Tidak dibatasi kata kunci</b>}
                 </button>
                 <button type="button" className={classes.tile} onClick={() => setTab("scope")} disabled={revoked}>
                   <small><IconAdjustmentsHorizontal size={13} />Cakupan data</small>
-                  <b>{scopeRestrictions(data.scope, provinceName).join(" · ") || "Tanpa batasan tambahan"}</b>
+                  <b>{scopeRestrictions(scope, provinceName).join(" · ") || "Tanpa batasan tambahan"}</b>
                 </button>
                 <button type="button" className={classes.tile} onClick={() => setTab("ai")}>
                   <small><IconRobot size={13} />Kategorisasi AI</small>
@@ -231,20 +288,20 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
 
           {tab === "identity" && (
             <SectionPanel icon={IconId} title="Identitas" description="Nama tampilan kunci. Nilai kunci tidak berubah, jadi aplikasi tidak perlu diperbarui.">
-              <TextInput classNames={keyInputClasses} label="Nama aplikasi" value={name} disabled={revoked} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />
+              <TextInput classNames={keyInputClasses} label="Nama aplikasi" value={name} disabled={revoked || busy} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />
             </SectionPanel>
           )}
 
           {tab === "keywords" && (
             <SectionPanel icon={IconTag} title="Kata kunci" description="Aplikasi hanya menerima post dan berita yang menyebut salah satu kata kunci.">
-              <fieldset disabled={revoked} className={classes.fieldset}><KeywordsInput scope={scope} onChange={setScope} /></fieldset>
+              <fieldset disabled={revoked || busy} className={classes.fieldset}><KeywordsInput scope={scope} onChange={setScope} /></fieldset>
               {keywordsChanged && data.classifier && <div className={classes.warning}><IconAlertTriangle size={17} />Mengubah kata kunci akan mengulang kategorisasi AI dari awal.</div>}
             </SectionPanel>
           )}
 
           {tab === "scope" && (
             <SectionPanel icon={IconAdjustmentsHorizontal} title="Cakupan data" description="Batasan tetap yang dikunci di server. Aplikasi bisa menyaring lebih sempit, tapi tidak bisa melewatinya.">
-              <fieldset disabled={revoked} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope} /></fieldset>
+              <fieldset disabled={revoked || busy} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope} /></fieldset>
               {paramsChanged && data.classifier && <div className={classes.warning}><IconAlertTriangle size={17} />Mengubah cakupan akan mengulang kategorisasi AI dari awal.</div>}
             </SectionPanel>
           )}
@@ -256,7 +313,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           )}
 
           {tab === "security" && (
-            <SectionPanel icon={IconShieldLock} title="Keamanan" description="Kunci diperiksa lewat hash-nya; nilai lengkapnya disimpan terenkripsi agar admin bisa menyalinnya.">
+            <SectionPanel icon={IconShieldLock} title="Keamanan" description="Salin kunci untuk menghubungkan aplikasi, buat ulang jika bocor, atau cabut untuk menghentikan akses.">
               {revoked ? (
                 <p className={classes.stepHint}>Kunci ini dicabut pada {formatDate(data.revokedAt!)}. Aplikasi yang memakainya mendapat 401.</p>
               ) : (
@@ -273,11 +330,11 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
                     <b>Buat ulang kunci</b>
                     <p>Membuat nilai kunci baru. Nilai lama langsung tidak berlaku, jadi aplikasi harus diperbarui. Nama, cakupan, dan hasil kategorisasi AI tetap.</p>
                   </div>
-                  <Button onDark variant="secondary" icon={IconRefresh} onClick={() => setConfirmRotate(true)}>Buat ulang kunci</Button>
+                  <Button onDark variant="secondary" icon={IconRefresh} disabled={dirty || busy} title={dirty ? "Simpan atau batalkan perubahan sebelum membuat ulang kunci" : undefined} onClick={() => setConfirmRotate(true)}>Buat ulang kunci</Button>
                 </div>
                 <div className={classes.dangerBox}>
                   <div><b>Cabut kunci</b><p>Aplikasi yang memakai kunci ini langsung kehilangan akses. Tidak bisa dibatalkan; buat kunci baru bila perlu.</p></div>
-                  <Button variant="danger" icon={IconShieldOff} onClick={() => setConfirmRevoke(true)}>Cabut kunci</Button>
+                  <Button variant="danger" icon={IconShieldOff} disabled={busy} onClick={() => setConfirmRevoke(true)}>Cabut kunci</Button>
                 </div>
                 </>
               )}
@@ -287,15 +344,15 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
       )}
 
       {/* Changes can span several tabs, so saving lives in one bar that follows the page. */}
-      <div className={classes.saveBar} data-visible={(dirty && !revoked) || undefined} aria-hidden={!dirty}>
-        <span><IconAlertTriangle size={16} />Ada perubahan yang belum disimpan</span>
+      <div className={classes.saveBar} data-visible={(dirty && !revoked) || undefined} aria-hidden={!dirty || revoked} inert={!dirty || revoked}>
+        <span role="status"><IconAlertTriangle size={16} />Ada perubahan yang belum disimpan</span>
         <Button onDark variant="secondary" onClick={reset} disabled={busy}>Batalkan</Button>
         <Button variant="primary" icon={IconDeviceFloppy} onClick={save} loading={busy}>{busy ? "Menyimpan…" : "Simpan perubahan"}</Button>
       </div>
 
       <RestartConfirm request={restart} onClose={() => setRestart(null)} loading={busy} />
 
-      <Modal opened={confirmRotate || !!rotated} onClose={() => { setConfirmRotate(false); setRotated(null); }} centered size={rotated ? "lg" : "md"} radius={20} padding={0}
+      <Modal aria-label={rotated ? "Kunci baru" : "Konfirmasi buat ulang kunci"} opened={confirmRotate || !!rotated} onClose={() => { setConfirmRotate(false); setRotated(null); }} centered size={rotated ? "lg" : "md"} radius={20} padding={0}
         withCloseButton={false} overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
         {rotated ? (
           <div className={classes.confirm}>
@@ -320,7 +377,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
         )}
       </Modal>
 
-      <Modal opened={confirmRevoke} onClose={() => setConfirmRevoke(false)} centered radius={20} padding={0} withCloseButton={false}
+      <Modal aria-label="Konfirmasi cabut kunci" opened={confirmRevoke} onClose={() => setConfirmRevoke(false)} centered radius={20} padding={0} withCloseButton={false}
         overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
         <div className={classes.confirm}>
           <span className={classes.confirmIcon}><IconShieldOff size={22} /></span>

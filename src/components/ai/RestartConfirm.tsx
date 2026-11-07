@@ -10,7 +10,7 @@ export type RestartRequest = { changes: string[]; results: number; run: () => Pr
 
 export function RestartConfirm({ request, onClose, loading }: { request: RestartRequest | null; onClose: () => void; loading?: boolean }) {
   return (
-    <Modal opened={!!request} onClose={onClose} centered size="md" radius={20} padding={0} withCloseButton={false}
+    <Modal aria-label="Konfirmasi ulangi kategorisasi AI" opened={!!request} onClose={onClose} centered size="md" radius={20} padding={0} withCloseButton={false}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
       {request && (
         <div className={classes.confirm}>

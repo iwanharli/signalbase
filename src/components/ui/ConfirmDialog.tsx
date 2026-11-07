@@ -12,7 +12,7 @@ type Props = {
 
 export function ConfirmDialog({ opened, onClose, onConfirm, loading, icon: IconEl, title, description, confirmLabel, tone = "danger" }: Props) {
   return (
-    <Modal opened={opened} onClose={onClose} centered size="md" radius={20} padding={0} withCloseButton={false}
+    <Modal aria-label={title} opened={opened} onClose={onClose} centered size="md" radius={20} padding={0} withCloseButton={false}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
       <div className={classes.confirm}>
         <span className={classes.confirmIcon} data-tone={tone === "warning" ? "warning" : undefined}><IconEl size={22} /></span>

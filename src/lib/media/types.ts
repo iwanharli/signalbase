@@ -43,9 +43,13 @@ export type MediaItem = {
   analysis: Analysis | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;
+  /** Extra metadata returned only by the admin social feed. */
+  socialMetadata?: { sourceUrl?: string | null; language: string | null; matchedKeywords: string[]; keywordRestricted: boolean };
 };
 
-export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null };
+export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null; model?: string; categorizedAt?: string };
+
+export const MOOD_SAMPLE_LIMIT = 10_000;
 
 export type MoodCount = { value: string; n: number };
 export type DailyCount = { day: string; n: number };

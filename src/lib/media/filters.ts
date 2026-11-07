@@ -52,7 +52,7 @@ export function toSearchParams(f: MediaFilters) {
 
 // Quick date ranges. `days` counts back from today; null means no lower bound.
 export const DATE_PRESETS = [
-  { label: "24 jam", days: 1 },
+  { label: "2 hari", days: 1 },
   { label: "7 hari", days: 6 },
   { label: "30 hari", days: 29 },
   { label: "Semua", days: null },
@@ -89,4 +89,36 @@ export function countAdvanced(f: MediaFilters, type: MediaType) {
 export function countActive(f: MediaFilters, type: MediaType) {
   const preset = activePreset(f);
   return countAdvanced(f, type) + [f.search, preset && preset.days != null, f.sort !== "newest"].filter(Boolean).length;
+}
+
+/** Explicit empty values preserve “Semua” even when the default is narrower. */
+export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): MediaFilters {
+  const d = defaultFilters(type);
+  const pick = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
+    const value = p.get(key);
+    return allowed.includes(value as T) ? value as T : fallback;
+  };
+  const date = (key: string) => {
+    const value = p.get(key) ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).isValid() && dayjs(value).format("YYYY-MM-DD") === value ? value : "";
+  };
+  return {
+    ...d, search: p.get("q") ?? "", from: date("from"), to: date("to"),
+    sort: pick("sort", ["newest", "oldest"], d.sort), source: p.get("source") || null,
+    mood: p.get("mood") || null, analyzed: pick("analyzed", ["", "yes", "no"], d.analyzed),
+    language: pick("lang", ["", "id", "other"], d.language), province: p.get("province") || null,
+    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null,
+    relevance: type === "social" ? pick("relevance", ["", "relevant", "include", "watchlist", "exclude"], d.relevance) : "",
+    postType: type === "social" ? pick("postType", ["", "post", "reply", "quote", "repost"], "") : "",
+    minLevel: type === "social" ? pick("level", ["", "1", "2", "3", "4", "5"], "") : "",
+    withImage: type === "online" && p.get("image") === "yes",
+  };
+}
+
+/** Browser URLs include explicit defaults; API requests can omit empty filters. */
+export function browserFilterParams(f: MediaFilters) {
+  const p = toSearchParams(f);
+  p.set("analyzed", f.analyzed);
+  p.set("relevance", f.relevance);
+  return p;
 }

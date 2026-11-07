@@ -34,8 +34,8 @@ function useScopeOptions() {
 
 export function KeywordsInput({ scope, onChange }: { scope: KeyScope; onChange: (scope: KeyScope) => void }) {
   return (
-    <TagsInput classNames={keyInputClasses} label="Kata kunci" description="Ketik lalu tekan Enter, koma, atau spasi. Kosongkan untuk semua kata kunci."
-      placeholder="mis. polri, polisi" value={scope.keywords} onChange={(keywords) => onChange({ ...scope, keywords })} splitChars={[",", " "]} clearable />
+    <TagsInput classNames={keyInputClasses} label="Kata kunci" description="Pisahkan dengan Enter atau koma. Spasi tetap menjadi bagian frasa, misalnya pelayanan publik. Kosong berarti tidak dibatasi kata kunci."
+      placeholder="mis. polri, polisi" value={scope.keywords} onChange={(keywords) => onChange({ ...scope, keywords })} splitChars={[","]} clearable />
   );
 }
 

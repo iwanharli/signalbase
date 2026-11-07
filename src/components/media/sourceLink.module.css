@@ -1,0 +1,7 @@
+.link { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border: 1px solid transparent; border-radius: 8px; color: var(--mantine-color-gray-6); text-decoration: none; transition: color 150ms, background 150ms, border-color 150ms; }
+.link:hover { color: var(--mantine-color-cyan-8); background: var(--mantine-color-cyan-0); border-color: var(--mantine-color-cyan-1); }
+.link:focus-visible { outline: 2px solid var(--mantine-color-cyan-6); outline-offset: 2px; }
+.link[data-on-dark] { width: 34px; height: 34px; color: rgba(255,255,255,.7); }
+.link[data-on-dark]:hover { color: #a5f3fc; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.1); }
+.link[data-on-dark]:focus-visible { outline-color: #a5f3fc; }
+@media (prefers-reduced-motion: reduce) { .link { transition: none; } }

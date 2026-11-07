@@ -227,7 +227,7 @@ Cache berada di memori proses (`lib/server/bank/cache.ts`) dan menyimpan *promis
 - **Read-only ke database sumber**: setiap transaksi `default_transaction_read_only=on`; semua nilai filter dikirim sebagai parameter terikat (bebas SQL injection).
 - **Kunci API** diperiksa lewat hash SHA-256. Nilai lengkapnya juga disimpan terenkripsi AES-256-GCM (kunci enkripsi diturunkan dari `AUTH_SECRET`) agar admin bisa menyalinnya lagi dari panel; kunci yang dibuat sebelum fitur ini hanya punya hash dan perlu **dibuat ulang** sekali agar bisa disalin. Kunci bisa dibuat ulang (nilai lama langsung tidak berlaku) atau dicabut kapan saja.
 - **Sesi admin**: JWT HS256 di cookie `httpOnly`, `sameSite=lax`, `secure` di produksi, berlaku 12 jam. Middleware menjaga semua halaman panel dan `/api/admin/*`.
-- **Privasi**: nama akun, username, URL post media sosial, dan jumlah follower **tidak pernah dibaca** dari database sumber.
+- **Privasi**: nama akun, username, dan jumlah follower **tidak pernah dibaca** dari database sumber. URL post media sosial hanya dibaca sebagai metadata panel admin untuk membuka sumber asli; URL tersebut tidak dikirim melalui API publik.
 - **Tanpa secret di repo**: `.env*` diabaikan git; `.env.example` hanya berisi placeholder.
 
 ---
@@ -362,3 +362,41 @@ npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name sig
 | Kolom baru di Prisma tidak terbaca | Jalankan `npx prisma db push` lalu restart server dev (client Prisma dimuat saat start). |
 | API mengembalikan 401 | Kunci salah atau sudah dicabut. |
 | Port 3100 dipakai | `PORT=4100 ./run.sh` atau hentikan proses lama. |
+
+
+## Pratinjau post X di panel admin
+
+Modal media sosial memuat bagian **Post asli** untuk URL `x.com` atau `twitter.com` yang memiliki ID post valid. Server mencoba `react-tweet` lebih dulu, lalu API FxTwitter jika sumber pertama gagal atau tidak menemukan post. Kedua sumber tidak memerlukan kredensial akun X. Pratinjau menampilkan teks, identitas akun publik, media, dan kutipan yang tersedia; video diputar atas tindakan pengguna. Data tersimpan dan analisis Signalbase tetap ditampilkan terpisah.
+
+Endpoint `/api/admin/x-post/[id]` membutuhkan sesi admin, memiliki timeout 8 detik per sumber, dan menyimpan hasil dalam cache memori selama 5 menit. Respons gagal tidak disimpan dalam cache. Identitas akun dan media pratinjau tidak ditulis ke database atau ditambahkan ke API publik. Jika X tidak menyediakan post, modal menampilkan keadaan tidak tersedia; pengguna tetap dapat membuka sumber asli.
+
+Pratinjau TikTok dan YouTube di modal admin memakai oEmbed publik tanpa sesi login
+atau API key. Tautan video kanonis TikTok dan YouTube watch/shorts/live/youtu.be
+dinormalisasi sebelum server menghubungi endpoint provider yang tetap. Pemutar
+resmi tidak autoplay; HTML dari provider tidak disisipkan. Metadata di-cache lima
+menit dengan timeout delapan detik; kegagalan tidak di-cache. Data Bankomen tetap
+tersedia pada tab Data tersimpan dan ditampilkan jika metadata/pemutar melaporkan
+kegagalan. Browser dapat membatasi deteksi kegagalan iframe; tab cadangan selalu
+tersedia. Tautan pendek TikTok vm/vt dan platform lain tetap memakai data tersimpan.
+Threads memakai oEmbed resmi `https://graph.threads.com/oembed` tanpa token atau
+sesi login, lalu iframe resmi `https://www.threads.com/t/{shortcode}/embed/`.
+Permalink threads.com/threads.net dan /t/ didukung; HTML provider tidak dieksekusi
+di aplikasi. Tinggi iframe mengikuti pesan dari origin dan window Threads yang
+sesuai. Timeout metadata delapan detik, cache lima menit; jika embed tidak memberi
+sinyal render dalam 20 detik, data Bankomen ditampilkan. Embed yang menampilkan
+pesan post dihapus/private mungkin tetap memberi sinyal render; tab Data tersimpan
+selalu tersedia. Tampilan isi embed dikendalikan Threads; wrapper/tab mengikuti
+modal Signalbase. Hasil preview tidak disimpan sebagai pengganti analisis sumber.
+
+Instagram/Facebook di modal admin memakai oEmbed publik Meta v25.0 tanpa token
+atau sesi login. Instagram mendukung permalink /p/, /reel/, /tv/; Facebook
+/posts/, /reel/, /videos/, /watch/?v=, permalink.php dan story.php. Share redirects
+belum diikuti. Server memvalidasi provider serta identitas post dari respons;
+HTML/script provider tidak disisipkan ke aplikasi. Iframe resmi dibuat dari URL
+kanonis (Instagram embed/captioned, Facebook plugins/post.php atau video.php).
+Cache metadata lima menit, timeout delapan detik; error langsung memakai Bankomen
+tanpa tab sumber. Iframe yang tidak selesai load dalam 20 detik juga memakai
+Bankomen. HTTP/load iframe tidak menjamin post bisa ditampilkan: pesan konten
+privat/dihapus/login dari Meta tidak dapat diperiksa lintas origin. Tombol
+"Gunakan data Bankomen" selalu tersedia di bawah embed untuk kondisi tersebut.
+Caption di dalam embed dikendalikan Meta dan tidak digandakan di luar iframe.

@@ -6,6 +6,14 @@ body { background: var(--mantine-color-body); -webkit-font-smoothing: antialiase
 
 /* Slim scrollbars: transparent track, thin violet→cyan thumb that wakes on hover. */
 html { scroll-behavior: smooth; scrollbar-gutter: stable; }
+/* The root already reserves scrollbar space. Avoid adding it again when a modal locks body scroll. */
+@supports (scrollbar-gutter: stable) {
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px !important;
+  }
+}
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: rgba(124, 58, 237, .35) transparent; } }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

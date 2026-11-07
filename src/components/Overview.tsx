@@ -46,6 +46,7 @@ function fillDays(daily: DailyCount[]): DailyCount[] {
 function CountUp({ value }: { value: number }) {
   const [current, setCurrent] = useState(0);
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setCurrent(value); return; }
     let frame = 0;
     const start = performance.now();
     const tick = (now: number) => {
@@ -88,16 +89,16 @@ function TypePanel({ type, stats }: { type: MediaType; stats?: TypeStats }) {
   return (
     <section className={classes.panel} style={gradientVars(TYPE_STYLE[type])}>
       <header className={classes.panelHead}>
-        <div><h3>{MEDIA_TYPE_LABEL[type]}</h3><p>Volume harian, 14 hari terakhir</p></div>
+        <div><h3>{MEDIA_TYPE_LABEL[type]}</h3><p>Volume harian, 14 hari terakhir · hari ini belum lengkap</p></div>
         <Link href={`/media/${type}`} className={classes.more}>Jelajahi <IconArrowRight size={14} /></Link>
       </header>
 
       {!stats ? <Skeleton h={170} radius="md" /> : (
         <div className={classes.chart}>
           {days.map((d, i) => (
-            <div key={d.day} className={classes.col} data-today={i === CHART_DAYS - 1 || undefined}>
+            <div key={d.day} className={classes.col} tabIndex={0} aria-label={`${dayjs(d.day).locale("id").format("D MMMM YYYY")}: ${formatNumber(d.n)} item${i === CHART_DAYS - 1 ? ", hari ini belum lengkap" : ""}`} data-today={i === CHART_DAYS - 1 || undefined}>
               <span className={classes.tip}>{dayjs(d.day).locale("id").format("D MMM")}<b>{formatNumber(d.n)}</b></span>
-              <i style={{ height: `${Math.max(2, (d.n / peak) * 100)}%`, animationDelay: `${i * 35}ms` }} />
+              <i style={{ height: `${d.n === 0 ? 0 : Math.max(2, (d.n / peak) * 100)}%`, animationDelay: `${i * 35}ms` }} />
               <small>{dayjs(d.day).format("D")}</small>
             </div>
           ))}
@@ -190,7 +191,7 @@ export function Overview() {
       <section className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
         <div className={classes.heroText}>
-          <span className={classes.live}><i />Data langsung</span>
+          <span className={classes.live}>Ringkasan bank data</span>
           <h1>Pusat <em>Sinyal</em> Media</h1>
           <p>Arus post media sosial dan berita online yang dibuka untuk aplikasi lain lewat kunci API.{data && <> Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</>}</p>
         </div>

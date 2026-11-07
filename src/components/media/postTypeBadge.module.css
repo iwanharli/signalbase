@@ -1,0 +1,7 @@
+.badge { --type-ink: #475569; --type-bg: #f1f5f9; --type-edge: #e2e8f0; --type-light: #cbd5e1; --type-wash: rgba(148,163,184,.14); --type-rim: rgba(148,163,184,.25);
+  display: inline-flex; align-items: center; flex-shrink: 0; padding: 2px 7px; border: 1px solid var(--type-edge); border-radius: 5px; color: var(--type-ink); background: var(--type-bg); font-size: 10.5px; font-weight: 600; line-height: 1.4; }
+.badge[data-type="post"] { --type-ink: #1d4ed8; --type-bg: #eff6ff; --type-edge: #dbeafe; --type-light: #93c5fd; --type-wash: rgba(59,130,246,.14); --type-rim: rgba(96,165,250,.25); }
+.badge[data-type="quote"] { --type-ink: #6d28d9; --type-bg: #f5f3ff; --type-edge: #ede9fe; --type-light: #c4b5fd; --type-wash: rgba(139,92,246,.14); --type-rim: rgba(167,139,250,.25); }
+.badge[data-type="reply"] { --type-ink: #92400e; --type-bg: #fffbeb; --type-edge: #fef3c7; --type-light: #fcd34d; --type-wash: rgba(245,158,11,.12); --type-rim: rgba(251,191,36,.25); }
+.badge[data-type="repost"] { --type-ink: #0f766e; --type-bg: #f0fdfa; --type-edge: #ccfbf1; --type-light: #5eead4; --type-wash: rgba(20,184,166,.12); --type-rim: rgba(45,212,191,.25); }
+.badge[data-on-dark] { color: var(--type-light); background: var(--type-wash); border-color: var(--type-rim); }

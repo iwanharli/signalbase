@@ -8,7 +8,7 @@
   background: linear-gradient(135deg, #7c3aed, #a855f7); }
 
 /* Emotion score on a red → grey → green track */
-.score { display: grid; grid-template-columns: 1fr auto; min-width: 180px; align-items: center; gap: 8px; font-size: 11.5px; padding-top: 2px; }
+.score { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; width: 100%; align-items: center; gap: 8px; font-size: 11.5px; padding-top: 2px; }
 .scoreTrack { position: relative; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--mantine-color-red-4), var(--mantine-color-gray-3) 50%, var(--mantine-color-teal-4)); }
 .scoreTrack i { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); background: #fff;
   border: 2px solid var(--mantine-color-gray-6); box-shadow: 0 1px 4px rgba(0,0,0,.2); }
@@ -26,9 +26,16 @@
 .dots i[data-on] { background: linear-gradient(135deg, #7c3aed, #22d3ee); }
 
 /* AI category of the API key being browsed through */
-.aiCategory { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;
+.aiCategory { align-self: flex-start; display: inline-flex; flex-wrap: wrap; max-width: 100%; overflow-wrap: anywhere; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 99px; font-size: 12px; font-weight: 600;
   color: var(--mantine-color-teal-9); background: var(--mantine-color-teal-0); border: 1px solid var(--mantine-color-teal-2); }
 .aiCategory b { font: 800 11px ui-monospace, monospace; padding: 0 6px; border-radius: 6px; color: #fff; background: linear-gradient(135deg, #059669, #10b981); }
 .aiCategory em { font-style: normal; font-weight: 700; color: var(--mantine-color-teal-7); }
 .aiCategory[data-none] { color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-0); border-color: var(--mantine-color-gray-2); }
 .aiCategory[data-none] b { background: var(--mantine-color-gray-5); }
+
+.moodBadges { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 6px; max-width: 100%; }
+.relevance { display: inline-flex; align-items: center; gap: 4px; color: var(--mantine-color-gray-6); font-size: 10.5px; font-weight: 600; }
+.relevance[data-watchlist] { color: var(--mantine-color-yellow-9); }
+.relevance[data-watchlist]::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--mantine-color-yellow-6); }
+
+@media (max-width: 380px) { .factors { grid-template-columns: minmax(0, 1fr); } }

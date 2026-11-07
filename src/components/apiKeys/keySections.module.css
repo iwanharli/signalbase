@@ -45,3 +45,9 @@
   .navText small { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+
+.panel { background: #151326; box-shadow: 0 4px 18px -16px rgba(46,16,101,.4); }
+.panelIcon { box-shadow: none; }
+.panelHead p { color: rgba(255,255,255,.75); }
+.navItem:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+@media (max-width: 960px) { .nav { scrollbar-width: thin; } .nav::-webkit-scrollbar { display: block; height: 5px; } }

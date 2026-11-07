@@ -13,11 +13,11 @@ export function useApi<T>(url: string | null) {
     const id = ++latest.current;
     setLoading(true);
     setError(null);
-    api<T>(url)
+    return api<T>(url)
       .then((d) => { if (id === latest.current) setData(d); })
       .catch((e: Error) => { if (id === latest.current) setError(e.message); })
       .finally(() => { if (id === latest.current) setLoading(false); });
   }, [url]);
-  useEffect(reload, [reload]);
+  useEffect(() => { void reload(); }, [reload]);
   return { data, error, loading, reload };
 }

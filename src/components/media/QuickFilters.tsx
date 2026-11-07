@@ -23,8 +23,8 @@ function useSlashToFocus(ref: React.RefObject<HTMLInputElement | null>) {
   }, [ref]);
 }
 
-/** Search, date presets and sort, plus the toggle for the advanced drawer. */
-export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy }: {
+/** Compact toolbar for search, filters, sort and result layout. */
+export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, view, onViewChange }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
@@ -34,6 +34,8 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
   advancedOpen: boolean;
   onToggleAdvanced: () => void;
   busy: boolean;
+  view: "cards" | "list";
+  onViewChange: (view: "cards" | "list") => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashToFocus(searchRef);
@@ -43,7 +45,7 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
     <section className={classes.quick} data-busy={busy || undefined}>
       <span className={classes.scanline} aria-hidden />
       <button type="button" className={classes.toggle} data-active={advancedOpen || undefined} onClick={onToggleAdvanced}
-        aria-expanded={advancedOpen} aria-controls="advanced-filters">
+        aria-label="Filter lanjutan" aria-expanded={advancedOpen} aria-controls="advanced-filters">
         <IconAdjustmentsHorizontal size={18} />
         <span>Filter lanjutan</span>
         {advancedCount > 0 && <b>{advancedCount}</b>}
@@ -51,7 +53,7 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
 
       <label className={classes.search}>
         <IconSearch size={18} />
-        <input ref={searchRef} value={filters.search} onChange={(e) => onChange({ search: e.currentTarget.value })}
+        <input aria-label={type === "social" ? "Cari isi post" : "Cari judul berita"} ref={searchRef} value={filters.search} onChange={(e) => onChange({ search: e.currentTarget.value })}
           placeholder={type === "social" ? "Cari isi post…" : "Cari judul berita…"} />
         {filters.search
           ? <button type="button" onClick={() => onChange({ search: "" })} aria-label="Hapus pencarian"><IconX size={15} /></button>
@@ -60,9 +62,12 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
 
       <Segmented label="Rentang waktu" className={classes.quickSegmented} options={PRESET_OPTIONS} value={preset?.label ?? ""}
         onChange={(label) => onChange(presetRange(DATE_PRESETS.find((p) => p.label === label)!))} />
-      <Segmented label="Urutan" className={classes.quickSegmented} options={SORT_OPTIONS} value={filters.sort} onChange={(sort) => onChange({ sort })} />
+      <Segmented label="Urutan" className={classes.sortSegmented} options={SORT_OPTIONS} value={filters.sort} onChange={(sort) => onChange({ sort })} />
 
-      {activeCount > 0 && <button type="button" className={classes.reset} onClick={onReset}><IconFilterOff size={14} />Reset {activeCount}</button>}
+      <Segmented label="Tampilan hasil" className={classes.viewSegmented}
+        options={[{ value: "cards", label: "Kartu" }, { value: "list", label: "Daftar ringkas" }]} value={view} onChange={onViewChange} />
+
+      {activeCount > 0 && <button type="button" className={classes.reset} onClick={onReset}><IconFilterOff size={14} />Reset ke awal · {activeCount}</button>}
     </section>
   );
 }

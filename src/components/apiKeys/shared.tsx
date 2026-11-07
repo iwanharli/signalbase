@@ -38,7 +38,7 @@ export function useProvinceNames() {
 
 /** Human description of which keywords a key matches. */
 export function keywordText(keywords: string[]) {
-  if (!keywords.length) return "Semua kata kunci";
+  if (!keywords.length) return "Tidak dibatasi kata kunci";
   const list = keywords.length === 1 ? keywords[0] : `${keywords.slice(0, -1).join(", ")} atau ${keywords.at(-1)}`;
   return `Menyebut ${list}`;
 }
@@ -57,7 +57,7 @@ export function scopeRestrictions(scope: KeyScope, provinceName: (code: string) 
 }
 
 export function KeywordChips({ keywords }: { keywords: string[] }) {
-  if (!keywords.length) return <div className={classes.chips}><span className={classes.chip} data-all>semua kata kunci</span></div>;
+  if (!keywords.length) return <div className={classes.chips}><span className={classes.chip} data-all>tidak dibatasi kata kunci</span></div>;
   return <div className={classes.chips}>{keywords.map((w) => <span key={w} className={classes.chip}>{w}</span>)}</div>;
 }
 
