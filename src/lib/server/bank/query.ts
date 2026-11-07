@@ -18,7 +18,7 @@ export const COLUMNS = {
 } as const;
 
 // Every parameter that changes the result set; used to build cache keys.
-const FILTER_PARAMS = ["q", "from", "to", "source", "mood", "lang", "analyzed", "province", "category", "postType", "level", "image", "relevance"];
+const FILTER_PARAMS = ["q", "from", "to", "since", "source", "mood", "lang", "analyzed", "province", "category", "postType", "level", "image", "relevance"];
 
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -81,6 +81,9 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   const from = get("from"), to = get("to");
   if (isDate(from)) where.push(`${c.timestamp} >= ${bind(from)}::date`);
   if (isDate(to)) where.push(`${c.timestamp} < ${bind(to)}::date + 1`);
+  // since: an exact wall-clock time "YYYY-MM-DD HH:mm:ss" (internal; the AI worker's start point).
+  const since = get("since");
+  if (since && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(since)) where.push(`${c.timestamp} >= ${bind(since)}::timestamp`);
 
   // analyzed: "yes" = has an emotion/sentiment label, "no" = not labelled yet.
   const analyzed = get("analyzed");

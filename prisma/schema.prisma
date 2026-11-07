@@ -30,6 +30,7 @@ model ApiKey {
 
   classifier      Classifier?
   classifications Classification[]
+  balances        BalanceSnapshot[]
 }
 
 // AI categorisation settings and progress for one API key.
@@ -45,6 +46,9 @@ model Classifier {
   enabled         Boolean   @default(true)
   prompt          String
   categories      Json // [{ code, label, description }]
+  onlineCategories Json? // online news' own categories; null = same as `categories`
+  labelledOnly    Boolean   @default(false) // API returns only items the AI has labelled
+  startFrom       DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
   // Progress per media type: { social: { newest, oldest, done }, online: {...} } (ISO timestamps)
   cursors         Json      @default("{}")
   processed       Int       @default(0)
@@ -72,4 +76,16 @@ model Classification {
 
   @@id([apiKeyId, type, code])
   @@index([apiKeyId, type, category, publishedAt])
+}
+
+// Provider credit over time, recorded by the worker and on manual refresh; spend = drops between snapshots.
+model BalanceSnapshot {
+  id       Int      @id @default(autoincrement())
+  apiKeyId String
+  apiKey   ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  currency String
+  total    Float
+  at       DateTime @default(now())
+
+  @@index([apiKeyId, at])
 }

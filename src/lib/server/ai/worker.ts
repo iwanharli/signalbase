@@ -2,12 +2,13 @@
 // newer than anything seen so far, then keeps walking back through older items until the whole
 // scope is labelled. Progress is stored as cursors, so the worker can stop and resume at any time.
 import type { Prisma } from "@prisma/client";
-import { categorySchema, type Category } from "@/lib/ai/classifier";
+import { categoriesForType, categorySchema, type Category } from "@/lib/ai/classifier";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { listItemsFromCursor, type TimeCursor } from "../bank";
 import { prisma } from "../db";
 import { providerConfig } from "./admin";
+import { snapshotIfDue } from "./balance";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "./providers";
 
 const BATCH_SIZE = 20;
@@ -26,13 +27,15 @@ type Job = {
   scope: KeyScope;
   provider: ProviderConfig & { model: string };
   prompt: string;
-  categories: Category[];
+  categories: Record<MediaType, Category[]>;
+  /** Backfill stops at items published before this. */
+  startFrom: Date | null;
 };
 
 /** Classifies one batch and stores the results. Returns how many items were labelled. */
 async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const classifiable = items.filter((i) => itemText(i));
-  const results = await classifyBatch(job.provider, job.prompt, job.categories, classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
+  const results = await classifyBatch(job.provider, job.prompt, job.categories[type], classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
     data: results.map((r) => ({
@@ -54,13 +57,14 @@ async function runClassifier(classifierId: string) {
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
   let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
 
-  const categories = categorySchema.array().parse(row.categories);
+  const categories = Object.fromEntries(MEDIA_TYPES.map((t) => [t, categorySchema.array().parse(categoriesForType(row, t))])) as Record<MediaType, Category[]>;
   const job: Job = {
     apiKeyId: row.apiKeyId,
     scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
     provider: providerConfig(row),
     prompt: row.prompt,
     categories,
+    startFrom: row.startFrom,
   };
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
@@ -89,15 +93,17 @@ async function runClassifier(classifierId: string) {
         processed += labelled; failed += skipped; todayCount += page.items.length; budget -= page.items.length;
       }
 
-      // 2. Backfill: walk back through older items until the scope is exhausted.
+      // 2. Backfill: walk back through older items until the start date (or the end of the scope).
       while (budget > 0 && !state.backfillDone) {
         const page = await listItemsFromCursor(type, job.scope, "older", state.oldest ?? null, Math.min(BATCH_SIZE, budget));
         if (!page.items.length) { state.backfillDone = true; break; }
-        const { labelled, skipped } = await processBatch(job, type, page.items);
+        const inRange = job.startFrom ? page.items.filter((i) => new Date(i.publishedAt) >= job.startFrom!) : page.items;
+        const { labelled, skipped } = inRange.length ? await processBatch(job, type, inRange) : { labelled: 0, skipped: 0 };
         // The very first batch starts at the present, so its newest item anchors the forward pass.
         if (!state.newest) state.newest = page.first!;
         state.oldest = page.next!;
-        processed += labelled; failed += skipped; todayCount += page.items.length; budget -= page.items.length;
+        processed += labelled; failed += skipped; todayCount += inRange.length; budget -= inRange.length;
+        if (inRange.length < page.items.length) { state.backfillDone = true; break; }
       }
     }
   } catch (error) {
@@ -106,6 +112,7 @@ async function runClassifier(classifierId: string) {
     console.error(`[classifier] ${row.apiKey.name}: ${lastError}`);
   }
   await save();
+  await snapshotIfDue(row.apiKeyId, providerConfig(row));
 }
 
 /** One pass over every enabled classifier. */

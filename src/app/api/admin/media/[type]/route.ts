@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
-import { classificationsFor, codesInCategory, keyCategories } from "@/lib/server/ai/classifications";
+import { classificationsFor, codesInCategory, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
@@ -37,8 +37,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
     const { scope, keyId } = resolved;
     if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
 
-    const categories = keyId ? await keyCategories(keyId) : null;
-    const aiCategory = categories ? query.get("aiCategory") : null;
+    const categories = keyId ? await keyCategories(keyId, type) : null;
+    const aiCategory = categories ? await effectiveCategoryFilter(keyId!, query.get("aiCategory")) : null;
     const page = Math.max(1, Math.floor(Number(query.get("page"))) || 1);
 
     if (query.get("view") === "count") {

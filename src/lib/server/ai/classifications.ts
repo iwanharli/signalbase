@@ -1,13 +1,20 @@
 // Reading stored AI categories for the public API.
-import { categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
+import { ANY_CATEGORY, categoriesForType, categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { ItemClassification, MediaType } from "@/lib/media/types";
 import { prisma } from "../db";
 
 /** The key's category list, or null when the key has no (enabled) categorisation. */
-export async function keyCategories(apiKeyId: string): Promise<Category[] | null> {
-  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { enabled: true, categories: true } });
+/** The category filter a request gets: the one asked for, else "any" when the key serves labelled items only. */
+export async function effectiveCategoryFilter(apiKeyId: string, requested: string | null) {
+  if (requested) return requested;
+  const c = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { labelledOnly: true } });
+  return c?.labelledOnly ? ANY_CATEGORY : null;
+}
+
+export async function keyCategories(apiKeyId: string, type: MediaType): Promise<Category[] | null> {
+  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { enabled: true, categories: true, onlineCategories: true } });
   if (!classifier?.enabled) return null;
-  const parsed = categorySchema.array().safeParse(classifier.categories);
+  const parsed = categorySchema.array().safeParse(categoriesForType(classifier, type));
   return parsed.success ? parsed.data : null;
 }
 
@@ -30,7 +37,7 @@ export async function codesInCategory(apiKeyId: string, type: MediaType, categor
     ...(isDate(from) ? { gte: new Date(`${from}T00:00:00+07:00`) } : {}),
     ...(isDate(to) ? { lt: new Date(new Date(`${to}T00:00:00+07:00`).getTime() + 86_400_000) } : {}),
   };
-  const where = { apiKeyId, type, category, ...(Object.keys(publishedAt).length ? { publishedAt } : {}) };
+  const where = { apiKeyId, type, ...(category === ANY_CATEGORY ? {} : { category }), ...(Object.keys(publishedAt).length ? { publishedAt } : {}) };
   const [total, rows] = await Promise.all([
     prisma.classification.count({ where }),
     prisma.classification.findMany({

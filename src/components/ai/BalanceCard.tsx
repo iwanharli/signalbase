@@ -17,12 +17,32 @@ const money = (amount: number, currency: string) => {
 };
 
 /** `onDark` for dark panels. Balance is fetched live when shown and on refresh. */
-export function BalanceCard({ keyId, onDark }: { keyId: string; onDark?: boolean }) {
+export function BalanceCard({ keyId, onDark, compact }: { keyId: string; onDark?: boolean; compact?: boolean }) {
   const balance = useApi<Balance>(`/api/admin/keys/${keyId}/classifier/balance`);
   const data = balance.data;
   const refresh = (
     <Button size="sm" variant="subtle" onDark={onDark} iconOnly icon={IconRefresh} onClick={balance.reload} loading={balance.loading}>Perbarui saldo</Button>
   );
+
+  // One-line form for summary strips: label, amount, refresh.
+  if (compact) {
+    const first = data?.supported ? data.balances[0] : null;
+    return (
+      <div className={classes.compact} data-on-dark={onDark || undefined}>
+        <span className={classes.icon}><IconWallet size={15} /></span>
+        <div>
+          <small>Saldo</small>
+          {balance.error ? <em>Gagal dimuat</em>
+            : !data ? <i className={classes.compactSkeleton} />
+            : first ? <strong data-low={first.total < 1 || undefined}>{money(first.total, first.currency)}</strong>
+            : data.supported ? <em>—</em>
+            : data.billingUrl ? <a href={data.billingUrl} target="_blank" rel="noopener noreferrer" className={classes.link}>Halaman tagihan <IconExternalLink size={12} /></a>
+            : <em>Tidak tersedia</em>}
+        </div>
+        {data?.supported !== false && refresh}
+      </div>
+    );
+  }
 
   return (
     <div className={classes.card} data-on-dark={onDark || undefined}>

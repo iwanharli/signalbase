@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { allowsType } from "@/lib/media/keyScope";
 import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/types";
-import { categoryBreakdown, classificationsFor, codesInCategory, keyCategories } from "@/lib/server/ai/classifications";
+import { categoryBreakdown, classificationsFor, codesInCategory, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
 import { countCapped, fetchItemsByCode, listItems, moodBreakdown } from "@/lib/server/bank";
 
@@ -22,7 +22,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
   const query = new URL(req.url).searchParams;
 
   try {
-    const categories = await keyCategories(keyId);
+    const categories = await keyCategories(keyId, type);
 
     if (query.get("view") === "summary") {
       // The split ignores the mood filter so every slice stays visible; the total honours it.
@@ -38,7 +38,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
 
     const size = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(query.get("size")) || DEFAULT_PAGE_SIZE));
     const requestedPage = Math.max(1, Number(query.get("page")) || 1);
-    const aiCategory = query.get("aiCategory");
+    const aiCategory = categories ? await effectiveCategoryFilter(keyId, query.get("aiCategory")) : query.get("aiCategory");
 
     let total: number, capped = false, items: MediaItem[];
     if (aiCategory) {

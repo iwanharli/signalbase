@@ -6,12 +6,15 @@ import type { ClassifierInput, ProviderKind } from "@/lib/ai/classifier";
 import { prisma } from "../db";
 import { encryptSecret, secretHint } from "../secrets";
 import type { ProviderConfig } from "./providers";
+import { Prisma } from "@prisma/client";
+import { MEDIA_TYPES } from "@/lib/media/types";
+import { categoriesForType } from "@/lib/ai/classifier";
 
 /** A classifier as the panel sees it: the provider key itself is never returned, only its last four characters. */
 export const publicClassifier = (c: Classifier) => ({
   apiKeyId: c.apiKeyId,
   provider: { kind: c.providerKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyHint: c.providerKeyHint },
-  enabled: c.enabled, prompt: c.prompt, categories: c.categories,
+  enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories, labelledOnly: c.labelledOnly, startFrom: c.startFrom,
   cursors: c.cursors, processed: c.processed, failed: c.failed, todayCount: c.todayCount, todayDate: c.todayDate,
   lastError: c.lastError, lastRunAt: c.lastRunAt, updatedAt: c.updatedAt,
 });
@@ -38,21 +41,36 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
     providerModel: input.provider.model,
     ...(input.provider.apiKey ? { providerKeyEnc: encryptSecret(input.provider.apiKey), providerKeyHint: secretHint(input.provider.apiKey) } : {}),
   };
-  const data = { ...provider, enabled: input.enabled, prompt: input.prompt, categories: input.categories };
+  const startFrom = input.startFrom ? new Date(input.startFrom) : null;
+  const data = { ...provider, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, startFrom };
 
   if (!existing) {
     return prisma.classifier.create({ data: { apiKeyId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });
   }
-  const definitionChanged = existing.prompt !== input.prompt
-    || JSON.stringify(existing.categories) !== JSON.stringify(input.categories)
+  // Prompt or provider changes invalidate every result; a category list only invalidates its own media type.
+  const sharedChanged = existing.prompt !== input.prompt
     || existing.providerKind !== provider.providerKind
     || existing.providerModel !== provider.providerModel
     || (existing.providerBaseUrl ?? null) !== provider.providerBaseUrl;
+  const restart = MEDIA_TYPES.filter((type) => sharedChanged
+    || JSON.stringify(categoriesForType(existing, type)) !== JSON.stringify(categoriesForType({ categories: input.categories, onlineCategories: input.onlineCategories }, type)));
+  // An earlier start date (or "everything") reopens the backfill; existing results are kept either way.
+  const reachesFurther = !!existing.startFrom && (!startFrom || startFrom < existing.startFrom);
+  const old = (existing.cursors ?? {}) as Record<string, Record<string, unknown>>;
+  const cursors = Object.fromEntries(MEDIA_TYPES.flatMap((type) => {
+    if (restart.includes(type) || !old[type]) return [];
+    return [[type, reachesFurther ? { ...old[type], backfillDone: false } : old[type]]];
+  }));
+  const everything = restart.length === MEDIA_TYPES.length;
   return prisma.$transaction(async (tx) => {
-    if (definitionChanged) await tx.classification.deleteMany({ where: { apiKeyId } });
+    let removed = 0;
+    if (restart.length) removed = (await tx.classification.deleteMany({ where: { apiKeyId, type: { in: restart } } })).count;
     return tx.classifier.update({
       where: { apiKeyId },
-      data: { ...data, ...(definitionChanged ? { cursors: {}, processed: 0, failed: 0, lastError: null } : {}) },
+      data: {
+        ...data, cursors: cursors as Prisma.InputJsonValue,
+        ...(everything ? { processed: 0, failed: 0, lastError: null } : restart.length ? { processed: Math.max(0, existing.processed - removed), lastError: null } : {}),
+      },
     });
   });
 }

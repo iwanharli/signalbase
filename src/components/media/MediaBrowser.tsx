@@ -1,4 +1,5 @@
 "use client";
+import { categoriesForType } from "@/lib/ai/classifier";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Alert, Button, Group, Loader, Skeleton, Text } from "@mantine/core";
@@ -20,7 +21,7 @@ import { useMediaFilters } from "./useMediaFilters";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 
-type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classifier: { enabled: boolean; categories: Category[] } | null };
+type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classifier: { enabled: boolean; categories: Category[]; onlineCategories: Category[] | null } | null };
 
 const SKELETON_HEIGHTS = [260, 180, 320, 220];
 const CARD_STAGGER_MS = 30;
@@ -55,7 +56,7 @@ export function MediaBrowser({ type }: { type: MediaType }) {
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
     : null;
-  const aiCategories = keyInfo.data?.classifier?.enabled ? keyInfo.data.classifier.categories : null;
+  const aiCategories = keyInfo.data?.classifier?.enabled ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
   const { filters, update, reset, query: filterQuery, advancedCount, activeCount } = useMediaFilters(type);

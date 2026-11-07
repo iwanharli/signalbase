@@ -30,6 +30,9 @@ export const providerSchema = z.object({
 export type ProviderInput = z.infer<typeof providerSchema>;
 
 /** Reserved category for items that fit none of the categories. */
+/** Matches any stored category in a category filter. */
+export const ANY_CATEGORY = "*";
+
 export const NO_CATEGORY = "none";
 
 export const categorySchema = z.object({
@@ -39,12 +42,20 @@ export const categorySchema = z.object({
 });
 export type Category = z.infer<typeof categorySchema>;
 
+const categoryListSchema = z.array(categorySchema).min(2).max(30)
+  .refine((list) => new Set(list.map((c) => c.code.toUpperCase())).size === list.length, "Kode kategori harus unik");
+
 export const classifierInputSchema = z.object({
   provider: providerSchema,
   enabled: z.boolean().default(true),
   prompt: z.string().trim().min(10).max(6000),
-  categories: z.array(categorySchema).min(2).max(30)
-    .refine((list) => new Set(list.map((c) => c.code.toUpperCase())).size === list.length, "Kode kategori harus unik"),
+  categories: categoryListSchema,
+  /** Separate categories for online news; null = the same list as social media. */
+  onlineCategories: categoryListSchema.nullable().default(null),
+  /** Serve only labelled items through the API (and the key's data view). */
+  labelledOnly: z.boolean().default(false),
+  /** ISO date: label items published from here up to the present, then keep labelling new ones. null = everything. */
+  startFrom: z.string().refine((v) => !Number.isNaN(Date.parse(v)), "Tanggal mulai tidak valid").nullable().default(null),
 });
 export type ClassifierInput = z.infer<typeof classifierInputSchema>;
 
@@ -66,3 +77,7 @@ export const QUICK_WIN_PRESET: { prompt: string; categories: Category[] } = {
     { code: "QW8", label: "KUHP/KUHAP Siap dan Scientific Crime Investigation", description: "KUHP dan KUHAP baru, BBM ilegal, kejahatan ekonomi, TPPO, korupsi, penyelundupan, pencucian uang, olah TKP ilmiah, identifikasi korban." },
   ],
 };
+
+/** The category list used for one media type: online news may have its own, otherwise the shared one. */
+export const categoriesForType = (c: { categories: unknown; onlineCategories?: unknown }, type: "social" | "online") =>
+  type === "online" && c.onlineCategories != null ? c.onlineCategories : c.categories;

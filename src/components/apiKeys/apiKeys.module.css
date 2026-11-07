@@ -316,3 +316,16 @@ button.tile:disabled { cursor: default; }
 .heroIcon, .aiEmptyIcon { box-shadow: none; }
 .tile small, .aiStats small { font-size: 12px; letter-spacing: .2px; color: rgba(255,255,255,.72); }
 .stepHint, .keyBox p { color: rgba(255,255,255,.75); }
+
+/* Compact AI summary: identity · balance · actions in one strip */
+.aiOverview { gap: 12px !important; }
+.aiStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); }
+.aiIdentity { flex: 1 1 260px; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.aiIdentity > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.aiIdentity > div > span { font-size: 12.5px; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aiTitle { display: flex; align-items: center; gap: 8px; }
+.aiTitle b { font-size: 15px; font-weight: 800; color: #fff; }
+.aiIcon { flex-shrink: 0; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #ea580c, #fbbf24); }
+.aiIcon[data-state="on"] { background: linear-gradient(135deg, #059669, #34d399); }
+.aiIcon[data-state="error"] { background: linear-gradient(135deg, #e11d48, #f97316); }
+.aiStrip .aiActions { padding: 0; margin-left: auto; }

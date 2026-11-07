@@ -7,12 +7,12 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { api, post } from "@/lib/api-client";
-import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
+import { categoriesForType, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { formatNumber, MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { BalanceCard } from "./BalanceCard";
-import { ClassifierEditor, draftProblems, emptyDraft, type ClassifierDraft } from "./ClassifierEditor";
+import { ClassifierEditor, draftProblems, emptyDraft, estimateUrl, money, type ClassifierDraft, type Estimate } from "./ClassifierEditor";
 import classes from "./keyClassifier.module.css";
 import { RestartConfirm, type RestartRequest } from "./RestartConfirm";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -34,18 +34,29 @@ type Response = {
 const REFRESH_MS = 30_000;
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
-function Progress({ state, counts, categories, types }: { state: ClassifierState; counts: Response["counts"]; categories: Category[]; types: MediaType[] }) {
+function Progress({ state, counts, types, keyId }: { state: ClassifierState; counts: Response["counts"]; types: MediaType[]; keyId: string }) {
   const todayCount = state.todayDate === today() ? state.todayCount : 0;
-  const labels = new Map([...categories.map((c) => [c.code, c.label] as const), [NO_CATEGORY, "Tidak termasuk"]]);
-  const order = [...categories.map((c) => c.code), NO_CATEGORY];
+  const estimate = useApi<Estimate>(estimateUrl(keyId, state.startFrom ?? null));
+  const e = estimate.data;
+  const done = counts.reduce((sum, c) => sum + c.n, 0);
+  const inRange = e ? (e.social ?? 0) + (e.online ?? 0) : null;
+  const pct = (n: number, total: number | null) => (total ? Math.min(100, Math.round((n / total) * 100)) : 0);
 
   return (
     <section className={classes.progress}>
-      <div className={classes.stats}>
-        <div><b>{formatNumber(state.processed)}</b><span>Sudah dikategorikan</span></div>
-        <div><b>{formatNumber(todayCount)}</b><span>Diproses hari ini</span></div>
-        <div><b>{formatNumber(state.failed)}</b><span>Terlewat</span></div>
-        <div><b>{state.lastRunAt ? dayjs(state.lastRunAt).locale("id").fromNow() : "—"}</b><span>Terakhir berjalan</span></div>
+      <div className={classes.overall}>
+        <div className={classes.overallHead}>
+          <small>Progres kategorisasi</small>
+          <span className={classes.pct}>{inRange === null ? "…" : `${pct(e!.done, inRange)}%`}</span>
+        </div>
+        <b className={classes.overallValue}>{formatNumber(e ? e.done : done)}<span> / {inRange === null ? "…" : formatNumber(inRange)} item</span></b>
+        <span className={classes.meter}><i style={{ width: `${inRange ? pct(e!.done, inRange) : 0}%` }} /></span>
+        <dl className={classes.facts}>
+          <div><dt>Hari ini</dt><dd>{formatNumber(todayCount)}</dd></div>
+          <div><dt>Terlewat</dt><dd data-warn={state.failed > 0 || undefined}>{formatNumber(state.failed)}</dd></div>
+          <div><dt>Terakhir jalan</dt><dd>{state.lastRunAt ? dayjs(state.lastRunAt).locale("id").fromNow() : "—"}</dd></div>
+          <div><dt>Biaya / 1.000</dt><dd>{e?.cost ? money(e.cost.perThousand, e.cost.currency) : "—"}</dd></div>
+        </dl>
       </div>
 
       {state.lastError && <div className={classes.error}><IconAlertTriangle size={16} />{state.lastError}</div>}
@@ -54,27 +65,33 @@ function Progress({ state, counts, categories, types }: { state: ClassifierState
         const cursor = state.cursors?.[type];
         const typeCounts = counts.filter((c) => c.type === type);
         const total = typeCounts.reduce((sum, c) => sum + c.n, 0);
+        const typeRange = e ? e[type] : null;
         const max = Math.max(1, ...typeCounts.map((c) => c.n));
+        const categories = categoriesForType(state, type) as Category[];
+        const labels = new Map([...categories.map((c) => [c.code, c.label] as const), [NO_CATEGORY, "Tidak termasuk"]]);
+        const order = [...categories.map((c) => c.code), NO_CATEGORY];
         return (
           <div key={type} className={classes.typeBlock}>
             <header>
               <b>{MEDIA_TYPE_LABEL[type]}</b>
               <span data-done={cursor?.backfillDone || undefined}>
-                {cursor?.backfillDone ? <><IconCheck size={13} />Seluruh data selesai · mengikuti data baru</>
-                  : cursor?.oldest ? <><IconClock size={13} />Mundur sampai {dayjs(cursor.oldest.ts).locale("id").format("D MMM YYYY")}</>
-                  : <><IconClock size={13} />Menunggu worker</>}
+                {cursor?.backfillDone ? <><IconCheck size={12} />Selesai · mengikuti data baru</>
+                  : cursor?.oldest ? <><IconClock size={12} />Mundur ke {dayjs(cursor.oldest.ts).locale("id").format("D MMM, HH:mm")}</>
+                  : <><IconClock size={12} />Menunggu worker</>}
               </span>
-              <small>{formatNumber(total)} item</small>
+              <small><b>{formatNumber(total)}</b>{typeRange != null && <> / {formatNumber(typeRange)}</>}</small>
             </header>
+            {typeRange != null && <span className={classes.meter} data-thin><i style={{ width: `${pct(e!.doneByType[type], typeRange)}%` }} /></span>}
             <div className={classes.bars}>
               {order.map((code) => {
                 const n = typeCounts.find((c) => c.category === code)?.n ?? 0;
                 return (
-                  <div key={code} className={classes.bar} data-none={code === NO_CATEGORY || undefined}>
+                  <div key={code} className={classes.bar} data-none={code === NO_CATEGORY || undefined} data-empty={n === 0 || undefined}>
                     <span className={classes.barCode}>{code === NO_CATEGORY ? "—" : code}</span>
-                    <span className={classes.barLabel}>{labels.get(code)}</span>
+                    <span className={classes.barLabel} title={labels.get(code)}>{labels.get(code)}</span>
                     <span className={classes.barTrack}><i style={{ width: `${(n / max) * 100}%` }} /></span>
-                    <span className={classes.barValue}>{formatNumber(n)}{total ? <small> · {Math.round((n / total) * 100)}%</small> : null}</span>
+                    <span className={classes.barValue}>{formatNumber(n)}</span>
+                    <span className={classes.barPct}>{total ? `${Math.round((n / total) * 100)}%` : "—"}</span>
                   </div>
                 );
               })}
@@ -126,7 +143,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
     if (!data.data || draft) return;
     const c = data.data.classifier;
     setDraft(c
-      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" }, enabled: c.enabled, prompt: c.prompt, categories: c.categories }
+      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" }, enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories ?? null, labelledOnly: c.labelledOnly ?? false, startFrom: c.startFrom ?? null }
       : emptyDraft());
   }, [data.data, draft]);
 
@@ -145,7 +162,9 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
     const stored = data.data?.classifier;
     const changes = !stored ? [] : [
       stored.prompt !== next.prompt && "prompt",
-      JSON.stringify(stored.categories) !== JSON.stringify(next.categories) && "kategori",
+      JSON.stringify(stored.categories) !== JSON.stringify(next.categories) && (next.onlineCategories || stored.onlineCategories ? "kategori media sosial" : "kategori"),
+      JSON.stringify(categoriesForType(stored, "online")) !== JSON.stringify(categoriesForType(next, "online"))
+        && (next.onlineCategories || stored.onlineCategories) && "kategori media online",
       stored.provider.kind !== next.provider.kind && "penyedia",
       stored.provider.model !== next.provider.model.trim() && "model",
       (stored.provider.baseUrl ?? "") !== (next.provider.kind === "openai_compatible" ? next.provider.baseUrl.trim() : "") && "base URL",
@@ -161,7 +180,15 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
     try {
       await post(`/api/admin/keys/${keyId}/classifier`, next, "PUT");
       setDraft(next);
-      notifications.show({ color: "teal", message: stored ? "Pengaturan disimpan" : "Kategorisasi AI diaktifkan" });
+      const title = stored ? "Pengaturan disimpan" : "Kategorisasi AI diaktifkan";
+      const id = notifications.show({ color: "teal", title, message: "Menghitung data yang akan dikategorikan…", loading: true, autoClose: false });
+      api<Estimate>(estimateUrl(keyId, next.startFrom))
+        .then((e) => notifications.update({ id, color: "teal", title, loading: false, autoClose: 8000, message: [
+          e.social !== null && `Media sosial ${formatNumber(e.social)}`, e.online !== null && `Media online ${formatNumber(e.online)}`,
+          `Total ${formatNumber((e.social ?? 0) + (e.online ?? 0))} item`,
+          e.cost && `perkiraan biaya sisa ≈ ${money(e.cost.remaining, e.cost.currency)}`,
+        ].filter(Boolean).join(" · ") }))
+        .catch(() => notifications.update({ id, color: "teal", title, loading: false, autoClose: 4000, message: "Jumlah data belum bisa dihitung" }));
       data.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -201,7 +228,10 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
           <p>Setiap item dalam cakupan kunci ini diberi satu kategori oleh AI, lalu dikirim lewat API sebagai <code>classification</code>.</p>
         </div>
         {state && (
-          <span className={classes.state} data-on={state.enabled || undefined}>{state.enabled ? "Aktif" : "Dijeda"}</span>
+          <div className={classes.titleSide}>
+            <span className={classes.state} data-on={state.enabled || undefined}>{state.enabled ? "Aktif" : "Dijeda"}</span>
+            <div className={classes.balance}><BalanceCard keyId={keyId} compact /></div>
+          </div>
         )}
       </header>
 
@@ -232,8 +262,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
         <aside className={classes.side}>
           {!data.data ? <ProgressSkeleton /> : state && draft ? (
             <>
-              <Progress state={state} counts={data.data.counts} categories={state.categories} types={types} />
-              <BalanceCard keyId={keyId} />
+              <Progress state={state} counts={data.data.counts} types={types} keyId={keyId} />
             </>
           ) : (
             <div className={classes.idle}>

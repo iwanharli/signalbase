@@ -19,6 +19,7 @@ import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./Key
 import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
+import { BalanceUsage } from "../ai/BalanceUsage";
 import { RestartConfirm, type RestartRequest } from "../ai/RestartConfirm";
 
 type KeyDetail = {
@@ -53,18 +54,25 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
   const status = aiStatus(ai);
   return (
     <div className={classes.aiOverview}>
-      <div className={classes.aiStats}>
-        <div><small>Status</small><StatusPill tone={status.state === "on" ? "success" : status.state === "error" ? "danger" : "warning"}>{ai.lastError ? "Error" : ai.enabled ? "Aktif" : "Dijeda"}</StatusPill></div>
-        <div><small>Penyedia</small><b>{ai.providerName}</b><span>{ai.model}</span></div>
-        <div><small>Dikategorikan</small><b>{formatNumber(ai.processed)}</b><span>item</span></div>
-        <div><small>Terakhir berjalan</small><b>{ai.lastRunAt ? fromNow(ai.lastRunAt) : "Belum pernah"}</b></div>
+      <div className={classes.aiStrip}>
+        <div className={classes.aiIdentity}>
+          <span className={classes.aiIcon} data-state={status.state}><IconRobot size={18} /></span>
+          <div>
+            <div className={classes.aiTitle}>
+              <b>{ai.providerName}</b>
+              <StatusPill tone={status.state === "on" ? "success" : status.state === "error" ? "danger" : "warning"}>{ai.lastError ? "Error" : ai.enabled ? "Aktif" : "Dijeda"}</StatusPill>
+            </div>
+            <span>{ai.model} · {formatNumber(ai.processed)} item · {ai.lastRunAt ? `jalan ${fromNow(ai.lastRunAt)}` : "belum pernah jalan"}</span>
+          </div>
+        </div>
+        <BalanceCard keyId={detail.id} onDark compact />
+        <div className={classes.aiActions}>
+          <Button size="sm" onDark variant="secondary" icon={IconEye} href={`/media/${detail.scope.types[0] ?? "social"}?key=${detail.id}`}>Lihat hasil</Button>
+          <Button size="sm" variant="primary" iconRight={IconArrowRight} href={settings}>Pengaturan</Button>
+        </div>
       </div>
       {ai.lastError && <div className={classes.warning}><IconAlertTriangle size={17} />{ai.lastError}</div>}
-      <BalanceCard keyId={detail.id} onDark />
-      <div className={classes.aiActions}>
-        <Button onDark variant="secondary" icon={IconEye} href={`/media/${detail.scope.types[0] ?? "social"}?key=${detail.id}`}>Lihat hasil</Button>
-        <Button variant="primary" iconRight={IconArrowRight} href={settings}>Buka pengaturan AI</Button>
-      </div>
+      <BalanceUsage keyId={detail.id} />
     </div>
   );
 }
