@@ -15,7 +15,13 @@ const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
 const MAX_BATCHES_PER_TICK = 5;
 
-type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean; sweptAt?: number };
+type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean; sweptAt?: number; rejected?: string[]; rejectedSince?: number };
+/** Most rejected item codes remembered per type (newest kept), so the sweep doesn't retry them forever. */
+const MAX_REJECTED = 1_000;
+/** Rejections are often transient (provider 500s), so the list is cleared and retried after this long. */
+const REJECTED_TTL_MS = 6 * 3_600_000;
+/** Failed provider calls allowed per run before giving up until the next tick (the provider is struggling). */
+const MAX_FAILED_CALLS = 8;
 
 // Late arrivals: the source can store a post hours after its publish time, behind the forward cursor.
 // Every SWEEP_EVERY_MS the worker rescans the last SWEEP_WINDOW_MS for items still without a label.
@@ -37,12 +43,39 @@ type Job = {
   categories: Record<MediaType, Category[]>;
   /** Backfill stops at items published before this. */
   startFrom: Date | null;
+  /** Item codes the provider refused this run, per type. */
+  rejected: Record<MediaType, string[]>;
+  failedCalls: number;
 };
+
+/** Errors that stop the whole run (bad key, no credit, rate limit), as opposed to a batch the provider rejects. */
+const isFatal = (error: unknown) => /\((401|402|403|429)\)|tidak valid|tidak punya akses|Batas pemakaian|Base URL/i.test(providerErrorMessage(error));
+
+/**
+ * Some providers reject a batch because of one item (content filter, a 500, an empty reply). Split it in
+ * halves until the bad items are isolated; those are left out (counted as skipped), the rest are labelled.
+ */
+async function classifySplitting(job: Job, type: MediaType, items: { id: string; text: string }[]): Promise<Awaited<ReturnType<typeof classifyBatch>>> {
+  if (!items.length) return [];
+  try {
+    return await classifyBatch(job.provider, job.prompt, job.categories[type], items);
+  } catch (error) {
+    if (isFatal(error)) throw error;
+    if (++job.failedCalls > MAX_FAILED_CALLS) throw error;
+    if (items.length === 1) {
+      console.warn(`[classifier] ${type}/${items[0].id} dilewati: ${providerErrorMessage(error)}`);
+      job.rejected[type].push(items[0].id);
+      return [];
+    }
+    const mid = Math.ceil(items.length / 2);
+    return [...await classifySplitting(job, type, items.slice(0, mid)), ...await classifySplitting(job, type, items.slice(mid))];
+  }
+}
 
 /** Classifies one batch and stores the results. Returns how many items were labelled. */
 async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const classifiable = items.filter((i) => itemText(i));
-  const results = await classifyBatch(job.provider, job.prompt, job.categories[type], classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
+  const results = await classifySplitting(job, type, classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
     data: results.map((r) => ({
@@ -73,6 +106,8 @@ async function runClassifier(classifierId: string) {
     prompt: row.prompt,
     categories,
     startFrom: row.startFrom,
+    rejected: { social: [], online: [] },
+    failedCalls: 0,
   };
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
@@ -82,6 +117,13 @@ async function runClassifier(classifierId: string) {
   const save = async () => {
     const [p, f] = [processed, failed];
     processed = 0; failed = 0;
+    for (const t of MEDIA_TYPES) {
+      if (!job.rejected[t].length) continue;
+      const state = (cursors[t] ??= {});
+      state.rejectedSince ??= Date.now();
+      state.rejected = [...(state.rejected ?? []), ...job.rejected[t]].slice(-MAX_REJECTED);
+      job.rejected[t] = [];
+    }
     await prisma.classifier.update({
       where: { apiKeyId: row.apiKeyId },
       data: {
@@ -103,6 +145,7 @@ async function runClassifier(classifierId: string) {
       const allotted = round === 0 ? Math.min(remaining, Math.ceil(perTick / types.length)) : remaining;
       budget = allotted;
       const state = (cursors[type] ??= {});
+      if (state.rejectedSince && Date.now() - state.rejectedSince > REJECTED_TTL_MS) { state.rejected = []; state.rejectedSince = undefined; }
 
       // 1. Items that arrived since the newest one labelled so far.
       while (budget > 0 && state.newest) {
@@ -141,7 +184,8 @@ async function runClassifier(classifierId: string) {
           const labelled = new Set((await prisma.classification.findMany({
             where: { apiKeyId: job.apiKeyId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
           })).map((r) => r.code));
-          const missing = inWindow.filter((i) => !labelled.has(i.code)).slice(0, budget);
+          const refused = new Set(state.rejected ?? []);
+          const missing = inWindow.filter((i) => !labelled.has(i.code) && !refused.has(i.code)).slice(0, budget);
           for (let i = 0; i < missing.length; i += BATCH_SIZE) {
             const batch = missing.slice(i, i + BATCH_SIZE);
             const result = await processBatch(job, type, batch);

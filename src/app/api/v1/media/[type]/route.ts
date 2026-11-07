@@ -3,7 +3,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/types";
 import { categoryBreakdown, classificationsFor, codesInCategory, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
-import { countCapped, fetchItemsByCode, listItems, moodBreakdown } from "@/lib/server/bank";
+import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 100;
@@ -14,6 +14,7 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?from=&to=&q=&source=&mood=&sort=&page=&size=&…
 //   GET /api/v1/media/{social|online}?aiCategory=QW3&from=&to=&sort=&page=&size=   items in one AI category
 //   GET /api/v1/media/{social|online}?view=summary&…   total + split by mood (+ AI categories)
+//   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
 export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope }: ApiCaller) => {
   const type = resolveMediaType((await params).type);
@@ -24,7 +25,19 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
   try {
     const categories = await keyCategories(keyId, type);
 
+    if (query.get("view") === "options") {
+      const { sources, moods, provinces, postTypes } = await filterOptions(type);
+      return NextResponse.json({ sources, moods, provinces, postTypes });
+    }
+
     if (query.get("view") === "summary") {
+      // A key that serves labelled items only, or an AI category filter: count and split those items.
+      const labelledFilter = categories ? await effectiveCategoryFilter(keyId, query.get("aiCategory")) : null;
+      if (labelledFilter) {
+        const { total, codes } = await codesInCategory(keyId, type, labelledFilter, query, { limit: 10_000, offset: 0 });
+        const [moods, aiCategories] = await Promise.all([moodsForCodes(type, codes), categoryBreakdown(keyId, type, categories!)]);
+        return NextResponse.json({ total, capped: false, moods, aiCategories });
+      }
       // The split ignores the mood filter so every slice stays visible; the total honours it.
       const withoutMood = new URLSearchParams(query);
       withoutMood.delete("mood");

@@ -60,3 +60,14 @@ export function dailyVolume(type: MediaType, days = 14) {
     return rows;
   });
 }
+
+/** Emotion or sentiment split over a known set of items (e.g. the ones the AI has labelled). */
+export async function moodsForCodes(type: MediaType, codes: string[]): Promise<MoodCount[]> {
+  if (!codes.length) return [];
+  const c = COLUMNS[type];
+  const { rows } = await bankPool().query<MoodCount>(
+    `SELECT lower(${c.mood}) value, count(*)::int n FROM ${c.from} WHERE ${c.code} = ANY($1) AND ${c.mood} IS NOT NULL AND ${c.mood} <> '' GROUP BY 1 ORDER BY 2 DESC`,
+    [codes],
+  );
+  return rows;
+}

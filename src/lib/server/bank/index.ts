@@ -8,4 +8,4 @@
 //   cache.ts    shared TTL cache helper
 export { fetchItemsByCode, listItems, listItemsFromCursor, type TimeCursor } from "./items";
 export { filterOptions } from "./options";
-export { countCapped, countExact, dailyVolume, moodBreakdown } from "./stats";
+export { countCapped, countExact, dailyVolume, moodBreakdown, moodsForCodes } from "./stats";
