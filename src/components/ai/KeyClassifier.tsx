@@ -47,10 +47,10 @@ function Progress({ state, counts, types, keyId }: { state: ClassifierState; cou
       <div className={classes.overall}>
         <div className={classes.overallHead}>
           <small>Progres kategorisasi</small>
-          <span className={classes.pct}>{inRange === null ? "…" : `${pct(e!.done, inRange)}%`}</span>
+          <span className={classes.pct}>{inRange === null ? "…" : `${pct(done, inRange)}%`}</span>
         </div>
-        <b className={classes.overallValue}>{formatNumber(e ? e.done : done)}<span> / {inRange === null ? "…" : formatNumber(inRange)} item</span></b>
-        <span className={classes.meter}><i style={{ width: `${inRange ? pct(e!.done, inRange) : 0}%` }} /></span>
+        <b className={classes.overallValue}>{formatNumber(done)}<span> / {inRange === null ? "…" : formatNumber(inRange)} item</span></b>
+        <span className={classes.meter}><i style={{ width: `${inRange ? pct(done, inRange) : 0}%` }} /></span>
         <dl className={classes.facts}>
           <div><dt>Hari ini</dt><dd>{formatNumber(todayCount)}</dd></div>
           <div><dt>Terlewat</dt><dd data-warn={state.failed > 0 || undefined}>{formatNumber(state.failed)}</dd></div>
@@ -81,7 +81,7 @@ function Progress({ state, counts, types, keyId }: { state: ClassifierState; cou
               </span>
               <small><b>{formatNumber(total)}</b>{typeRange != null && <> / {formatNumber(typeRange)}</>}</small>
             </header>
-            {typeRange != null && <span className={classes.meter} data-thin><i style={{ width: `${pct(e!.doneByType[type], typeRange)}%` }} /></span>}
+            {typeRange != null && <span className={classes.meter} data-thin><i style={{ width: `${pct(total, typeRange)}%` }} /></span>}
             <div className={classes.bars}>
               {order.map((code) => {
                 const n = typeCounts.find((c) => c.category === code)?.n ?? 0;

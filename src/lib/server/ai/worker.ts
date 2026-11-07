@@ -78,14 +78,19 @@ async function runClassifier(classifierId: string) {
   let processed = 0, failed = 0;
   let lastError: string | null = null;
 
-  const save = () => prisma.classifier.update({
-    where: { apiKeyId: row.apiKeyId },
-    data: {
-      cursors: cursors as Prisma.InputJsonValue,
-      processed: { increment: processed }, failed: { increment: failed },
-      todayCount, todayDate: today, lastError, lastRunAt: new Date(),
-    },
-  });
+  // Saved after every batch so the panel shows live progress; counters are deltas since the last save.
+  const save = async () => {
+    const [p, f] = [processed, failed];
+    processed = 0; failed = 0;
+    await prisma.classifier.update({
+      where: { apiKeyId: row.apiKeyId },
+      data: {
+        cursors: cursors as Prisma.InputJsonValue,
+        processed: { increment: p }, failed: { increment: f },
+        todayCount, todayDate: today, lastError, lastRunAt: new Date(),
+      },
+    });
+  };
 
   try {
     for (const type of MEDIA_TYPES) {
@@ -99,6 +104,7 @@ async function runClassifier(classifierId: string) {
         const { labelled, skipped } = await processBatch(job, type, page.items);
         state.newest = page.next!;
         processed += labelled; failed += skipped; todayCount += page.items.length; budget -= page.items.length;
+        await save();
       }
 
       // 2. Backfill: walk back through older items until the start date (or the end of the scope).
@@ -111,6 +117,7 @@ async function runClassifier(classifierId: string) {
         if (!state.newest) state.newest = page.first!;
         state.oldest = page.next!;
         processed += labelled; failed += skipped; todayCount += inRange.length; budget -= inRange.length;
+        await save();
         if (inRange.length < page.items.length) { state.backfillDone = true; break; }
       }
 
@@ -132,6 +139,7 @@ async function runClassifier(classifierId: string) {
             const batch = missing.slice(i, i + BATCH_SIZE);
             const result = await processBatch(job, type, batch);
             processed += result.labelled; failed += result.skipped; todayCount += batch.length; budget -= batch.length;
+            await save();
           }
           if (new Date(page.items.at(-1)!.publishedAt).getTime() < floor) break; // walked past the window
         }
