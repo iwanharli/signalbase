@@ -69,6 +69,8 @@ export const classifierInputSchema = z.object({
   onlineCategories: categoryListSchema.nullable().default(null),
   /** Serve only labelled items through the API (and the key's data view). */
   labelledOnly: z.boolean().default(false),
+  /** Second provider, tried when the main one fails a batch; null = none. Empty apiKey keeps the stored one. */
+  fallback: providerSchema.nullable().default(null),
   /** Spending guards, in the provider's currency; need a provider with a balance API. */
   minBalance: z.number().min(0).max(100000).nullable().default(1),
   dailyBudget: z.number().min(0).max(100000).nullable().default(null),

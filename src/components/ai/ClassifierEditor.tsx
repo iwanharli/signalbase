@@ -99,7 +99,7 @@ function RangeField({ value, onChange, apiKeyId }: { value: string | null; onCha
 }
 
 export type ProviderDraft = { kind: ProviderKind; baseUrl: string; model: string; apiKey: string };
-export type ClassifierDraft = { provider: ProviderDraft; enabled: boolean; prompt: string; categories: Category[]; onlineCategories: Category[] | null; labelledOnly: boolean; minBalance: number | null; dailyBudget: number | null; startFrom: string | null };
+export type ClassifierDraft = { provider: ProviderDraft; fallback: ProviderDraft | null; enabled: boolean; prompt: string; categories: Category[]; onlineCategories: Category[] | null; labelledOnly: boolean; minBalance: number | null; dailyBudget: number | null; startFrom: string | null };
 type TestResult = { ok: boolean; ms: number; error?: string; results?: { text: string; category?: string; reason?: string | null }[] };
 
 const providerFromPreset = (id: string): ProviderDraft => {
@@ -109,7 +109,7 @@ const providerFromPreset = (id: string): ProviderDraft => {
 const presetOf = (provider: ProviderDraft) =>
   provider.kind === "anthropic" ? "claude" : PROVIDER_PRESETS.find((p) => p.baseUrl && p.baseUrl === provider.baseUrl.replace(/\/+$/, ""))?.id ?? "custom";
 
-export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset("claude"), enabled: true, prompt: "", categories: [], onlineCategories: null, labelledOnly: false, minBalance: 1, dailyBudget: null, startFrom: daysAgo(7) });
+export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset("claude"), fallback: null, enabled: true, prompt: "", categories: [], onlineCategories: null, labelledOnly: false, minBalance: 1, dailyBudget: null, startFrom: daysAgo(7) });
 
 /** Rough checks shown before saving; the server validates again. `hasStoredKey`: an empty API key keeps the saved one. */
 export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
@@ -117,6 +117,13 @@ export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
   if (!draft.provider.apiKey.trim() && !hasStoredKey) problems.push("Isi API key penyedia AI");
   const keyProblem = draft.provider.apiKey.trim() ? apiKeyProblem(draft.provider.kind, draft.provider.baseUrl, draft.provider.apiKey) : null;
   if (keyProblem) problems.push(keyProblem);
+  if (draft.fallback) {
+    const fb = draft.fallback;
+    if (fb.model.trim().length < 2) problems.push("Isi model penyedia cadangan");
+    if (fb.kind === "openai_compatible" && !/^https?:\/\//.test(fb.baseUrl.trim())) problems.push("Isi base URL penyedia cadangan");
+    const fbProblem = fb.apiKey.trim() ? apiKeyProblem(fb.kind, fb.baseUrl, fb.apiKey) : null;
+    if (fbProblem) problems.push(`Cadangan: ${fbProblem}`);
+  }
   if (draft.provider.model.trim().length < 2) problems.push("Isi model AI");
   if (draft.provider.kind === "openai_compatible" && !/^https?:\/\//.test(draft.provider.baseUrl.trim())) problems.push("Isi base URL penyedia AI");
   if (draft.prompt.trim().length < 10) problems.push("Prompt minimal 10 karakter");
@@ -135,12 +142,12 @@ export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
 }
 
 /** Copies the stored provider key; fetched only on click. */
-function CopyProviderKey({ apiKeyId }: { apiKeyId: string }) {
+function CopyProviderKey({ apiKeyId, slot }: { apiKeyId: string; slot: "primary" | "fallback" }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
   const copy = async () => {
     setState("loading");
     try {
-      const { apiKey } = await api<{ apiKey: string }>(`/api/admin/keys/${apiKeyId}/classifier/provider-key`);
+      const { apiKey } = await api<{ apiKey: string }>(`/api/admin/keys/${apiKeyId}/classifier/provider-key?slot=${slot}`);
       await navigator.clipboard.writeText(apiKey);
       setState("copied");
       setTimeout(() => setState("idle"), 1600);
@@ -156,8 +163,10 @@ function CopyProviderKey({ apiKeyId }: { apiKeyId: string }) {
 }
 
 /** Provider, model, endpoint and API key of one key's categorisation, with a connection test. */
-function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
+function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "primary" }: {
   provider: ProviderDraft; onChange: (p: ProviderDraft) => void; storedKeyHint?: string | null; apiKeyId?: string | null;
+  /** Which stored key the test and copy button use when the key field is empty. */
+  slot?: "primary" | "fallback";
 }) {
   const [test, setTest] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
@@ -168,7 +177,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
     setTesting(true);
     setTest(null);
     try {
-      setTest(await post("/api/admin/ai-test", { provider, apiKeyId: apiKeyId ?? null }) as TestResult);
+      setTest(await post("/api/admin/ai-test", { provider, apiKeyId: apiKeyId ?? null, slot }) as TestResult);
     } catch (err) {
       setTest({ ok: false, ms: 0, error: (err as Error).message });
     } finally {
@@ -178,7 +187,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
 
   return (
     <div className={classes.provider}>
-      <div className={classes.providerHead}><IconRobot size={15} />Penyedia AI<small>Khusus kunci ini · API key disimpan terenkripsi</small></div>
+      {slot === "primary" && <div className={classes.providerHead}><IconRobot size={15} />Penyedia AI<small>Khusus kunci ini · API key disimpan terenkripsi</small></div>}
       <div className={classes.presets}>
         {PROVIDER_PRESETS.map((p) => (
           <button key={p.id} type="button" data-active={preset === p.id || undefined}
@@ -194,11 +203,11 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
           : <div />}
       </div>
       <PasswordInput classNames={inputClasses}
-        label={<span className={classes.keyLabel}>API key penyedia AI{storedKeyHint && apiKeyId && <CopyProviderKey apiKeyId={apiKeyId} />}</span>} value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
+        label={<span className={classes.keyLabel}>API key penyedia AI{storedKeyHint && apiKeyId && <CopyProviderKey apiKeyId={apiKeyId} slot={slot} />}</span>} value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
         placeholder={storedKeyHint ? `Tersimpan ••••${storedKeyHint} — kosongkan bila tidak diganti` : "Tempel API key"}
         leftSection={<IconShieldLock size={15} />}
         // Not a login field: stop browsers and password managers from filling in the admin password.
-        autoComplete="new-password" name="ai-provider-api-key" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
+        autoComplete="new-password" name={`ai-${slot}-api-key`} data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
         error={provider.apiKey ? apiKeyProblem(provider.kind, provider.baseUrl, provider.apiKey) : null} />
       <div className={classes.testRow}>
         <Button size="sm" onDark variant="secondary" icon={IconPlayerPlay} onClick={runTest} loading={testing}>{testing ? "Menguji…" : "Uji koneksi"}</Button>
@@ -212,11 +221,13 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId }: {
   );
 }
 
-export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId, types }: {
+export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHint, apiKeyId, types }: {
   draft: ClassifierDraft;
   onChange: (draft: ClassifierDraft) => void;
   /** Last four characters of the saved provider key, when editing. */
   storedKeyHint?: string | null;
+  /** Last four characters of the saved fallback key. */
+  fallbackKeyHint?: string | null;
   /** The Signalbase API key being edited, so the connection test can use its saved provider key. */
   apiKeyId?: string | null;
   /** Media types in the key's scope, for the prompt test. */
@@ -229,6 +240,20 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, apiKeyId, typ
   return (
     <div className={classes.editor}>
       <ProviderFields provider={draft.provider} onChange={(provider) => update({ provider })} storedKeyHint={storedKeyHint} apiKeyId={apiKeyId} />
+
+      <div className={classes.sameToggle}>
+        <Switch checked={!!draft.fallback} onChange={(e) => update({ fallback: e.currentTarget.checked ? providerFromPreset("claude") : null })} color="violet" size="md"
+          label="Penyedia cadangan"
+          description={draft.fallback
+            ? "Dipakai otomatis untuk batch yang gagal di penyedia utama (error server, balasan kosong, waktu habis)."
+            : "Opsional. Aktifkan bila penyedia utama sering gagal; butuh API key penyedia lain."}
+          classNames={{ label: classes.switchLabel, description: classes.switchDescription }} />
+        {draft.fallback && (
+          <div className={classes.fallbackFields}>
+            <ProviderFields provider={draft.fallback} onChange={(fallback) => update({ fallback })} storedKeyHint={fallbackKeyHint} apiKeyId={apiKeyId} slot="fallback" />
+          </div>
+        )}
+      </div>
 
 
       <RangeField value={draft.startFrom} onChange={(startFrom) => update({ startFrom })} apiKeyId={apiKeyId} />

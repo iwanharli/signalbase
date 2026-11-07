@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
-import { classificationsFor, codesInCategory, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
+import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
@@ -42,7 +42,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
     const page = Math.max(1, Math.floor(Number(query.get("page"))) || 1);
 
     if (query.get("view") === "count") {
-      if (aiCategory) return NextResponse.json({ total: (await codesInCategory(keyId!, type, aiCategory, query, { limit: 0, offset: 0 })).total });
+      if (aiCategory) return NextResponse.json({ total: (await categoryPage(keyId!, type, aiCategory, query, scope, { limit: 0, offset: 0 })).total });
       return NextResponse.json({ total: await countExact(type, query, scope) });
     }
 
@@ -53,8 +53,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
 
     let items, hasMore;
     if (aiCategory) {
-      // Category pages come from the stored labels; only the date range and sort apply.
-      const { total, codes } = await codesInCategory(keyId!, type, aiCategory, query, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      // Category pages come from the stored labels, combined with any other filters in the source database.
+      const { total, codes } = await categoryPage(keyId!, type, aiCategory, query, scope, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
       items = await fetchItemsByCode(type, codes);
       hasMore = page * PAGE_SIZE < total;
     } else {

@@ -79,11 +79,10 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
                   <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
                     data={[{ value: ANY_CATEGORY, label: "Semua yang sudah dikategorikan" }, { value: LOW_CONFIDENCE_FILTER, label: "Keyakinan rendah (< 60%), belum dikoreksi" }, ...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
                     onChange={(aiCategory) => onChange({ aiCategory })} />
-                  {filters.aiCategory && <small className={classes.fieldNote}>Saat kategori AI dipilih, hanya rentang tanggal dan urutan yang berlaku.</small>}
                 </Field>
               </Section>
             )}
-            <fieldset className={classes.filterGroup} disabled={!!filters.aiCategory}>
+            <fieldset className={classes.filterGroup}>
             <Section icon={IconSparkles} title="Analisis AI">
               <Field label={social ? "Label emosi" : "Label sentimen"} wide>
                 <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
@@ -137,7 +136,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
                 <DateRange from={filters.from} to={filters.to} onChange={onChange} />
               </Field>
               <Field label="Provinsi" wide>
-                <DarkSelect disabled={!!filters.aiCategory} leftSection={<IconMapPin size={15} />} placeholder="Seluruh Indonesia" value={filters.province}
+                <DarkSelect leftSection={<IconMapPin size={15} />} placeholder="Seluruh Indonesia" value={filters.province}
                   data={options?.provinces ?? []} onChange={(province) => onChange({ province })} />
               </Field>
             </Section>

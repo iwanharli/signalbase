@@ -15,20 +15,23 @@ import { BalanceCard } from "./BalanceCard";
 import { ClassifierEditor, draftProblems, emptyDraft, estimateUrl, money, type ClassifierDraft, type Estimate } from "./ClassifierEditor";
 import classes from "./keyClassifier.module.css";
 import { RestartConfirm, type RestartRequest } from "./RestartConfirm";
+import { ReviewPanel } from "./ReviewPanel";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 dayjs.extend(relativeTime);
 
 type Cursor = { newest?: { ts: string }; oldest?: { ts: string }; backfillDone?: boolean };
 type StoredProvider = { kind: ClassifierDraft["provider"]["kind"]; baseUrl: string | null; model: string; apiKeyHint: string };
-type ClassifierState = Omit<ClassifierDraft, "provider"> & {
-  provider: StoredProvider; cursors: Partial<Record<MediaType, Cursor>>;
+type StoredFallback = StoredProvider | null;
+type ClassifierState = Omit<ClassifierDraft, "provider" | "fallback"> & {
+  provider: StoredProvider; fallback: StoredFallback; cursors: Partial<Record<MediaType, Cursor>>;
   processed: number; failed: number; todayCount: number; todayDate: string; lastError: string | null; lastRunAt: string | null;
 };
 type Response = {
   key: { id: string; name: string; prefix: string; revokedAt: string | null; scope: { types: MediaType[] } };
   classifier: ClassifierState | null;
   counts: { type: MediaType; category: string; n: number }[];
+  lowConfidence: number;
 };
 
 const REFRESH_MS = 30_000;
@@ -143,7 +146,8 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
     if (!data.data || draft) return;
     const c = data.data.classifier;
     setDraft(c
-      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" }, enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories ?? null, labelledOnly: c.labelledOnly ?? false, minBalance: c.minBalance ?? null, dailyBudget: c.dailyBudget ?? null, startFrom: c.startFrom ?? null }
+      ? { provider: { kind: c.provider.kind, baseUrl: c.provider.baseUrl ?? "", model: c.provider.model, apiKey: "" },
+          fallback: c.fallback ? { kind: c.fallback.kind, baseUrl: c.fallback.baseUrl ?? "", model: c.fallback.model, apiKey: "" } : null, enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories ?? null, labelledOnly: c.labelledOnly ?? false, minBalance: c.minBalance ?? null, dailyBudget: c.dailyBudget ?? null, startFrom: c.startFrom ?? null }
       : emptyDraft());
   }, [data.data, draft]);
 
@@ -241,7 +245,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
         <section className={classes.editorCard}>
           {!draft ? <EditorSkeleton /> : (
             <>
-              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} apiKeyId={keyId} types={types} />
+              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} fallbackKeyHint={state?.fallback?.apiKeyHint} apiKeyId={keyId} types={types} />
               <footer className={classes.actions}>
                 {state && (
                   <>
@@ -263,6 +267,8 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
           {!data.data ? <ProgressSkeleton /> : state && draft ? (
             <>
               <Progress state={state} counts={data.data.counts} types={types} keyId={keyId} />
+              <ReviewPanel keyId={keyId} types={types} low={data.data.lowConfidence} onRetried={data.reload}
+                none={data.data.counts.filter((c) => c.category === NO_CATEGORY).reduce((s, c) => s + c.n, 0)} />
             </>
           ) : (
             <div className={classes.idle}>

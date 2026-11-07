@@ -88,15 +88,13 @@ export function StatsBar({ type, filters, total, totalError, shown, moods, busy,
         </div>
         <div className={classes.context}>
           <span><small>Rentang</small>{rangeLabel(filters)}</span>
-          {!filters.aiCategory && <>
-            <span><small>{type === "social" ? "Emosi" : "Sentimen"}</small>{ANALYZED_LABEL[filters.analyzed]}</span>
-            <span><small>Bahasa</small>{LANGUAGE_LABEL[filters.language]}</span>
-            <span><small>{SOURCE_KIND_LABEL[type]}</small>{filters.source ? sourceLabel(filters.source) : "Semua"}</span>
-          </>}
+          <span><small>{type === "social" ? "Emosi" : "Sentimen"}</small>{ANALYZED_LABEL[filters.analyzed]}</span>
+          <span><small>Bahasa</small>{LANGUAGE_LABEL[filters.language]}</span>
+          <span><small>{SOURCE_KIND_LABEL[type]}</small>{filters.source ? sourceLabel(filters.source) : "Semua"}</span>
         </div>
       </div>
       {!filters.aiCategory && <MoodBreakdown type={type} moods={moods} selected={filters.mood} onSelect={onMoodChange} />}
-      {filters.aiCategory && <div className={classes.moods}><small className={classes.label}>Kategori AI</small><b>{filters.aiCategory}</b><span className={classes.empty}>Hasil mengikuti kategori AI dan rentang tanggal.</span></div>}
+      {filters.aiCategory && <div className={classes.moods}><small className={classes.label}>Kategori AI</small><b>{filters.aiCategory}</b><span className={classes.empty}>Hasil mengikuti kategori AI dan filter lain yang aktif.</span></div>}
       <span className={classes.scanline} aria-hidden />
     </section>
   );

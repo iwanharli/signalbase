@@ -9,6 +9,8 @@ import { decryptSecret } from "../secrets";
 export type ProviderConfig = { kind: ProviderKind; baseUrl: string | null; model: string; apiKeyEnc: string };
 export type ClassifyItem = { id: string; text: string };
 export type ClassifyResult = { id: string; category: string; confidence: number | null; reason: string | null };
+/** Tokens one request used, as the provider reports them. */
+export type TokenCount = { input: number; output: number };
 
 /** Longest text sent per item; posts are short, news previews rarely exceed this. */
 const MAX_ITEM_CHARS = 1500;
@@ -74,7 +76,7 @@ function normalise(raw: unknown, items: ClassifyItem[], codes: string[]): Classi
   });
 }
 
-async function classifyWithClaude(config: ProviderConfig, apiKey: string, system: string, items: ClassifyItem[], codes: string[]) {
+async function classifyWithClaude(config: ProviderConfig, apiKey: string, system: string, items: ClassifyItem[], codes: string[], onUsage?: (u: TokenCount) => void) {
   const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 2 });
   const fallback = FALLBACK_MODELS.test(config.model);
   const response = await client.beta.messages.create({
@@ -87,13 +89,15 @@ async function classifyWithClaude(config: ProviderConfig, apiKey: string, system
     messages: [{ role: "user", content: userMessage(items) }],
     ...(fallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
   });
+  const u = response.usage;
+  onUsage?.({ input: (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0), output: u?.output_tokens ?? 0 });
   if (response.stop_reason === "refusal") throw new Error("Model menolak memproses batch ini");
   if (response.stop_reason === "max_tokens") throw new Error("Jawaban model terpotong (max_tokens)");
   const text = response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
   return JSON.parse(text);
 }
 
-async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: string, system: string, items: ClassifyItem[]) {
+async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: string, system: string, items: ClassifyItem[], onUsage?: (u: TokenCount) => void) {
   if (!config.baseUrl) throw new Error("Base URL penyedia belum diatur");
   const res = await fetch(`${config.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
@@ -107,20 +111,21 @@ async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: stri
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? res.statusText}`);
+  if (body?.usage) onUsage?.({ input: Number(body.usage.prompt_tokens) || 0, output: Number(body.usage.completion_tokens) || 0 });
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("Respons penyedia AI tidak berisi teks");
   return JSON.parse(content);
 }
 
 /** One category per item (items the model skipped are left out, so they are retried later). */
-export async function classifyBatch(config: ProviderConfig, prompt: string, categories: Category[], items: ClassifyItem[]): Promise<ClassifyResult[]> {
+export async function classifyBatch(config: ProviderConfig, prompt: string, categories: Category[], items: ClassifyItem[], onUsage?: (u: TokenCount) => void): Promise<ClassifyResult[]> {
   if (!items.length) return [];
   const apiKey = decryptSecret(config.apiKeyEnc);
   const codes = categories.map((c) => c.code);
   const system = systemPrompt(prompt, categories);
   const raw = config.kind === "anthropic"
-    ? await classifyWithClaude(config, apiKey, system, items, codes)
-    : await classifyWithOpenAiCompatible(config, apiKey, system, items);
+    ? await classifyWithClaude(config, apiKey, system, items, codes, onUsage)
+    : await classifyWithOpenAiCompatible(config, apiKey, system, items, onUsage);
   return normalise(raw, items, codes);
 }
 

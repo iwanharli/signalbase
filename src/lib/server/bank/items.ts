@@ -92,6 +92,23 @@ export async function listItems(type: MediaType, params: URLSearchParams, scope:
   return fetchItemsByCode(type, rows.map((r) => r.code));
 }
 
+/**
+ * Of the given item codes (e.g. one AI category), those that also match the request filters and the key's
+ * scope, in timeline order. Lets AI category filters combine with search, source, mood, province, and so on.
+ */
+export async function filterCodes(type: MediaType, params: URLSearchParams, scope: KeyScope, codes: string[]): Promise<string[]> {
+  if (!codes.length) return [];
+  const c = COLUMNS[type];
+  const { where, values } = buildWhere(type, params, scope);
+  const direction = params.get("sort") === "oldest" ? "ASC" : "DESC";
+  const codesParam = `$${values.length + 1}`;
+  const { rows } = await bankPool().query<{ code: string }>(
+    `SELECT ${c.code} code FROM ${c.from} WHERE ${where} AND ${c.code} = ANY(${codesParam}) ORDER BY ${c.timestamp} ${direction}`,
+    [...values, codes],
+  );
+  return rows.map((r) => r.code);
+}
+
 export type TimeCursor = { ts: string; code: string };
 
 /**

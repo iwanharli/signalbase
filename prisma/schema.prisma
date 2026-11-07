@@ -31,6 +31,7 @@ model ApiKey {
   classifier      Classifier?
   classifications Classification[]
   balances        BalanceSnapshot[]
+  tokenUsage      TokenUsage[]
 }
 
 // AI categorisation settings and progress for one API key.
@@ -43,12 +44,20 @@ model Classifier {
   providerModel   String
   providerKeyEnc  String // AES-256-GCM, see lib/server/secrets.ts
   providerKeyHint String // last 4 characters, for display only
+  // Optional fallback, used for a batch only when the main provider fails (5xx, empty reply, timeout).
+  fallbackKind    String?
+  fallbackBaseUrl String?
+  fallbackModel   String?
+  fallbackKeyEnc  String?
+  fallbackKeyHint String?
   enabled         Boolean   @default(true)
   prompt          String
   categories      Json // [{ code, label, description }]
   onlineCategories Json? // online news' own categories; null = same as `categories`
   minBalance      Float?    @default(1) // pause when provider credit drops below this; null = no floor
   dailyBudget     Float? // pause once today's spend reaches this; null = no cap
+  // Item counts for the key's whole scope ({ social, online, at }); counting takes ~25 s, so it is kept here.
+  scopeCounts     Json?
   labelledOnly    Boolean   @default(false) // API returns only items the AI has labelled
   startFrom       DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
   // Progress per media type: { social: { newest, oldest, done }, online: {...} } (ISO timestamps)
@@ -92,4 +101,17 @@ model BalanceSnapshot {
   at       DateTime @default(now())
 
   @@index([apiKeyId, at])
+}
+
+// Tokens the AI provider billed per key, hour, and model; works for every provider (no balance API needed).
+model TokenUsage {
+  apiKeyId     String
+  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  hour         DateTime // start of the hour (UTC)
+  model        String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  calls        Int      @default(0)
+
+  @@id([apiKeyId, hour, model])
 }

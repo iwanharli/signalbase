@@ -25,11 +25,10 @@ export function ActiveFilters({ filters: f, options, onChange }: {
   if (f.minLevel) add("level", `Intensitas ≥ ${f.minLevel}`, { minLevel: "" });
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
   if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
-  const visible = f.aiCategory ? chips.filter((chip) => chip.key === "date" || chip.key === "aiCategory") : chips;
+  const visible = chips;
   if (!visible.length) return null;
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">
     <span>Filter aktif</span>
-    {f.aiCategory && <span>Dalam kategori AI, hanya tanggal dan urutan yang berlaku. Hapus kategori untuk memakai filter lainnya.</span>}
     {visible.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={14} aria-hidden /></button>)}
   </div>;
 }

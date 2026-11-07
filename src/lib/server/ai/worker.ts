@@ -5,11 +5,11 @@ import type { Prisma } from "@prisma/client";
 import { categoriesForType, categorySchema, type Category } from "@/lib/ai/classifier";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
-import { listItemsFromCursor, type TimeCursor } from "../bank";
+import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
 import { prisma } from "../db";
-import { providerConfig } from "./admin";
+import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
-import { classifyBatch, providerErrorMessage, type ProviderConfig } from "./providers";
+import { classifyBatch, providerErrorMessage, type ProviderConfig, type TokenCount } from "./providers";
 
 const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
@@ -39,6 +39,8 @@ type Job = {
   apiKeyId: string;
   scope: KeyScope;
   provider: ProviderConfig & { model: string };
+  /** Tried for a batch when the main provider fails it. */
+  fallback: ProviderConfig | null;
   prompt: string;
   categories: Record<MediaType, Category[]>;
   /** Backfill stops at items published before this. */
@@ -55,11 +57,33 @@ const isFatal = (error: unknown) => /\((401|402|403|429)\)|tidak valid|tidak pun
  * Some providers reject a batch because of one item (content filter, a 500, an empty reply). Split it in
  * halves until the bad items are isolated; those are left out (counted as skipped), the rest are labelled.
  */
-async function classifySplitting(job: Job, type: MediaType, items: { id: string; text: string }[]): Promise<Awaited<ReturnType<typeof classifyBatch>>> {
+type Labelled = Awaited<ReturnType<typeof classifyBatch>>[number] & { model: string };
+
+/** Adds a request's tokens to this hour's total for the key and model. Never fails the batch. */
+function recordTokens(apiKeyId: string, model: string) {
+  return (u: TokenCount) => {
+    const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
+    prisma.tokenUsage.upsert({
+      where: { apiKeyId_hour_model: { apiKeyId, hour, model } },
+      create: { apiKeyId, hour, model, inputTokens: u.input, outputTokens: u.output, calls: 1 },
+      update: { inputTokens: { increment: u.input }, outputTokens: { increment: u.output }, calls: { increment: 1 } },
+    }).catch(() => {});
+  };
+}
+
+async function classifySplitting(job: Job, type: MediaType, items: { id: string; text: string }[]): Promise<Labelled[]> {
   if (!items.length) return [];
   try {
-    return await classifyBatch(job.provider, job.prompt, job.categories[type], items);
+    return (await classifyBatch(job.provider, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.provider.model))).map((r) => ({ ...r, model: job.provider.model }));
   } catch (error) {
+    // The fallback takes the whole batch first; only if it fails too is the batch split.
+    if (job.fallback) {
+      try {
+        return (await classifyBatch(job.fallback, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.fallback.model))).map((r) => ({ ...r, model: job.fallback!.model }));
+      } catch (fallbackError) {
+        console.warn(`[classifier] cadangan gagal: ${providerErrorMessage(fallbackError)}`);
+      }
+    }
     if (isFatal(error)) throw error;
     if (++job.failedCalls > MAX_FAILED_CALLS) throw error;
     if (items.length === 1) {
@@ -80,7 +104,7 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   await prisma.classification.createMany({
     data: results.map((r) => ({
       apiKeyId: job.apiKeyId, type, code: r.id, category: r.category, confidence: r.confidence, reason: r.reason,
-      publishedAt: publishedAt.get(r.id)!, model: job.provider.model,
+      publishedAt: publishedAt.get(r.id)!, model: r.model,
     })),
     skipDuplicates: true,
   });
@@ -88,8 +112,50 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
 }
 
 /** Runs up to `budget` items for one classifier. */
+type ClassifierRow = NonNullable<Awaited<ReturnType<typeof loadClassifier>>>;
+const loadClassifier = (apiKeyId: string) => prisma.classifier.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
+
+function buildJob(row: ClassifierRow): Job {
+  const categories = Object.fromEntries(MEDIA_TYPES.map((t) => [t, categorySchema.array().parse(categoriesForType(row, t))])) as Record<MediaType, Category[]>;
+  return {
+    apiKeyId: row.apiKeyId,
+    scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
+    provider: providerConfig(row),
+    fallback: fallbackConfig(row),
+    prompt: row.prompt,
+    categories,
+    startFrom: row.startFrom,
+    rejected: { social: [], online: [] },
+    failedCalls: 0,
+  };
+}
+
+/**
+ * Tries the items the provider refused again, now (admin "Coba lagi"). Items labelled this time leave the
+ * rejected list; the rest stay on it. Returns how many were labelled and how many are still refused.
+ */
+export async function retryRejected(apiKeyId: string) {
+  const row = await loadClassifier(apiKeyId);
+  if (!row) throw new Error("Kunci ini belum memakai kategorisasi AI");
+  const job = buildJob(row);
+  const cursors: Cursors = (row.cursors as Cursors) ?? {};
+  let labelled = 0;
+  for (const type of MEDIA_TYPES) {
+    const codes = cursors[type]?.rejected ?? [];
+    if (!codes.length) continue;
+    const items = await fetchItemsByCode(type, codes);
+    for (let i = 0; i < items.length; i += BATCH_SIZE) labelled += (await processBatch(job, type, items.slice(i, i + BATCH_SIZE))).labelled;
+    const done = new Set((await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true } })).map((r) => r.code));
+    cursors[type]!.rejected = codes.filter((c) => !done.has(c));
+    if (!cursors[type]!.rejected!.length) cursors[type]!.rejectedSince = undefined;
+  }
+  await prisma.classifier.update({ where: { apiKeyId }, data: { cursors: cursors as Prisma.InputJsonValue, processed: { increment: labelled } } });
+  const remaining = MEDIA_TYPES.reduce((n, t) => n + (cursors[t]?.rejected?.length ?? 0), 0);
+  return { labelled, remaining };
+}
+
 async function runClassifier(classifierId: string) {
-  const row = await prisma.classifier.findUnique({ where: { apiKeyId: classifierId }, include: { apiKey: true } });
+  const row = await loadClassifier(classifierId);
   if (!row || !row.enabled || row.apiKey.revokedAt) return;
   if (await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name)) return;
 
@@ -98,17 +164,7 @@ async function runClassifier(classifierId: string) {
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
   let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
 
-  const categories = Object.fromEntries(MEDIA_TYPES.map((t) => [t, categorySchema.array().parse(categoriesForType(row, t))])) as Record<MediaType, Category[]>;
-  const job: Job = {
-    apiKeyId: row.apiKeyId,
-    scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
-    provider: providerConfig(row),
-    prompt: row.prompt,
-    categories,
-    startFrom: row.startFrom,
-    rejected: { social: [], online: [] },
-    failedCalls: 0,
-  };
+  const job = buildJob(row);
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
   let lastError: string | null = null;

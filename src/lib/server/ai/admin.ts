@@ -14,6 +14,7 @@ import { categoriesForType } from "@/lib/ai/classifier";
 export const publicClassifier = (c: Classifier) => ({
   apiKeyId: c.apiKeyId,
   provider: { kind: c.providerKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyHint: c.providerKeyHint },
+  fallback: c.fallbackKind ? { kind: c.fallbackKind, baseUrl: c.fallbackBaseUrl, model: c.fallbackModel, apiKeyHint: c.fallbackKeyHint } : null,
   enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories, labelledOnly: c.labelledOnly, minBalance: c.minBalance, dailyBudget: c.dailyBudget, startFrom: c.startFrom,
   cursors: c.cursors, processed: c.processed, failed: c.failed, todayCount: c.todayCount, todayDate: c.todayDate,
   lastError: c.lastError, lastRunAt: c.lastRunAt, updatedAt: c.updatedAt,
@@ -24,8 +25,14 @@ export const providerConfig = (c: Pick<Classifier, "providerKind" | "providerBas
 });
 
 export class MissingProviderKeyError extends Error {
-  constructor() { super("API key penyedia AI wajib diisi"); }
+  constructor(message = "API key penyedia AI wajib diisi") { super(message); }
 }
+
+/** The fallback provider as a config, or null when none is set. */
+export const fallbackConfig = (c: Pick<Classifier, "fallbackKind" | "fallbackBaseUrl" | "fallbackModel" | "fallbackKeyEnc">): ProviderConfig | null =>
+  c.fallbackKind && c.fallbackModel && c.fallbackKeyEnc
+    ? { kind: c.fallbackKind as ProviderKind, baseUrl: c.fallbackBaseUrl, model: c.fallbackModel, apiKeyEnc: c.fallbackKeyEnc }
+    : null;
 
 /**
  * Creates or updates a key's classifier. A new provider key replaces the stored one; an empty one keeps it.
@@ -41,8 +48,16 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
     providerModel: input.provider.model,
     ...(input.provider.apiKey ? { providerKeyEnc: encryptSecret(input.provider.apiKey), providerKeyHint: secretHint(input.provider.apiKey) } : {}),
   };
+  const fb = input.fallback;
+  if (fb && !fb.apiKey && !existing?.fallbackKeyEnc) throw new MissingProviderKeyError("API key penyedia cadangan wajib diisi");
+  const fallback = fb
+    ? {
+        fallbackKind: fb.kind, fallbackBaseUrl: fb.kind === "openai_compatible" ? fb.baseUrl || null : null, fallbackModel: fb.model,
+        ...(fb.apiKey ? { fallbackKeyEnc: encryptSecret(fb.apiKey), fallbackKeyHint: secretHint(fb.apiKey) } : {}),
+      }
+    : { fallbackKind: null, fallbackBaseUrl: null, fallbackModel: null, fallbackKeyEnc: null, fallbackKeyHint: null };
   const startFrom = input.startFrom ? new Date(input.startFrom) : null;
-  const data = { ...provider, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, minBalance: input.minBalance, dailyBudget: input.dailyBudget, startFrom };
+  const data = { ...provider, ...fallback, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, minBalance: input.minBalance, dailyBudget: input.dailyBudget, startFrom };
 
   if (!existing) {
     return prisma.classifier.create({ data: { apiKeyId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });

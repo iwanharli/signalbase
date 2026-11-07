@@ -17,21 +17,24 @@ const testSchema = z.object({
   provider: providerSchema,
   /** When the form leaves the API key empty, test with the key stored for this API key's classifier. */
   apiKeyId: z.string().uuid().nullable().default(null),
+  /** Which stored key to fall back on: the main provider's or the fallback's. */
+  slot: z.enum(["primary", "fallback"]).default("primary"),
 });
 
 // Tests a provider configuration from the form before (or after) it is saved.
 export const POST = adminRoute(async (req: Request) => {
   const parsed = testSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return validationError(parsed.error, "Data penyedia tidak valid");
-  const { provider, apiKeyId } = parsed.data;
+  const { provider, apiKeyId, slot } = parsed.data;
 
   let config: ProviderConfig;
   if (provider.apiKey) {
     config = { kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model, apiKeyEnc: encryptSecret(provider.apiKey) };
   } else {
     const stored = apiKeyId ? await prisma.classifier.findUnique({ where: { apiKeyId } }) : null;
-    if (!stored) return NextResponse.json({ ok: false, ms: 0, error: "Isi API key penyedia AI dulu" });
-    config = { ...providerConfig(stored), kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model };
+    const enc = slot === "fallback" ? stored?.fallbackKeyEnc : stored?.providerKeyEnc;
+    if (!stored || !enc) return NextResponse.json({ ok: false, ms: 0, error: "Isi API key penyedia AI dulu" });
+    config = { ...providerConfig(stored), apiKeyEnc: enc, kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model };
   }
 
   const started = Date.now();

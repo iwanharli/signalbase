@@ -108,3 +108,5 @@
 @media (max-width: 600px) { .guardFields { grid-template-columns: 1fr; } }
 .keyLabel { display: inline-flex; align-items: center; gap: 6px; }
 .keyCopy { --size: 24px; }
+.fallbackFields { margin-top: 12px; }
+.fallbackFields > div { padding: 0; border: 0; background: none; }

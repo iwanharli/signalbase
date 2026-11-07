@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
+import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { countExact } from "@/lib/server/bank";
 import { costPerItem } from "@/lib/server/ai/balance";
@@ -11,6 +11,36 @@ const wallClock = (d: Date) => {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 };
+
+type Counts = (readonly [MediaType, number | null])[];
+const countScope = (scope: KeyScope, filter: URLSearchParams): Promise<Counts> =>
+  Promise.all(MEDIA_TYPES.map(async (type) => [type, allowsType(scope, type) ? await countExact(type, filter, scope) : null] as const));
+
+/** Fresh for this long; older counts are still served while a new count runs in the background. */
+const FRESH_MS = 10 * 60_000;
+const refreshing = new Set<string>();
+
+/**
+ * Whole-scope counts are slow (~25 s), so the last result is stored on the classifier and served at once.
+ * When it is older than FRESH_MS, a recount starts in the background; only the very first call waits.
+ */
+async function wholeScopeCounts(apiKeyId: string, scope: KeyScope): Promise<Counts> {
+  const row = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { scopeCounts: true } });
+  const stored = row?.scopeCounts as { social: number | null; online: number | null; at: number; scope: string } | null;
+  const scopeKey = JSON.stringify(scope);
+  const recount = async () => {
+    const counts = await countScope(scope, new URLSearchParams());
+    const value = { ...Object.fromEntries(counts), at: Date.now(), scope: scopeKey };
+    await prisma.classifier.update({ where: { apiKeyId }, data: { scopeCounts: value } }).catch(() => {});
+    return counts;
+  };
+  if (!stored || stored.scope !== scopeKey) return row ? recount() : countScope(scope, new URLSearchParams());
+  if (Date.now() - stored.at > FRESH_MS && !refreshing.has(apiKeyId)) {
+    refreshing.add(apiKeyId);
+    recount().catch(() => {}).finally(() => refreshing.delete(apiKeyId));
+  }
+  return MEDIA_TYPES.map((type) => [type, stored[type]] as const);
+}
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -27,7 +57,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const filter = new URLSearchParams(start ? { since: wallClock(start) } : {});
   try {
     const [counts, cost, done] = await Promise.all([
-      Promise.all(MEDIA_TYPES.map(async (type) => [type, allowsType(scope, type) ? await countExact(type, filter, scope) : null] as const)),
+      start ? countScope(scope, filter) : wholeScopeCounts(id, scope),
       costPerItem(id),
       Promise.all(MEDIA_TYPES.map((type) => prisma.classification.count({ where: { apiKeyId: id, type,
         ...(start ? { publishedAt: { gte: start } } : {}) } }))),

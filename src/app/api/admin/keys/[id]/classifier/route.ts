@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { classifierInputSchema } from "@/lib/ai/classifier";
+import { classifierInputSchema, LOW_CONFIDENCE } from "@/lib/ai/classifier";
 import { parseKeyScope } from "@/lib/media/keyScope";
 import { MissingProviderKeyError, publicClassifier, saveClassifier, validationError } from "@/lib/server/ai/admin";
 import { adminRoute } from "@/lib/server/auth";
@@ -15,10 +15,15 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const counts = key.classifier
     ? await prisma.classification.groupBy({ by: ["type", "category"], where: { apiKeyId: id }, _count: true })
     : [];
+  // Labels the model was unsure about and nobody has checked yet: the review queue.
+  const lowConfidence = key.classifier
+    ? await prisma.classification.count({ where: { apiKeyId: id, manual: false, confidence: { lt: LOW_CONFIDENCE } } })
+    : 0;
   return NextResponse.json({
     key: { id: key.id, name: key.name, prefix: key.prefix, revokedAt: key.revokedAt, scope: parseKeyScope(key.scope, key.keywords) },
     classifier: key.classifier ? publicClassifier(key.classifier) : null,
     counts: counts.map((c) => ({ type: c.type, category: c.category, n: c._count })),
+    lowConfidence,
   });
 });
 
