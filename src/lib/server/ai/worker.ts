@@ -93,8 +93,15 @@ async function runClassifier(classifierId: string) {
   };
 
   try {
-    for (const type of MEDIA_TYPES) {
-      if (!allowsType(job.scope, type)) continue;
+    // Media types share the tick fairly: each first gets an equal part, then any unused part goes to the rest,
+    // so online news fills in alongside a long social backfill instead of waiting for it.
+    const types = MEDIA_TYPES.filter((t) => allowsType(job.scope, t));
+    const perTick = budget;
+    let remaining = perTick;
+    for (const round of [0, 1]) for (const type of types) {
+      if (remaining <= 0) break;
+      const allotted = round === 0 ? Math.min(remaining, Math.ceil(perTick / types.length)) : remaining;
+      budget = allotted;
       const state = (cursors[type] ??= {});
 
       // 1. Items that arrived since the newest one labelled so far.
@@ -145,6 +152,7 @@ async function runClassifier(classifierId: string) {
         }
         state.sweptAt = Date.now();
       }
+      remaining -= allotted - budget;
     }
   } catch (error) {
     // Cursors only advance after a batch is stored, so the failed batch is retried next tick.
