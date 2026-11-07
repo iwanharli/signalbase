@@ -24,7 +24,17 @@ export type Analysis = {
   relevance: Relevance | null;
 };
 
-// One post or article as the panel and the public API return it. No author or account details.
+/** Who posted a social item. Only returned to API keys allowed to see it (ApiKey.showAuthors). */
+export type Author = {
+  name: string | null;
+  username: string | null;
+  profileUrl: string | null;
+  accountType: string | null;
+  followers: number | null;
+  following: number | null;
+};
+
+// One post or article as the panel and the public API return it. Author details only when asked for.
 export type MediaItem = {
   code: string;
   source: string;
@@ -41,6 +51,16 @@ export type MediaItem = {
   moodLevel: number | null;
   metrics: Metrics;
   analysis: Analysis | null;
+  /** "id", "non_id" or another source language code. */
+  language?: string | null;
+  /** City or regency named by the news source; news only. */
+  city?: string | null;
+  /** Full article text when the source has it; news only (content is the preview). */
+  body?: string | null;
+  /** Public API: which of the key's keywords this item mentions. */
+  matchedKeywords?: string[];
+  /** Present only when the caller may see authors (social: account; news: writer or publisher). */
+  author?: Author | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;
   /** Extra metadata returned only by the admin social feed. */

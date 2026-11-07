@@ -33,7 +33,7 @@ export function revealKey(keyEnc: string | null) {
 
 // Wraps public API handlers: requires `Authorization: Bearer <key>` or `x-api-key`.
 /** The authenticated key, as passed to public API handlers. */
-export type ApiCaller = { keyId: string; scope: KeyScope };
+export type ApiCaller = { keyId: string; scope: KeyScope; showAuthors: boolean };
 
 export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -43,6 +43,6 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    return handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords) });
+    return handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords), showAuthors: row.showAuthors });
   };
 }

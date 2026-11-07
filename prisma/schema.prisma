@@ -27,6 +27,7 @@ model ApiKey {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+  showAuthors Boolean @default(false) // public API also returns who posted (name, username, profile, post link)
 
   classifier      Classifier?
   classifications Classification[]

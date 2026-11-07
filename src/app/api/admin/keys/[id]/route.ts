@@ -25,7 +25,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   return NextResponse.json({
     id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
-    copyable: !!key.keyEnc,
+    copyable: !!key.keyEnc, showAuthors: key.showAuthors,
     classifier: key.classifier && {
       enabled: key.classifier.enabled, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,

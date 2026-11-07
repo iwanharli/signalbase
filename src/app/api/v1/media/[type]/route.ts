@@ -4,6 +4,7 @@ import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/ty
 import { categoryBreakdown, categoryPage, categoryTrend, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
+import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 100;
@@ -17,7 +18,7 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 //   GET /api/v1/media/{social|online}?view=trend&interval=week|day&from=&to=   labelled items per period and AI category
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
-export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope }: ApiCaller) => {
+export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope, showAuthors }: ApiCaller) => {
   const type = resolveMediaType((await params).type);
   if (!type) return NextResponse.json({ error: "Jenis tidak dikenal: pakai social atau online" }, { status: 404 });
   if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type}` }, { status: 403 });
@@ -65,17 +66,21 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
       if (!categories) return NextResponse.json({ error: "Kunci ini tidak memakai kategorisasi AI" }, { status: 400 });
       const result = await categoryPage(keyId, type, aiCategory, query, scope, { limit: size, offset: (requestedPage - 1) * size });
       total = result.total;
-      items = await fetchItemsByCode(type, result.codes);
+      items = await fetchItemsByCode(type, result.codes, { authors: showAuthors });
     } else {
       ({ total, capped } = await countCapped(type, query, scope));
       const lastPage = Math.max(1, Math.ceil(total / size));
-      items = await listItems(type, query, scope, { limit: size, offset: (Math.min(requestedPage, lastPage) - 1) * size });
+      items = await listItems(type, query, scope, { limit: size, offset: (Math.min(requestedPage, lastPage) - 1) * size, authors: showAuthors });
     }
 
     const pages = Math.max(1, Math.ceil(total / size));
     const page = Math.min(requestedPage, pages);
-    const labels = categories ? await classificationsFor(keyId, type, items.map((i) => i.code), categories) : null;
-    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic(item, type, labels)) });
+    const codes = items.map((i) => i.code);
+    const [labels, matches] = await Promise.all([
+      categories ? classificationsFor(keyId, type, codes, categories) : null,
+      matchedKeywords(type, codes, scope.keywords),
+    ]);
+    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, type, labels)) });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Sumber data tidak bisa dihubungi" }, { status: 502 });
