@@ -38,3 +38,24 @@
 .quota[data-state="warn"] em { background: linear-gradient(90deg, #f59e0b, #f97316); }
 .quota[data-state="full"] em { background: #ef4444; }
 .quota[data-state="full"] small { color: #b91c1c; }
+
+.card[data-wide] { grid-column: 1 / -1; }
+.card h2 { display: flex; align-items: center; gap: 8px; }
+.meters { display: grid; gap: 14px; }
+.meter { display: grid; gap: 6px; }
+.meter > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.meter span { font-size: 13.5px; color: var(--mantine-color-dimmed); }
+.meter b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.meter small { font-size: 12.5px; font-weight: 500; color: var(--mantine-color-dimmed); }
+.meter i { height: 8px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-gray-1); }
+.meter em { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--mantine-color-violet-5), var(--mantine-color-cyan-5)); }
+.meter[data-state="warn"] em { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.meter[data-state="full"] em { background: #ef4444; }
+.contract { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--mantine-color-gray-0); font-size: 13.5px; }
+.contract dt { color: var(--mantine-color-dimmed); }
+.contract dd { margin: 0; }
+.benefits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.benefits li { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; line-height: 1.4; }
+.benefits svg { flex-shrink: 0; margin-top: 2px; color: var(--mantine-color-teal-6); }
+.contractActions { display: flex; }
+@media (max-width: 700px) { .benefits { grid-template-columns: 1fr; } }

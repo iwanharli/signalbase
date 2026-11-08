@@ -3,6 +3,7 @@ import { isExpired, jakartaToday, limitsFor, type PlanLimits } from "../plans";
 import { EXPIRED_MESSAGE } from "./plan";
 import { NextResponse } from "next/server";
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { ipAllowed, originAllowed, requestHost } from "../keyAccess";
 import { prisma } from "./db";
 import { decryptSecret, encryptSecret } from "./secrets";
 
@@ -44,18 +45,60 @@ export type ApiCaller = {
   analysis: PlanLimits["analysis"];
 };
 
+/** Client IP as Cloudflare and nginx pass it on. */
+function clientIp(req: Request) {
+  const h = req.headers;
+  return h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+}
+
+/** CORS headers: browsers on an allowed site may read the response; everyone else gets none (server calls don't need them). */
+function corsHeaders(origin: string | null, allowed: boolean): Record<string, string> {
+  if (!origin || !allowed) return {};
+  return { "Access-Control-Allow-Origin": origin, "Access-Control-Expose-Headers": "X-RateLimit-Limit, X-RateLimit-Remaining", Vary: "Origin" };
+}
+
+/** Preflight for browser calls. It carries no key, so it is answered for any site; the real request is checked. */
+export function apiPreflight(req: Request) {
+  const origin = req.headers.get("origin");
+  return new Response(null, {
+    status: 204,
+    headers: origin ? {
+      "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, X-API-Key, Content-Type", "Access-Control-Max-Age": "86400", Vary: "Origin",
+    } : {},
+  });
+}
+
 export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
+    const origin = req.headers.get("origin");
+    let cors: Record<string, string> = {};
+    const reply = (res: Response) => { for (const [name, value] of Object.entries(cors)) res.headers.set(name, value); return res; };
+
     const raw = req.headers.get("x-api-key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const row = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
     if (!row || row.revokedAt) return NextResponse.json({ error: "Kunci API tidak valid" }, { status: 401 });
+
+    // Access rules: with any rule set, the call must come from an allowed IP (servers) or an allowed site (browsers).
+    const host = requestHost(origin, req.headers.get("referer"));
+    const fromAllowedSite = row.allowedOrigins.length > 0 && originAllowed(host, row.allowedOrigins);
+    if (row.allowedIps.length || row.allowedOrigins.length) {
+      const ip = clientIp(req);
+      if (!fromAllowedSite && !(row.allowedIps.length && ipAllowed(ip, row.allowedIps))) {
+        const where = host ? `situs ${host}` : `alamat IP ${ip ?? "tidak diketahui"}`;
+        return NextResponse.json({ error: `Kunci API ini tidak diizinkan dipakai dari ${where}. Atur akses di halaman Proyek.`, forbiddenSource: true }, { status: 403 });
+      }
+    }
+    // Browsers may only read responses on sites the key allows; a key without site rules isn't meant for browsers.
+    cors = corsHeaders(origin, fromAllowedSite);
+
     // Keys of a user account that is not active (suspended, or somehow still pending) stop working until it is re-activated.
     // Keys of an account whose trial or paid period ended stop working too, until a plan is chosen.
     let limits = limitsFor(null);
     if (row.ownerId) {
       const owner = await prisma.admin.findUnique({ where: { id: row.ownerId }, select: { status: true, plan: true, planExpiresAt: true } });
-      if (owner?.status !== "active") return NextResponse.json({ error: "Akun pemilik kunci tidak aktif" }, { status: 403 });
-      if (isExpired(owner.planExpiresAt)) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
+      if (owner?.status !== "active") return reply(NextResponse.json({ error: "Akun pemilik kunci tidak aktif" }, { status: 403 }));
+      if (isExpired(owner.planExpiresAt)) return reply(NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 }));
       limits = limitsFor(owner.plan);
     }
 
@@ -65,10 +108,10 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     if (row.ownerId && limits.callsPerDay !== null) {
       const used = (await prisma.apiKeyUsage.aggregate({ _sum: { count: true }, where: { day, apiKey: { ownerId: row.ownerId } } }))._sum.count ?? 0;
       if (used >= limits.callsPerDay) {
-        return NextResponse.json(
+        return reply(NextResponse.json(
           { error: `Batas ${limits.callsPerDay.toLocaleString("id-ID")} panggilan API per hari untuk akun ini sudah tercapai. Kuota diisi ulang pukul 00.00 WIB.`, limitReached: true },
           { status: 429, headers: { "X-RateLimit-Limit": String(limits.callsPerDay), "X-RateLimit-Remaining": "0" } },
-        );
+        ));
       }
       remaining = limits.callsPerDay - used - 1;
     }
@@ -81,6 +124,6 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
       res.headers.set("X-RateLimit-Limit", String(limits.callsPerDay));
       res.headers.set("X-RateLimit-Remaining", String(Math.max(0, remaining)));
     }
-    return res;
+    return reply(res);
   };
 }

@@ -40,6 +40,8 @@ model ApiKey {
   lastUsedAt DateTime?
   revokedAt  DateTime?
   showAuthors Boolean @default(false) // unused: author details are now always returned
+  allowedIps     String[] @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
+  allowedOrigins String[] @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
 
   classifier      Classifier?
   classifications Classification[]

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { allowsType } from "@/lib/media/keyScope";
 import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/types";
 import { categoryBreakdown, categoryPage, categoryTrend, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
-import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
+import { apiPreflight, apiRoute, type ApiCaller } from "@/lib/server/apiKey";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { clampHistory } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
@@ -21,6 +21,9 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 //   GET /api/v1/media/{social|online}?view=trend&interval=week|day&from=&to=   labelled items per period and AI category
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
+/** CORS preflight for browser calls from sites the key allows. */
+export const OPTIONS = (req: Request) => apiPreflight(req);
+
 export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope, historyDays, analysis }: ApiCaller) => {
   const type = resolveMediaType((await params).type);
   if (!type) return NextResponse.json({ error: "Jenis tidak dikenal: pakai social atau online" }, { status: 404 });

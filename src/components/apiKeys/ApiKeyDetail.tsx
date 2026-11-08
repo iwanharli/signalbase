@@ -14,6 +14,7 @@ import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
 import { BalanceCard } from "../ai/BalanceCard";
+import { KeyAccess, type KeyAccessRules } from "./KeyAccess";
 import { CopyKeyButton } from "./CopyKeyButton";
 import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
 import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
@@ -23,7 +24,7 @@ import { BalanceUsage } from "../ai/BalanceUsage";
 import { RestartConfirm, type RestartRequest } from "../ai/RestartConfirm";
 
 type KeyDetail = {
-  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean;
+  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
   classifier: { enabled: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
 };
 type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "security";
@@ -334,6 +335,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
                   </div>
                   <CopyKeyButton keyId={data.id} copyable={data.copyable} size="md" onDark label="Salin kunci" />
                 </div>
+                <KeyAccess keyId={data.id} saved={data.access} onSaved={detail.reload} />
                 <div className={classes.keyBox}>
                   <div>
                     <b>Buat ulang kunci</b>

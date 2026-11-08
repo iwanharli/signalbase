@@ -27,6 +27,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
     copyable: !!key.keyEnc,
+    access: { ips: key.allowedIps, origins: key.allowedOrigins },
     classifier: key.classifier && {
       enabled: key.classifier.enabled, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,

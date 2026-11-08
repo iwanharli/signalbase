@@ -21,5 +21,6 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     limit: limits.callsPerDay,
     plan: isPlanId(account?.plan) ? PLAN_LABEL[account.plan] : null,
     ai: { used: await platformPostsThisMonth(user.id), limit: await aiQuota(user.id, limits.aiPostsPerMonth) },
+    keys: await prisma.apiKey.count({ where: { ownerId: user.id, revokedAt: null } }),
   });
 });

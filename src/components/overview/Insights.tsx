@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconFlame, IconHash, IconLayoutGrid, IconMessages, IconMoodSad,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconFlame, IconHash, IconLayoutGrid, IconMessages, IconMoodSad,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -44,6 +44,7 @@ const TONES: { key: Tone; label: string }[] = [
 const VIEW_LABEL: Record<View, string> = { all: "Semua media", social: MEDIA_TYPE_LABEL.social, online: MEDIA_TYPE_LABEL.online };
 const VIEW_ICON = { all: IconLayoutGrid, social: IconMessages, online: IconWorldWww } as const;
 const TOP_ROWS = 8;
+const segClasses = { root: c.seg, indicator: c.segIndicator, label: c.segText, control: c.segControl };
 /** Below this previous count a percentage change is noise (5 → 105 is "+2.000%"), so it reads "baru" instead. */
 const MIN_BASE = 20;
 /** Early-warning thresholds (the server applies the same ones to spikes and the negative share). */
@@ -344,20 +345,27 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline }: { keyI
   return (
     <section className={c.section}>
       <header className={c.head}>
-        <div>
+        <span className={c.headIcon}><IconChartHistogram size={22} /></span>
+        <div className={c.headText}>
           <h2>Analisis periode</h2>
-          <p>Tren opini, perbandingan, dan topik dibanding {period} hari sebelumnya{data && <> · diperbarui {dayjs(data.at).format("HH:mm")}</>}</p>
+          <p>Peringatan dini, tren opini, dan topik dibanding {period} hari sebelumnya{data && <> · diperbarui {dayjs(data.at).format("HH:mm")}</>}</p>
         </div>
         <div className={c.controls}>
           {both && (
-            <SegmentedControl size="xs" radius="xl" value={view} onChange={(v) => setView(v as View)} aria-label="Jenis media"
-              data={(["all", "social", "online"] as const).map((v) => {
-                const Icon = VIEW_ICON[v];
-                return { value: v, label: <span className={c.segLabel}><Icon size={14} />{v === "all" ? "Semua" : MEDIA_TYPE_LABEL[v]}</span> };
-              })} />
+            <div className={c.control}>
+              <span>Media</span>
+              <SegmentedControl classNames={segClasses} value={view} onChange={(v) => setView(v as View)} aria-label="Jenis media"
+                data={(["all", "social", "online"] as const).map((v) => {
+                  const Icon = VIEW_ICON[v];
+                  return { value: v, label: <span className={c.segLabel}><Icon size={16} />{v === "all" ? "Semua" : MEDIA_TYPE_LABEL[v]}</span> };
+                })} />
+            </div>
           )}
-          <SegmentedControl size="xs" radius="xl" value={String(period)} onChange={(v) => setPeriod(Number(v) as InsightPeriod)} aria-label="Periode"
-            data={INSIGHT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
+          <div className={c.control}>
+            <span>Periode</span>
+            <SegmentedControl classNames={segClasses} value={String(period)} onChange={(v) => setPeriod(Number(v) as InsightPeriod)} aria-label="Periode"
+              data={INSIGHT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
+          </div>
         </div>
       </header>
 
