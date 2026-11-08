@@ -12,7 +12,7 @@ import type { MediaType } from "@/lib/media/types";
 import { listItems } from "./bank";
 import { cleanName, profileLink } from "./bank/items";
 import { sharedCache } from "./bank/cache";
-import { bankPool, withLongTimeout } from "./bank/pool";
+import { analyticsPool, withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS, filterKey, keywordQuery } from "./bank/query";
 
 const DAY_MS = 86_400_000;
@@ -83,7 +83,7 @@ async function hashtags(scope: KeyScope, period: number): Promise<Ranked[]> {
   const { where, values } = windowWhere("social", scope, period * 2);
   values.push(period);
   const split = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
-  const { rows } = await bankPool().query<{ cur: boolean; tag: string; n: number }>(
+  const { rows } = await analyticsPool().query<{ cur: boolean; tag: string; n: number }>(
     `SELECT s.cur, lower(r.m[1]) tag, count(*)::int n FROM (
        (SELECT true cur, p.post_content FROM ${c.from} WHERE ${where} AND ${split} ORDER BY ${c.timestamp} DESC LIMIT ${HASHTAG_SAMPLE})
        UNION ALL

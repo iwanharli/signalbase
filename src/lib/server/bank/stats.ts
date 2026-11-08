@@ -3,7 +3,7 @@ import type { KeyScope } from "@/lib/media/keyScope";
 import { MOOD_SAMPLE_LIMIT } from "@/lib/media/types";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { createCache, sharedCache } from "./cache";
-import { bankPool, withLongTimeout } from "./pool";
+import { analyticsPool, bankPool, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 
 /** Upper bound for the fast (capped) count and for the rows sampled by the mood breakdown. */
@@ -57,14 +57,14 @@ async function countPerDay(type: MediaType, from: string, to: string, scope?: Ke
   if (!scope) {
     // Whole bank: the plain table, no analysis join, so the timestamp index does all the work.
     const [table, ts] = type === "social" ? ["post_main", "post_timestamps"] : ["news_main", "news_timestamp"];
-    const { rows } = await bankPool().query<DailyCount>(
+    const { rows } = await analyticsPool().query<DailyCount>(
       `SELECT to_char(${ts}::date, 'YYYY-MM-DD') AS day, count(*)::int AS n FROM ${table}
        WHERE ${ts} >= $1::date AND ${ts} < $2::date + 1 AND ${ts} <= now() GROUP BY 1 ORDER BY 1`, [from, to]);
     return rows;
   }
   const c = COLUMNS[type];
   const { where, values } = buildWhere(type, new URLSearchParams({ from, to }), scope);
-  const { rows } = await bankPool().query<DailyCount>(
+  const { rows } = await analyticsPool().query<DailyCount>(
     `SELECT to_char(${c.timestamp}::date, 'YYYY-MM-DD') AS day, count(*)::int AS n FROM ${c.from} WHERE ${where} GROUP BY 1 ORDER BY 1`, values);
   return rows;
 }
