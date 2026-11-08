@@ -3,6 +3,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/types";
 import { categoryBreakdown, categoryPage, categoryTrend, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
+import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
 
@@ -82,8 +83,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
     ]);
     return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, type, labels)) });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Sumber data tidak bisa dihubungi" }, { status: 502 });
+    return sourceErrorResponse(e, `v1/${type}`);
   }
 });
 

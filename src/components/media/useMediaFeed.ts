@@ -9,6 +9,8 @@ type PageResponse = { page: number; hasMore: boolean; moods: MoodCount[] | null;
  * Paged item list for one filter query. Starts over whenever `query` changes and
  * appends further pages on `loadMore`. Responses for an outdated query are ignored.
  */
+const RETRY_DELAY_MS = 1500;
+
 export function useMediaFeed(type: MediaType, query: string) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [page, setPage] = useState(0);
@@ -24,7 +26,10 @@ export function useMediaFeed(type: MediaType, query: string) {
     const stale = () => current !== generation.current;
     setLoading(true);
     setError(null);
-    api<PageResponse>(`/api/admin/media/${type}?${query}&page=${pageNumber}`)
+    // One automatic retry after a short pause: a heavy first query often succeeds once the source DB has warmed up.
+    const url = `/api/admin/media/${type}?${query}&page=${pageNumber}`;
+    api<PageResponse>(url)
+      .catch(() => new Promise<void>((resolve) => setTimeout(resolve, RETRY_DELAY_MS)).then(() => (stale() ? Promise.reject(new Error("stale")) : api<PageResponse>(url))))
       .then((res) => {
         if (stale()) return;
         setPage(res.page);

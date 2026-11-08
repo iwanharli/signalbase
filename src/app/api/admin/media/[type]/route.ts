@@ -4,6 +4,7 @@ import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute, ownsKey, type PanelUser } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
+import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
 import { prisma } from "@/lib/server/db";
 
@@ -80,6 +81,6 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       })),
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    return sourceErrorResponse(e, `media/${type}`);
   }
 });
