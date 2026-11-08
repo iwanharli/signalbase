@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -487,56 +487,87 @@ function Panel({ icon: Icon, title, text, children }: { icon: typeof IconTag; ti
 
 export type ProjectSummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
 
-/** The project being viewed with how each keyword did this period, then the account's other projects to switch to. */
-function ProjectCard({ project, others, data, keywordHref }: {
-  project: ProjectSummary; others: ProjectSummary[]; data: ViewData | null; keywordHref: (row: Row) => string;
+/** Insights of another project, loaded only when its group is opened (cached on the server like the viewed one). */
+function useProjectData(projectId: string, types: MediaType[], period: InsightPeriod, enabled: boolean): ViewData | null | undefined {
+  const url = (t: MediaType) => (enabled && types.includes(t) ? `/api/admin/stats/insights?type=${t}&days=${period}&key=${encodeURIComponent(projectId)}` : null);
+  const social = useApi<Response>(url("social"));
+  const online = useApi<Response>(url("online"));
+  if (!enabled) return undefined;
+  const sources = { social, online };
+  if (types.some((t) => sources[t].loading || (!sources[t].data && !sources[t].error))) return undefined;
+  return viewData(types.flatMap((t) => { const d = sources[t].data?.insights; return d?.pulse ? [[t, d] as [MediaType, InsightsData]] : []; }));
+}
+
+/** One project: a header with its volume, change and negative share, and (when open) how each keyword did. */
+function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
+  project: ProjectSummary; viewed: boolean; data: ViewData | null | undefined; open: boolean; onToggle: () => void; keywordHref: (row: Row) => string;
 }) {
-  const used = project.lastUsedAt ? `dipakai ${dayjs(project.lastUsedAt).locale("id").fromNow()}` : "belum pernah dipakai lewat API";
+  const share = data ? pct(data.current.neg, data.current.labelled) : 0;
+  const level = share >= 50 ? "high" : share >= 25 ? "mid" : "low";
+  return (
+    <div className={c.group} data-open={open || undefined} data-viewed={viewed || undefined}>
+      <button type="button" className={c.groupHead} onClick={onToggle} aria-expanded={open}>
+        <IconChevronRight size={15} className={c.groupChevron} />
+        <span className={c.groupName}>
+          <b>{project.name}</b>
+          <small>{viewed ? "sedang dilihat · " : ""}{project.keywords.length ? `${project.keywords.length} keyword` : "semua data"}</small>
+        </span>
+        {data ? <>
+          <span className={c.groupTotal}><b>{short(data.current.total)}</b><Delta now={data.current.total} before={data.previous.total} /></span>
+          {data.current.labelled > 0 && <span className={c.topNeg} data-level={level}>{Math.round(share)}% negatif</span>}
+        </> : open && <span className={c.groupLoading}>memuat…</span>}
+      </button>
+
+      {open && (
+        <div className={c.groupBody}>
+          {data === undefined ? <Skeleton h={90} radius="md" /> : !data ? <p className={c.empty}>Belum ada data untuk proyek ini.</p> : data.keywords ? (
+            <RankedList items={data.keywords} label={(v) => v} href={keywordHref} showNeg />
+          ) : (
+            // One keyword is the project's whole volume, so it gets its chip instead of a ranking.
+            <div className={c.kwChips}>{project.keywords.length ? project.keywords.map((k) => <span key={k}>{k}</span>) : <span>semua data</span>}</div>
+          )}
+          <div className={c.groupLinks}>
+            {!viewed && <Link href={`/dashboard?key=${project.id}`}>Lihat Ringkasan proyek <IconArrowRight size={12} /></Link>}
+            <Link href={`/api-keys/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Keywords grouped per project: the viewed project first and open, the account's other projects folded below. */
+function ProjectCard({ project, others, data, types, period, from }: {
+  project: ProjectSummary; others: ProjectSummary[]; data: ViewData | null; types: MediaType[]; period: InsightPeriod; from: string;
+}) {
+  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set([project.id]));
+  const toggle = (id: string) => setOpenIds((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const hrefFor = (projectId: string) => (row: Row) => mediaHref(row.t, projectId, { from, q: row.value });
   return (
     <section className={c.panel}>
       <header className={c.projectHead}>
         <span><IconPlugConnected size={16} /></span>
-        <div><h3>{project.name}</h3><p>Proyek dilihat · {used}</p></div>
-        <Link href={`/api-keys/${project.id}?tab=keywords`} className={c.projectEdit}><IconEdit size={13} />Ubah</Link>
+        <div><h3>Keyword per proyek</h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
+        <Link href="/api-keys" className={c.projectEdit}>Kelola</Link>
       </header>
-
-      {data && (
-        <div className={c.projectStats}>
-          <div><small>Sinyal periode ini</small><b>{short(data.current.total)}<Delta now={data.current.total} before={data.previous.total} /></b></div>
-          <div><small>Porsi negatif</small><b>{fmtPct(pct(data.current.neg, data.current.labelled))}</b></div>
-          <div><small>Keyword</small><b>{project.keywords.length || "semua"}</b></div>
-        </div>
-      )}
-
-      {!data ? <Skeleton h={180} radius="md" /> : data.keywords ? (
-        <>
-          <span className={c.otherLabel}>Penyebutan per keyword</span>
-          <RankedList items={data.keywords} label={(v) => v} href={keywordHref} showNeg />
-        </>
-      ) : (
-        // A single keyword is the project's whole volume, so it gets one summary line instead of a ranking.
-        <div className={c.singleKw}>
-          <div className={c.kwChips}>{project.keywords.length ? project.keywords.map((k) => <span key={k}>{k}</span>) : <span>semua data</span>}</div>
-          <p><b>{formatNumber(data.current.total)}</b> item periode ini <Delta now={data.current.total} before={data.previous.total} /></p>
-        </div>
-      )}
-
-      {others.length > 0 && (
-        <div className={c.otherProjects}>
-          <span className={c.otherLabel}>Proyek lain · {others.length}</span>
-          {others.map((p) => (
-            <Link key={p.id} href={`/dashboard?key=${p.id}`} className={c.otherProject}>
-              <IconPlugConnected size={14} />
-              <b>{p.name}</b>
-              <small>{p.keywords.length ? p.keywords.slice(0, 3).join(", ") + (p.keywords.length > 3 ? ` +${p.keywords.length - 3}` : "") : "semua data"}</small>
-              <IconArrowRight size={13} />
-            </Link>
-          ))}
-        </div>
-      )}
-      <Link href="/api-keys" className={c.manageProjects}>Kelola proyek <IconArrowRight size={13} /></Link>
+      <div className={c.groups}>
+        <ProjectGroup project={project} viewed data={data ?? undefined} open={openIds.has(project.id)} onToggle={() => toggle(project.id)} keywordHref={hrefFor(project.id)} />
+        {others.map((p) => (
+          <OtherProject key={p.id} project={p} types={types} period={period} open={openIds.has(p.id)} onToggle={() => toggle(p.id)} keywordHref={hrefFor(p.id)} />
+        ))}
+      </div>
     </section>
   );
+}
+
+/** A folded project fetches its numbers the first time it is opened, and keeps them while the period stays the same. */
+function OtherProject({ project, types, period, open, onToggle, keywordHref }: {
+  project: ProjectSummary; types: MediaType[]; period: InsightPeriod; open: boolean; onToggle: () => void; keywordHref: (row: Row) => string;
+}) {
+  const [loaded, setLoaded] = useState(open);
+  if (open && !loaded) setLoaded(true);
+  const data = useProjectData(project.id, types, period, loaded);
+  return <ProjectGroup project={project} viewed={false} data={data} open={open} onToggle={onToggle} keywordHref={keywordHref} />;
 }
 
 // ── Section ─────────────────────────────────────────────────────────────────────
@@ -644,8 +675,7 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
 
       <div className={c.grid} data-cols={1 + Number(!!project) + Number(!!data?.hashtags || (!data && view !== "online"))}>
         {project && (
-          <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data}
-            keywordHref={(r) => href(r, { q: r.value })} />
+          <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data} types={wanted} period={period} from={from} />
         )}
         <Panel icon={IconTag} title="Topik teratas" text={view === "all" ? "Kategori terbanyak dari media sosial dan online" : "Kategori terbanyak, dengan perubahan dari periode sebelumnya"}>
           {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}

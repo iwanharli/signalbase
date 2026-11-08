@@ -25,6 +25,10 @@ const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{
 /**
  * A key's keywords as a Postgres full-text query (any keyword matches; multi-word keywords match as a phrase).
  * "polisi tidur" is a speed bump, not the police, so it never counts as "polisi". No keywords = no restriction.
+ *
+ * Every query against post_content_tsv / news_title_tsv must use the 'indonesian' config: the source database's triggers
+ * build those columns with pg_catalog.indonesian, which stores word stems ("kecelakaan" → celaka, "ditangkap" → tangkap).
+ * Querying with 'simple' would look for the unstemmed word and never match any keyword with an affix.
  */
 export function keywordQuery(keywords: string[]) {
   return keywords
@@ -47,7 +51,7 @@ function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown
   const social = type === "social";
   const where: string[] = [];
   const keywordTs = keywordQuery(scope.keywords);
-  if (keywordTs) where.push(`${c.search} @@ to_tsquery('simple', ${bind(keywordTs)})`);
+  if (keywordTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`);
   if (scope.analyzedOnly) where.push(`${c.mood} IS NOT NULL AND ${c.mood} <> ''`);
   if (scope.language === "id") where.push(`${c.language} = 'id'`);
   else if (scope.language === "other") where.push(`${c.language} IS DISTINCT FROM 'id'`);
@@ -76,7 +80,7 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   where.push(...scopeConditions(type, scope, bind));
 
   const search = get("q")?.trim();
-  if (search) where.push(`${c.search} @@ plainto_tsquery('simple', ${bind(search.slice(0, 200))})`);
+  if (search) where.push(`${c.search} @@ plainto_tsquery('indonesian', ${bind(search.slice(0, 200))})`);
 
   const from = get("from"), to = get("to");
   if (isDate(from)) where.push(`${c.timestamp} >= ${bind(from)}::date`);

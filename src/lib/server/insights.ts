@@ -61,7 +61,7 @@ async function keywordCounts(type: MediaType, scope: KeyScope, period: number): 
   const { where, values } = windowWhere(type, scope, period * 2);
   const columns = keywords.map((k, i) => {
     values.push(keywordQuery([k]));
-    return `count(*) FILTER (WHERE ${c.search} @@ to_tsquery('simple', $${values.length}))::int k${i}`;
+    return `count(*) FILTER (WHERE ${c.search} @@ to_tsquery('indonesian', $${values.length}))::int k${i}`;
   });
   values.push(period);
   const { rows } = await withLongTimeout(90_000, (client) => client.query<Record<string, number | string | boolean | null>>(

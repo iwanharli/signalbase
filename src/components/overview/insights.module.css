@@ -227,23 +227,27 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 .projectEdit { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 99px; font-size: 12px; font-weight: 700;
   text-decoration: none; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
 .projectEdit:hover { background: var(--mantine-color-violet-1); }
-.singleKw { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--mantine-color-gray-0); }
-.singleKw p { margin: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--mantine-color-dimmed); }
-.singleKw p b { font-size: 20px; color: var(--mantine-color-text); font-variant-numeric: tabular-nums; }
 .kwChips { display: flex; flex-wrap: wrap; gap: 6px; }
 .kwChips span { padding: 3px 10px; border-radius: 99px; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-0); }
-.otherProjects { display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px dashed var(--mantine-color-default-border); }
-.otherLabel { padding: 0 8px 2px; font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--mantine-color-dimmed); }
-.otherProject { display: grid; grid-template-columns: auto minmax(0, auto) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px; border-radius: 10px;
-  text-decoration: none; color: inherit; transition: background .15s; }
-.otherProject:hover { background: var(--mantine-color-gray-0); }
-.otherProject > svg:first-child { color: var(--mantine-color-teal-6); }
-.otherProject b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.otherProject small { font-size: 12px; color: var(--mantine-color-dimmed); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.otherProject > svg:last-child { color: var(--mantine-color-dimmed); }
-.manageProjects { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin-top: auto; font-size: 12.5px; font-weight: 700; text-decoration: none; color: var(--mantine-color-violet-7); }
-.projectStats { display: grid; grid-template-columns: 1.3fr 1fr .8fr; gap: 8px; }
-.projectStats > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: var(--mantine-color-gray-0); }
-.projectStats small { font-size: 11.5px; color: var(--mantine-color-dimmed); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.projectStats b { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.projectStats .delta { font-size: 11.5px; }
+
+/* Keywords grouped per project */
+.groups { display: flex; flex-direction: column; gap: 8px; }
+.group { border-radius: 14px; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); overflow: hidden; transition: border-color .15s; }
+.group[data-open] { border-color: color-mix(in srgb, var(--mantine-color-violet-4) 45%, var(--mantine-color-default-border)); }
+.group[data-viewed] { box-shadow: inset 3px 0 0 var(--mantine-color-teal-5); }
+.groupHead { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 12px 14px;
+  border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.groupHead:hover { background: var(--mantine-color-gray-0); }
+.groupHead:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: -2px; }
+.groupChevron { color: var(--mantine-color-dimmed); transition: transform .2s; }
+.group[data-open] .groupChevron { transform: rotate(90deg); color: var(--mantine-color-violet-6); }
+.groupName { min-width: 0; display: flex; flex-direction: column; }
+.groupName b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.groupName small { font-size: 11.5px; color: var(--mantine-color-dimmed); }
+.groupTotal { display: inline-flex; align-items: baseline; gap: 6px; }
+.groupTotal b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.groupLoading { font-size: 12px; color: var(--mantine-color-dimmed); }
+.groupBody { display: flex; flex-direction: column; gap: 8px; padding: 4px 10px 12px; border-top: 1px solid var(--mantine-color-default-border); }
+.groupLinks { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 8px; }
+.groupLinks a { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; text-decoration: none; color: var(--mantine-color-violet-7); }
+.groupBody .kwChips { padding: 8px; }

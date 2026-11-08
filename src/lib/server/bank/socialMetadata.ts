@@ -8,7 +8,7 @@ export function socialMetadataQuery(codes: string[], keywords: string[]) {
   return {
     text: `SELECT p.post_code code, p.post_language language, p.post_url "sourceUrl",
        ARRAY(SELECT k.keyword FROM unnest($2::text[], $3::text[]) WITH ORDINALITY AS k(keyword, query, position)
-             WHERE p.post_content_tsv @@ to_tsquery('simple', k.query) ORDER BY k.position) "matchedKeywords"
+             WHERE p.post_content_tsv @@ to_tsquery('indonesian', k.query) ORDER BY k.position) "matchedKeywords"
      FROM post_main p WHERE p.post_code = ANY($1)`,
     values: [codes, searchable.map((entry) => entry.keyword), searchable.map((entry) => entry.query)],
     keywordRestricted: searchable.length > 0,
@@ -30,7 +30,7 @@ export async function matchedKeywords(type: MediaType, codes: string[], keywords
   const c = COLUMNS[type];
   const { rows } = await bankPool().query<{ code: string; matched: string[] }>(
     `SELECT ${c.code} code, ARRAY(SELECT k.keyword FROM unnest($2::text[], $3::text[]) WITH ORDINALITY AS k(keyword, query, position)
-       WHERE ${c.search} @@ to_tsquery('simple', k.query) ORDER BY k.position) matched
+       WHERE ${c.search} @@ to_tsquery('indonesian', k.query) ORDER BY k.position) matched
      FROM ${c.from.split(" LEFT JOIN")[0]} WHERE ${c.code} = ANY($1)`,
     [codes, searchable.map((e) => e.keyword), searchable.map((e) => e.query)],
   );
