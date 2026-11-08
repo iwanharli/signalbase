@@ -2,11 +2,13 @@
 import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { theme } from "@/theme";
+import { ChunkRecovery } from "./errors/ChunkRecovery";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
       <Notifications position="top-right" />
+      <ChunkRecovery />
       {children}
     </MantineProvider>
   );

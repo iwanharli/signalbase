@@ -98,3 +98,9 @@
 .creator span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .creator i { flex-shrink: 0; }
 .creator i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-style: normal; font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee); }
+
+/* Users page: reminder in the toolbar when sign-ups wait for approval. */
+.pendingNote { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: 99px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--mantine-color-orange-8);
+  background: var(--mantine-color-orange-0); border: 1px solid var(--mantine-color-orange-2); transition: background .15s; }
+.pendingNote:hover { background: var(--mantine-color-orange-1); }

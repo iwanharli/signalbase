@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Select, Skeleton, Stack, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconCreditCard, IconPlayerPause, IconPlayerPlay, IconUserPlus, IconUsers, IconX } from "@tabler/icons-react";
+import { IconArrowRight, IconCheck, IconClockHour4, IconCreditCard, IconPlayerPause, IconPlayerPlay, IconUserPlus, IconUsers, IconX } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
 import { daysLeft, PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, TRIAL_DAYS, type PlanId } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
@@ -82,12 +82,13 @@ const TABS: { id: Status; label: string }[] = [
   { id: "active", label: "Aktif" },
   { id: "suspended", label: "Nonaktif" },
 ];
-const STATUS_PILL = { pending: ["warning", "Menunggu"], active: ["success", "Aktif"], suspended: ["danger", "Nonaktif"] } as const;
-const COLUMNS = { ["--cols" as string]: "minmax(0,1.5fr) minmax(0,.7fr) minmax(0,1fr) minmax(0,.6fr) minmax(0,.9fr) auto" };
+// Every row is its own grid, so every column needs a width that doesn't depend on its content (no "auto"),
+// or the header and the rows drift apart. Status is left out: the tab already says it.
+const COLUMNS = { ["--cols" as string]: "minmax(220px,1.6fr) minmax(170px,1.1fr) 90px 180px 250px" };
 
 export function UserList() {
   const users = useApi<UserRow[]>("/api/admin/users");
-  const [tab, setTab] = useState<Status>("pending");
+  const [tab, setTab] = useState<Status>("active");
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const count = (s: Status) => users.data?.filter((u) => u.status === s).length ?? 0;
@@ -133,17 +134,21 @@ export function UserList() {
               </button>
             ))}
           </div>
+          {tab !== "pending" && count("pending") > 0 && (
+            <button type="button" className={classes.pendingNote} onClick={() => setTab("pending")}>
+              <IconClockHour4 size={15} />{count("pending")} pendaftar menunggu persetujuan<IconArrowRight size={14} />
+            </button>
+          )}
         </div>
 
         <div className={classes.head} role="row" style={COLUMNS}>
-          <span role="columnheader">Pengguna</span><span role="columnheader">Status</span><span role="columnheader">Paket</span><span role="columnheader">Proyek</span>
+          <span role="columnheader">Pengguna</span><span role="columnheader">Paket</span><span role="columnheader">Proyek</span>
           <span role="columnheader">Mendaftar</span><span role="columnheader">Aksi</span>
         </div>
 
         {!users.data ? (
           Array.from({ length: 3 }, (_, i) => <div key={i} className={classes.skeletonRow}><Skeleton h={22} radius="md" /></div>)
         ) : rows.length ? rows.map((u) => {
-          const [tone, label] = STATUS_PILL[u.status];
           const working = busy === u.id;
           return (
             <div key={u.id} className={classes.row} role="row" style={COLUMNS}>
@@ -151,10 +156,9 @@ export function UserList() {
                 <span className={classes.icon}>{u.name.charAt(0).toUpperCase()}</span>
                 <span className={classes.name}><b>{u.name}</b><code>@{u.username}</code></span>
               </div>
-              <div className={classes.cell} role="cell"><StatusPill tone={tone}>{label}</StatusPill></div>
               <div className={classes.cell} role="cell"><PlanCell user={u} /></div>
               <div className={classes.cell} role="cell">{u.keys ? u.keys : <span className={classes.muted}>—</span>}</div>
-              <div className={classes.cell} role="cell">{fromNow(u.createdAt)}</div>
+              <div className={classes.cell} role="cell" title={new Date(u.createdAt).toLocaleString("id-ID")}>{fromNow(u.createdAt)}</div>
               <div className={classes.actions} role="cell">
                 <ButtonGroup>
                   {u.status === "pending" && <>
