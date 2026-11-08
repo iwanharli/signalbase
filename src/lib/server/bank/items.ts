@@ -58,21 +58,26 @@ const PROFILE: Record<string, (u: string) => string> = {
 };
 
 // Names come as "Display ( handle )" on some sources and percent-encoded on others.
-function cleanName(raw: string | null) {
+export function cleanName(raw: string | null) {
   if (!raw) return null;
   let s = raw.replace(/\s*\([^()]*\)\s*$/, "").trim();
   try { s = decodeURIComponent(s); } catch { /* not encoded */ }
   return decodeTextEntities(s) || null;
 }
 
+/** Profile link built from a platform username, when the platform's URLs follow the username. */
+export function profileLink(source: string, username: string | null) {
+  const profile = PROFILE[source] as ((u: string) => string) | undefined;
+  return username && profile && /^[\w.]{1,60}$/.test(username) ? profile(username) : null;
+}
+
 function toAuthor(row: any, extra: any): Author | null {
   if (!row.author && !row.username) return null;
   const username = row.username || null;
-  const profile = PROFILE[row.source] as ((u: string) => string) | undefined;
   return {
     name: cleanName(row.author) ?? cleanName(extra.nama ?? null),
     username,
-    profileUrl: safeUrl(extra.profile_url ?? null) ?? (username && profile && /^[\w.]{1,60}$/.test(username) ? profile(username) : null),
+    profileUrl: safeUrl(extra.profile_url ?? null) ?? profileLink(row.source, username),
     accountType: row.account_type ?? null,
     followers: toNumber(extra.follower),
     following: toNumber(extra.following),
@@ -95,10 +100,10 @@ function toItem(row: any): MediaItem {
     publishedAt: new Date(row.ts).toISOString(),
     mood: row.mood,
     moodLevel: row.moodLevel,
-    // Twitter stores comment/retweet, Threads reply/repost, others share.
+    // Twitter stores comment/retweet, Threads reply/repost, Facebook komentar, others share.
     metrics: {
       likes: toNumber(extra.like),
-      comments: toNumber(extra.comment ?? extra.reply),
+      comments: toNumber(extra.comment ?? extra.reply ?? extra.komentar),
       shares: toNumber(extra.retweet ?? extra.repost ?? extra.share),
       views: toNumber(extra.view),
     },

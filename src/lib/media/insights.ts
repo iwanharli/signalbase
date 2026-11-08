@@ -20,6 +20,18 @@ export type Alert =
 export type PulseWindow = { total: number; labelled: number; neg: number; hot: number };
 export type Pulse = { now: PulseWindow; avg: PulseWindow };
 
+/** Engagement totals of one platform. A metric is null when the platform doesn't record it. */
+export type EngagementMetrics = { likes: number | null; comments: number | null; shares: number | null };
+export type PlatformEngagement = { source: string; posts: number; current: EngagementMetrics; previous: EngagementMetrics };
+
+/** Most active social account: posts this period and the one before, how many were labelled and negative, likes. */
+export type TopAccount = {
+  source: string; username: string; name: string | null; profileUrl: string | null;
+  n: number; prev: number; labelled: number; neg: number; likes: number;
+};
+/** Most active news outlet, same counts without likes. */
+export type TopMedia = { source: string; n: number; prev: number; labelled: number; neg: number };
+
 export type Insights = {
   period: InsightPeriod;
   trend: TrendPoint[];
@@ -30,6 +42,12 @@ export type Insights = {
   hashtags: Ranked[] | null;
   alerts: Alert[];
   pulse: Pulse;
+  /** Social only: likes, comments and shares per platform, this period and the one before. */
+  engagement: PlatformEngagement[] | null;
+  /** Social only: the 10 accounts with the most posts. */
+  accounts: TopAccount[] | null;
+  /** Online only: the 10 outlets with the most articles. */
+  media: TopMedia[] | null;
   /** Newest high-intensity negative posts of the last 24 hours (social only). */
   intense: MediaItem[];
   at: string;

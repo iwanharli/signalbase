@@ -7,18 +7,20 @@ import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconFlame, IconHash, IconLayoutGrid, IconMessages, IconMoodSad,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import {
-  INSIGHT_PERIODS, type Alert, type InsightPeriod, type Insights as InsightsData, type PeriodTotals, type PulseWindow, type Ranked,
+  INSIGHT_PERIODS, type Alert, type EngagementMetrics, type InsightPeriod, type Insights as InsightsData, type PeriodTotals, type PlatformEngagement,
+  type PulseWindow, type Ranked, type TopAccount, type TopMedia,
 } from "@/lib/media/insights";
 import { capitalize, formatNumber, humanize, MEDIA_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
+import { PlatformMark } from "../media/PlatformIcon";
 import c from "./insights.module.css";
 
 dayjs.extend(relativeTime);
@@ -34,6 +36,8 @@ type ViewData = {
   trend: InsightsData["trend"]; current: PeriodTotals; previous: PeriodTotals; at: string;
   categories: Row[]; keywords: Row[] | null; hashtags: Row[] | null;
   now: PulseWindow; avg: PulseWindow; spikes: Spike[]; intense: MediaItem[]; hasSocial: boolean;
+  engagement: PlatformEngagement[] | null;
+  accounts: TopAccount[] | null; media: TopMedia[] | null;
 };
 
 const TONES: { key: Tone; label: string }[] = [
@@ -107,6 +111,9 @@ function viewData(parts: [MediaType, InsightsData][]): ViewData | null {
     avg: rest.reduce((acc, d) => sumWindow(acc, d.pulse.avg), first.pulse.avg),
     spikes: parts.flatMap(([t, d]) => d.alerts.filter((a): a is Extract<Alert, { kind: "spike" }> => a.kind === "spike").map((a) => ({ ...a, t }))),
     intense: social?.intense ?? [],
+    engagement: social?.engagement ?? null,
+    accounts: social?.accounts ?? null,
+    media: parts.find(([t]) => t === "online")?.[1].media ?? null,
     hasSocial: !!social,
   };
 }
@@ -311,6 +318,98 @@ function RankedList({ items, label, href, showNeg }: { items: Row[]; label: (v: 
   );
 }
 
+const METRICS: { key: keyof EngagementMetrics; label: string; icon: typeof IconHeart }[] = [
+  { key: "likes", label: "Like", icon: IconHeart },
+  { key: "comments", label: "Komentar", icon: IconMessageCircle },
+  { key: "shares", label: "Share / repost", icon: IconRepeat },
+];
+
+/** Totals with their change, then a platform table with an in-column bar per metric ("—" where a platform doesn't record it). */
+function Engagement({ rows, href }: { rows: PlatformEngagement[]; href: (source: string) => string }) {
+  if (!rows.length) return <p className={c.empty}>Belum ada post media sosial pada periode ini.</p>;
+  const total = (key: keyof EngagementMetrics, side: "current" | "previous") => rows.reduce((t, r) => t + (r[side][key] ?? 0), 0);
+  const max = Object.fromEntries(METRICS.map((m) => [m.key, Math.max(1, ...rows.map((r) => r.current[m.key] ?? 0))])) as Record<keyof EngagementMetrics, number>;
+  return (
+    <div className={c.engagement}>
+      <div className={c.engTotals}>
+        {METRICS.map((m) => (
+          <div key={m.key} data-metric={m.key}>
+            <span><m.icon size={15} />{m.label}</span>
+            <b>{formatNumber(total(m.key, "current"))}<Delta now={total(m.key, "current")} before={total(m.key, "previous")} /></b>
+            <small>sebelumnya {formatNumber(total(m.key, "previous"))}</small>
+          </div>
+        ))}
+      </div>
+
+      <div className={c.engTable} role="table" aria-label="Engagement per platform">
+        <div className={c.engHead} role="row">
+          <span role="columnheader">Platform</span><span role="columnheader">Post</span>
+          {METRICS.map((m) => <span key={m.key} role="columnheader">{m.label}</span>)}
+        </div>
+        {rows.map((r) => (
+          <Link key={r.source} href={href(r.source)} className={c.engRow} role="row">
+            <span role="cell" className={c.engPlatform}>{sourceLabel(r.source)}</span>
+            <span role="cell" className={c.engPosts}>{formatNumber(r.posts)}</span>
+            {METRICS.map((m) => {
+              const v = r.current[m.key];
+              return (
+                <span key={m.key} role="cell" className={c.engCell} data-metric={m.key} data-label={m.label} title={v === null ? `${sourceLabel(r.source)} tidak mencatat ${m.label.toLowerCase()}` : undefined}>
+                  {v === null ? <em>—</em> : <>
+                    <b>{formatNumber(v)}</b>
+                    <i><s style={{ width: `${(v / max[m.key]) * 100}%` }} /></i>
+                  </>}
+                </span>
+              );
+            })}
+          </Link>
+        ))}
+      </div>
+      <p className={c.note}>Angka dicatat saat post diambil, jadi menggambarkan engagement awal, bukan total akhir. &ldquo;—&rdquo; berarti platform tersebut tidak mencatat metrik itu.</p>
+    </div>
+  );
+}
+
+/** Share of negative among labelled items, as a small red bar with the percentage. */
+function NegShare({ neg, labelled }: { neg: number; labelled: number }) {
+  if (!labelled) return <span className={c.topNeg} data-empty>belum dianalisis</span>;
+  const share = pct(neg, labelled);
+  return <span className={c.topNeg} title={`${formatNumber(neg)} dari ${formatNumber(labelled)} teranalisis bernada negatif`}><i><s style={{ width: `${share}%` }} /></i>{fmtPct(share)} negatif</span>;
+}
+
+/** Ranked accounts or outlets: rank, name, count with change, negative share, and an extra figure (likes). */
+function TopList<T extends { n: number; prev: number; labelled: number; neg: number }>({ rows, empty, render }: {
+  rows: T[]; empty: string;
+  render: (row: T) => { key: string; name: React.ReactNode; sub?: React.ReactNode; href: string | null; external?: boolean; mark: React.ReactNode };
+}) {
+  if (!rows.length) return <p className={c.empty}>{empty}</p>;
+  const max = Math.max(1, ...rows.map((r) => r.n));
+  return (
+    <ol className={c.top}>
+      {rows.map((row, i) => {
+        const r = render(row);
+        const body = (
+          <>
+            <span className={c.topRank}>{i + 1}</span>
+            <span className={c.topMark}>{r.mark}</span>
+            <span className={c.topName}><b>{r.name}</b>{r.sub && <small>{r.sub}</small>}</span>
+            <span className={c.topCount}><b>{formatNumber(row.n)}</b><Delta now={row.n} before={row.prev} /></span>
+            <span className={c.topBar}><i style={{ width: `${(row.n / max) * 100}%` }} /></span>
+            <NegShare neg={row.neg} labelled={row.labelled} />
+          </>
+        );
+        return (
+          <li key={r.key}>
+            {r.href ? (r.external
+              ? <a href={r.href} target="_blank" rel="noopener noreferrer" className={c.topRow}>{body}</a>
+              : <Link href={r.href} className={c.topRow}>{body}</Link>)
+              : <div className={c.topRow}>{body}</div>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Panel({ icon: Icon, title, text, children }: { icon: typeof IconTag; title: string; text: string; children: React.ReactNode }) {
   return (
     <section className={c.panel}>
@@ -380,6 +479,43 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline }: { keyI
         <Panel icon={IconArrowUpRight} title="Dibanding periode sebelumnya" text={`${period} hari terakhir vs ${period} hari sebelumnya`}>
           {data ? <Compare current={data.current} previous={data.previous} period={period} /> : <Skeleton h={220} radius="md" />}
         </Panel>
+      </div>
+
+      {view !== "online" && (
+        <Panel icon={IconHeart} title="Engagement per platform" text={`Like, komentar, dan share media sosial, ${period} hari terakhir dibanding ${period} hari sebelumnya`}>
+          {data ? (data.engagement ? <Engagement rows={data.engagement} href={(source) => mediaHref("social", keyId, { source, from })} /> : <p className={c.empty}>Tidak ada data media sosial dalam cakupan ini.</p>)
+            : <Skeleton h={260} radius="md" />}
+        </Panel>
+      )}
+
+      <div className={c.grid} data-cols={view === "all" ? 2 : 1}>
+        {view !== "online" && (
+          <Panel icon={IconUsers} title="10 akun teratas" text={`Akun media sosial dengan post terbanyak, ${period} hari terakhir`}>
+            {data ? (
+              <TopList rows={data.accounts ?? []} empty="Belum ada akun pada periode ini."
+                render={(a) => ({
+                  key: `${a.source}:${a.username}`,
+                  mark: <PlatformMark source={a.source} size={16} />,
+                  name: a.name && a.name !== a.username ? a.name : `@${a.username}`,
+                  sub: <>{a.name && a.name !== a.username ? `@${a.username} · ` : ""}{sourceLabel(a.source)}{a.likes > 0 && ` · ${formatNumber(a.likes)} like`}</>,
+                  href: a.profileUrl, external: true,
+                })} />
+            ) : <Skeleton h={420} radius="md" />}
+          </Panel>
+        )}
+        {view !== "social" && (
+          <Panel icon={IconNews} title="10 media teratas" text={`Media online dengan berita terbanyak, ${period} hari terakhir`}>
+            {data ? (
+              <TopList rows={data.media ?? []} empty="Belum ada berita pada periode ini."
+                render={(m) => ({
+                  key: m.source,
+                  mark: <IconWorldWww size={16} />,
+                  name: sourceLabel(m.source),
+                  href: mediaHref("online", keyId, { source: m.source, from }),
+                })} />
+            ) : <Skeleton h={420} radius="md" />}
+          </Panel>
+        )}
       </div>
 
       <div className={c.grid} data-cols={1 + Number(!!data?.keywords) + Number(!!data?.hashtags || (!data && view !== "online"))}>
