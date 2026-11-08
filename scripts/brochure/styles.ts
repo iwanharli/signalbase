@@ -185,13 +185,14 @@ body { font-family: Inter, system-ui, sans-serif; color: #18162c; -webkit-print-
 .table .hl { background: #f7f4ff; }
 .table thead .hl { color: #6d28d9; }
 .table .group th { padding-top: 10px; font-size: 7.5pt; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--violet); background: #fff; }
+.rowNote { display: block; font-size: 7pt; font-weight: 450; color: #8a84a0; }
 .yes { color: #10b981; } .no { color: #c9c5d6; }
 
 /* FAQ */
-.faq { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
-.faq > div { padding: 12px 14px; border-radius: 14px; background: #f7f5fc; }
+.faq { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-bottom: 6mm; }
+.faq > div { padding: 10px 12px; border-radius: 12px; background: #f7f5fc; }
 .faq b { display: block; font-size: 9.5pt; margin-bottom: 4px; }
-.faq p { margin: 0; font-size: 8.5pt; line-height: 1.5; color: var(--muted); }
+.faq p { margin: 0; font-size: 8pt; line-height: 1.45; color: var(--muted); }
 .cta { display: flex; align-items: center; gap: 16px; margin-top: auto; padding: 18px 20px; border-radius: 18px; color: #fff; background: radial-gradient(90% 140% at 0% 0%, rgba(124,58,237,.5), transparent 60%), radial-gradient(80% 120% at 100% 100%, rgba(34,211,238,.3), transparent 60%), #0d0b1f; }
 .cta h3 { margin: 0 0 4px; font-size: 14pt; }
 .cta p { margin: 0; font-size: 9pt; line-height: 1.5; color: rgba(255,255,255,.7); }

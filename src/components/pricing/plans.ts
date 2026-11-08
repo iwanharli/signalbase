@@ -21,27 +21,30 @@ export type Plan = {
 export const TRIAL = {
   days: 7,
   cta: { label: "Mulai trial 7 hari", href: "/register?plan=trial" },
-  includes: ["Fitur Pro: analisis isi & Signalbase AI (500 item)", "Media sosial & online", "1 kunci API, 2 keyword", "Riwayat 30 hari", "5.000 permintaan API / hari"],
+  includes: ["Fitur Pro: analisis isi & kategorisasi AI otomatis (500 post)", "Media sosial & online", "1 kunci API, 2 keyword", "Riwayat 30 hari", "5.000 panggilan API per akun / hari"],
 };
 
-/** Yearly billing pays for 10 months and gets 12. */
-export const YEARLY_MONTHS_PAID = 10;
+/** Yearly billing: 12 months with this discount. */
+export const YEARLY_DISCOUNT = 0.1;
+export const YEARLY_DISCOUNT_LABEL = `Hemat ${Math.round(YEARLY_DISCOUNT * 100)}%`;
+/** Price for a full year, rounded to the nearest Rp10.000. */
+export const yearlyPrice = (monthly: number) => Math.round((monthly * 12 * (1 - YEARLY_DISCOUNT)) / 10_000) * 10_000;
 
 export const PLANS: Plan[] = [
   {
     id: "starter", name: "Starter", tagline: "Untuk tim humas atau unit kecil yang memantau isu tertentu.", monthly: 1_490_000,
     cta: { label: "Pilih Starter", href: "/register?plan=starter" },
-    highlights: ["2 kunci API", "10 keyword per kunci", "Media sosial & online", "Riwayat 30 hari", "Analisis emosi & sentimen", "10.000 permintaan API / hari"],
+    highlights: ["2 kunci API", "3 keyword per kunci", "Media sosial & online", "Riwayat 30 hari", "Analisis emosi & sentimen", "10.000 panggilan API per akun / hari"],
   },
   {
     id: "pro", name: "Pro", tagline: "Untuk organisasi yang memantau banyak isu dan menghubungkannya ke aplikasi.", monthly: 3_490_000, featured: true,
     cta: { label: "Pilih Pro", href: "/register?plan=pro" },
-    highlights: ["5 kunci API", "30 keyword per kunci", "Riwayat 1 tahun", "Analisis isi: ringkasan, sasaran & relevansi", "Signalbase AI: 20.000 item / bulan, tanpa API key", "Filter wilayah & kategori", "100.000 permintaan API / hari"],
+    highlights: ["5 kunci API", "7 keyword per kunci", "Riwayat 1 tahun", "Analisis isi: ringkasan, sasaran & relevansi", "Kategorisasi AI otomatis hingga 20.000 post/bulan (tanpa perlu akun AI sendiri)", "Filter wilayah & kategori", "100.000 panggilan API per akun / hari"],
   },
   {
     id: "instansi", name: "Instansi", tagline: "Untuk pemerintah dan korporat dengan kebutuhan data dan pendampingan khusus.", monthly: 7_000_000, startsFrom: true,
     cta: { label: "Hubungi kami", href: "/register?plan=instansi" },
-    highlights: ["Kunci API tanpa batas", "Seluruh arsip data", "Analisis terlengkap: skor, sinyal, faktor, topik & watchlist", "Signalbase AI dengan model enhancement", "Pendampingan & pelatihan tim", "SLA & dukungan prioritas"],
+    highlights: ["Kunci API tanpa batas", "Seluruh arsip data", "Analisis terlengkap: skor, sinyal, faktor, topik & watchlist", "Kategorisasi AI otomatis dengan model enhancement", "Pendampingan & pelatihan tim", "SLA & dukungan prioritas"],
   },
 ];
 
@@ -49,7 +52,7 @@ export const PLANS: Plan[] = [
 export const COMPARISON_COLUMNS = ["Trial 7 hari", "Starter", "Pro", "Instansi"];
 
 /** Comparison table: one row per feature, one value per column (true = included, false = not, string = the limit). */
-export const COMPARISON: { group: string; rows: { label: string; values: (string | boolean)[] }[] }[] = [
+export const COMPARISON: { group: string; rows: { label: string; note?: string; values: (string | boolean)[] }[] }[] = [
   {
     group: "Data", rows: [
       { label: "Media sosial", values: [true, true, true, true] },
@@ -72,16 +75,16 @@ export const COMPARISON: { group: string; rows: { label: string; values: (string
   {
     group: "Kunci & API", rows: [
       { label: "Kunci API", values: ["1", "2", "5", "Tanpa batas"] },
-      { label: "Keyword per kunci", values: ["2", "10", "30", "30"] },
-      { label: "Permintaan API / hari", values: ["5.000", "10.000", "100.000", "Sesuai kebutuhan"] },
+      { label: "Keyword per kunci", values: ["2", "3", "7", "30"] },
+      { label: "Panggilan API per akun / hari", note: "Dibagi untuk semua kunci; 1 panggilan = sampai 100 post", values: ["5.000", "10.000", "100.000", "Sesuai kebutuhan"] },
       { label: "Filter wilayah & kategori pada kunci", values: [true, false, true, true] },
     ],
   },
   {
     group: "AI & kategorisasi", rows: [
       { label: "Kategorisasi AI dengan kategori sendiri", values: [true, false, true, true] },
-      { label: "Signalbase AI, tanpa API key", values: [true, false, true, true] },
-      { label: "Kuota Signalbase AI", values: ["500 item", false, "20.000 item / bulan", "Sesuai kontrak"] },
+      { label: "Kategorisasi AI otomatis, tanpa perlu akun AI sendiri", values: [true, false, true, true] },
+      { label: "Kuota kategorisasi AI", values: ["500 post", false, "20.000 post / bulan", "Sesuai kontrak"] },
       { label: "Model enhancement (lebih akurat)", values: [false, false, false, true] },
       { label: "Bawa kunci AI sendiri, tanpa batas kuota", values: [false, false, true, true] },
       { label: "Tinjau & koreksi hasil AI", values: [true, false, true, true] },
@@ -95,15 +98,16 @@ export const COMPARISON: { group: string; rows: { label: string; values: (string
 ];
 
 export const PRICING_FAQS = [
-  ["Apakah ada paket gratis?", "Tidak ada paket gratis selamanya. Sebagai gantinya, setiap akun baru mendapat trial 7 hari dengan hampir semua fitur Pro, termasuk analisis isi (ringkasan, sasaran, relevansi) dan Signalbase AI untuk 500 item, dengan kuota kecil: 1 kunci API, 2 keyword, dan riwayat 30 hari."],
+  ["Apakah ada paket gratis?", "Tidak ada paket gratis selamanya. Sebagai gantinya, setiap akun baru mendapat trial 7 hari dengan hampir semua fitur Pro, termasuk analisis isi (ringkasan, sasaran, relevansi) dan kategorisasi AI otomatis untuk 500 post, dengan kuota kecil: 1 kunci API, 2 keyword, dan riwayat 30 hari."],
   ["Apa yang terjadi setelah trial berakhir?", "Kunci API berhenti bekerja sampai Anda memilih paket. Kunci, keyword, dan pengaturan AI tetap tersimpan, jadi langsung aktif kembali setelah paket dipilih."],
   ["Apakah akun langsung aktif setelah daftar?", "Belum. Setiap pendaftaran ditinjau admin terlebih dahulu. Trial 7 hari dimulai saat akun disetujui."],
-  ["Bagaimana cara membayar?", "Setelah akun disetujui, tim kami mengirim tagihan sesuai paket. Pembayaran tahunan mendapat potongan setara dua bulan."],
+  ["Bagaimana cara membayar?", "Setelah akun disetujui, tim kami mengirim tagihan sesuai paket. Pembayaran tahunan mendapat potongan 10%."],
   ["Bisakah berganti paket?", "Bisa, kapan saja. Batas kunci, keyword, dan riwayat mengikuti paket baru mulai periode tagihan berikutnya."],
   ["Apa beda analisis bank data dan kategorisasi AI?", "Analisis bank data sudah tersedia di sumber untuk setiap post: emosi, sentimen, ringkasan, sasaran, dan relevansi, serta skor, sinyal, faktor, topik, dan label watchlist pada paket Instansi. Kategorisasi AI adalah pengelompokan tambahan dengan kategori yang Anda tentukan sendiri untuk setiap kunci."],
-  ["Apa itu Signalbase AI?", "Model kategorisasi yang disediakan Signalbase. Anda cukup menentukan kategori; tidak perlu membuat akun atau memasukkan API key penyedia AI. Pemakaian dihitung per item yang dikategorikan dan sudah termasuk dalam paket."],
+  ["Apa itu Signalbase AI?", "Model kategorisasi yang disediakan Signalbase. Anda cukup menentukan kategori; tidak perlu membuat akun atau memasukkan API key penyedia AI. Pemakaian dihitung per post atau berita yang dikategorikan, dan sudah termasuk dalam paket."],
   ["Apa itu model enhancement?", "Model dan instruksi yang disetel khusus untuk kebutuhan instansi, sehingga hasil kategorisasi lebih akurat dan konsisten. Tersedia di paket Instansi."],
   ["Bagaimana jika kuota Signalbase AI habis?", "Kategorisasi dijeda sampai kuota bulan berikutnya, data media tetap bisa diakses. Di paket Pro Anda juga bisa memakai kunci AI sendiri (misalnya Claude, OpenAI, atau DeepSeek) tanpa batas kuota; biayanya ditagih langsung oleh penyedia tersebut."],
+  ["Bagaimana batas panggilan API dihitung?", "Per akun, bukan per kunci: semua kunci API milik akun berbagi jatah harian yang sama. Satu panggilan mengambil sampai 100 post atau berita. Pemakaian per kunci terlihat di panel, sehingga Anda tahu aplikasi mana yang paling banyak memanggil."],
   ["Apakah data saya terpisah dari pengguna lain?", "Ya. Setiap kunci punya keyword dan cakupan sendiri, dan hanya pemiliknya yang bisa melihat atau mengubahnya."],
 ] as const;
 

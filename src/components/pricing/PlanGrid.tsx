@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { IconArrowUpRight, IconCheck, IconClockHour4, IconSparkles } from "@tabler/icons-react";
-import { formatRupiah, PLANS, TRIAL, YEARLY_MONTHS_PAID, type Billing, type Plan } from "./plans";
+import { formatRupiah, PLANS, TRIAL, YEARLY_DISCOUNT_LABEL, yearlyPrice, type Billing, type Plan } from "./plans";
 import c from "./pricing.module.css";
 
 function Price({ plan, billing }: { plan: Plan; billing: Billing }) {
@@ -16,11 +16,11 @@ function Price({ plan, billing }: { plan: Plan; billing: Billing }) {
       </div>
     );
   }
-  const perMonth = billing === "yearly" ? (plan.monthly * YEARLY_MONTHS_PAID) / 12 : plan.monthly;
+  const perMonth = billing === "yearly" ? yearlyPrice(plan.monthly) / 12 : plan.monthly;
   return (
     <div className={c.price}>
       <b>{formatRupiah(Math.round(perMonth / 1000) * 1000)}<span>/bulan</span></b>
-      <small>{billing === "yearly" ? `${formatRupiah(plan.monthly * YEARLY_MONTHS_PAID)} ditagih per tahun` : "Ditagih bulanan"}</small>
+      <small>{billing === "yearly" ? `${formatRupiah(yearlyPrice(plan.monthly))} ditagih per tahun` : "Ditagih bulanan"}</small>
     </div>
   );
 }
@@ -33,7 +33,7 @@ export function PlanGrid() {
         {(["monthly", "yearly"] as const).map((b) => (
           <button key={b} type="button" role="radio" aria-checked={billing === b} data-active={billing === b || undefined} onClick={() => setBilling(b)}>
             {b === "monthly" ? "Bulanan" : "Tahunan"}
-            {b === "yearly" && <em>Hemat 2 bulan</em>}
+            {b === "yearly" && <em>{YEARLY_DISCOUNT_LABEL}</em>}
           </button>
         ))}
       </div>

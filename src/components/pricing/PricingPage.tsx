@@ -39,7 +39,7 @@ export function PricingPage() {
                   <tr className={c.groupRow}><th scope="rowgroup" colSpan={COMPARISON_COLUMNS.length + 1}>{group.group}</th></tr>
                   {group.rows.map((row) => (
                     <tr key={row.label}>
-                      <th scope="row">{row.label}</th>
+                      <th scope="row">{row.label}{row.note && <small className={c.rowNote}>{row.note}</small>}</th>
                       {row.values.map((v, i) => <td key={i} data-featured={COMPARISON_COLUMNS[i] === "Pro" || undefined}><Cell value={v} /></td>)}
                     </tr>
                   ))}

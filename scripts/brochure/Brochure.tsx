@@ -6,7 +6,7 @@ import {
   IconCheck, IconClockHour4, IconKey, IconLock, IconMinus, IconPlugConnected, IconSearch, IconShieldCheck, IconSparkles, IconUsers, IconWorldWww,
 } from "@tabler/icons-react";
 import { AI_POINTS, AI_PROVIDERS, API_POINTS, FEATURES, STEPS, USE_CASES } from "../../src/components/landing/content";
-import { BROCHURE_EDITION, COMPARISON, COMPARISON_COLUMNS, formatRupiah, PLANS, PRICING_FAQS, TRIAL, YEARLY_MONTHS_PAID } from "../../src/components/pricing/plans";
+import { BROCHURE_EDITION, COMPARISON, COMPARISON_COLUMNS, formatRupiah, PLANS, PRICING_FAQS, TRIAL, YEARLY_DISCOUNT, yearlyPrice } from "../../src/components/pricing/plans";
 import { ANALYSED_TOTAL, ARCHIVE, ARCHIVE_TOTAL, AS_OF, compactId, DAILY, MOODS, ONLINE_OUTLETS, PER_DAY, PROVINCES, SOCIAL_PLATFORMS } from "./stats";
 import { css } from "./styles";
 
@@ -216,7 +216,7 @@ function Analysis() {
           <span className="tag cyan">SIGNALBASE AI</span>
           <h3>Kategori Anda, cara pandang Anda</h3>
           <ul className="checks">{AI_POINTS.map((t) => <li key={t}><IconCheck size={15} />{t}</li>)}</ul>
-          <p className="muted">Tanpa API key: Signalbase AI sudah termasuk dalam paket Pro dan Instansi. Paket Instansi memakai model enhancement yang disetel khusus.</p>
+          <p className="muted">Tanpa perlu akun AI sendiri: kategorisasi AI otomatis sudah termasuk dalam paket Pro dan Instansi. Paket Instansi memakai model enhancement yang disetel khusus.</p>
         </div>
       </div>
       <div className="example">
@@ -306,7 +306,7 @@ function Solutions() {
 function Pricing() {
   return (
     <Sheet n={7} title="Paket & harga">
-      <Heading label="PAKET & HARGA" title="Paket yang tumbuh" accent="bersama kebutuhan Anda." text={`Mulai dengan trial ${TRIAL.days} hari, lalu pilih paket. Pembayaran tahunan hemat setara ${12 - YEARLY_MONTHS_PAID} bulan.`} />
+      <Heading label="PAKET & HARGA" title="Paket yang tumbuh" accent="bersama kebutuhan Anda." text={`Mulai dengan trial ${TRIAL.days} hari, lalu pilih paket. Pembayaran tahunan hemat ${Math.round(YEARLY_DISCOUNT * 100)}%.`} />
       <div className="trial">
         <span className="ico"><IconClockHour4 size={22} /></span>
         <div><b>Trial {TRIAL.days} hari, tanpa biaya</b><div className="trialList">{TRIAL.includes.map((t) => <span key={t}><IconCheck size={13} />{t}</span>)}</div></div>
@@ -320,7 +320,7 @@ function Pricing() {
             <div className="price">
               {p.startsFrom && <small className="from">MULAI DARI</small>}
               <b>{formatRupiah(p.monthly)}<span>/bulan</span></b>
-              <small>{p.startsFrom ? "Penawaran disesuaikan kebutuhan" : `atau ${formatRupiah(p.monthly * YEARLY_MONTHS_PAID)} per tahun`}</small>
+              <small>{p.startsFrom ? "Penawaran disesuaikan kebutuhan" : `atau ${formatRupiah(yearlyPrice(p.monthly))} per tahun (hemat ${Math.round(YEARLY_DISCOUNT * 100)}%)`}</small>
             </div>
             <ul>{p.highlights.map((h) => <li key={h}><IconCheck size={14} />{h}</li>)}</ul>
           </div>
@@ -348,7 +348,7 @@ function Comparison() {
             <tr className="group"><th colSpan={COMPARISON_COLUMNS.length + 1}>{g.group}</th></tr>
             {g.rows.map((r) => (
               <tr key={r.label}>
-                <th>{r.label}</th>
+                <th>{r.label}{r.note && <small className="rowNote">{r.note}</small>}</th>
                 {r.values.map((v, i) => (
                   <td key={i} className={COMPARISON_COLUMNS[i] === "Pro" ? "hl" : undefined}>
                     {v === true ? <IconCheck size={15} className="yes" /> : v === false ? <IconMinus size={15} className="no" /> : v}
