@@ -6,6 +6,7 @@ import { dailyVolume, listItems, moodBreakdown } from "./bank";
 import { sharedCache } from "./bank/cache";
 import { filterKey } from "./bank/query";
 import { prisma } from "./db";
+import { typeInsights } from "./insights";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
@@ -31,13 +32,15 @@ export function typeStats(type: MediaType, scope?: KeyScope): Promise<TypeStats>
   });
 }
 
-/** Whole bank first, then each active key one at a time (keyword searches are heavy; this keeps the source DB calm). */
+/** Overview and default 7-day insights. Whole bank first, then each active key one at a time (keyword searches are heavy; this keeps the source DB calm). */
 async function warmAll() {
   await Promise.all([typeStats("social"), typeStats("online")]);
+  await Promise.all([typeInsights("social", 7), typeInsights("online", 7)]);
   const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { scope: true, keywords: true } });
   for (const key of keys) {
     const scope = parseKeyScope(key.scope, key.keywords);
     await Promise.all([typeStats("social", scope), typeStats("online", scope)]);
+    await Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]);
   }
 }
 

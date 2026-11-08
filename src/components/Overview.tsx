@@ -12,6 +12,7 @@ import { moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
+import { Insights } from "./overview/Insights";
 import { Tip } from "./ui/Tip";
 
 dayjs.extend(relativeTime);
@@ -246,6 +247,8 @@ export function Overview({ name, role }: { name: string; role: "admin" | "user" 
       </section>
 
       {error && <Alert color="red" mb="lg">{error}</Alert>}
+
+      {data && <Insights keyId={key?.id ?? null} social={data.social !== null} online={data.online !== null} />}
 
       <div className={classes.two}>
         <TypePanel type="social" stats={data ? data.social : undefined} keyQuery={keyQuery} />

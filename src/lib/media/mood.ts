@@ -28,3 +28,13 @@ export function moodInfo(value: string) {
 
 // CSS colour for a mood, for inline styles outside Mantine components.
 export const moodColorVar = (value: string, shade = 5) => `var(--mantine-color-${moodInfo(value).color}-${shade})`;
+
+export type Polarity = "pos" | "neu" | "neg";
+
+/** Which side of opinion a mood falls on, for trend charts and alerts. Critical moods (skeptis, ragu) count as neutral. */
+export function moodPolarity(value: string): Polarity {
+  const color = moodInfo(value.toLowerCase()).color;
+  if (color === "red" || color === "orange") return "neg";
+  if (color === "teal" || color === "lime") return "pos";
+  return "neu";
+}
