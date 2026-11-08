@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconRepeat, IconUsers,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -395,8 +395,27 @@ function Engagement({ rows, href }: { rows: PlatformEngagement[]; href: (source:
                     );
                   })}
                 </dl>
-                <small className={c.engSum}>Total {formatNumber(sum)} interaksi</small>
-              </> : <p className={c.engNone}>Platform ini tidak mencatat like, komentar, atau share; hanya penayangan.</p>}
+                <small className={c.engSum}>
+                  Total {formatNumber(sum)} interaksi{r.current.views !== null && <> · <IconEye size={12} /> {short(r.current.views)} penayangan</>}
+                </small>
+              </> : r.current.views !== null ? <>
+                {/* Platforms that only count views (YouTube): show reach instead of interactions. */}
+                <div className={c.engPer}>
+                  <b title={formatNumber(r.current.views / Math.max(1, r.posts))}>{short(Math.round(r.current.views / Math.max(1, r.posts)))}</b>
+                  <span>penayangan per post</span>
+                </div>
+                <i className={c.engPerBar} data-views><s style={{ width: "100%" }} /></i>
+                <dl className={c.engStats} data-single>
+                  <div>
+                    <dt><IconEye size={13} />Total penayangan</dt>
+                    <dd title={formatNumber(r.current.views)}>
+                      {formatNumber(r.current.views)}
+                      <Delta now={r.current.views} before={r.previous.views ?? 0} />
+                    </dd>
+                  </div>
+                </dl>
+                <small className={c.engSum}>{sourceLabel(r.source)} hanya mencatat penayangan, tanpa like, komentar, atau share.</small>
+              </> : <p className={c.engNone}>Platform ini belum mencatat interaksi maupun penayangan.</p>}
             </Link>
           );
         })}
@@ -406,14 +425,19 @@ function Engagement({ rows, href }: { rows: PlatformEngagement[]; href: (source:
   );
 }
 
-/** Share of negative among labelled items, as a small red bar with the percentage. */
+/** Share of negative among labelled items as a chip whose colour follows severity (high ≥ 50%, medium ≥ 25%). */
 function NegShare({ neg, labelled }: { neg: number; labelled: number }) {
-  if (!labelled) return <span className={c.topNeg} data-empty>belum dianalisis</span>;
+  if (!labelled) return <span className={c.topNeg} data-level="none">belum dianalisis</span>;
   const share = pct(neg, labelled);
-  return <span className={c.topNeg} title={`${formatNumber(neg)} dari ${formatNumber(labelled)} teranalisis bernada negatif`}><i><s style={{ width: `${share}%` }} /></i>{fmtPct(share)} negatif</span>;
+  const level = share >= 50 ? "high" : share >= 25 ? "mid" : "low";
+  return (
+    <span className={c.topNeg} data-level={level} title={`${formatNumber(neg)} dari ${formatNumber(labelled)} item teranalisis bernada negatif`}>
+      {Math.round(share)}% negatif
+    </span>
+  );
 }
 
-/** Ranked accounts or outlets: rank, name, count with change, negative share, and an extra figure (likes). */
+/** Ranked accounts or outlets in equal-height rows: rank, mark, name with a thin volume bar, count with change, negative chip. */
 function TopList<T extends { n: number; prev: number; labelled: number; neg: number }>({ rows, empty, render }: {
   rows: T[]; empty: string;
   render: (row: T) => { key: string; name: React.ReactNode; sub?: React.ReactNode; href: string | null; external?: boolean; mark: React.ReactNode };
@@ -428,9 +452,12 @@ function TopList<T extends { n: number; prev: number; labelled: number; neg: num
           <>
             <span className={c.topRank}>{i + 1}</span>
             <span className={c.topMark}>{r.mark}</span>
-            <span className={c.topName}><b>{r.name}</b>{r.sub && <small>{r.sub}</small>}</span>
+            <span className={c.topName}>
+              <b>{r.name}</b>
+              <small>{r.sub}</small>
+              <span className={c.topBar}><i style={{ width: `${(row.n / max) * 100}%` }} /></span>
+            </span>
             <span className={c.topCount}><b>{formatNumber(row.n)}</b><Delta now={row.n} before={row.prev} /></span>
-            <span className={c.topBar}><i style={{ width: `${(row.n / max) * 100}%` }} /></span>
             <NegShare neg={row.neg} labelled={row.labelled} />
           </>
         );
@@ -548,6 +575,7 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline }: { keyI
                   key: m.source,
                   mark: <IconWorldWww size={16} />,
                   name: sourceLabel(m.source),
+                  sub: `${formatNumber(m.labelled)} berita dianalisis AI`,
                   href: mediaHref("online", keyId, { source: m.source, from }),
                 })} />
             ) : <Skeleton h={420} radius="md" />}

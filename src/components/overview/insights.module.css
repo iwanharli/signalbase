@@ -185,22 +185,34 @@ a.indicator:hover { border-color: color-mix(in srgb, var(--state) 40%, transpare
 @media (max-width: 1100px) { .engCards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .engTotals, .engCards { grid-template-columns: 1fr; } }
 
-/* Top accounts and outlets */
-.top { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.topRow { display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; grid-template-areas: "rank mark name count" ". . bar neg";
-  align-items: center; gap: 4px 10px; padding: 8px; border-radius: 12px; text-decoration: none; color: inherit; transition: background .15s; }
+/* Top accounts and outlets: equal-height rows so both cards line up. */
+.top { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.top li + li { border-top: 1px solid var(--mantine-color-default-border); }
+.topRow { display: grid; grid-template-columns: 20px 34px minmax(0, 1fr) 118px 104px; align-items: center; gap: 12px; height: 64px; padding: 0 8px;
+  border-radius: 12px; text-decoration: none; color: inherit; transition: background .15s; }
 a.topRow:hover { background: var(--mantine-color-gray-0); }
-.topRank { grid-area: rank; font-size: 12px; font-weight: 800; color: var(--mantine-color-dimmed); text-align: center; font-variant-numeric: tabular-nums; }
-.topMark { grid-area: mark; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
-.topName { grid-area: name; min-width: 0; display: flex; flex-direction: column; }
+.topRank { font-size: 12.5px; font-weight: 800; color: var(--mantine-color-dimmed); text-align: center; font-variant-numeric: tabular-nums; }
+.top li:nth-child(-n+3) .topRank { color: var(--mantine-color-violet-6); }
+.topMark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
+.topName { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .topName b, .topName small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topName b { font-size: 13.5px; }
-.topName small { font-size: 11.5px; color: var(--mantine-color-dimmed); }
-.topCount { grid-area: count; display: inline-flex; align-items: center; gap: 8px; }
-.topCount b { font-size: 14px; font-variant-numeric: tabular-nums; }
-.topBar { grid-area: bar; height: 5px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-gray-1); }
+.topName small { min-height: 15px; font-size: 11.5px; color: var(--mantine-color-dimmed); }
+.topBar { display: block; height: 4px; margin-top: 4px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-gray-1); }
 .topBar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mantine-color-violet-5), var(--mantine-color-cyan-5)); }
-.topNeg { grid-area: neg; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 120px; font-size: 11.5px; color: var(--mantine-color-red-7); white-space: nowrap; }
-.topNeg i { width: 44px; height: 5px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-red-1); }
-.topNeg s { display: block; height: 100%; background: var(--mantine-color-red-5); }
-.topNeg[data-empty] { color: var(--mantine-color-dimmed); }
+.topCount { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
+.topCount b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.topNeg { justify-self: end; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.topNeg[data-level="high"] { color: var(--mantine-color-red-8); background: var(--mantine-color-red-1); }
+.topNeg[data-level="mid"] { color: var(--mantine-color-orange-8); background: var(--mantine-color-orange-1); }
+.topNeg[data-level="low"] { color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-1); }
+.topNeg[data-level="none"] { color: var(--mantine-color-dimmed); background: none; font-weight: 500; }
+@media (max-width: 600px) {
+  .topRow { grid-template-columns: 18px 30px minmax(0, 1fr) auto; grid-template-areas: "rank mark name count" "rank mark name neg"; height: auto; padding: 10px 4px; row-gap: 4px; }
+  .topRank { grid-area: rank; } .topMark { grid-area: mark; width: 30px; height: 30px; } .topName { grid-area: name; } .topCount { grid-area: count; } .topNeg { grid-area: neg; }
+}
+/* Views-only platforms (YouTube): the bar is a neutral reach marker, the single stat spans the row. */
+.engPerBar[data-views] s { background: repeating-linear-gradient(135deg, var(--p) 0 6px, color-mix(in srgb, var(--p) 55%, transparent) 6px 12px); }
+.engStats[data-single] { grid-template-columns: 1fr; }
+.engStats dd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.engSum { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }

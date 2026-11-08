@@ -104,11 +104,12 @@ const METRIC_FIELDS = {
   likes: ["like"],
   comments: ["comment", "reply", "komentar"],
   shares: ["retweet", "repost", "share"],
+  views: ["view"],
 } as const;
 type Metric = keyof typeof METRIC_FIELDS;
 const FACEBOOK_MAX = 50_000;
 
-/** Likes, comments and shares per platform over both periods. Counts are as captured when the post was scraped. */
+/** Likes, comments, shares and views per platform over both periods. Counts are as captured when the post was scraped. */
 async function engagement(scope: KeyScope, period: number): Promise<PlatformEngagement[]> {
   const c = COLUMNS.social;
   const { where, values } = windowWhere("social", scope, period * 2);
@@ -119,7 +120,9 @@ async function engagement(scope: KeyScope, period: number): Promise<PlatformEnga
     // scraper errors and are skipped: 10 million or more on any post, and 50,000 or more on Facebook, where small local
     // pages and ads read e.g. 20,000,000 likes or 399,900 comments with 0 likes (its 99th percentile is under 200).
     const v = `coalesce(${METRIC_FIELDS[name].map((f) => `p.additional_data->>'${f}'`).join(", ")})`;
-    const num = `CASE WHEN ${v} ~ '^[0-9]{1,7}$' AND (${c.source} <> 'facebook' OR (${v})::bigint < ${FACEBOOK_MAX}) THEN (${v})::bigint END`;
+    // Views legitimately pass 10 million on big videos, so they only need to be a sane number (under 10 billion).
+    const digits = name === "views" ? 10 : 7;
+    const num = `CASE WHEN ${v} ~ '^[0-9]{1,${digits}}$' AND (${c.source} <> 'facebook' OR (${v})::bigint < ${FACEBOOK_MAX}) THEN (${v})::bigint END`;
     return [
       `sum(${num}) FILTER (WHERE ${cur})::float8 ${name}_cur`,
       `sum(${num}) FILTER (WHERE NOT (${cur}))::float8 ${name}_prev`,
@@ -129,7 +132,7 @@ async function engagement(scope: KeyScope, period: number): Promise<PlatformEnga
   const { rows } = await withLongTimeout(90_000, (client) => client.query<Record<string, string | number | null>>(
     `SELECT ${c.source} src, count(*) FILTER (WHERE ${cur})::int posts, ${cols.join(", ")} FROM ${c.from} WHERE ${where} GROUP BY 1`, values));
   const pick = (row: Record<string, string | number | null>, which: "cur" | "prev"): EngagementMetrics => {
-    const out = { likes: null, comments: null, shares: null } as EngagementMetrics;
+    const out = { likes: null, comments: null, shares: null, views: null } as EngagementMetrics;
     for (const name of Object.keys(METRIC_FIELDS) as Metric[]) out[name] = Number(row[`${name}_n`]) ? Number(row[`${name}_${which}`] ?? 0) : null;
     return out;
   };

@@ -21,7 +21,7 @@ export type PulseWindow = { total: number; labelled: number; neg: number; hot: n
 export type Pulse = { now: PulseWindow; avg: PulseWindow };
 
 /** Engagement totals of one platform. A metric is null when the platform doesn't record it. */
-export type EngagementMetrics = { likes: number | null; comments: number | null; shares: number | null };
+export type EngagementMetrics = { likes: number | null; comments: number | null; shares: number | null; views: number | null };
 export type PlatformEngagement = { source: string; posts: number; current: EngagementMetrics; previous: EngagementMetrics };
 
 /** Most active social account: posts this period and the one before, how many were labelled and negative, likes. */
