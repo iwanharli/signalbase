@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Menu, Text, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
 import classes from "./shell.module.css";
@@ -14,12 +14,15 @@ const NAV = [
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
   { href: "/api-keys", label: "Kunci API", icon: IconKey },
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
+  { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
 ];
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
 export function Shell({ name, role, children }: { name: string; role: Role; children: React.ReactNode }) {
   const path = usePathname();
-  const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
+  const nav = role === "user"
+    ? NAV.filter((i) => !("adminOnly" in i)).map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i))
+    : NAV;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);

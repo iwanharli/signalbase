@@ -65,7 +65,7 @@
 .link[data-active] { color: #fff; }
 
 .right { display: flex; align-items: center; gap: 8px; justify-self: end; flex-shrink: 0; }
-.live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px;
+.live { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 4px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px;
   color: #67e8f9; background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.25); }
 .live i { width: 6px; height: 6px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 8px #22d3ee; animation: blink 1.6s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .25; } }

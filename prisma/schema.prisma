@@ -7,13 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Panel account. role "admin" manages everything; role "user" signs up and manages only their own API keys.
+// Panel account. role "admin" manages everything; role "user" signs up, waits for an admin to approve,
+// then manages only their own API keys.
 model Admin {
   id           String   @id @default(uuid())
   username     String   @unique
   name         String
   passwordHash String
   role         String   @default("admin") // "admin" | "user"
+  status       String   @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
   createdAt    DateTime @default(now())
 }
 

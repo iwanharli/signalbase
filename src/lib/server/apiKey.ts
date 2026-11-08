@@ -40,6 +40,11 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     const raw = req.headers.get("x-api-key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const row = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
     if (!row || row.revokedAt) return NextResponse.json({ error: "Kunci API tidak valid" }, { status: 401 });
+    // Keys of a user account that is not active (suspended, or somehow still pending) stop working until it is re-activated.
+    if (row.ownerId) {
+      const owner = await prisma.admin.findUnique({ where: { id: row.ownerId }, select: { status: true } });
+      if (owner?.status !== "active") return NextResponse.json({ error: "Akun pemilik kunci tidak aktif" }, { status: 403 });
+    }
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});

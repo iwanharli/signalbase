@@ -140,11 +140,12 @@ npm run dev                   # http://localhost:3100
 | Halaman | Path | Isi |
 |---|---|---|
 | Login | `/login` | Satu halaman masuk untuk admin dan user. 5 kali gagal per 15 menit → dikunci sementara. |
-| Daftar | `/register` | Pendaftaran mandiri, selalu role **user**. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
+| Daftar | `/register` | Pendaftaran mandiri, selalu role **user** dan menunggu persetujuan admin sebelum bisa masuk. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
 | Landing page publik | `/` | Pengenalan platform, pratinjau ilustrasi interaktif, fitur, integrasi, dan FAQ. |
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
+| Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
 | Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
 | Buat kunci | `/api-keys/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
 | Detail kunci | `/api-keys/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |

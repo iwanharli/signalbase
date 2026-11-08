@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { signedIn } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 
 const schema = z.object({
@@ -14,7 +13,8 @@ const schema = z.object({
 const recent = new Map<string, number[]>();
 const WINDOW = 60 * 60_000;
 
-// Self-service sign-up. New accounts are always role "user": they see nothing until they create an API key with keywords.
+// Self-service sign-up. New accounts are role "user" and "pending": they can sign in only after an admin approves them,
+// and then see nothing until they create an API key with keywords.
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
   const hits = (recent.get(ip) ?? []).filter((t) => Date.now() - t < WINDOW);
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Username sudah dipakai" }, { status: 409 });
   }
   recent.set(ip, [...hits, Date.now()]);
-  const account = await prisma.admin.create({ data: { name, username, role: "user", passwordHash: await bcrypt.hash(password, 10) } });
-  return signedIn(account);
+  await prisma.admin.create({ data: { name, username, role: "user", status: "pending", passwordHash: await bcrypt.hash(password, 10) } });
+  // No session yet: an admin has to approve the account first (Pengguna page).
+  return NextResponse.json({ ok: true, pending: true });
 }

@@ -20,5 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Username atau kata sandi salah." }, { status: 401 });
   }
   fails.delete(user);
+  if (admin.status === "pending") return NextResponse.json({ error: "Akun Anda menunggu persetujuan admin." }, { status: 403 });
+  if (admin.status === "suspended") return NextResponse.json({ error: "Akun Anda dinonaktifkan. Hubungi admin." }, { status: 403 });
   return signedIn(admin);
 }
