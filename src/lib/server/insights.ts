@@ -155,7 +155,7 @@ function moodCounts(rows: { m: string | null; n: number }[]) {
   return { labelled, neg };
 }
 
-/** The accounts with the most posts this period, with their previous count, opinion and likes. */
+/** The accounts with the most posts this period (top 10 overall plus top 10 of each platform), with their previous count, opinion and likes. */
 async function topAccounts(scope: KeyScope, period: number): Promise<TopAccount[]> {
   const c = COLUMNS.social;
   const { where, values } = windowWhere("social", scope, period * 2);
@@ -163,11 +163,17 @@ async function topAccounts(scope: KeyScope, period: number): Promise<TopAccount[
   const cur = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
   const like = `CASE WHEN p.additional_data->>'like' ~ '^[0-9]{1,7}$' AND (${c.source} <> 'facebook' OR (p.additional_data->>'like')::bigint < ${FACEBOOK_MAX}) THEN (p.additional_data->>'like')::bigint END`;
   return withLongTimeout(90_000, async (client) => {
+    // The top accounts overall and the top accounts of each platform (for the platform tabs), in one scan.
     const top = (await client.query<{ src: string; u: string; name: string | null; n: number; prev: number; likes: number | null }>(
-      `SELECT ${c.source} src, p.post_username u, max(p.post_author) name, count(*) FILTER (WHERE ${cur})::int n,
-         count(*) FILTER (WHERE NOT (${cur}))::int prev, sum(${like}) FILTER (WHERE ${cur})::float8 likes
-       FROM ${c.from} WHERE ${where} AND p.post_username IS NOT NULL AND p.post_username <> ''
-       GROUP BY 1, 2 HAVING count(*) FILTER (WHERE ${cur}) > 0 ORDER BY n DESC LIMIT ${TOP_SOURCES}`, values)).rows;
+      `WITH accounts AS (
+         SELECT ${c.source} src, p.post_username u, max(p.post_author) name, count(*) FILTER (WHERE ${cur})::int n,
+           count(*) FILTER (WHERE NOT (${cur}))::int prev, sum(${like}) FILTER (WHERE ${cur})::float8 likes
+         FROM ${c.from} WHERE ${where} AND p.post_username IS NOT NULL AND p.post_username <> ''
+         GROUP BY 1, 2 HAVING count(*) FILTER (WHERE ${cur}) > 0
+       ), ranked AS (
+         SELECT *, row_number() OVER (ORDER BY n DESC) overall, row_number() OVER (PARTITION BY src ORDER BY n DESC) in_platform FROM accounts
+       )
+       SELECT src, u, name, n, prev, likes FROM ranked WHERE overall <= ${TOP_SOURCES} OR in_platform <= ${TOP_SOURCES} ORDER BY n DESC`, values)).rows;
     if (!top.length) return [];
     // Opinion of just these accounts, this period.
     const moods = (await client.query<{ src: string; u: string; m: string | null; n: number }>(

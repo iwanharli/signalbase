@@ -251,3 +251,12 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 .groupLinks { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 8px; }
 .groupLinks a { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; text-decoration: none; color: var(--mantine-color-violet-7); }
 .groupBody .kwChips { padding: 8px; }
+
+/* Icon tabs at the right of a panel header (top accounts per platform) */
+.panelAction { margin-left: auto; flex-shrink: 0; }
+.iconTabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--mantine-color-gray-1); }
+.iconTabs button { display: grid; place-items: center; width: 32px; height: 30px; border: 0; border-radius: 9px; cursor: pointer;
+  color: var(--mantine-color-gray-6); background: transparent; transition: background .15s, color .15s; }
+.iconTabs button:hover { color: var(--mantine-color-dark-6); }
+.iconTabs button[data-active] { color: var(--mantine-color-violet-7); background: var(--mantine-color-body); box-shadow: 0 1px 3px rgba(15,10,40,.12); }
+.iconTabs button:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 1px; }

@@ -44,7 +44,7 @@ export type Insights = {
   pulse: Pulse;
   /** Social only: likes, comments and shares per platform, this period and the one before. */
   engagement: PlatformEngagement[] | null;
-  /** Social only: the 10 accounts with the most posts. */
+  /** Social only: the 10 accounts with the most posts overall, plus the 10 of each platform (busiest first). */
   accounts: TopAccount[] | null;
   /** Online only: the 10 outlets with the most articles. */
   media: TopMedia[] | null;

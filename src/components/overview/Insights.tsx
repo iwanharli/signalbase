@@ -5,7 +5,7 @@
 // Loads apart from the rest of the page because the grouped scans take a few seconds when the cache is cold.
 import { useState } from "react";
 import Link from "next/link";
-import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
+import { Alert as MantineAlert, SegmentedControl, Skeleton, Tooltip } from "@mantine/core";
 import {
   IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
@@ -474,12 +474,56 @@ function TopList<T extends { n: number; prev: number; labelled: number; neg: num
   );
 }
 
-function Panel({ icon: Icon, title, text, children }: { icon: typeof IconTag; title: string; text: string; children: React.ReactNode }) {
+/** `action` sits at the right of the header (e.g. tabs). */
+function Panel({ icon: Icon, title, text, action, children }: { icon: typeof IconTag; title: string; text: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className={c.panel}>
-      <header><span><Icon size={16} /></span><div><h3>{title}</h3><p>{text}</p></div></header>
+      <header><span><Icon size={16} /></span><div><h3>{title}</h3><p>{text}</p></div>{action && <div className={c.panelAction}>{action}</div>}</header>
       {children}
     </section>
+  );
+}
+
+const ALL_PLATFORMS = "all";
+
+/** Most active accounts, overall or per platform (icon tabs in the header). The server sends the top 10 overall plus
+ *  the top 10 of each platform, so switching tabs needs no new request. */
+function TopAccounts({ accounts, period }: { accounts: TopAccount[] | null; period: number }) {
+  const [platform, setPlatform] = useState(ALL_PLATFORMS);
+  // Platforms in order of how much their accounts post, so the busiest tab comes first.
+  const volume = new Map<string, number>();
+  for (const a of accounts ?? []) volume.set(a.source, (volume.get(a.source) ?? 0) + a.n);
+  const platforms = [...volume.keys()].sort((a, b) => volume.get(b)! - volume.get(a)!);
+  const active = platforms.includes(platform) ? platform : ALL_PLATFORMS;
+  const rows = (accounts ?? []).filter((a) => active === ALL_PLATFORMS || a.source === active).slice(0, 10);
+
+  const tabs = platforms.length > 1 && (
+    <div className={c.iconTabs} role="tablist" aria-label="Platform">
+      {[ALL_PLATFORMS, ...platforms].map((p) => (
+        <Tooltip key={p} label={p === ALL_PLATFORMS ? "Semua platform" : sourceLabel(p)} withArrow openDelay={200}>
+          <button type="button" role="tab" aria-selected={active === p} aria-label={p === ALL_PLATFORMS ? "Semua platform" : sourceLabel(p)}
+            data-active={active === p || undefined} onClick={() => setPlatform(p)}>
+            {p === ALL_PLATFORMS ? <IconLayoutGrid size={15} /> : <PlatformMark source={p} size={15} />}
+          </button>
+        </Tooltip>
+      ))}
+    </div>
+  );
+
+  return (
+    <Panel icon={IconUsers} title="10 akun teratas" action={tabs}
+      text={`${active === ALL_PLATFORMS ? "Akun media sosial" : `Akun ${sourceLabel(active)}`} dengan post terbanyak, ${period} hari terakhir`}>
+      {accounts ? (
+        <TopList rows={rows} empty="Belum ada akun pada periode ini."
+          render={(a) => ({
+            key: `${a.source}:${a.username}`,
+            mark: <PlatformMark source={a.source} size={16} />,
+            name: a.name && a.name !== a.username ? a.name : `@${a.username}`,
+            sub: <>{a.name && a.name !== a.username ? `@${a.username} · ` : ""}{sourceLabel(a.source)}{a.likes > 0 && ` · ${formatNumber(a.likes)} like`}</>,
+            href: a.profileUrl, external: true,
+          })} />
+      ) : <Skeleton h={420} radius="md" />}
+    </Panel>
   );
 }
 
@@ -644,18 +688,7 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
 
       <div className={c.grid} data-cols={view === "all" ? 2 : 1}>
         {view !== "online" && (
-          <Panel icon={IconUsers} title="10 akun teratas" text={`Akun media sosial dengan post terbanyak, ${period} hari terakhir`}>
-            {data ? (
-              <TopList rows={data.accounts ?? []} empty="Belum ada akun pada periode ini."
-                render={(a) => ({
-                  key: `${a.source}:${a.username}`,
-                  mark: <PlatformMark source={a.source} size={16} />,
-                  name: a.name && a.name !== a.username ? a.name : `@${a.username}`,
-                  sub: <>{a.name && a.name !== a.username ? `@${a.username} · ` : ""}{sourceLabel(a.source)}{a.likes > 0 && ` · ${formatNumber(a.likes)} like`}</>,
-                  href: a.profileUrl, external: true,
-                })} />
-            ) : <Skeleton h={420} radius="md" />}
-          </Panel>
+          <TopAccounts accounts={data ? data.accounts ?? [] : null} period={period} />
         )}
         {view !== "social" && (
           <Panel icon={IconNews} title="10 media teratas" text={`Media online dengan berita terbanyak, ${period} hari terakhir`}>
