@@ -69,7 +69,7 @@ export function ScopeParams({ scope, onChange, bare, labelled }: { scope: KeySco
         description="Hanya post dan berita yang emosi atau sentimennya sudah dianalisis bank data." />
       {labelled && (
         <DataToggle title="Hanya sudah dikategorisasi" checked={labelled.checked} disabled={!labelled.available || labelled.busy} onChange={labelled.onChange}
-          description={labelled.available ? "Hanya item yang sudah diberi kategori oleh AI proyek ini. Disimpan langsung." : "Aktifkan kategorisasi AI proyek ini lebih dulu."} />
+          description={labelled.available ? "Hanya item yang sudah diberi kategori oleh AI proyek ini." : "Aktifkan kategorisasi AI proyek ini lebih dulu."} />
       )}
     </div>
   );

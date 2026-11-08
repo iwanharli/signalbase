@@ -21,7 +21,7 @@ import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
 import { BalanceUsage } from "../ai/BalanceUsage";
-import { RestartConfirm, type RestartRequest } from "../ai/RestartConfirm";
+import { SaveConfirm, type SaveRequest, type SettingChange } from "./SaveConfirm";
 
 type KeyDetail = {
   id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
@@ -97,7 +97,6 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const [busy, setBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
-  const [restart, setRestart] = useState<RestartRequest | null>(null);
   const [rotated, setRotated] = useState<string | null>(null);
 
   const draftKey = `signalbase:key-draft:${keyId}`;
@@ -132,26 +131,19 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const revoked = !!data?.revokedAt;
   const ready = !!data && !!scope;
 
-  // "Hanya sudah dikategorisasi" belongs to the AI categorisation, so it saves on its own, right away.
-  const [labelledBusy, setLabelledBusy] = useState(false);
-  const setLabelledOnly = async (value: boolean) => {
-    setLabelledBusy(true);
-    try {
-      await post(`/api/admin/keys/${keyId}/labelled-only`, { value }, "PUT");
-      notifications.show({ color: "teal", message: value ? "API kini hanya mengirim item yang sudah dikategorisasi" : "API kini mengirim semua item, termasuk yang belum dikategorisasi" });
-      await detail.reload();
-    } catch (err) {
-      notifications.show({ color: "red", message: (err as Error).message });
-    } finally {
-      setLabelledBusy(false);
-    }
-  };
+  // "Hanya sudah dikategorisasi" lives on the AI categorisation; it is part of the draft and saved with everything else.
+  const savedLabelled = !!data?.classifier?.labelledOnly;
+  const [labelledOnly, setLabelledOnly] = useState<boolean | null>(null);
+  const labelled = labelledOnly ?? savedLabelled;
+  const labelledChanged = !!data?.classifier && labelled !== savedLabelled;
+  const [confirmSave, setConfirmSave] = useState<SaveRequest | null>(null);
+
   const nameChanged = ready && name.trim() !== data.name;
   const keywordsChanged = ready && !sameKeywords(scope.keywords, data.scope.keywords);
   const scopeChanged = ready && !sameScope(scope, data.scope);
   // Everything in the scope except the keywords, which have their own tab.
   const paramsChanged = ready && !sameScope({ ...scope, keywords: [] }, { ...data.scope, keywords: [] });
-  const dirty = nameChanged || scopeChanged;
+  const dirty = nameChanged || scopeChanged || labelledChanged;
   const restrictions = scope ? scopeRestrictions(scope, provinceName) : [];
 
   useEffect(() => {
@@ -182,29 +174,50 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     } catch { /* Editing remains available when session storage is disabled. */ }
   }, [ready, dirty, revoked, draftKey, data, name, scope]);
 
-  const reset = () => { if (data) { setName(data.name); setScope(data.scope); } };
+  const reset = () => { if (data) { setName(data.name); setScope(data.scope); setLabelledOnly(null); } };
 
-  const save = async () => {
+  /** Every change shown as before → after, for the confirmation dialog. */
+  const describeChanges = (): SettingChange[] => {
+    if (!scope || !data) return [];
+    const onOff = (v: boolean) => (v ? "Nyala" : "Mati");
+    const list = (v: string[]) => (v.length ? v.join(" · ") : "Tanpa batasan");
+    const changes: SettingChange[] = [];
+    if (nameChanged) changes.push({ label: "Nama proyek", before: data.name, after: name.trim() });
+    if (keywordsChanged) changes.push({ label: "Kata kunci", before: data.scope.keywords.join(", ") || "Tidak dibatasi", after: scope.keywords.join(", ") || "Tidak dibatasi" });
+    if (scope.analyzedOnly !== data.scope.analyzedOnly) changes.push({ label: "Hanya sudah dianalisis", before: onOff(data.scope.analyzedOnly), after: onOff(scope.analyzedOnly) });
+    const rest = (s: KeyScope) => ({ ...s, keywords: [], analyzedOnly: false });
+    if (!sameScope(rest(scope), rest(data.scope))) {
+      changes.push({ label: "Cakupan data", before: list(scopeRestrictions(rest(data.scope), provinceName)), after: list(scopeRestrictions(rest(scope), provinceName)) });
+    }
+    if (labelledChanged) changes.push({ label: "Hanya sudah dikategorisasi", before: onOff(savedLabelled), after: onOff(labelled) });
+    return changes;
+  };
+
+  const save = () => {
     if (!scope || !data) return;
     if (name.trim().length < 2) { setTab("identity"); return notifications.show({ color: "red", message: "Nama minimal 2 karakter" }); }
-    // Hiding unanalysed items keeps the existing AI labels, so it needs no warning.
-    if (scopeChanged && data.classifier && data.classifier.processed > 0 && !onlyHidesUnanalysed(scope, data.scope)) {
-      return setRestart({ changes: ["kata kunci atau cakupan"], results: data.classifier.processed, run: persist });
-    }
-    return persist();
+    // Hiding unanalysed items keeps the existing AI labels; any other scope change starts categorisation over.
+    const restart = scopeChanged && !!data.classifier && !onlyHidesUnanalysed(scope, data.scope);
+    setConfirmSave({ changes: describeChanges(), ai: data.classifier ? { restart, labels: data.classifier.processed } : null });
   };
 
   const persist = async () => {
+    if (!scope) return;
     setBusy(true);
     try {
-      const result = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean };
-      notifications.show({ color: "teal", message: result.aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : "Perubahan disimpan" });
+      let aiRestarted = false;
+      if (nameChanged || scopeChanged) {
+        ({ aiRestarted } = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean });
+      }
+      if (labelledChanged) await post(`/api/admin/keys/${keyId}/labelled-only`, { value: labelled }, "PUT");
+      notifications.show({ color: "teal", message: aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : "Perubahan disimpan" });
+      setConfirmSave(null);
+      setLabelledOnly(null);
       await detail.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
       setBusy(false);
-      setRestart(null);
     }
   };
 
@@ -328,8 +341,11 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "scope" && (
             <SectionPanel icon={IconAdjustmentsHorizontal} title="Cakupan data" description="Batasan tetap yang dikunci di server. Aplikasi bisa menyaring lebih sempit, tapi tidak bisa melewatinya.">
               <fieldset disabled={revoked || busy} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope}
-                labelled={{ checked: !!data.classifier?.labelledOnly, available: !!data.classifier, busy: labelledBusy, onChange: setLabelledOnly }} /></fieldset>
-              {paramsChanged && data.classifier && <div className={classes.warning}><IconAlertTriangle size={17} />Mengubah cakupan akan mengulang kategorisasi AI dari awal.</div>}
+                labelled={{ checked: labelled, available: !!data.classifier, onChange: setLabelledOnly }} /></fieldset>
+              {/* Only a change that lets in different items invalidates the stored AI labels; hiding unanalysed items doesn't. */}
+              {paramsChanged && data.classifier && (onlyHidesUnanalysed(scope, data.scope)
+                ? <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Item yang belum dianalisis hanya disembunyikan dari API.</div>
+                : <div className={classes.warning}><IconAlertTriangle size={17} />Perubahan ini memasukkan data yang berbeda, jadi kategorisasi AI akan diulang dari awal agar label sesuai cakupan baru.</div>)}
             </SectionPanel>
           )}
 
@@ -378,7 +394,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
         <Button variant="primary" icon={IconDeviceFloppy} onClick={save} loading={busy}>{busy ? "Menyimpan…" : "Simpan perubahan"}</Button>
       </div>
 
-      <RestartConfirm request={restart} onClose={() => setRestart(null)} loading={busy} />
+      <SaveConfirm request={confirmSave} onClose={() => setConfirmSave(null)} onConfirm={persist} loading={busy} />
 
       <Modal aria-label={rotated ? "Proyek baru" : "Konfirmasi buat ulang kunci"} opened={confirmRotate || !!rotated} onClose={() => { setConfirmRotate(false); setRotated(null); }} centered size={rotated ? "lg" : "md"} radius={20} padding={0}
         withCloseButton={false} overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
