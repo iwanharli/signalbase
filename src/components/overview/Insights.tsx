@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconRepeat, IconUsers,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -483,10 +483,69 @@ function Panel({ icon: Icon, title, text, children }: { icon: typeof IconTag; ti
   );
 }
 
+// ── Project & keywords ──────────────────────────────────────────────────────────
+
+export type ProjectSummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
+
+/** The project being viewed with how each keyword did this period, then the account's other projects to switch to. */
+function ProjectCard({ project, others, data, keywordHref }: {
+  project: ProjectSummary; others: ProjectSummary[]; data: ViewData | null; keywordHref: (row: Row) => string;
+}) {
+  const used = project.lastUsedAt ? `dipakai ${dayjs(project.lastUsedAt).locale("id").fromNow()}` : "belum pernah dipakai lewat API";
+  return (
+    <section className={c.panel}>
+      <header className={c.projectHead}>
+        <span><IconPlugConnected size={16} /></span>
+        <div><h3>{project.name}</h3><p>Proyek dilihat · {used}</p></div>
+        <Link href={`/api-keys/${project.id}?tab=keywords`} className={c.projectEdit}><IconEdit size={13} />Ubah</Link>
+      </header>
+
+      {data && (
+        <div className={c.projectStats}>
+          <div><small>Sinyal periode ini</small><b>{short(data.current.total)}<Delta now={data.current.total} before={data.previous.total} /></b></div>
+          <div><small>Porsi negatif</small><b>{fmtPct(pct(data.current.neg, data.current.labelled))}</b></div>
+          <div><small>Keyword</small><b>{project.keywords.length || "semua"}</b></div>
+        </div>
+      )}
+
+      {!data ? <Skeleton h={180} radius="md" /> : data.keywords ? (
+        <>
+          <span className={c.otherLabel}>Penyebutan per keyword</span>
+          <RankedList items={data.keywords} label={(v) => v} href={keywordHref} showNeg />
+        </>
+      ) : (
+        // A single keyword is the project's whole volume, so it gets one summary line instead of a ranking.
+        <div className={c.singleKw}>
+          <div className={c.kwChips}>{project.keywords.length ? project.keywords.map((k) => <span key={k}>{k}</span>) : <span>semua data</span>}</div>
+          <p><b>{formatNumber(data.current.total)}</b> item periode ini <Delta now={data.current.total} before={data.previous.total} /></p>
+        </div>
+      )}
+
+      {others.length > 0 && (
+        <div className={c.otherProjects}>
+          <span className={c.otherLabel}>Proyek lain · {others.length}</span>
+          {others.map((p) => (
+            <Link key={p.id} href={`/dashboard?key=${p.id}`} className={c.otherProject}>
+              <IconPlugConnected size={14} />
+              <b>{p.name}</b>
+              <small>{p.keywords.length ? p.keywords.slice(0, 3).join(", ") + (p.keywords.length > 3 ? ` +${p.keywords.length - 3}` : "") : "semua data"}</small>
+              <IconArrowRight size={13} />
+            </Link>
+          ))}
+        </div>
+      )}
+      <Link href="/api-keys" className={c.manageProjects}>Kelola proyek <IconArrowRight size={13} /></Link>
+    </section>
+  );
+}
+
 // ── Section ─────────────────────────────────────────────────────────────────────
 
-export function Insights({ keyId, social: hasSocial, online: hasOnline }: { keyId: string | null; social: boolean; online: boolean }) {
+export function Insights({ keyId, social: hasSocial, online: hasOnline, projects = [] }: {
+  keyId: string | null; social: boolean; online: boolean; projects?: ProjectSummary[];
+}) {
   const both = hasSocial && hasOnline;
+  const project = keyId ? projects.find((p) => p.id === keyId) ?? null : null;
   const [view, setView] = useState<View>(both ? "all" : hasSocial ? "social" : "online");
   const [period, setPeriod] = useState<InsightPeriod>(7);
   const url = (t: MediaType) => `/api/admin/stats/insights?type=${t}&days=${period}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`;
@@ -583,15 +642,14 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline }: { keyI
         )}
       </div>
 
-      <div className={c.grid} data-cols={1 + Number(!!data?.keywords) + Number(!!data?.hashtags || (!data && view !== "online"))}>
+      <div className={c.grid} data-cols={1 + Number(!!project) + Number(!!data?.hashtags || (!data && view !== "online"))}>
+        {project && (
+          <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data}
+            keywordHref={(r) => href(r, { q: r.value })} />
+        )}
         <Panel icon={IconTag} title="Topik teratas" text={view === "all" ? "Kategori terbanyak dari media sosial dan online" : "Kategori terbanyak, dengan perubahan dari periode sebelumnya"}>
           {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}
         </Panel>
-        {data?.keywords && (
-          <Panel icon={IconBolt} title="Keyword proyek" text="Jumlah penyebutan tiap keyword dan porsi negatifnya">
-            <RankedList items={data.keywords} label={(v) => v} href={(r) => href(r, { q: r.value })} showNeg />
-          </Panel>
-        )}
         {(data?.hashtags || (!data && view !== "online")) && (
           <Panel icon={IconHash} title="Tagar teratas" text="Media sosial · dari ±4.000 post terbaru tiap periode">
             {data?.hashtags ? <RankedList items={data.hashtags} label={(v) => `#${v}`} href={(r) => href(r, { q: r.value })} /> : <Skeleton h={260} radius="md" />}

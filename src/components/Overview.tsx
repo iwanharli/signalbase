@@ -248,17 +248,20 @@ export function Overview({ name, role }: { name: string; role: "admin" | "user" 
 
       {error && <Alert color="red" mb="lg">{error}</Alert>}
 
-      {data && <Insights keyId={key?.id ?? null} social={data.social !== null} online={data.online !== null} />}
+      {data && <Insights keyId={key?.id ?? null} social={data.social !== null} online={data.online !== null} projects={data.keys} />}
 
       <div className={classes.two}>
         <TypePanel type="social" stats={data ? data.social : undefined} keyQuery={keyQuery} />
         <TypePanel type="online" stats={data ? data.online : undefined} keyQuery={keyQuery} />
       </div>
 
-      <div className={classes.two} data-wide-left>
-        <LatestFeed stats={data ?? null} keyQuery={keyQuery} scoped={!!key} />
-        <ConnectedApps keys={data?.keys ?? null} own={own} activeId={key?.id} />
-      </div>
+      {/* Viewing a project: its keywords and the other projects sit in the "Proyek & keyword" card above. */}
+      {key ? <LatestFeed stats={data ?? null} keyQuery={keyQuery} scoped /> : (
+        <div className={classes.two} data-wide-left>
+          <LatestFeed stats={data ?? null} keyQuery={keyQuery} scoped={false} />
+          <ConnectedApps keys={data?.keys ?? null} own={own} activeId={undefined} />
+        </div>
+      )}
     </div>
   );
 }
