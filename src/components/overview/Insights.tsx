@@ -324,47 +324,84 @@ const METRICS: { key: keyof EngagementMetrics; label: string; icon: typeof IconH
   { key: "shares", label: "Share / repost", icon: IconRepeat },
 ];
 
-/** Totals with their change, then a platform table with an in-column bar per metric ("—" where a platform doesn't record it). */
+/** One fixed colour per platform, so a platform keeps its colour in every bar and card. */
+const PLATFORM_COLOR: Record<string, string> = {
+  instagram: "#d6249f", tiktok: "#0891b2", threads: "#7c3aed", facebook: "#1877f2", twitter: "#334155", youtube: "#e11d48",
+};
+const platformColor = (source: string) => PLATFORM_COLOR[source] ?? "#94a3b8";
+const compact = new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 });
+const short = (n: number) => (n < 10_000 ? formatNumber(n) : compact.format(n));
+const interactions = (m: EngagementMetrics) => (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0);
+
+/** Each metric's total and change, with a bar showing which platforms it comes from; then one card per platform with
+ *  its interactions per post, the fair way to compare platforms of very different sizes. */
 function Engagement({ rows, href }: { rows: PlatformEngagement[]; href: (source: string) => string }) {
   if (!rows.length) return <p className={c.empty}>Belum ada post media sosial pada periode ini.</p>;
   const total = (key: keyof EngagementMetrics, side: "current" | "previous") => rows.reduce((t, r) => t + (r[side][key] ?? 0), 0);
-  const max = Object.fromEntries(METRICS.map((m) => [m.key, Math.max(1, ...rows.map((r) => r.current[m.key] ?? 0))])) as Record<keyof EngagementMetrics, number>;
+  const cards = [...rows].sort((a, b) => interactions(b.current) - interactions(a.current));
+  const best = Math.max(1, ...cards.map((r) => interactions(r.current) / Math.max(1, r.posts)));
+
   return (
     <div className={c.engagement}>
       <div className={c.engTotals}>
-        {METRICS.map((m) => (
-          <div key={m.key} data-metric={m.key}>
-            <span><m.icon size={15} />{m.label}</span>
-            <b>{formatNumber(total(m.key, "current"))}<Delta now={total(m.key, "current")} before={total(m.key, "previous")} /></b>
-            <small>sebelumnya {formatNumber(total(m.key, "previous"))}</small>
-          </div>
-        ))}
+        {METRICS.map((m) => {
+          const now = total(m.key, "current");
+          const parts = cards.filter((r) => (r.current[m.key] ?? 0) > 0);
+          return (
+            <div key={m.key} className={c.engTotal} data-metric={m.key}>
+              <span className={c.engTotalHead}><i><m.icon size={16} /></i>{m.label}</span>
+              <b>{formatNumber(now)}</b>
+              <span className={c.engTotalSub}><Delta now={now} before={total(m.key, "previous")} /> dari {formatNumber(total(m.key, "previous"))}</span>
+              <div className={c.engMix} aria-label={`Komposisi ${m.label.toLowerCase()} per platform`}>
+                {parts.map((r) => (
+                  <i key={r.source} style={{ flexGrow: r.current[m.key]!, background: platformColor(r.source) }}
+                    title={`${sourceLabel(r.source)}: ${formatNumber(r.current[m.key]!)} (${fmtPct(pct(r.current[m.key]!, now))})`} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className={c.engTable} role="table" aria-label="Engagement per platform">
-        <div className={c.engHead} role="row">
-          <span role="columnheader">Platform</span><span role="columnheader">Post</span>
-          {METRICS.map((m) => <span key={m.key} role="columnheader">{m.label}</span>)}
-        </div>
-        {rows.map((r) => (
-          <Link key={r.source} href={href(r.source)} className={c.engRow} role="row">
-            <span role="cell" className={c.engPlatform}>{sourceLabel(r.source)}</span>
-            <span role="cell" className={c.engPosts}>{formatNumber(r.posts)}</span>
-            {METRICS.map((m) => {
-              const v = r.current[m.key];
-              return (
-                <span key={m.key} role="cell" className={c.engCell} data-metric={m.key} data-label={m.label} title={v === null ? `${sourceLabel(r.source)} tidak mencatat ${m.label.toLowerCase()}` : undefined}>
-                  {v === null ? <em>—</em> : <>
-                    <b>{formatNumber(v)}</b>
-                    <i><s style={{ width: `${(v / max[m.key]) * 100}%` }} /></i>
-                  </>}
-                </span>
-              );
-            })}
-          </Link>
-        ))}
+      <div className={c.engLegend}>
+        {cards.map((r) => <span key={r.source}><i style={{ background: platformColor(r.source) }} />{sourceLabel(r.source)}</span>)}
       </div>
-      <p className={c.note}>Angka dicatat saat post diambil, jadi menggambarkan engagement awal, bukan total akhir. &ldquo;—&rdquo; berarti platform tersebut tidak mencatat metrik itu.</p>
+
+      <div className={c.engCards}>
+        {cards.map((r) => {
+          const sum = interactions(r.current);
+          const perPost = sum / Math.max(1, r.posts);
+          const recorded = METRICS.some((m) => r.current[m.key] !== null);
+          return (
+            <Link key={r.source} href={href(r.source)} className={c.engCard} style={{ ["--p" as string]: platformColor(r.source) }}>
+              <header>
+                <span className={c.engMark}><PlatformMark source={r.source} size={16} /></span>
+                <span><b>{sourceLabel(r.source)}</b><small>{formatNumber(r.posts)} post</small></span>
+              </header>
+              {recorded ? <>
+                <div className={c.engPer}>
+                  <b title={formatNumber(perPost)}>{short(Math.round(perPost))}</b>
+                  <span>interaksi per post</span>
+                </div>
+                <i className={c.engPerBar}><s style={{ width: `${(perPost / best) * 100}%` }} /></i>
+                <dl className={c.engStats}>
+                  {METRICS.map((m) => {
+                    const v = r.current[m.key];
+                    return (
+                      <div key={m.key} data-off={v === null || undefined}>
+                        <dt><m.icon size={13} />{m.label}</dt>
+                        <dd title={v === null ? `${sourceLabel(r.source)} tidak mencatat ${m.label.toLowerCase()}` : formatNumber(v)}>{v === null ? "tidak dicatat" : short(v)}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+                <small className={c.engSum}>Total {formatNumber(sum)} interaksi</small>
+              </> : <p className={c.engNone}>Platform ini tidak mencatat like, komentar, atau share; hanya penayangan.</p>}
+            </Link>
+          );
+        })}
+      </div>
+      <p className={c.note}>Angka dicatat saat post diambil, jadi menggambarkan engagement awal, bukan total akhir. Interaksi = like + komentar + share yang dicatat platform.</p>
     </div>
   );
 }
