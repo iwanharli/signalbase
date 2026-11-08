@@ -132,11 +132,6 @@
 }
 .nav button.link { cursor:pointer; }
 button.link:hover { color:#fff; }
-.link[data-active] {
-  color:#fff;
-  background:linear-gradient(120deg,#7c3aed,#0891b2);
-  box-shadow:0 6px 18px -8px #7c3aed;
-}
 .link[data-disabled] { opacity:.55; }
 .right {
   display:flex;
@@ -999,3 +994,13 @@ button.link:hover { color:#fff; }
   .window *::before,
   .window *::after { animation:none!important; }
 }
+
+/* Mirrors the panel bar's right side: plan chip and the docs icon button. */
+.plan { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 99px; font-size: 10.5px; white-space: nowrap;
+  color: rgba(255,255,255,.6); background: rgba(167,139,250,.12); border: 1px solid rgba(167,139,250,.28); }
+.plan b { color: #fff; font-weight: 700; }
+.tool { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: rgba(255,255,255,.65); }
+@media (max-width: 720px) { .plan, .tool { display: none; } }
+/* Same quiet active state as the panel bar. */
+.link[data-active] { color: #fff; background: rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 1px 3px rgba(0,0,0,.3); }
+.link[data-active] svg { color: #a5f3fc; }

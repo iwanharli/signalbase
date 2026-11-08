@@ -209,7 +209,7 @@ const { items, total, capped } = await res.json();`;
           <Section id="privacy" icon={IconShieldLock} title="Privasi & batas">
             <ul className={classes.facts}>
               <li><IconShieldLock size={16} />Setiap item membawa detail pembuat (nama, username, tautan profil, jumlah pengikut) dan tautan post asli. Ini data pribadi: simpan dan tampilkan sesuai aturan perlindungan data yang berlaku bagi aplikasi Anda.</li>
-              <li><IconKey size={16} />Kunci diperiksa melalui hash. Nilai lengkap kunci baru disimpan terenkripsi agar admin dapat menyalinnya kembali; cabut akses dari halaman Punci API.</li>
+              <li><IconKey size={16} />Kunci diperiksa melalui hash. Nilai lengkap kunci baru disimpan terenkripsi agar admin dapat menyalinnya kembali; cabut akses dari halaman Proyek.</li>
               <li><IconBolt size={16} />Hitungan di-cache sekitar 2 menit per kombinasi filter; data baru bisa muncul dengan jeda tersebut.</li>
               <li><IconTable size={16} />Post spam dan item bertanggal tidak wajar (sebelum 2010 atau di masa depan) selalu disembunyikan.</li>
             </ul>

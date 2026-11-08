@@ -23,7 +23,6 @@ const NAV: { view: View | null; icon: typeof IconMessages; label: string }[] = [
   { view: "social", icon: IconMessages, label: "Media Sosial" },
   { view: null, icon: IconWorldWww, label: "Media Online" },
   { view: "keys", icon: IconKey, label: "Proyek" },
-  { view: null, icon: IconBook2, label: "Dokumentasi" },
 ];
 
 export function ProductPreview() {
@@ -48,7 +47,8 @@ export function ProductPreview() {
             ))}
           </nav>
           <span className={c.right}>
-            <span className={c.role}>AKUN USER</span>
+            <span className={c.plan}><b>Pro</b>12 hari</span>
+            <span className={c.tool}><IconBook2 size={14} /></span>
             <span className={c.user}><i>R</i><span>Rina</span></span>
           </span>
         </div>
