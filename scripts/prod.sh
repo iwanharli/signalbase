@@ -24,7 +24,8 @@ import json, sys, time
 for p in json.load(sys.stdin):
     if p["name"].startswith(("signalbase", "swp")):
         e = p["pm2_env"]
-        print(f"{p[\"name\"]:<24} {e[\"status\"]:<8} uptime {int((time.time()*1000 - e[\"pm_uptime\"]) / 60000)} min  restarts {e[\"restart_time\"]}")'
+        uptime_min = int((time.time() * 1000 - e["pm_uptime"]) / 60000)
+        print("%-24s %-8s uptime %d min  restarts %d" % (p["name"], e["status"], uptime_min, e["restart_time"]))'
 echo "signalbase commit: $(git -C /var/www/signalbase log --oneline -1)"
 echo "signalbase build:  $(date -r /var/www/signalbase/.next/BUILD_ID '+%Y-%m-%d %H:%M' 2>/dev/null || echo none)"
 uptime
