@@ -37,9 +37,9 @@ export function HomeView() {
           </div>
           <div className={c.tile} data-tone="green">
             <span className={c.tileIcon}><IconKey size={16} /></span>
-            <small>Kunci API Anda</small>
+            <small>Proyek Anda</small>
             <b>{HOME_KEYS.length}</b>
-            <em>Kelola kunci & keyword</em>
+            <em>Kelola proyek & keyword</em>
           </div>
         </div>
       </section>
@@ -51,7 +51,7 @@ export function HomeView() {
 
       <div className={c.two} data-wide>
         <section className={c.panel}>
-          <PanelHead title="Sinyal terbaru" text="Post dan berita terbaru yang menyebut keyword kunci ini" />
+          <PanelHead title="Sinyal terbaru" text="Post dan berita terbaru yang menyebut keyword proyek ini" />
           <div className={c.feed}>
             {LATEST.map((item, i) => (
               <div key={i} className={c.feedItem} style={{ animationDelay: `${i * 70}ms` }}>
@@ -65,7 +65,7 @@ export function HomeView() {
           </div>
         </section>
         <section className={c.panel}>
-          <PanelHead title="Kunci API Anda" text="Pilih kunci untuk melihat datanya" />
+          <PanelHead title="Proyek Anda" text="Pilih proyek untuk melihat datanya" />
           {HOME_KEYS.map((k) => (
             <div key={k.name} className={c.keyRow} data-active={k.active || undefined}>
               <span className={c.keyIcon}><IconPlugConnected size={15} /></span>

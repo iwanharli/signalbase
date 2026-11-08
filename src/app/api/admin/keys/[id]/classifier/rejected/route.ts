@@ -13,7 +13,7 @@ type Cursors = Partial<Record<MediaType, { rejected?: string[]; rejectedSince?: 
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: id }, select: { cursors: true } });
-  if (!classifier) return NextResponse.json({ error: "Kunci ini belum memakai kategorisasi AI" }, { status: 404 });
+  if (!classifier) return NextResponse.json({ error: "Proyek ini belum memakai kategorisasi AI" }, { status: 404 });
   const cursors = (classifier.cursors ?? {}) as Cursors;
   const lists = await Promise.all(MEDIA_TYPES.map(async (type) => {
     const codes = (cursors[type]?.rejected ?? []).slice(-200).reverse();

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const REASONS = [
-  { icon: IconBuildingSkyscraper, title: "Paket Instansi", text: "Seluruh arsip, analisis terlengkap, kategorisasi AI dengan model enhancement, dan kunci tanpa batas." },
+  { icon: IconBuildingSkyscraper, title: "Paket Instansi", text: "Seluruh arsip, analisis terlengkap, kategorisasi AI dengan model enhancement, dan proyek tanpa batas." },
   { icon: IconHeadset, title: "Pendampingan", text: "Kami bantu menyusun keyword, kategori AI, dan integrasi ke dashboard atau sistem Anda." },
   { icon: IconShieldCheck, title: "Kebutuhan khusus", text: "Cakupan wilayah tertentu, riwayat panjang, SLA, atau penagihan sesuai prosedur pengadaan." },
 ];

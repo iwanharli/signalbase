@@ -11,7 +11,7 @@ const SECTIONS: LegalSection[] = [
     <li><strong>Untuk apa:</strong> mengelola akun, memberi akses, menagih paket, dan menghubungi Anda terkait layanan.</li>
   </ul> },
   { id: "pemakaian", title: "Data pemakaian", body: <ul>
-    <li>Jumlah panggilan API per kunci per hari dan waktu terakhir kunci dipakai, untuk batas paket dan laporan pemakaian.</li>
+    <li>Jumlah panggilan API per proyek per hari dan waktu terakhir kunci API dipakai, untuk batas paket dan laporan pemakaian.</li>
     <li>Cookie sesi yang diperlukan agar Anda tetap masuk ke panel. Kami tidak memakai cookie iklan atau pelacak pihak ketiga.</li>
   </ul> },
   { id: "publik", title: "Data publik media sosial dan berita", body: <>

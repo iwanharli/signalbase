@@ -41,8 +41,8 @@ export function KeysView() {
         <div className={c.heroGrid} aria-hidden />
         <div className={c.heroText}>
           <span className={c.badge}><IconKey size={11} />Akses API</span>
-          <h3>Kunci <em>API</em></h3>
-          <p className={c.heroDesc}>Kelola akses aplikasi Anda ke bank data media. Setiap kunci memiliki cakupan data dan kategorisasi AI tersendiri.</p>
+          <h3>Pro<em>yek</em></h3>
+          <p className={c.heroDesc}>Kelola akses aplikasi Anda ke bank data media. Setiap proyek memiliki cakupan data dan kategorisasi AI tersendiri.</p>
         </div>
         <div className={c.heroSide}>
           <div className={c.keyStats}>
@@ -50,7 +50,7 @@ export function KeysView() {
             <div><b>2</b><span>Dipakai 24 jam</span></div>
             <div><b>{withAi}</b><span>Dengan AI</span></div>
           </div>
-          <span className={c.primaryBtn}><IconKey size={14} />Buat kunci</span>
+          <span className={c.primaryBtn}><IconKey size={14} />Buat proyek</span>
         </div>
       </section>
 
@@ -60,7 +60,7 @@ export function KeysView() {
           <span className={c.listSearch}><IconSearch size={13} />Cari nama, prefix, atau kata kunci</span>
         </div>
         <div className={c.thead}>
-          <span>Kunci</span><span>Kata kunci</span><span>Cakupan</span><span><IconSparkles size={11} />AI</span><span>Pembuat</span><span>Terakhir dipakai</span>
+          <span>Proyek</span><span>Kata kunci</span><span>Cakupan</span><span><IconSparkles size={11} />AI</span><span>Pembuat</span><span>Terakhir dipakai</span>
         </div>
         {KEY_ROWS.map((row, i) => <KeyRow key={row.name} row={row} index={i} />)}
       </section>

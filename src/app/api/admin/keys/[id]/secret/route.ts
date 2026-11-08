@@ -9,8 +9,8 @@ type Context = { params: Promise<{ id: string }> };
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const row = await prisma.apiKey.findUnique({ where: { id }, select: { keyEnc: true, revokedAt: true } });
-  if (!row) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
-  if (row.revokedAt) return NextResponse.json({ error: "Kunci sudah dicabut" }, { status: 409 });
+  if (!row) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+  if (row.revokedAt) return NextResponse.json({ error: "Proyek sudah dicabut" }, { status: 409 });
   const key = revealKey(row.keyEnc);
   if (!key) return NextResponse.json({ error: "Kunci lama tidak tersimpan. Buat ulang kunci agar bisa disalin." }, { status: 409 });
   return NextResponse.json({ key }, { headers: { "Cache-Control": "no-store" } });

@@ -16,7 +16,7 @@ export function PlanBanner({ plan, expiresAt }: { plan: string | null; expiresAt
       {expired ? <IconAlertTriangle size={18} /> : <IconClockHour4 size={18} />}
       <span>
         {expired
-          ? <><b>{name} Anda sudah berakhir.</b> Kunci API berhenti bekerja; kunci, keyword, dan pengaturan tetap tersimpan.</>
+          ? <><b>{name} Anda sudah berakhir.</b> Kunci API berhenti bekerja; proyek, keyword, dan pengaturan tetap tersimpan.</>
           : <><b>{name}: {left === 1 ? "hari terakhir" : `sisa ${left} hari`}.</b> Pilih paket agar kunci API tetap bekerja setelahnya.</>}
       </span>
       <Link href="/billing">Perpanjang paket</Link>

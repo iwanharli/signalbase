@@ -70,7 +70,7 @@ function ContextSection({ item, type, keyName }: { item: MediaItem; type: MediaT
         {type === "social" && <Row label="Bahasa">{languageLabel(metadata?.language)}</Row>}
         {item.province && <Row label="Provinsi">{item.province}</Row>}
         {item.location && item.location !== item.province && <Row label="Lokasi disebut">{item.location}</Row>}
-        {type === "social" && keyName && metadata && !metadata.keywordRestricted && <Row label="Kata kunci"><span className={classes.fieldNote}>Kunci ini tidak membatasi kata kunci.</span></Row>}
+        {type === "social" && keyName && metadata && !metadata.keywordRestricted && <Row label="Kata kunci"><span className={classes.fieldNote}>Proyek ini tidak membatasi kata kunci.</span></Row>}
         {type === "social" && metadata?.keywordRestricted && <Row label="Kata kunci cocok">
           {metadata.matchedKeywords.length
             ? <div className={classes.keywordMatches}>{metadata.matchedKeywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>
@@ -87,18 +87,18 @@ function KeyAnalysis({ item, keyName, type, correction }: { item: MediaItem; key
   // null: the key categorises, but the worker has not reached this item yet.
   if (result === null) {
     return (
-      <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI kunci">
-        <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI kunci</h3></div>
-        <p className={classes.sectionNote}>Belum dikategorikan. Item ini akan diberi kategori saat worker {keyName ? `kunci “${keyName}”` : "kunci ini"} sampai ke tanggal terbitnya.</p>
+      <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI proyek">
+        <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI proyek</h3></div>
+        <p className={classes.sectionNote}>Belum dikategorikan. Item ini akan diberi kategori saat worker {keyName ? `proyek “${keyName}”` : "proyek ini"} sampai ke tanggal terbitnya.</p>
         {correction && <CorrectionField item={item} type={type} correction={correction} />}
       </section>
     );
   }
   const confidence = result.confidence;
   return (
-    <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI kunci">
-      <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI kunci</h3></div>
-      <p className={classes.sectionNote}>Kategori khusus untuk {keyName ? `kunci “${keyName}”` : "kunci API ini"}, terpisah dari analisis sumber.</p>
+    <section className={`${classes.analysis} ${classes.keyAnalysis}`} aria-label="Kategorisasi AI proyek">
+      <div className={classes.sectionHead}><IconRobot size={16} aria-hidden /><h3>Kategorisasi AI proyek</h3></div>
+      <p className={classes.sectionNote}>Kategori khusus untuk {keyName ? `proyek “${keyName}”` : "proyek ini"}, terpisah dari analisis sumber.</p>
       <AiCategoryBadge item={item} />
       {result.reason && <div className={classes.summaryBlock}><h4>Alasan kategorisasi</h4><p className={classes.classificationReason}>{result.reason}</p></div>}
       <dl className={classes.rows}>

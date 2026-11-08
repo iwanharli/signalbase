@@ -85,7 +85,7 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
         <div>
           <b>{tokenMode ? "Penggunaan token" : "Penggunaan saldo"}</b>
           <small>{tokenMode
-            ? `Token yang dipakai kunci ini per ${hourly ? "jam" : "hari"}${data?.models?.length ? ` · ${data.models.join(", ")}` : ""}`
+            ? `Token yang dipakai proyek ini per ${hourly ? "jam" : "hari"}${data?.models?.length ? ` · ${data.models.join(", ")}` : ""}`
             : `Kredit penyedia AI yang terpakai per ${hourly ? "jam" : "hari"}`}</small>
         </div>
         <div className={classes.ranges} role="tablist" aria-label="Satuan">

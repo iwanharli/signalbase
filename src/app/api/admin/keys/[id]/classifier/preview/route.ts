@@ -35,9 +35,9 @@ export const POST = adminRoute(async (req: Request, { params }: Context, _userna
   if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
 
   const key = await prisma.apiKey.findUnique({ where: { id }, include: { classifier: true } });
-  if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   const scope = parseKeyScope(key.scope, key.keywords);
-  if (!allowsType(scope, input.type)) return NextResponse.json({ error: "Jenis media ini di luar cakupan kunci" }, { status: 400 });
+  if (!allowsType(scope, input.type)) return NextResponse.json({ error: "Jenis media ini di luar cakupan proyek" }, { status: 400 });
 
   let config: ProviderConfig;
   const p = input.provider;

@@ -95,10 +95,10 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
 
       <div className={classes.content}>
         {view && <KeyViewBanner view={view} type={type} canLeave={!keyLocked} />}
-        {keyInfo.error && <Alert color="red" mb="md" title="Kunci tidak bisa dimuat">{keyInfo.error}</Alert>}
+        {keyInfo.error && <Alert color="red" mb="md" title="Proyek tidak bisa dimuat">{keyInfo.error}</Alert>}
         {blocked ? (
           <div className={keyViewClasses.blocked}>
-            <b>Kunci ini tidak punya akses ke {type === "social" ? "media sosial" : "media online"}</b>
+            <b>Proyek ini tidak punya akses ke {type === "social" ? "media sosial" : "media online"}</b>
             <span>Pilih jenis media lain di banner di atas.</span>
           </div>
         ) : (<>

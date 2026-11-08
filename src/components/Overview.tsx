@@ -74,7 +74,7 @@ function VolumeTile({ type, stats, keyQuery }: { type: MediaType; stats?: TypeSt
       <span className={classes.tileIcon}><style.icon size={20} /></span>
       <span className={classes.tileLabel}>{MEDIA_TYPE_LABEL[type]} · 7 hari</span>
       <b className={classes.tileValue}>{stats ? <CountUp value={thisWeek} /> : "—"}</b>
-      {stats === null && <span className={classes.delta}>Tidak termasuk cakupan kunci</span>}
+      {stats === null && <span className={classes.delta}>Tidak termasuk cakupan proyek</span>}
       {stats && lastWeek > 0 && (
         <span className={classes.delta} data-down={change < 0 || undefined}>
           {change < 0 ? <IconArrowDownRight size={14} /> : <IconArrowUpRight size={14} />}{Math.abs(change).toFixed(1)}% vs 7 hari sebelumnya
@@ -96,7 +96,7 @@ function TypePanel({ type, stats, keyQuery }: { type: MediaType; stats?: TypeSta
         {stats !== null && <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Jelajahi <IconArrowRight size={14} /></Link>}
       </header>
 
-      {stats === null ? <p className={classes.empty}>Jenis media ini tidak termasuk cakupan kunci. Ubah cakupan di halaman Kunci API untuk menampilkannya.</p> : !stats ? <Skeleton h={170} radius="md" /> : (
+      {stats === null ? <p className={classes.empty}>Jenis media ini tidak termasuk cakupan proyek. Ubah cakupan di halaman Proyek untuk menampilkannya.</p> : !stats ? <Skeleton h={170} radius="md" /> : (
         <div className={classes.chart}>
           {days.map((d, i) => (
             <div key={d.day} className={classes.col} tabIndex={0} aria-label={`${dayjs(d.day).locale("id").format("D MMMM YYYY")}: ${formatNumber(d.n)} item${i === CHART_DAYS - 1 ? ", hari ini belum lengkap" : ""}`} data-today={i === CHART_DAYS - 1 || undefined}>
@@ -135,7 +135,7 @@ function LatestFeed({ stats, keyQuery, scoped }: { stats: OverviewStats | null; 
     : [];
   return (
     <section className={classes.panel}>
-      <header className={classes.panelHead}><div><h3>Sinyal terbaru</h3><p>{scoped ? "Post dan berita terbaru yang menyebut keyword kunci ini" : "Data paling baru yang masuk ke bank"}</p></div></header>
+      <header className={classes.panelHead}><div><h3>Sinyal terbaru</h3><p>{scoped ? "Post dan berita terbaru yang menyebut keyword proyek ini" : "Data paling baru yang masuk ke bank"}</p></div></header>
       <div className={classes.feed}>
         {!stats && Array.from({ length: 5 }, (_, i) => <Skeleton key={i} h={58} radius="md" />)}
         {items.map(({ item, type }, i) => {
@@ -164,7 +164,7 @@ function ConnectedApps({ keys, own, activeId }: { keys: ApiKeySummary[] | null; 
   return (
     <section className={classes.panel}>
       <header className={classes.panelHead}>
-        <div><h3>{own ? "Kunci API Anda" : "Aplikasi terhubung"}</h3><p>{own ? "Pilih kunci untuk melihat datanya di beranda" : "Kunci API aktif dan cakupannya"}</p></div>
+        <div><h3>{own ? "Proyek Anda" : "Aplikasi terhubung"}</h3><p>{own ? "Pilih proyek untuk melihat datanya di beranda" : "Proyek aktif dan cakupannya"}</p></div>
         <Link href="/api-keys" className={classes.more}>Kelola <IconArrowRight size={14} /></Link>
       </header>
       <div className={classes.keys}>
@@ -182,7 +182,7 @@ function ConnectedApps({ keys, own, activeId }: { keys: ApiKeySummary[] | null; 
             </Link>
           );
         })}
-        {keys && !keys.length && <p className={classes.empty}>Belum ada kunci aktif.</p>}
+        {keys && !keys.length && <p className={classes.empty}>Belum ada proyek aktif.</p>}
       </div>
     </section>
   );
@@ -191,18 +191,18 @@ function ConnectedApps({ keys, own, activeId }: { keys: ApiKeySummary[] | null; 
 /** A user account without any key: nothing to show until they choose keywords. */
 function Onboarding({ name }: { name: string }) {
   const steps = [
-    { icon: IconKey, title: "Buat kunci API", text: "Beri nama aplikasi Anda dan tentukan keyword yang ingin dipantau." },
+    { icon: IconKey, title: "Buat proyek", text: "Beri nama aplikasi Anda dan tentukan keyword yang ingin dipantau." },
     { icon: IconSearch, title: "Lihat sinyalnya", text: "Beranda dan halaman media menampilkan post dan berita yang menyebut keyword itu." },
-    { icon: IconPlugConnected, title: "Hubungkan aplikasi", text: "Ambil data yang sama lewat API dengan kunci tersebut." },
+    { icon: IconPlugConnected, title: "Hubungkan aplikasi", text: "Ambil data yang sama lewat API dengan kunci API proyek tersebut." },
   ];
   return (
     <section className={classes.onboard}>
       <span className={classes.live}><i />Selamat datang, {name}</span>
       <h1>Mulai dengan <em>keyword</em> Anda.</h1>
-      <p>Beranda masih kosong karena belum ada kunci API. Data hanya muncul untuk keyword yang Anda pilih.</p>
+      <p>Beranda masih kosong karena belum ada proyek. Data hanya muncul untuk keyword yang Anda pilih.</p>
       <ol>{steps.map((s, i) => <li key={s.title} style={{ animationDelay: `${i * 90}ms` }}><span><s.icon size={20} /></span><b>{i + 1}. {s.title}</b><small>{s.text}</small></li>)}</ol>
       <div className={classes.onboardActions}>
-        <Link href="/api-keys/new" className={classes.primaryLink}><IconKey size={16} />Buat kunci & atur keyword</Link>
+        <Link href="/api-keys/new" className={classes.primaryLink}><IconKey size={16} />Buat proyek & atur keyword</Link>
         <Link href="/docs" className={classes.more}><IconBook2 size={14} />Baca dokumentasi API</Link>
       </div>
     </section>
@@ -222,8 +222,8 @@ export function Overview({ name, role }: { name: string; role: "admin" | "user" 
         <div className={classes.heroGrid} aria-hidden />
         <div className={classes.heroText}>
           {key ? <>
-            <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai kunci"} · {key.name}</span>
-            <h1>Sinyal untuk <em>keyword {own ? "Anda" : "kunci ini"}</em></h1>
+            <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
+            <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
             <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
               <Link href={`/api-keys/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
             {data && <p>Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</p>}
@@ -238,9 +238,9 @@ export function Overview({ name, role }: { name: string; role: "admin" | "user" 
           <VolumeTile type="online" stats={data ? data.online : undefined} keyQuery={keyQuery} />
           <Link href="/api-keys" className={classes.tile} style={gradientVars(KEYS_STYLE)}>
             <span className={classes.tileIcon}><IconKey size={20} /></span>
-            <span className={classes.tileLabel}>{own ? "Kunci API Anda" : "Kunci API aktif"}</span>
+            <span className={classes.tileLabel}>{own ? "Proyek Anda" : "Proyek aktif"}</span>
             <b className={classes.tileValue}>{data ? <CountUp value={data.keys.length} /> : "—"}</b>
-            <span className={classes.delta}>{own ? "Kelola kunci & keyword" : "Aplikasi terhubung"}</span>
+            <span className={classes.delta}>{own ? "Kelola proyek & keyword" : "Aplikasi terhubung"}</span>
           </Link>
         </div>
       </section>

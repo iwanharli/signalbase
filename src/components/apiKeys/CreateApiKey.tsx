@@ -57,7 +57,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", done: visited.has("scope") },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiEnabled ? (aiProblems.length ? "Belum lengkap" : `${aiDraft.categories.length} kategori`) : "Tidak dipakai",
       done: visited.has("ai") && !aiProblems.length },
-    { id: "review", label: "Tinjau & buat", icon: IconClipboardCheck, summary: "Periksa lalu buat kunci" },
+    { id: "review", label: "Tinjau & buat", icon: IconClipboardCheck, summary: "Periksa lalu buat proyek" },
   ];
 
   const submit = async () => {
@@ -77,7 +77,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
       {index > 0 && <Button onDark variant="secondary" icon={IconArrowLeft} onClick={() => go(STEPS[index - 1])}>Kembali</Button>}
       {index === 0 && <Button onDark variant="secondary" href="/api-keys">Batal</Button>}
       {step === "review" ? (
-        <Button variant="primary" icon={IconKey} onClick={submit} loading={busy} disabled={!nameValid}>{busy ? "Membuat…" : "Buat kunci"}</Button>
+        <Button variant="primary" icon={IconKey} onClick={submit} loading={busy} disabled={!nameValid}>{busy ? "Membuat…" : "Buat proyek"}</Button>
       ) : (
         <Button variant="primary" iconRight={IconArrowRight} onClick={() => go(STEPS[index + 1])} disabled={step === "identity" && !nameValid}>Lanjut</Button>
       )}
@@ -87,10 +87,10 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
   return (
     <SectionLayout nav={<SectionNav numbered items={items} active={step} onSelect={go} />}>
       {step === "identity" && (
-        <SectionPanel icon={IconId} title="Identitas" description="Nama membantu mengenali aplikasi yang memakai kunci ini." footer={footer}>
+        <SectionPanel icon={IconId} title="Identitas" description="Nama membantu mengenali aplikasi yang memakai proyek ini." footer={footer}>
           <TextInput classNames={keyInputClasses} label="Nama aplikasi" placeholder="mis. KIPERMAS produksi" value={name} autoFocus
             onChange={(e) => setName(e.currentTarget.value)} maxLength={80} onKeyDown={(e) => { if (e.key === "Enter" && nameValid) go("keywords"); }} />
-          <Hint>Buat satu kunci per aplikasi dan per lingkungan (produksi, uji coba), supaya masing-masing bisa dicabut sendiri.</Hint>
+          <Hint>Buat satu proyek per aplikasi dan per lingkungan (produksi, uji coba), supaya masing-masing bisa dicabut sendiri.</Hint>
         </SectionPanel>
       )}
 
@@ -114,7 +114,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
             value={aiEnabled ? "on" : "off"} onChange={(v) => setAiEnabled(v === "on")} />
           {aiEnabled
             ? <ClassifierEditor draft={aiDraft} onChange={setAiDraft} />
-            : <Hint>Misalnya kategori 8 Quick Win Kapolri memakai Claude atau DeepSeek. Bisa juga diatur nanti dari halaman detail kunci.</Hint>}
+            : <Hint>Misalnya kategori 8 Quick Win Kapolri memakai Claude atau DeepSeek. Bisa juga diatur nanti dari halaman detail proyek.</Hint>}
         </SectionPanel>
       )}
 
@@ -143,10 +143,10 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
     <div className={classes.created}>
       <div className={classes.createdHead}>
         <span className={classes.successIcon}><IconShieldCheck size={22} /></span>
-        <div><b>Kunci untuk {created.name} siap</b><small>Salin dan simpan sebagai secret di aplikasi tersebut.</small></div>
+        <div><b>Kunci API untuk {created.name} siap</b><small>Salin dan simpan sebagai secret di aplikasi tersebut.</small></div>
       </div>
 
-      <div className={classes.warning}><IconAlertTriangle size={17} />Simpan kunci sebagai secret di aplikasi. Admin dapat menyalinnya kembali dari halaman detail kunci.</div>
+      <div className={classes.warning}><IconAlertTriangle size={17} />Simpan kunci sebagai secret di aplikasi. Admin dapat menyalinnya kembali dari halaman detail proyek.</div>
 
       <div className={classes.secret}>
         <code>{created.key}</code>
@@ -163,8 +163,8 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
       <pre className={classes.example}>{example}</pre>
 
       <div className={classes.createFoot}>
-        <Button onDark variant="secondary" onClick={onAnother}>Buat kunci lain</Button>
-        <Button variant="primary" href="/api-keys">Selesai, ke daftar kunci</Button>
+        <Button onDark variant="secondary" onClick={onAnother}>Buat proyek lain</Button>
+        <Button variant="primary" href="/api-keys">Selesai, ke daftar proyek</Button>
       </div>
     </div>
   );
@@ -184,9 +184,9 @@ export function CreateApiKey() {
 
   return (
     <div className={classes.page}>
-      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Kunci API</Link>
+      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
       <header className={classes.titleRow}>
-        <h1>{created ? "Kunci berhasil dibuat" : "Buat kunci API"}</h1>
+        <h1>{created ? "Proyek berhasil dibuat" : "Buat proyek"}</h1>
         <p>{created ? "Langkah terakhir: salin kuncinya." : "Beri akses baca ke aplikasi lain dalam beberapa langkah."}</p>
       </header>
       {created ? <CreatedPanel created={created} onAnother={() => setCreated(null)} /> : <CreateWizard onCreated={setCreated} />}

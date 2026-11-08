@@ -10,7 +10,7 @@ type Context = { params: Promise<{ id: string }> };
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: id } });
-  if (!classifier) return NextResponse.json({ error: "Kunci ini belum memakai kategorisasi AI" }, { status: 404 });
+  if (!classifier) return NextResponse.json({ error: "Proyek ini belum memakai kategorisasi AI" }, { status: 404 });
   try {
     const balance = await providerBalance(providerConfig(classifier));
     await recordBalance(id, balance).catch(() => {});

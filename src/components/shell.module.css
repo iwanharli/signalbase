@@ -54,13 +54,12 @@
 
 .nav { position: relative; display: flex; gap: 2px; justify-self: center; padding: 4px; border-radius: 14px; background: rgba(255,255,255,.04); }
 .pill { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 10px;
-  background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,211,238,.7));
-  box-shadow: 0 0 22px rgba(124,58,237,.55), 0 0 6px rgba(34,211,238,.5), inset 0 1px 0 rgba(255,255,255,.25);
+  background: rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 1px 3px rgba(0,0,0,.3);
   transition: transform 420ms cubic-bezier(.3,1.4,.4,1), width 420ms cubic-bezier(.3,1.4,.4,1); }
 .link { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; white-space: nowrap;
   color: rgba(255,255,255,.62); font-size: 13.5px; font-weight: 600; text-decoration: none; transition: color 200ms ease, transform 200ms ease; }
 .link:hover { color: #fff; }
-.link:hover svg { transform: translateY(-1px) rotate(-6deg); }
+.link[data-active] svg { color: #a5f3fc; }
 .link svg { transition: transform 220ms ease; }
 .link[data-active] { color: #fff; }
 
@@ -118,3 +117,22 @@
 
 /* Printing an invoice: only the paper. */
 @media print { .bar, .backdrop, .planBanner { display: none !important; } .main { padding: 0 !important; margin: 0 !important; } .root { background: #fff !important; } }
+
+/* ---------- Right side: plan chip, tool icons, account ---------- */
+.planChip { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 99px; text-decoration: none; font-size: 12.5px;
+  color: #ddd6fe; background: rgba(167,139,250,.12); border: 1px solid rgba(167,139,250,.28); transition: background .15s; }
+.planChip b { font-weight: 700; color: #fff; }
+.planChip span { color: rgba(255,255,255,.6); }
+.planChip:hover { background: rgba(167,139,250,.2); }
+.planChip[data-warn] { color: #fed7aa; background: rgba(249,115,22,.14); border-color: rgba(249,115,22,.35); }
+.iconLink { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; color: rgba(255,255,255,.65); transition: background .15s, color .15s; }
+.iconLink:hover, .iconLink[data-active] { color: #fff; background: rgba(255,255,255,.08); }
+.user { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px 0 4px; border-radius: 99px; border: 1px solid rgba(255,255,255,.1); transition: background .15s, border-color .15s; }
+.userName { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: #fff; }
+.userChevron { color: rgba(255,255,255,.55); }
+.menuHead { display: flex; align-items: center; gap: 10px; padding: 8px 10px 6px; }
+.menuHead b { display: block; font-size: 14px; }
+.menuHead small { display: block; font-size: 12px; color: var(--mantine-color-dimmed); }
+.iconLink:focus-visible, .planChip:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+@media (max-width: 1200px) { .userName { display: none; } .user { padding-right: 8px; } }
+@media (max-width: 1000px) { .iconLink, .planChip { display: none; } }

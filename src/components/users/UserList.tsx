@@ -74,7 +74,7 @@ function PlanModal({ user, onClose, onSaved }: { user: UserRow | null; onClose: 
 
 const describeLimits = (id: PlanId) => {
   const l = PLAN_LIMITS[id];
-  return [`${l.keys ?? "∞"} kunci`, `${l.keywordsPerKey ?? "∞"} keyword`, l.historyDays ? `riwayat ${l.historyDays} hari` : "seluruh arsip"].join(", ");
+  return [`${l.keys ?? "∞"} proyek`, `${l.keywordsPerKey ?? "∞"} keyword`, l.historyDays ? `riwayat ${l.historyDays} hari` : "seluruh arsip"].join(", ");
 };
 
 const TABS: { id: Status; label: string }[] = [
@@ -136,7 +136,7 @@ export function UserList() {
         </div>
 
         <div className={classes.head} role="row" style={COLUMNS}>
-          <span role="columnheader">Pengguna</span><span role="columnheader">Status</span><span role="columnheader">Paket</span><span role="columnheader">Kunci API</span>
+          <span role="columnheader">Pengguna</span><span role="columnheader">Status</span><span role="columnheader">Paket</span><span role="columnheader">Proyek</span>
           <span role="columnheader">Mendaftar</span><span role="columnheader">Aksi</span>
         </div>
 

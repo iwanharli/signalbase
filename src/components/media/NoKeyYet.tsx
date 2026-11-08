@@ -13,9 +13,9 @@ export function NoKeyYet({ type, hasKeys }: { type: MediaType; hasKeys: boolean 
       <Icon size={36} stroke={1.5} aria-hidden />
       <b>{MEDIA_TYPE_LABEL[type]} masih kosong</b>
       <p>{hasKeys
-        ? `Kunci API Anda belum mencakup ${MEDIA_TYPE_LABEL[type].toLowerCase()}. Ubah cakupan kunci atau buat kunci baru untuk jenis media ini.`
-        : "Data muncul setelah Anda membuat kunci API dan menentukan keyword yang ingin dipantau. Hanya post dan berita yang menyebut keyword itu yang ditampilkan."}</p>
-      <Button icon={IconKey} href={hasKeys ? "/api-keys" : "/api-keys/new"}>{hasKeys ? "Atur kunci API" : "Buat kunci & atur keyword"}</Button>
+        ? `Proyek Anda belum mencakup ${MEDIA_TYPE_LABEL[type].toLowerCase()}. Ubah cakupan proyek atau buat proyek baru untuk jenis media ini.`
+        : "Data muncul setelah Anda membuat proyek dan menentukan keyword yang ingin dipantau. Hanya post dan berita yang menyebut keyword itu yang ditampilkan."}</p>
+      <Button icon={IconKey} href={hasKeys ? "/api-keys" : "/api-keys/new"}>{hasKeys ? "Atur proyek" : "Buat proyek & atur keyword"}</Button>
     </div>
   );
 }

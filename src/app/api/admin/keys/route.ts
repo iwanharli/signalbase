@@ -56,10 +56,10 @@ export const POST = adminRoute(async (req: Request, _ctx, username, user) => {
     if (plan.expired) return NextResponse.json({ error: EXPIRED_MESSAGE }, { status: 403 });
     const { keys, keywordsPerKey } = plan.limits;
     if (keywordsPerKey !== null && scope.keywords.length > keywordsPerKey) {
-      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per kunci` }, { status: 403 });
+      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per proyek` }, { status: 403 });
     }
     if (keys !== null && (await prisma.apiKey.count({ where: { ownerId: user.id, revokedAt: null } })) >= keys) {
-      return NextResponse.json({ error: `Paket Anda membatasi ${keys} kunci API aktif. Cabut kunci lain atau naikkan paket.` }, { status: 403 });
+      return NextResponse.json({ error: `Paket Anda membatasi ${keys} proyek aktif. Cabut proyek lain atau naikkan paket.` }, { status: 403 });
     }
   }
   const blocked = parsed.data.classifier && providerNotAllowed(user, parsed.data.classifier.provider, parsed.data.classifier.fallback);

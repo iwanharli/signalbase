@@ -34,7 +34,7 @@ export function MediaView() {
       <div className={c.keyBanner}>
         <span className={c.keyBannerIcon}><IconEye size={15} /></span>
         <div>
-          <small><IconKey size={11} />Dilihat sebagai kunci</small>
+          <small><IconKey size={11} />Dilihat sebagai proyek</small>
           <b>{KEY_NAME}</b>
           <p>{KEYWORDS.join(", ")} · kategorisasi AI aktif</p>
         </div>

@@ -22,9 +22,9 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
 
   let key: (typeof keys)[number] | undefined;
   if (requested) {
-    if (!(await ownsKey(user, requested))) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+    if (!(await ownsKey(user, requested))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     key = keys.find((k) => k.id === requested);
-    if (!key) return NextResponse.json({ error: "Kunci sudah dicabut" }, { status: 404 });
+    if (!key) return NextResponse.json({ error: "Proyek sudah dicabut" }, { status: 404 });
   } else if (isUser) {
     key = keys[0];
     if (!key) return NextResponse.json({ noKey: true, keys: [], at: new Date().toISOString() });

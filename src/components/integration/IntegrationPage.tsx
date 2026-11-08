@@ -26,8 +26,8 @@ const FACTS: [string, string][] = [
 
 const QUICKSTART = [
   { icon: IconUserCheck, title: "Daftar & disetujui", text: "Buat akun. Setelah admin menyetujui, trial dimulai." },
-  { icon: IconKey, title: "Buat kunci API", text: "Pilih keyword, jenis media, dan cakupan wilayah untuk aplikasi Anda." },
-  { icon: IconLock, title: "Simpan di server", text: "Taruh kunci di variabel lingkungan backend, bukan di browser." },
+  { icon: IconKey, title: "Buat proyek", text: "Pilih keyword, jenis media, dan cakupan wilayah untuk aplikasi Anda." },
+  { icon: IconLock, title: "Simpan di server", text: "Taruh kunci API proyek di variabel lingkungan backend, bukan di browser." },
   { icon: IconBolt, title: "Panggil API", text: "Kirim permintaan pertama dan terima JSON dalam hitungan detik." },
 ];
 
@@ -72,7 +72,7 @@ export function IntegrationPage() {
   return (
     <>
       <PageHeader label="INTEGRASI" title="Data Signalbase," accent="langsung di aplikasi Anda."
-        text="Satu REST API untuk post media sosial dan berita online, lengkap dengan analisis, pembuat, dan kategori AI. Cakupan setiap kunci diterapkan di server." />
+        text="Satu REST API untuk post media sosial dan berita online, lengkap dengan analisis, pembuat, dan kategori AI. Cakupan setiap proyek diterapkan di server." />
 
       <div className={c.facts}>
         {FACTS.map(([k, v]) => <div key={k}><small>{k}</small><code>{v}</code></div>)}
@@ -93,7 +93,7 @@ export function IntegrationPage() {
       </Section>
 
       <Section id="contoh" icon={IconPlugConnected} label="CONTOH KODE" title="Permintaan pertama Anda."
-        text="Ambil 50 post negatif sejak 1 November dalam cakupan kunci Anda. Ganti SIGNALBASE_KEY dengan kunci dari panel.">
+        text="Ambil 50 post negatif sejak 1 November dalam cakupan proyek Anda. Ganti SIGNALBASE_KEY dengan kunci API proyek dari panel.">
         <CodeTabs samples={codeSamples(SITE_URL)} />
       </Section>
 
@@ -111,7 +111,7 @@ export function IntegrationPage() {
       </Section>
 
       <Section id="parameter" icon={IconListDetails} label="PARAMETER" title="Saring tepat di server."
-        text="Semua parameter opsional dan bisa digabung. Cakupan kunci (keyword, jenis media, wilayah) selalu berlaku di atasnya; parameter hanya bisa mempersempit.">
+        text="Semua parameter opsional dan bisa digabung. Cakupan proyek (keyword, jenis media, wilayah) selalu berlaku di atasnya; parameter hanya bisa mempersempit.">
         <div className={c.paramGroups}>
           {PARAM_GROUPS.map((g) => (
             <div key={g.title} className={c.tableCard}>
@@ -168,7 +168,7 @@ export function IntegrationPage() {
         <div className={c.limits}>
           <div className={c.tableCard}>
             <h3>Panggilan API per akun / hari</h3>
-            <p className={c.small}>Dibagi untuk semua kunci milik akun; 1 panggilan mengambil hingga {MAX_PAGE_SIZE} item.</p>
+            <p className={c.small}>Dibagi untuk semua proyek milik akun; 1 panggilan mengambil hingga {MAX_PAGE_SIZE} item.</p>
             <table className={c.table}>
               <tbody>{CALL_LIMITS.map(([plan, value]) => <tr key={plan}><th>{plan}</th><td className={c.right}>{value}</td></tr>)}</tbody>
             </table>
@@ -189,7 +189,7 @@ export function IntegrationPage() {
           <h3><IconAlertTriangle size={18} />Praktik terbaik</h3>
           <ul>{PRACTICES.map((p) => <li key={p}><IconCheck size={15} />{p}</li>)}</ul>
         </div>
-        <p className={c.docsNote}>Dokumentasi lengkap dengan contoh untuk kunci Anda tersedia di panel setelah masuk: <Link href="/docs">Dokumentasi API</Link>.</p>
+        <p className={c.docsNote}>Dokumentasi lengkap dengan contoh untuk proyek Anda tersedia di panel setelah masuk: <Link href="/docs">Dokumentasi API</Link>.</p>
       </Section>
 
       <Cta />

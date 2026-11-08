@@ -12,7 +12,7 @@ type Context = { params: Promise<{ id: string }> };
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const key = await prisma.apiKey.findUnique({ where: { id }, include: { classifier: true } });
-  if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   const counts = key.classifier
     ? await prisma.classification.groupBy({ by: ["type", "category"], where: { apiKeyId: id }, _count: true })
     : [];
@@ -37,7 +37,7 @@ export const PUT = adminRoute(async (req: Request, { params }: Context, _usernam
   const planProblem = await aiPlanProblem(user, parsed.data);
   if (planProblem) return NextResponse.json({ error: planProblem }, { status: 403 });
   const key = await prisma.apiKey.findUnique({ where: { id } });
-  if (!key || key.revokedAt) return NextResponse.json({ error: "Kunci tidak ditemukan atau sudah dicabut" }, { status: 404 });
+  if (!key || key.revokedAt) return NextResponse.json({ error: "Proyek tidak ditemukan atau sudah dicabut" }, { status: 404 });
   try {
     return NextResponse.json(publicClassifier(await saveClassifier(id, parsed.data)));
   } catch (error) {

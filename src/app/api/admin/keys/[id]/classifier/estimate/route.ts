@@ -48,7 +48,7 @@ type Context = { params: Promise<{ id: string }> };
 export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
   const key = await prisma.apiKey.findUnique({ where: { id }, select: { scope: true, keywords: true } });
-  if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   const scope = parseKeyScope(key.scope, key.keywords);
   const query = new URL(req.url).searchParams;
   // ?since=<ISO> counts from that exact moment, as the worker does; omitted = the whole scope.

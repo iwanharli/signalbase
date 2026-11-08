@@ -18,10 +18,10 @@ type Context = { params: Promise<{ type: string }> };
 /** The scope to browse with: the whole bank, or one API key's view of it when ?key= is given. */
 async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
   // Users only ever see the bank through one of their own keys.
-  if (!keyId) return user.role === "user" ? { error: "Pilih kunci API dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
-  if (!(await ownsKey(user, keyId))) return { error: "Kunci tidak ditemukan", status: 404 };
+  if (!keyId) return user.role === "user" ? { error: "Pilih proyek dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
+  if (!(await ownsKey(user, keyId))) return { error: "Proyek tidak ditemukan", status: 404 };
   const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
-  if (!key) return { error: "Kunci tidak ditemukan", status: 404 };
+  if (!key) return { error: "Proyek tidak ditemukan", status: 404 };
   return { scope: parseKeyScope(key.scope, key.keywords), keyId: key.id };
 }
 
@@ -50,7 +50,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     const resolved = await resolveScope(query.get("key"), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     const { scope, keyId } = resolved;
-    if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
+    if (!allowsType(scope, type)) return NextResponse.json({ error: `Proyek ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
 
     const categories = keyId ? await keyCategories(keyId, type) : null;
     const aiCategory = categories ? await effectiveCategoryFilter(keyId!, query.get("aiCategory")) : null;

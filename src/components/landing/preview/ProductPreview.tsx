@@ -22,7 +22,7 @@ const NAV: { view: View | null; icon: typeof IconMessages; label: string }[] = [
   { view: "home", icon: IconLayoutDashboard, label: "Beranda" },
   { view: "social", icon: IconMessages, label: "Media Sosial" },
   { view: null, icon: IconWorldWww, label: "Media Online" },
-  { view: "keys", icon: IconKey, label: "Kunci API" },
+  { view: "keys", icon: IconKey, label: "Proyek" },
   { view: null, icon: IconBook2, label: "Dokumentasi" },
 ];
 
@@ -56,7 +56,7 @@ export function ProductPreview() {
         <div className={c.page} key={view}>{VIEWS[view].render()}</div>
       </div>
 
-      <div className={c.caption}><span><i />Klik Beranda, Media Sosial, atau Kunci API untuk melihat tiap halaman.</span></div>
+      <div className={c.caption}><span><i />Klik Beranda, Media Sosial, atau Proyek untuk melihat tiap halaman.</span></div>
     </div>
   );
 }

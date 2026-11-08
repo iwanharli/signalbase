@@ -4,6 +4,7 @@ import { AiQuotaBanner, PlanBanner } from "@/components/PlanBanner";
 import { aiQuota, platformPostsThisMonth } from "@/lib/server/ai/platform";
 import { Shell } from "@/components/Shell";
 import { accountPlan } from "@/lib/server/plan";
+import { daysLeft, isPlanId, PLAN_LABEL } from "@/lib/plans";
 import { roleOf } from "@/lib/session";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     <AiQuotaBanner used={aiUsed} limit={aiLimit} />
   </>;
   return (
-    <Shell name={session.name} role={role} banner={banner}>
+    <Shell name={session.name} username={session.username} role={role} banner={banner}
+      plan={plan?.plan && isPlanId(plan.plan) ? { label: PLAN_LABEL[plan.plan], daysLeft: daysLeft(plan.expiresAt) } : null}>
       {children}
     </Shell>
   );

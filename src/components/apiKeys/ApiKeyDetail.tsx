@@ -46,7 +46,7 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
       <div className={classes.aiEmpty}>
         <span className={classes.aiEmptyIcon}><IconRobot size={22} /></span>
         <b>Kategorisasi AI belum diatur</b>
-        <p>Beri setiap post dan berita dalam cakupan kunci ini satu kategori, misalnya 8 Quick Win Kapolri, memakai Claude, DeepSeek, atau penyedia lain.</p>
+        <p>Beri setiap post dan berita dalam cakupan proyek ini satu kategori, misalnya 8 Quick Win Kapolri, memakai Claude, DeepSeek, atau penyedia lain.</p>
         <Button variant="primary" icon={IconRobot} href={settings}>Siapkan kategorisasi AI</Button>
       </div>
     );
@@ -210,7 +210,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     setBusy(true);
     try {
       await api(`/api/admin/keys/${keyId}`, { method: "DELETE" });
-      notifications.show({ color: "gray", message: `Kunci "${data?.name}" dicabut` });
+      notifications.show({ color: "gray", message: `Proyek "${data?.name}" dicabut` });
       router.push("/api-keys");
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -221,7 +221,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   if (detail.error) {
     return (
       <div className={classes.page}>
-        <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Kunci API</Link>
+        <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
         <div className={classes.empty}><b>{detail.error}</b></div>
       </div>
     );
@@ -233,12 +233,12 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Tidak dibatasi kata kunci", badge: keywordsChanged ? "diubah" : undefined },
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", badge: paramsChanged ? "diubah" : undefined },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiStatus(data.classifier).text },
-    { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Kunci sudah dicabut" : "Salin, buat ulang, atau cabut" },
+    { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Proyek sudah dicabut" : "Salin, buat ulang, atau cabut" },
   ] : [];
 
   return (
     <div className={classes.page} data-dirty={(dirty && !revoked) || undefined}>
-      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Kunci API</Link>
+      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
 
       {!ready ? <Skeleton h={120} radius={22} /> : (
         <header className={classes.detailHero}>
@@ -296,7 +296,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           )}
 
           {tab === "identity" && (
-            <SectionPanel icon={IconId} title="Identitas" description="Nama tampilan kunci. Nilai kunci tidak berubah, jadi aplikasi tidak perlu diperbarui.">
+            <SectionPanel icon={IconId} title="Identitas" description="Nama tampilan proyek. Nilai kunci tidak berubah, jadi aplikasi tidak perlu diperbarui.">
               <TextInput classNames={keyInputClasses} label="Nama aplikasi" value={name} disabled={revoked || busy} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />
             </SectionPanel>
           )}
@@ -324,13 +324,13 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "security" && (
             <SectionPanel icon={IconShieldLock} title="Keamanan" description="Salin kunci untuk menghubungkan aplikasi, buat ulang jika bocor, atau cabut untuk menghentikan akses.">
               {revoked ? (
-                <p className={classes.stepHint}>Kunci ini dicabut pada {formatDate(data.revokedAt!)}. Aplikasi yang memakainya mendapat 401.</p>
+                <p className={classes.stepHint}>Proyek ini dicabut pada {formatDate(data.revokedAt!)}. Aplikasi yang memakainya mendapat 401.</p>
               ) : (
                 <>
                 <div className={classes.keyBox}>
                   <div>
                     <b>Nilai kunci</b>
-                    <p>{data.copyable ? "Salin untuk dipasang di aplikasi. Perlakukan seperti kata sandi." : "Kunci ini dibuat sebelum penyimpanan terenkripsi, jadi nilainya tidak bisa disalin. Buat ulang kunci untuk mendapat nilai baru yang bisa disalin."}</p>
+                    <p>{data.copyable ? "Salin untuk dipasang di aplikasi. Perlakukan seperti kata sandi." : "Kunci proyek ini dibuat sebelum penyimpanan terenkripsi, jadi nilainya tidak bisa disalin. Buat ulang kunci untuk mendapat nilai baru yang bisa disalin."}</p>
                   </div>
                   <CopyKeyButton keyId={data.id} copyable={data.copyable} size="md" onDark label="Salin kunci" />
                 </div>
@@ -342,8 +342,8 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
                   <Button onDark variant="secondary" icon={IconRefresh} disabled={dirty || busy} title={dirty ? "Simpan atau batalkan perubahan sebelum membuat ulang kunci" : undefined} onClick={() => setConfirmRotate(true)}>Buat ulang kunci</Button>
                 </div>
                 <div className={classes.dangerBox}>
-                  <div><b>Cabut kunci</b><p>Aplikasi yang memakai kunci ini langsung kehilangan akses. Tidak bisa dibatalkan; buat kunci baru bila perlu.</p></div>
-                  <Button variant="danger" icon={IconShieldOff} disabled={busy} onClick={() => setConfirmRevoke(true)}>Cabut kunci</Button>
+                  <div><b>Cabut proyek</b><p>Aplikasi yang memakai proyek ini langsung kehilangan akses. Tidak bisa dibatalkan; buat proyek baru bila perlu.</p></div>
+                  <Button variant="danger" icon={IconShieldOff} disabled={busy} onClick={() => setConfirmRevoke(true)}>Cabut proyek</Button>
                 </div>
                 </>
               )}
@@ -361,7 +361,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
 
       <RestartConfirm request={restart} onClose={() => setRestart(null)} loading={busy} />
 
-      <Modal aria-label={rotated ? "Kunci baru" : "Konfirmasi buat ulang kunci"} opened={confirmRotate || !!rotated} onClose={() => { setConfirmRotate(false); setRotated(null); }} centered size={rotated ? "lg" : "md"} radius={20} padding={0}
+      <Modal aria-label={rotated ? "Proyek baru" : "Konfirmasi buat ulang kunci"} opened={confirmRotate || !!rotated} onClose={() => { setConfirmRotate(false); setRotated(null); }} centered size={rotated ? "lg" : "md"} radius={20} padding={0}
         withCloseButton={false} overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
         {rotated ? (
           <div className={classes.confirm}>
@@ -386,15 +386,15 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
         )}
       </Modal>
 
-      <Modal aria-label="Konfirmasi cabut kunci" opened={confirmRevoke} onClose={() => setConfirmRevoke(false)} centered radius={20} padding={0} withCloseButton={false}
+      <Modal aria-label="Konfirmasi cabut proyek" opened={confirmRevoke} onClose={() => setConfirmRevoke(false)} centered radius={20} padding={0} withCloseButton={false}
         overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
         <div className={classes.confirm}>
           <span className={classes.confirmIcon}><IconShieldOff size={22} /></span>
-          <b>Cabut kunci &ldquo;{data?.name}&rdquo;?</b>
-          <p>Aplikasi yang memakai kunci ini langsung tidak bisa mengakses data. Tindakan ini tidak bisa dibatalkan.</p>
+          <b>Cabut proyek &ldquo;{data?.name}&rdquo;?</b>
+          <p>Aplikasi yang memakai proyek ini langsung tidak bisa mengakses data. Tindakan ini tidak bisa dibatalkan.</p>
           <div className={classes.confirmActions}>
             <Button variant="secondary" block onClick={() => setConfirmRevoke(false)}>Batal</Button>
-            <Button variant="danger" block icon={IconShieldOff} onClick={revoke} loading={busy}>{busy ? "Mencabut…" : "Cabut kunci"}</Button>
+            <Button variant="danger" block icon={IconShieldOff} onClick={revoke} loading={busy}>{busy ? "Mencabut…" : "Cabut proyek"}</Button>
           </div>
         </div>
       </Modal>

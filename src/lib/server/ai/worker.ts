@@ -142,7 +142,7 @@ function buildJob(row: ClassifierRow): Job {
  */
 export async function retryRejected(apiKeyId: string) {
   const row = await loadClassifier(apiKeyId);
-  if (!row) throw new Error("Kunci ini belum memakai kategorisasi AI");
+  if (!row) throw new Error("Proyek ini belum memakai kategorisasi AI");
   const job = buildJob(row);
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let labelled = 0;

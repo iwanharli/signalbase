@@ -93,5 +93,8 @@
 }
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; } .stats > div { min-width: 0; flex: 1; } .heroSide, .stats { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .hero, .list, .row, .icon[data-live]::after { animation: none; } }
-.creator { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.creator { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0; font-weight: 600; }
+/* Long usernames end in an ellipsis instead of running into the next column; the full name is in the tooltip. */
+.creator span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creator i { flex-shrink: 0; }
 .creator i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-style: normal; font-size: 11px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee); }

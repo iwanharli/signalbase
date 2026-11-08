@@ -41,7 +41,7 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       const path = new URL(req.url).pathname;
       if (ADMIN_ONLY.some((p) => path.startsWith(p))) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
       const keyId = path.match(/^\/api\/admin\/keys\/([^/]+)/)?.[1];
-      if (keyId && !(await ownsKey(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+      if (keyId && !(await ownsKey(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     }
     return handler(req, ctx, session.username, user);
   };

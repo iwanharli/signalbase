@@ -2,29 +2,37 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, Menu, Text, UnstyledButton } from "@mantine/core";
+import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
 import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
 import { RoleProvider } from "./RoleContext";
 import classes from "./shell.module.css";
 
+/** Main workspace pages, in the centre of the bar. */
 const NAV = [
   { href: "/dashboard", label: "Ringkasan", icon: IconLayoutDashboard },
   { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
-  { href: "/api-keys", label: "Kunci API", icon: IconKey },
+  { href: "/api-keys", label: "Proyek", icon: IconKey },
+];
+/** Secondary pages: icon buttons on the right and entries in the account menu. */
+const TOOLS = [
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
-  { href: "/billing", label: "Tagihan", icon: IconReceipt, userOnly: true },
+  { href: "/billing", label: "Paket & tagihan", icon: IconReceipt, userOnly: true },
 ];
+
+/** Shown in the bar for user accounts: plan name and days left, linking to billing. */
+export type PlanChip = { label: string; daysLeft: number | null };
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-export function Shell({ name, role, banner, children }: { name: string; role: Role; banner?: React.ReactNode; children: React.ReactNode }) {
+export function Shell({ name, username, role, plan, banner, children }: {
+  name: string; username: string; role: Role; plan?: PlanChip | null; banner?: React.ReactNode; children: React.ReactNode;
+}) {
   const path = usePathname();
-  const nav = role === "user"
-    ? NAV.filter((i) => !("adminOnly" in i)).map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i))
-    : NAV.filter((i) => !("userOnly" in i));
+  const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
+  const tools = TOOLS.filter((t) => (role === "user" ? !("adminOnly" in t) : !("userOnly" in t)));
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -75,16 +83,36 @@ export function Shell({ name, role, banner, children }: { name: string; role: Ro
           </nav>
 
           <div className={classes.right}>
-            <span className={classes.live}>{role === "user" ? "AKUN USER" : "PANEL ADMIN"}</span>
-            <Menu position="bottom-end" width={190} offset={14} transitionProps={{ transition: "pop-top-right", duration: 160 }}>
+            {plan && (
+              <Link href="/billing" className={classes.planChip} data-warn={plan.daysLeft !== null && plan.daysLeft <= 3 || undefined}>
+                <b>{plan.label}</b>{plan.daysLeft !== null && <span>{plan.daysLeft <= 0 ? "berakhir" : `${plan.daysLeft} hari`}</span>}
+              </Link>
+            )}
+            {tools.filter((t) => t.href !== "/billing").map((t) => (
+              <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
+                <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
+              </Tooltip>
+            ))}
+            <Menu position="bottom-end" width={240} offset={12} transitionProps={{ transition: "pop-top-right", duration: 160 }}>
               <Menu.Target>
                 <UnstyledButton className={classes.user} aria-label={`Menu akun ${name}`}>
-                  <Avatar size={28} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
-                  <Text fz={13} fw={600} visibleFrom="md" c="white">{name}</Text>
-                  <IconChevronDown size={14} color="rgba(255,255,255,.6)" />
+                  <Avatar size={30} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
+                  <span className={classes.userName}>{name}</span>
+                  <IconChevronDown size={14} className={classes.userChevron} />
                 </UnstyledButton>
               </Menu.Target>
-              <Menu.Dropdown><Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={logout}>Keluar</Menu.Item></Menu.Dropdown>
+              <Menu.Dropdown>
+                <div className={classes.menuHead}>
+                  <Avatar size={38} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
+                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : "User"}</small></div>
+                </div>
+                <Menu.Divider />
+                {tools.map((t) => (
+                  <Menu.Item key={t.href} component={Link} href={t.href} leftSection={<t.icon size={16} />}>{t.label}</Menu.Item>
+                ))}
+                <Menu.Divider />
+                <Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={logout}>Keluar</Menu.Item>
+              </Menu.Dropdown>
             </Menu>
             <UnstyledButton className={classes.burger} onClick={() => setOpen((o) => !o)} aria-label={open ? "Tutup menu" : "Buka menu"} aria-controls="main-mobile-navigation" aria-expanded={open}>
               {open ? <IconX size={20} /> : <IconMenu2 size={20} />}
@@ -93,7 +121,7 @@ export function Shell({ name, role, banner, children }: { name: string; role: Ro
         </div>
 
         <nav id="main-mobile-navigation" aria-label="Navigasi utama" className={classes.sheet} data-open={open || undefined} inert={!open} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); document.querySelector<HTMLButtonElement>('[aria-controls="main-mobile-navigation"]')?.focus(); } }}>
-          {nav.map((i, n) => (
+          {[...nav, ...tools].map((i, n) => (
             <Link key={i.href} href={i.href} className={classes.sheetLink} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined} style={{ transitionDelay: open ? `${n * 40}ms` : "0ms" }}>
               <i.icon size={19} stroke={1.8} />{i.label}
             </Link>

@@ -149,7 +149,7 @@ function About() {
         <div><span className="tag green">DENGAN SIGNALBASE</span><ul>
           <li>Satu tempat untuk sosial dan berita, disaring per keyword.</li>
           <li>Emosi, sentimen, ringkasan, dan relevansi sudah tersedia.</li>
-          <li>Kunci API dengan cakupan sendiri untuk setiap aplikasi.</li>
+          <li>Proyek dengan keyword, cakupan, dan kunci API sendiri untuk setiap kebutuhan.</li>
         </ul></div>
       </div>
       <h3 className="sub">Sumber data</h3>
@@ -187,14 +187,14 @@ function Features() {
       </div>
       <h3 className="sub">Yang Anda lihat di panel</h3>
       <div className="panelList">
-        {[["Beranda per kunci", "Volume 14 hari, sebaran emosi, dan sinyal terbaru untuk keyword Anda."], ["Media sosial & online", "Kartu post dan berita lengkap dengan pembuat, platform, metrik, dan analisis."], ["Filter lengkap", "Waktu, platform, wilayah, bahasa, emosi, relevansi, dan kategori AI."], ["Detail post", "Isi lengkap, ringkasan, sasaran, skor, dan tautan ke post asli."]].map(([t, d]) => (
+        {[["Beranda per proyek", "Volume 14 hari, sebaran emosi, dan sinyal terbaru untuk keyword Anda."], ["Media sosial & online", "Kartu post dan berita lengkap dengan pembuat, platform, metrik, dan analisis."], ["Filter lengkap", "Waktu, platform, wilayah, bahasa, emosi, relevansi, dan kategori AI."], ["Detail post", "Isi lengkap, ringkasan, sasaran, skor, dan tautan ke post asli."]].map(([t, d]) => (
           <div key={t}><IconCheck size={16} /><span><b>{t}</b>{d}</span></div>
         ))}
       </div>
       <div className="twoWays">
         <div><span className="tag cyan">PANEL</span><h3>Untuk tim Anda</h3><p>Telusuri, saring, dan baca konteks setiap post langsung di browser. Tidak perlu instalasi.</p></div>
         <span className="eq">=</span>
-        <div><span className="tag cyan">API</span><h3>Untuk aplikasi Anda</h3><p>Data dan analisis yang sama, dalam JSON, dengan cakupan yang sama per kunci.</p></div>
+        <div><span className="tag cyan">API</span><h3>Untuk aplikasi Anda</h3><p>Data dan analisis yang sama, dalam JSON, dengan cakupan yang sama per proyek.</p></div>
       </div>
     </Sheet>
   );
@@ -266,7 +266,7 @@ function HowItWorks() {
       </div>
       <h3 className="sub">Keamanan & kendali</h3>
       <div className="security">
-        {[[IconKey, "Cakupan per kunci", "Keyword, jenis media, dan wilayah diterapkan di server."], [IconLock, "Rotasi & cabut", "Kunci bisa diganti atau dicabut kapan saja."], [IconShieldCheck, "Persetujuan admin", "Setiap akun baru ditinjau sebelum aktif."]].map(([Icon, t, d]) => {
+        {[[IconKey, "Cakupan per proyek", "Keyword, jenis media, dan wilayah diterapkan di server."], [IconLock, "Rotasi & cabut", "Kunci bisa diganti atau dicabut kapan saja."], [IconShieldCheck, "Persetujuan admin", "Setiap akun baru ditinjau sebelum aktif."]].map(([Icon, t, d]) => {
           const I = Icon as typeof IconKey;
           return <div key={t as string}><I size={20} /><b>{t as string}</b><p>{d as string}</p></div>;
         })}
@@ -294,7 +294,7 @@ function Solutions() {
       </div>
       <h3 className="sub">Langkah memulai</h3>
       <div className="start">
-        {[["Daftar", "Buat akun di situs Signalbase."], ["Disetujui admin", `Trial ${TRIAL.days} hari dimulai.`], ["Atur keyword", "Buat kunci API dan pilih keyword."], ["Pantau & hubungkan", "Lihat beranda, lalu sambungkan API."]].map(([t, d], i) => (
+        {[["Daftar", "Buat akun di situs Signalbase."], ["Disetujui admin", `Trial ${TRIAL.days} hari dimulai.`], ["Atur keyword", "Buat proyek dan pilih keyword."], ["Pantau & hubungkan", "Lihat beranda, lalu sambungkan API."]].map(([t, d], i) => (
           <div key={t}><b>{i + 1}</b><strong>{t}</strong><p>{d}</p></div>
         ))}
       </div>

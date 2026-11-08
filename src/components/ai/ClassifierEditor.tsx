@@ -49,7 +49,7 @@ function EstimateLine({ apiKeyId, startFrom }: { apiKeyId: string; startFrom: st
   return (
     <div className={classes.estimate} aria-live="polite">
       {estimate.error ? <span className={classes.estimateError}>{estimate.error}</span>
-        : !d || estimate.loading ? <><Loader size={12} color="cyan" />Menghitung data dalam cakupan kunci…</>
+        : !d || estimate.loading ? <><Loader size={12} color="cyan" />Menghitung data dalam cakupan proyek…</>
         : <>
           {d.social !== null && <span><IconBrandX size={13} />Media sosial <b>{formatNumber(d.social)}</b></span>}
           {d.online !== null && <span><IconWorld size={13} />Media online <b>{formatNumber(d.online)}</b></span>}
@@ -190,7 +190,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
 
   return (
     <div className={classes.provider}>
-      {slot === "primary" && <div className={classes.providerHead}><IconRobot size={15} />Penyedia AI<small>Khusus kunci ini · API key disimpan terenkripsi</small></div>}
+      {slot === "primary" && <div className={classes.providerHead}><IconRobot size={15} />Penyedia AI<small>Khusus proyek ini · API key disimpan terenkripsi</small></div>}
       <div className={classes.presets}>
         {/* User accounts may only use the public providers; custom endpoints are refused on the server too. */}
         {PROVIDER_PRESETS.filter((p) => (role === "admin" || p.id !== "custom") && (slot === "primary" || p.id !== "signalbase")).map((p) => (

@@ -12,7 +12,7 @@ const SECTIONS: LegalSection[] = [
   </ul> },
   { id: "paket", title: "Trial, paket, dan pembayaran", body: <ul>
     <li>Akun baru mendapat trial selama 7 hari sejak disetujui, dengan batasan sesuai halaman Harga.</li>
-    <li>Setelah trial atau periode paket berakhir, kunci API berhenti bekerja sampai paket diperpanjang; kunci, keyword, dan pengaturan tetap tersimpan.</li>
+    <li>Setelah trial atau periode paket berakhir, kunci API berhenti bekerja sampai paket diperpanjang; proyek, keyword, dan pengaturan tetap tersimpan.</li>
     <li>Harga, batas, dan fitur paket tercantum di halaman Harga dan dapat berubah; perubahan berlaku pada periode tagihan berikutnya.</li>
     <li>Harga belum termasuk PPN. Pembayaran yang sudah diterima tidak dapat dikembalikan, kecuali disepakati tertulis.</li>
   </ul> },
@@ -26,7 +26,7 @@ const SECTIONS: LegalSection[] = [
     <ul>
       <li>memakai data untuk melecehkan, mengintimidasi, membuat profil, atau mendiskriminasi individu;</li>
       <li>menjual kembali atau membagikan data mentah dalam jumlah besar kepada pihak lain sebagai produk tersendiri;</li>
-      <li>mencoba mengakses data di luar cakupan kunci, mengganggu sistem, atau menghindari batas pemakaian;</li>
+      <li>mencoba mengakses data di luar cakupan proyek, mengganggu sistem, atau menghindari batas pemakaian;</li>
       <li>melanggar hukum yang berlaku, termasuk ketentuan pelindungan data pribadi.</li>
     </ul>
   </> },

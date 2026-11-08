@@ -22,7 +22,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     where: { id },
     include: { classifier: true, _count: { select: { classifications: true } } },
   });
-  if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   return NextResponse.json({
     id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
@@ -44,8 +44,8 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
     return NextResponse.json({ error: message }, { status: 400 });
   }
   const key = await prisma.apiKey.findUnique({ where: { id }, include: { classifier: { select: { apiKeyId: true } } } });
-  if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
-  if (key.revokedAt) return NextResponse.json({ error: "Kunci yang sudah dicabut tidak bisa diubah" }, { status: 409 });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+  if (key.revokedAt) return NextResponse.json({ error: "Proyek yang sudah dicabut tidak bisa diubah" }, { status: 409 });
 
   const scope: KeyScope = {
     ...parsed.data.scope,
@@ -57,7 +57,7 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
     if (!scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
     const { keywordsPerKey } = (await accountPlan(user.id)).limits;
     if (keywordsPerKey !== null && scope.keywords.length > keywordsPerKey) {
-      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per kunci` }, { status: 403 });
+      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per proyek` }, { status: 403 });
     }
   }
   const scopeChanged = !sameScope(scope, parseKeyScope(key.scope, key.keywords));

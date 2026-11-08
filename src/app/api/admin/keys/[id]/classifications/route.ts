@@ -16,7 +16,7 @@ export const PUT = adminRoute(async (req: Request, { params }: Context, user) =>
   const { type, code, category } = parsed.data;
 
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: id } });
-  if (!classifier) return NextResponse.json({ error: "Kunci ini belum memakai kategorisasi AI" }, { status: 404 });
+  if (!classifier) return NextResponse.json({ error: "Proyek ini belum memakai kategorisasi AI" }, { status: 404 });
   const codes = (categoriesForType(classifier, type) as { code: string }[]).map((c) => c.code);
   if (category !== NO_CATEGORY && !codes.includes(category)) return NextResponse.json({ error: "Kategori tidak dikenal" }, { status: 400 });
 

@@ -223,13 +223,13 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
       <RestartConfirm request={restart} onClose={() => setRestart(null)} loading={busy} />
       <ConfirmDialog opened={confirmRemove} onClose={() => setConfirmRemove(false)} onConfirm={remove} loading={busy} icon={IconTrash}
         title="Matikan kategorisasi AI?" confirmLabel="Matikan & hapus"
-        description={<>Semua hasil kategorisasi untuk kunci ini ({formatNumber(data.data?.counts.reduce((sum, c) => sum + c.n, 0) ?? 0)} item) dihapus dan pengaturan penyedia AI dilepas. Data di bank sumber tidak berubah.</>} />
-      <Link href={`/api-keys/${keyId}`} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail kunci"}</Link>
+        description={<>Semua hasil kategorisasi untuk proyek ini ({formatNumber(data.data?.counts.reduce((sum, c) => sum + c.n, 0) ?? 0)} item) dihapus dan pengaturan penyedia AI dilepas. Data di bank sumber tidak berubah.</>} />
+      <Link href={`/api-keys/${keyId}`} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail proyek"}</Link>
       <header className={classes.title}>
         <span className={classes.icon}><IconRobot size={22} /></span>
         <div>
           <h1>Kategorisasi AI {key && <em>· {key.name}</em>}</h1>
-          <p>Setiap item dalam cakupan kunci ini diberi satu kategori oleh AI, lalu dikirim lewat API sebagai <code>classification</code>.</p>
+          <p>Setiap item dalam cakupan proyek ini diberi satu kategori oleh AI, lalu dikirim lewat API sebagai <code>classification</code>.</p>
         </div>
         {state && (
           <div className={classes.titleSide}>
@@ -239,7 +239,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
         )}
       </header>
 
-      {key?.revokedAt && <div className={classes.error}><IconAlertTriangle size={16} />Kunci ini sudah dicabut, kategorisasi tidak berjalan.</div>}
+      {key?.revokedAt && <div className={classes.error}><IconAlertTriangle size={16} />Proyek ini sudah dicabut, kategorisasi tidak berjalan.</div>}
 
       <div className={classes.layout}>
         <section className={classes.editorCard}>

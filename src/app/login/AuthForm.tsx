@@ -39,7 +39,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <Link href="/" aria-label="Beranda Signalbase" style={{ color: "inherit", textDecoration: "none", alignSelf: "flex-start" }}><Logo /></Link>
           <div>
             <Title order={2} fz={24}>{register ? "Buat akun Signalbase" : "Masuk ke Signalbase"}</Title>
-            <Text c="dimmed" fz={14} mt={4}>{register ? "Setelah disetujui admin, atur keyword Anda dan ambil data media lewat kunci API sendiri." : "Saring data media sebelum diteruskan ke aplikasi lain."}</Text>
+            <Text c="dimmed" fz={14} mt={4}>{register ? "Setelah disetujui admin, atur keyword Anda dan buat proyek, dan ambil data media lewat kunci API." : "Saring data media sebelum diteruskan ke aplikasi lain."}</Text>
           </div>
           {pending ? (
             <Alert color="teal" variant="light" title="Pendaftaran terkirim">

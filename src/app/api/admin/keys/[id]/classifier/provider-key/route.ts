@@ -10,7 +10,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: id }, select: { providerKeyEnc: true, fallbackKeyEnc: true } });
   const fallback = new URL(req.url).searchParams.get("slot") === "fallback";
-  if (!classifier) return NextResponse.json({ error: "Kunci ini belum memakai kategorisasi AI" }, { status: 404 });
+  if (!classifier) return NextResponse.json({ error: "Proyek ini belum memakai kategorisasi AI" }, { status: 404 });
   try {
     const enc = fallback ? classifier.fallbackKeyEnc : classifier.providerKeyEnc;
     if (!enc) return NextResponse.json({ error: "Belum ada API key cadangan" }, { status: 404 });

@@ -62,7 +62,7 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
       <div className={classes.cell} role="cell" data-label="AI"><AiCell apiKey={apiKey} /></div>
 
       <div className={classes.cell} role="cell" data-label="Pembuat">
-        {apiKey.createdBy ? <span className={classes.creator}><i>{apiKey.createdBy[0].toUpperCase()}</i>{apiKey.createdBy}</span> : <span className={classes.muted}>—</span>}
+        {apiKey.createdBy ? <span className={classes.creator} title={apiKey.createdBy}><i>{apiKey.createdBy[0].toUpperCase()}</i><span>{apiKey.createdBy}</span></span> : <span className={classes.muted}>—</span>}
       </div>
 
       <div className={classes.cell} role="cell" data-label="Terakhir dipakai">
@@ -75,8 +75,8 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
         {!revoked && <Button size="sm" variant="secondary" icon={IconEye} href={viewHref(apiKey)}>Data</Button>}
         <ButtonGroup>
           {!revoked && <CopyKeyButton keyId={apiKey.id} copyable={apiKey.copyable} iconOnly />}
-          <Button size="sm" variant="secondary" iconOnly icon={IconPencil} href={href}>{revoked ? "Lihat detail" : "Edit kunci"}</Button>
-          {!revoked && <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut kunci</Button>}
+          <Button size="sm" variant="secondary" iconOnly icon={IconPencil} href={href}>{revoked ? "Lihat detail" : "Edit proyek"}</Button>
+          {!revoked && <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut proyek</Button>}
         </ButtonGroup>
       </div>
     </div>
@@ -90,11 +90,11 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
       {apiKey && (
         <div className={classes.confirm}>
           <span className={classes.confirmIcon}><IconShieldOff size={22} /></span>
-          <b>Cabut kunci &ldquo;{apiKey.name}&rdquo;?</b>
-          <p>Aplikasi yang memakai kunci ini langsung tidak bisa mengakses data. Tindakan ini tidak bisa dibatalkan.</p>
+          <b>Cabut proyek &ldquo;{apiKey.name}&rdquo;?</b>
+          <p>Aplikasi yang memakai proyek ini langsung tidak bisa mengakses data. Tindakan ini tidak bisa dibatalkan.</p>
           <div className={classes.confirmActions}>
             <Button variant="secondary" block onClick={onCancel}>Batal</Button>
-            <Button variant="danger" block icon={IconShieldOff} onClick={onConfirm} loading={busy}>{busy ? "Mencabut…" : "Cabut kunci"}</Button>
+            <Button variant="danger" block icon={IconShieldOff} onClick={onConfirm} loading={busy}>{busy ? "Mencabut…" : "Cabut proyek"}</Button>
           </div>
         </div>
       )}
@@ -130,7 +130,7 @@ export function ApiKeyList() {
     setBusy(true);
     try {
       await api(`/api/admin/keys/${revoking.id}`, { method: "DELETE" });
-      notifications.show({ color: "gray", message: `Kunci "${revoking.name}" dicabut` });
+      notifications.show({ color: "gray", message: `Proyek "${revoking.name}" dicabut` });
       setRevoking(null);
       keys.reload();
     } catch (err) {
@@ -145,9 +145,9 @@ export function ApiKeyList() {
       <header className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
         <div className={classes.heroText}>
-          <span className={classes.badge}><IconKey size={13} />Akses API</span>
-          <h1>Kunci <em>API</em></h1>
-          <p>Kelola akses aplikasi eksternal ke bank data media. Setiap kunci memiliki cakupan data dan kategorisasi AI tersendiri, serta dapat dicabut sewaktu-waktu.</p>
+          <span className={classes.badge}><IconKey size={13} />Pemantauan & API</span>
+          <h1>Pro<em>yek</em></h1>
+          <p>Setiap proyek punya keyword, cakupan data, kategorisasi AI, dan kunci API sendiri untuk menghubungkan aplikasi. Proyek bisa dicabut sewaktu-waktu.</p>
         </div>
         <div className={classes.heroSide}>
           <div className={classes.stats}>
@@ -159,11 +159,11 @@ export function ApiKeyList() {
               ? <div><b>{formatNumber(usage.data.ai.used)}</b><span>dari {formatNumber(usage.data.ai.limit)} post AI bulan ini</span></div>
               : <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>}
           </div>
-          <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat kunci</Button>
+          <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>
         </div>
       </header>
 
-      <section className={classes.list} role="table" aria-label="Daftar kunci API">
+      <section className={classes.list} role="table" aria-label="Daftar proyek">
         <div className={classes.toolbar}>
           <div className={classes.tabs} role="tablist">
             {([["active", "Aktif", active.length], ["revoked", "Dicabut", revoked.length]] as const).map(([id, label, n]) => (
@@ -180,7 +180,7 @@ export function ApiKeyList() {
         </div>
 
         <div className={classes.head} role="row">
-          <span role="columnheader">Kunci</span><span role="columnheader">Kata kunci</span><span role="columnheader">Cakupan</span>
+          <span role="columnheader">Proyek</span><span role="columnheader">Kata kunci</span><span role="columnheader">Cakupan</span>
           <span role="columnheader"><IconRobot size={13} />AI</span><span role="columnheader">Pembuat</span><span role="columnheader">Terakhir dipakai</span><span role="columnheader">Aksi</span>
         </div>
 
@@ -191,8 +191,8 @@ export function ApiKeyList() {
         ) : (
           <div className={classes.empty}>
             <IconKey size={24} />
-            <b>{term ? "Tidak ada kunci yang cocok" : filter === "active" ? "Belum ada kunci aktif" : "Belum ada kunci yang dicabut"}</b>
-            {!term && filter === "active" && <Button variant="primary" size="sm" icon={IconPlus} href="/api-keys/new">Buat kunci</Button>}
+            <b>{term ? "Tidak ada proyek yang cocok" : filter === "active" ? "Belum ada proyek aktif" : "Belum ada proyek yang dicabut"}</b>
+            {!term && filter === "active" && <Button variant="primary" size="sm" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
           </div>
         )}
       </section>
