@@ -1,5 +1,8 @@
 /node_modules
 /.next/
+/.next-a/
+/.next-b/
+/.next-active
 /.next-verify/
 /.next-design-review/
 /out/
