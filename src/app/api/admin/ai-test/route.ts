@@ -3,7 +3,7 @@ import { z } from "zod";
 import { providerSchema, QUICK_WIN_PRESET } from "@/lib/ai/classifier";
 import { providerConfig, validationError } from "@/lib/server/ai/admin";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "@/lib/server/ai/providers";
-import { adminRoute } from "@/lib/server/auth";
+import { adminRoute, ownsKey } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { encryptSecret } from "@/lib/server/secrets";
 
@@ -22,7 +22,7 @@ const testSchema = z.object({
 });
 
 // Tests a provider configuration from the form before (or after) it is saved.
-export const POST = adminRoute(async (req: Request) => {
+export const POST = adminRoute(async (req: Request, _ctx, _username, user) => {
   const parsed = testSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return validationError(parsed.error, "Data penyedia tidak valid");
   const { provider, apiKeyId, slot } = parsed.data;
@@ -31,7 +31,7 @@ export const POST = adminRoute(async (req: Request) => {
   if (provider.apiKey) {
     config = { kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model, apiKeyEnc: encryptSecret(provider.apiKey) };
   } else {
-    const stored = apiKeyId ? await prisma.classifier.findUnique({ where: { apiKeyId } }) : null;
+    const stored = apiKeyId && (await ownsKey(user, apiKeyId)) ? await prisma.classifier.findUnique({ where: { apiKeyId } }) : null;
     const enc = slot === "fallback" ? stored?.fallbackKeyEnc : stored?.providerKeyEnc;
     if (!stored || !enc) return NextResponse.json({ ok: false, ms: 0, error: "Isi API key penyedia AI dulu" });
     config = { ...providerConfig(stored), apiKeyEnc: enc, kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model };

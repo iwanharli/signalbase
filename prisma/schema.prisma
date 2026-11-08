@@ -7,11 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Panel account. role "admin" manages everything; role "user" signs up and manages only their own API keys.
 model Admin {
   id           String   @id @default(uuid())
   username     String   @unique
   name         String
   passwordHash String
+  role         String   @default("admin") // "admin" | "user"
   createdAt    DateTime @default(now())
 }
 
@@ -23,11 +25,12 @@ model ApiKey {
   keyEnc     String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
   keywords   String[]  @default([]) // empty = whole bank; else items must mention one
   scope      Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
+  ownerId    String? // account that owns the key (role user); null = managed by admins
   createdBy  String? // admin username; null for keys made before this was recorded
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
-  showAuthors Boolean @default(false) // public API also returns who posted (name, username, profile, post link)
+  showAuthors Boolean @default(false) // unused: author details are now always returned
 
   classifier      Classifier?
   classifications Classification[]

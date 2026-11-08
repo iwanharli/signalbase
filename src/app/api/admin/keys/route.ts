@@ -15,8 +15,9 @@ const createKeySchema = z.object({
 });
 
 // Lists every key with its scope. Only the prefix of each key is known; the full value is never stored.
-export const GET = adminRoute(async () => {
+export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const rows = await prisma.apiKey.findMany({
+    where: user.role === "user" ? { ownerId: user.id } : undefined,
     orderBy: { createdAt: "desc" },
     select: {
       id: true, name: true, prefix: true, keywords: true, scope: true, createdBy: true, createdAt: true, lastUsedAt: true, revokedAt: true, keyEnc: true,
@@ -33,7 +34,7 @@ export const GET = adminRoute(async () => {
 });
 
 // Creates a key and returns its full value once.
-export const POST = adminRoute(async (req: Request, _ctx, user) => {
+export const POST = adminRoute(async (req: Request, _ctx, username, user) => {
   const parsed = createKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -46,10 +47,12 @@ export const POST = adminRoute(async (req: Request, _ctx, user) => {
     provinces: [...new Set(parsed.data.scope.provinces)],
     categories: [...new Set(parsed.data.scope.categories)],
   };
+  // User keys always need keywords: without them a key would read the whole bank.
+  if (user.role === "user" && !scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
   if (parsed.data.classifier && !parsed.data.classifier.provider.apiKey) {
     return NextResponse.json({ error: "Kategorisasi AI: API key penyedia AI wajib diisi" }, { status: 400 });
   }
-  const { id, name, prefix, key } = await createKey(parsed.data.name, scope, user);
+  const { id, name, prefix, key } = await createKey(parsed.data.name, scope, username, user.role === "user" ? user.id : null);
   if (parsed.data.classifier) await saveClassifier(id, parsed.data.classifier);
   return NextResponse.json({ id, name, prefix, key, scope, classifier: !!parsed.data.classifier });
 });

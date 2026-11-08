@@ -12,10 +12,10 @@ function newKey() {
   return { key, fields: { prefix: key.slice(0, 10), hash: hash(key), keyEnc: encryptSecret(key) } };
 }
 
-export async function createKey(name: string, scope: KeyScope, createdBy: string) {
+export async function createKey(name: string, scope: KeyScope, createdBy: string, ownerId: string | null = null) {
   const { key, fields } = newKey();
   const { keywords, ...rest } = scope;
-  const row = await prisma.apiKey.create({ data: { name, createdBy, ...fields, keywords, scope: rest } });
+  const row = await prisma.apiKey.create({ data: { name, createdBy, ownerId, ...fields, keywords, scope: rest } });
   return { ...row, key };
 }
 
@@ -33,7 +33,7 @@ export function revealKey(keyEnc: string | null) {
 
 // Wraps public API handlers: requires `Authorization: Bearer <key>` or `x-api-key`.
 /** The authenticated key, as passed to public API handlers. */
-export type ApiCaller = { keyId: string; scope: KeyScope; showAuthors: boolean };
+export type ApiCaller = { keyId: string; scope: KeyScope };
 
 export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -43,6 +43,6 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    return handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords), showAuthors: row.showAuthors });
+    return handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords) });
   };
 }

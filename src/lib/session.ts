@@ -4,7 +4,10 @@ import { SignJWT, jwtVerify } from "jose";
 export const COOKIE = "sb_session";
 const secret = () => new TextEncoder().encode(process.env.AUTH_SECRET);
 
-export type Session = { sub: string; name: string; username: string };
+export type Role = "admin" | "user";
+/** role is missing on sessions issued before roles existed; those were all admins. */
+export type Session = { sub: string; name: string; username: string; role?: Role };
+export const roleOf = (s: Session): Role => (s.role === "user" ? "user" : "admin");
 
 export async function signSession(s: Session) {
   return new SignJWT(s).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("12h").sign(secret());

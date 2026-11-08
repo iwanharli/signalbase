@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CopyButton, Modal, Skeleton, Switch, TextInput } from "@mantine/core";
+import { CopyButton, Modal, Skeleton, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
   IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconArrowRight, IconCalendar, IconCheck, IconClock, IconCopy, IconDeviceFloppy, IconEye, IconRefresh, IconId, IconLayoutDashboard, IconPlugConnected,
@@ -23,7 +23,7 @@ import { BalanceUsage } from "../ai/BalanceUsage";
 import { RestartConfirm, type RestartRequest } from "../ai/RestartConfirm";
 
 type KeyDetail = {
-  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; showAuthors: boolean;
+  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean;
   classifier: { enabled: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
 };
 type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "security";
@@ -191,18 +191,6 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     }
   };
 
-  const toggleAuthors = async (enabled: boolean) => {
-    setBusy(true);
-    try {
-      await post(`/api/admin/keys/${keyId}/authors`, { enabled }, "PUT");
-      notifications.show({ color: "teal", message: enabled ? "Detail pembuat post kini ikut dikirim" : "Detail pembuat post tidak lagi dikirim" });
-      await detail.reload();
-    } catch (err) {
-      notifications.show({ color: "red", message: (err as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const rotate = async () => {
     setBusy(true);
@@ -345,13 +333,6 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
                     <p>{data.copyable ? "Salin untuk dipasang di aplikasi. Perlakukan seperti kata sandi." : "Kunci ini dibuat sebelum penyimpanan terenkripsi, jadi nilainya tidak bisa disalin. Buat ulang kunci untuk mendapat nilai baru yang bisa disalin."}</p>
                   </div>
                   <CopyKeyButton keyId={data.id} copyable={data.copyable} size="md" onDark label="Salin kunci" />
-                </div>
-                <div className={classes.keyBox}>
-                  <div>
-                    <b>Detail pembuat post</b>
-                    <p>Kirim nama, username, link profil, jumlah pengikut, dan link post bersama tiap post media sosial. Ini data pribadi: aktifkan hanya untuk aplikasi yang berwenang.</p>
-                  </div>
-                  <Switch size="md" color="violet" checked={data.showAuthors} disabled={busy} onChange={(e) => toggleAuthors(e.currentTarget.checked)} aria-label="Kirim detail pembuat post" />
                 </div>
                 <div className={classes.keyBox}>
                   <div>

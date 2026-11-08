@@ -157,6 +157,11 @@ function DetailContent({ item, type, keyName, onClose, correction }: { item: Med
       <header className={classes.header}>
         <div className={classes.heading}>
           <h2 className={classes.source}>{type === "social" && <PlatformIcon source={item.source} onDark />}{sourceLabel(item.source)}{item.postType && <PostTypeBadge value={item.postType} onDark />}</h2>
+          {(item.author?.name || item.author?.username) && <p className={classes.author}>
+            {item.author.profileUrl ? <a href={item.author.profileUrl} target="_blank" rel="noopener noreferrer nofollow">{item.author.name || `@${item.author.username}`}</a> : <b>{item.author.name || `@${item.author.username}`}</b>}
+            {item.author.name && item.author.username && <span>@{item.author.username.replace(/^@/, "")}</span>}
+            {item.author.followers != null && <span>{item.author.followers.toLocaleString("id-ID")} pengikut</span>}
+          </p>}
           <div className={classes.headerMeta}>
             <time className={classes.time} dateTime={item.publishedAt}><IconClock size={13} aria-hidden /><span>{formatWibDate(item.publishedAt)}</span></time>
             <MoodBadges item={item} type={type} onDark />

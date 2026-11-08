@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
-import { adminRoute } from "@/lib/server/auth";
+import { adminRoute, ownsKey, type PanelUser } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
 import { prisma } from "@/lib/server/db";
@@ -12,8 +12,10 @@ const PAGE_SIZE = 24;
 type Context = { params: Promise<{ type: string }> };
 
 /** The scope to browse with: the whole bank, or one API key's view of it when ?key= is given. */
-async function resolveScope(keyId: string | null): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
-  if (!keyId) return { scope: OPEN_SCOPE, keyId: null };
+async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
+  // Users only ever see the bank through one of their own keys.
+  if (!keyId) return user.role === "user" ? { error: "Pilih kunci API dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
+  if (!(await ownsKey(user, keyId))) return { error: "Kunci tidak ditemukan", status: 404 };
   const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
   if (!key) return { error: "Kunci tidak ditemukan", status: 404 };
   return { scope: parseKeyScope(key.scope, key.keywords), keyId: key.id };
@@ -24,7 +26,7 @@ async function resolveScope(keyId: string | null): Promise<{ scope: KeyScope; ke
 //   ?view=count   → exact total (slow, cached; fetched separately so the list isn't blocked)
 //   otherwise     → one page of items, plus the mood breakdown on page 1
 // With a key that has AI categorisation, items carry `classification` and ?aiCategory= filters by it.
-export const GET = adminRoute(async (req: Request, { params }: Context) => {
+export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { type } = await params;
   if (!isMediaType(type)) return NextResponse.json({ error: "Jenis tidak dikenal" }, { status: 404 });
   const query = new URL(req.url).searchParams;
@@ -32,7 +34,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   try {
     if (query.get("view") === "options") return NextResponse.json(await filterOptions(type));
 
-    const resolved = await resolveScope(query.get("key"));
+    const resolved = await resolveScope(query.get("key"), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     const { scope, keyId } = resolved;
     if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });

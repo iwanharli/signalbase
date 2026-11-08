@@ -12,7 +12,7 @@ export const COUNT_CAP = MOOD_SAMPLE_LIMIT;
 const exactCountCache = createCache<number>({ ttlMs: 10 * 60_000 });
 const cappedCountCache = createCache<{ total: number; capped: boolean }>({ ttlMs: 2 * 60_000, maxEntries: 100 });
 const moodCache = createCache<MoodCount[]>({ ttlMs: 2 * 60_000, maxEntries: 100 });
-const dailyCache = createCache<DailyCount[]>({ ttlMs: 5 * 60_000, maxEntries: 10 });
+const dailyCache = createCache<DailyCount[]>({ ttlMs: 5 * 60_000, maxEntries: 100 });
 
 /** Exact number of matches. Can take ~20 s on the full social table, so it gets a 90 s timeout. */
 export function countExact(type: MediaType, params: URLSearchParams, scope: KeyScope) {
@@ -50,8 +50,22 @@ export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: K
   });
 }
 
-/** Items per calendar day over the last `days` days (whole bank, no filters), oldest first. */
-export function dailyVolume(type: MediaType, days = 14) {
+/** Items per calendar day over the last `days` days within one key's scope, oldest first. */
+function scopedDailyVolume(type: MediaType, days: number, scope: KeyScope) {
+  const from = new Date(Date.now() - (days - 1) * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const params = new URLSearchParams({ from });
+  return dailyCache(`scoped|${days}|${filterKey(type, params, scope)}`, async () => {
+    const c = COLUMNS[type];
+    const { where, values } = buildWhere(type, params, scope);
+    const { rows } = await bankPool().query<DailyCount>(
+      `SELECT to_char(${c.timestamp}::date, 'YYYY-MM-DD') AS day, count(*)::int AS n FROM ${c.from} WHERE ${where} GROUP BY 1 ORDER BY 1`, values);
+    return rows;
+  });
+}
+
+/** Items per calendar day over the last `days` days, oldest first: the whole bank, or one key's scope when given. */
+export function dailyVolume(type: MediaType, days = 14, scope?: KeyScope) {
+  if (scope) return scopedDailyVolume(type, days, scope);
   return dailyCache(`${type}|${days}`, async () => {
     const [table, ts] = type === "social" ? ["post_main", "post_timestamps"] : ["news_main", "news_timestamp"];
     const { rows } = await bankPool().query<DailyCount>(

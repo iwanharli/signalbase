@@ -25,7 +25,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   return NextResponse.json({
     id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
-    copyable: !!key.keyEnc, showAuthors: key.showAuthors,
+    copyable: !!key.keyEnc,
     classifier: key.classifier && {
       enabled: key.classifier.enabled, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,
@@ -35,7 +35,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
 
 // Rename a key or change its scope. A scope change restarts the key's AI categorisation,
 // because the stored labels were made for the old set of items.
-export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
+export const PATCH = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { id } = await params;
   const parsed = updateKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -52,6 +52,7 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
     provinces: [...new Set(parsed.data.scope.provinces)],
     categories: [...new Set(parsed.data.scope.categories)],
   };
+  if (user.role === "user" && !scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
   const scopeChanged = !sameScope(scope, parseKeyScope(key.scope, key.keywords));
   const { keywords, ...rest } = scope;
   const restartAi = scopeChanged && !!key.classifier;

@@ -32,6 +32,8 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
   const hasImage = !!item.image && item.image !== failedImage;
   const editorial = type === "online" && !hasImage;
   const publisher = sourceLabel(item.source);
+  const author = item.author?.name || null;
+  const handle = item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
   const place = item.province ?? item.location;
   const hasMetrics = Object.values(item.metrics).some((value) => value != null);
   const published = dayjs(item.publishedAt).locale("id");
@@ -61,7 +63,10 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
             </div>
           ) : <div className={classes.platformName}>
             {type === "social" && <PlatformIcon source={item.source} />}
-            <Text className={classes.sourceName} fz={12.5} fw={800} truncate>{publisher}</Text>
+            {author ? <div className={classes.authorName}>
+              <Text fz={12.5} fw={800} truncate title={author}>{author}</Text>
+              <Text className={classes.sourceName} fz={11} fw={600} truncate>{[handle, publisher].filter(Boolean).join(" · ")}</Text>
+            </div> : <Text className={classes.sourceName} fz={12.5} fw={800} truncate>{publisher}</Text>}
           </div>}
           <MoodBadges item={item} type={type} />
         </div>

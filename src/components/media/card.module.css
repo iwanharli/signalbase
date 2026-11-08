@@ -93,3 +93,4 @@ button.detailHint { border: 0; font-family: inherit; cursor: pointer; min-height
 button.detailHint:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
 
 .platformName { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.authorName { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }

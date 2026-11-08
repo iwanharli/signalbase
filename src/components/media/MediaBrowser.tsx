@@ -43,7 +43,7 @@ function ScrollTopButton() {
 
 /** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal.
  *  With ?key=<id> the page shows the bank as that API key sees it: its scope, and its AI categories. */
-export function MediaBrowser({ type }: { type: MediaType }) {
+export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
   const viewMode = searchParams.get("layout") === "list" ? "list" : "cards";
@@ -94,7 +94,7 @@ export function MediaBrowser({ type }: { type: MediaType }) {
       />
 
       <div className={classes.content}>
-        {view && <KeyViewBanner view={view} type={type} />}
+        {view && <KeyViewBanner view={view} type={type} canLeave={!keyLocked} />}
         {keyInfo.error && <Alert color="red" mb="md" title="Kunci tidak bisa dimuat">{keyInfo.error}</Alert>}
         {blocked ? (
           <div className={keyViewClasses.blocked}>

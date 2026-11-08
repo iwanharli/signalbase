@@ -139,8 +139,10 @@ npm run dev                   # http://localhost:3100
 
 | Halaman | Path | Isi |
 |---|---|---|
-| Login | `/login` | Username & password admin. 5 kali gagal per 15 menit → dikunci sementara. |
-| Ringkasan | `/` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
+| Login | `/login` | Satu halaman masuk untuk admin dan user. 5 kali gagal per 15 menit → dikunci sementara. |
+| Daftar | `/register` | Pendaftaran mandiri, selalu role **user**. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
+| Landing page publik | `/` | Pengenalan platform, pratinjau ilustrasi interaktif, fitur, integrasi, dan FAQ. |
+| Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
 | Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |

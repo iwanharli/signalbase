@@ -15,7 +15,8 @@ export type KeyView = { id: string; name: string; scope: KeyScope; aiEnabled: bo
 
 const TYPE_ICON = { social: IconMessages, online: IconWorldWww } as const;
 
-export function KeyViewBanner({ view, type }: { view: KeyView; type: MediaType }) {
+/** canLeave: false for user accounts, who only ever browse through their own keys. */
+export function KeyViewBanner({ view, type, canLeave = true }: { view: KeyView; type: MediaType; canLeave?: boolean }) {
   const provinceName = useProvinceNames();
   const restrictions = scopeRestrictions(view.scope, provinceName);
 
@@ -39,7 +40,7 @@ export function KeyViewBanner({ view, type }: { view: KeyView; type: MediaType }
       <div className={classes.actions}>
         {view.aiEnabled && <Button size="sm" onDark variant="secondary" icon={IconRobot} href={`/api-keys/${view.id}/ai`}>AI</Button>}
         <Button size="sm" onDark variant="secondary" icon={IconKey} href={`/api-keys/${view.id}`}>Kunci</Button>
-        <Button size="sm" onDark variant="subtle" icon={IconX} href={`/media/${type}`}>Keluar</Button>
+        {canLeave && <Button size="sm" onDark variant="subtle" icon={IconX} href={`/media/${type}`}>Keluar</Button>}
       </div>
     </section>
   );

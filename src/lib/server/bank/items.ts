@@ -13,7 +13,7 @@ const toNumber = (v: unknown) => (v === undefined || v === null || v === "" ? nu
 const toStrings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x).map((x) => decodeTextEntities(x)) : []);
 
 // Both selects return the same column names so one mapper handles either type.
-// Author columns are read but dropped by toItem unless the caller may see authors.
+// Author columns: who posted and the post link, always returned.
 const SELECT = {
   social: `
     p.post_code code, p.post_source source, NULL title, p.post_content content, NULL url, NULL image, p.post_timestamps ts,
@@ -79,14 +79,14 @@ function toAuthor(row: any, extra: any): Author | null {
   };
 }
 
-function toItem(row: any, authors = false): MediaItem {
+function toItem(row: any): MediaItem {
   const extra = row.extra ?? {};
   return {
     code: row.code,
     source: row.source,
     title: decodeTextEntities(row.title),
     content: decodeTextEntities(row.content),
-    url: safeUrl(row.url) ?? (authors ? safeUrl(row.post_url) : null),
+    url: safeUrl(row.url) ?? safeUrl(row.post_url),
     image: safeUrl(row.image),
     postType: row.postType,
     category: row.category,
@@ -106,21 +106,21 @@ function toItem(row: any, authors = false): MediaItem {
     language: row.language ?? null,
     city: row.city ?? null,
     body: decodeTextEntities(row.body) || null,
-    ...(authors ? { author: toAuthor(row, extra) } : {}),
+    author: toAuthor(row, extra),
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Full items for the given codes, in the order given; `authors` adds who posted and the post link. */
-export async function fetchItemsByCode(type: MediaType, codes: string[], { authors = false } = {}): Promise<MediaItem[]> {
+/** Full items for the given codes, in the order given, including who posted. */
+export async function fetchItemsByCode(type: MediaType, codes: string[]): Promise<MediaItem[]> {
   if (!codes.length) return [];
   const { rows } = await bankPool().query(`SELECT ${SELECT[type]}`, [codes]);
   const byCode = new Map(rows.map((row) => [row.code, row]));
-  return codes.flatMap((code) => (byCode.has(code) ? [toItem(byCode.get(code), authors)] : []));
+  return codes.flatMap((code) => (byCode.has(code) ? [toItem(byCode.get(code))] : []));
 }
 
 /** `limit` matching items starting at `offset`, newest first unless sort=oldest. */
-export async function listItems(type: MediaType, params: URLSearchParams, scope: KeyScope, { limit, offset, authors = false }: { limit: number; offset: number; authors?: boolean }) {
+export async function listItems(type: MediaType, params: URLSearchParams, scope: KeyScope, { limit, offset }: { limit: number; offset: number }) {
   const c = COLUMNS[type];
   const { where, values } = buildWhere(type, params, scope);
   const direction = params.get("sort") === "oldest" ? "ASC" : "DESC";
@@ -128,7 +128,7 @@ export async function listItems(type: MediaType, params: URLSearchParams, scope:
     `SELECT ${c.code} code FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} ${direction} LIMIT ${Math.floor(limit)} OFFSET ${Math.floor(offset)}`,
     values,
   );
-  return fetchItemsByCode(type, rows.map((r) => r.code), { authors });
+  return fetchItemsByCode(type, rows.map((r) => r.code));
 }
 
 /**

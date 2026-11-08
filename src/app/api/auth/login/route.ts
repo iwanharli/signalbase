@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/server/db";
-import { COOKIE, signSession } from "@/lib/session";
+import { signedIn } from "@/lib/server/auth";
 
+// One sign-in for every role (admin and user).
 // Simple in-memory lockout: 5 failures per username within 15 minutes.
 const fails = new Map<string, number[]>();
 const WINDOW = 15 * 60_000;
@@ -19,9 +20,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Username atau kata sandi salah." }, { status: 401 });
   }
   fails.delete(user);
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE, await signSession({ sub: admin.id, name: admin.name, username: admin.username }), {
-    httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 12,
-  });
-  return res;
+  return signedIn(admin);
 }

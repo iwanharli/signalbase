@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Menu, Text, UnstyledButton } from "@mantine/core";
 import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconWorldWww, IconX } from "@tabler/icons-react";
+import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
 import classes from "./shell.module.css";
 
 const NAV = [
-  { href: "/", label: "Ringkasan", icon: IconLayoutDashboard },
+  { href: "/dashboard", label: "Ringkasan", icon: IconLayoutDashboard },
   { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
   { href: "/api-keys", label: "Kunci API", icon: IconKey },
@@ -16,8 +17,9 @@ const NAV = [
 ];
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-export function Shell({ name, children }: { name: string; children: React.ReactNode }) {
+export function Shell({ name, role, children }: { name: string; role: Role; children: React.ReactNode }) {
   const path = usePathname();
+  const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -53,14 +55,14 @@ export function Shell({ name, children }: { name: string; children: React.ReactN
 
       <header className={classes.bar} data-scrolled={scrolled || undefined}>
         <div className={classes.frame}>
-          <Link href="/" className={classes.brand} aria-label="Signalbase">
+          <Link href="/dashboard" className={classes.brand} aria-label="Signalbase">
             <span className={classes.mark}><LogoMark size={32} /></span>
             <span className={classes.brandText}>Signal<b>base</b></span>
           </Link>
 
           <nav ref={navRef} className={classes.nav}>
             {pill && <span className={classes.pill} style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
-            {NAV.map((i) => (
+            {nav.map((i) => (
               <Link key={i.href} href={i.href} className={classes.link} aria-label={i.label} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined}>
                 <i.icon size={17} stroke={1.8} /><span>{i.label}</span>
               </Link>
@@ -68,7 +70,7 @@ export function Shell({ name, children }: { name: string; children: React.ReactN
           </nav>
 
           <div className={classes.right}>
-            <span className={classes.live}>PANEL ADMIN</span>
+            <span className={classes.live}>{role === "user" ? "AKUN USER" : "PANEL ADMIN"}</span>
             <Menu position="bottom-end" width={190} offset={14} transitionProps={{ transition: "pop-top-right", duration: 160 }}>
               <Menu.Target>
                 <UnstyledButton className={classes.user} aria-label={`Menu akun ${name}`}>
@@ -86,7 +88,7 @@ export function Shell({ name, children }: { name: string; children: React.ReactN
         </div>
 
         <nav id="main-mobile-navigation" aria-label="Navigasi utama" className={classes.sheet} data-open={open || undefined} inert={!open} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); document.querySelector<HTMLButtonElement>('[aria-controls="main-mobile-navigation"]')?.focus(); } }}>
-          {NAV.map((i, n) => (
+          {nav.map((i, n) => (
             <Link key={i.href} href={i.href} className={classes.sheetLink} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined} style={{ transitionDelay: open ? `${n * 40}ms` : "0ms" }}>
               <i.icon size={19} stroke={1.8} />{i.label}
             </Link>

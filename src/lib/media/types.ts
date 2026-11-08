@@ -24,7 +24,7 @@ export type Analysis = {
   relevance: Relevance | null;
 };
 
-/** Who posted a social item. Only returned to API keys allowed to see it (ApiKey.showAuthors). */
+/** Who posted a social item. Social: the account; news: the writer or publisher. */
 export type Author = {
   name: string | null;
   username: string | null;
@@ -34,7 +34,7 @@ export type Author = {
   following: number | null;
 };
 
-// One post or article as the panel and the public API return it. Author details only when asked for.
+// One post or article as the panel and the public API return it. 
 export type MediaItem = {
   code: string;
   source: string;
@@ -59,7 +59,7 @@ export type MediaItem = {
   body?: string | null;
   /** Public API: which of the key's keywords this item mentions. */
   matchedKeywords?: string[];
-  /** Present only when the caller may see authors (social: account; news: writer or publisher). */
+  /** Who posted it, when the source records it. */
   author?: Author | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;

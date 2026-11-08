@@ -4,7 +4,7 @@ import { COOKIE, verifySession } from "@/lib/session";
 // Guards the panel and its API. /api/v1 uses API keys instead (checked in the route).
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname === "/login" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/v1/")) return NextResponse.next();
+  if (pathname === "/" || pathname === "/login" || pathname === "/register" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/v1/")) return NextResponse.next();
   if (await verifySession(req.cookies.get(COOKIE)?.value)) return NextResponse.next();
   if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.redirect(new URL("/login", publicOrigin(req)));
