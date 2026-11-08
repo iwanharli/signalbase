@@ -33,6 +33,8 @@ export function Shell({ name, username, role, plan, banner, children }: {
   const path = usePathname();
   const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
   const tools = TOOLS.filter((t) => (role === "user" ? !("adminOnly" in t) : !("userOnly" in t)));
+  const barTools = tools.filter((t) => t.href !== "/billing");
+  const menuTools = tools.filter((t) => t.href === "/billing");
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -88,7 +90,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
                 <b>{plan.label}</b>{plan.daysLeft !== null && <span>{plan.daysLeft <= 0 ? "berakhir" : `${plan.daysLeft} hari`}</span>}
               </Link>
             )}
-            {tools.filter((t) => t.href !== "/billing").map((t) => (
+            {barTools.map((t) => (
               <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
                 <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
               </Tooltip>
@@ -106,8 +108,9 @@ export function Shell({ name, username, role, plan, banner, children }: {
                   <Avatar size={38} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
                   <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : "User"}</small></div>
                 </div>
-                <Menu.Divider />
-                {tools.map((t) => (
+                {/* Only what has no icon in the bar (billing); docs and users already sit there. */}
+                {menuTools.length > 0 && <Menu.Divider />}
+                {menuTools.map((t) => (
                   <Menu.Item key={t.href} component={Link} href={t.href} leftSection={<t.icon size={16} />}>{t.label}</Menu.Item>
                 ))}
                 <Menu.Divider />

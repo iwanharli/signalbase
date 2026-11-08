@@ -16,6 +16,10 @@ export type Alert =
   | { kind: "negative"; share: number; avgShare: number; n: number }
   | { kind: "intense"; n: number };
 
+/** Last 24 hours and the daily average of the 7 days before, for the early-warning indicators. */
+export type PulseWindow = { total: number; labelled: number; neg: number; hot: number };
+export type Pulse = { now: PulseWindow; avg: PulseWindow };
+
 export type Insights = {
   period: InsightPeriod;
   trend: TrendPoint[];
@@ -25,6 +29,7 @@ export type Insights = {
   keywords: Ranked[] | null;
   hashtags: Ranked[] | null;
   alerts: Alert[];
+  pulse: Pulse;
   /** Newest high-intensity negative posts of the last 24 hours (social only). */
   intense: MediaItem[];
   at: string;

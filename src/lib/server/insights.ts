@@ -107,7 +107,7 @@ function summarize(rows: Row[], period: number) {
   const current = emptyTotals(), previous = emptyTotals();
   const categories = new Map<string, Ranked>();
   /** Per window b (0..BASELINE_DAYS): total, labelled, negative, intense-negative, and per category. */
-  const recent = Array.from({ length: BASELINE_DAYS + 1 }, () => ({ labelled: 0, neg: 0, hot: 0, cats: new Map<string, number>() }));
+  const recent = Array.from({ length: BASELINE_DAYS + 1 }, () => ({ total: 0, labelled: 0, neg: 0, hot: 0, cats: new Map<string, number>() }));
 
   for (const row of rows) {
     if (row.b < 0 || row.b >= period * 2) continue;
@@ -128,6 +128,7 @@ function summarize(rows: Row[], period: number) {
     }
     if (row.b <= BASELINE_DAYS) {
       const w = recent[row.b];
+      w.total += row.n;
       if (side) { w.labelled += row.n; if (side === "neg") { w.neg += row.n; if (row.hot) w.hot += row.n; } }
       if (row.cat) w.cats.set(row.cat, (w.cats.get(row.cat) ?? 0) + row.n);
     }
@@ -176,8 +177,13 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   if (today.labelled >= NEGATIVE_MIN_LABELLED && share - avgShare >= NEGATIVE_SHIFT) alerts.unshift({ kind: "negative", share, avgShare, n: today.neg });
   if (today.hot > 0) alerts.unshift({ kind: "intense", n: today.hot });
 
+  const pulse = {
+    now: { total: today.total, labelled: today.labelled, neg: today.neg, hot: today.hot },
+    avg: { total: weekAvg((w) => w.total), labelled: avgLabelled, neg: weekAvg((w) => w.neg), hot: weekAvg((w) => w.hot) },
+  };
+
   return {
-    period, trend, current, previous,
+    period, trend, current, previous, pulse,
     categories: categories.slice(0, TOP_CATEGORIES),
     keywords, hashtags: tags, alerts,
     intense: latestHot.filter((item) => item.mood && moodPolarity(item.mood) === "neg").slice(0, INTENSE_SHOWN),
