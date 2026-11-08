@@ -75,7 +75,8 @@
 /* Mobile sheet */
 .sheet { display: none; }
 
-.main { padding: 104px 12px 48px; animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
+/* "backwards", not "both": a transform or filter left on <main> after the animation would pin every position:fixed child (e.g. the save bar) to the page instead of the screen. */
+.main { padding: 104px 12px 48px; animation: rise 500ms cubic-bezier(.2,.8,.2,1) backwards; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 
 @media (max-width: 1200px) { .link { padding: 8px 9px; font-size: 13px; } .live { display: none; } }

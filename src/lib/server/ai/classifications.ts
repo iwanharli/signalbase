@@ -1,7 +1,7 @@
 // Reading stored AI categories for the public API.
 import { ANY_CATEGORY, LOW_CONFIDENCE, LOW_CONFIDENCE_FILTER, categoriesForType, categorySchema, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { ItemClassification, MediaType } from "@/lib/media/types";
-import type { KeyScope } from "@/lib/media/keyScope";
+import { hasExtraRestrictions, type KeyScope } from "@/lib/media/keyScope";
 import { filterCodes } from "../bank";
 import { prisma } from "../db";
 
@@ -79,7 +79,9 @@ export async function categoryWithFilters(apiKeyId: string, type: MediaType, cat
  * `all` holds every matching code when filters were combined (capped), for summaries.
  */
 export async function categoryPage(apiKeyId: string, type: MediaType, category: string, query: URLSearchParams, scope: KeyScope, page: { limit: number; offset: number }) {
-  if (hasExtraFilters(query)) return categoryWithFilters(apiKeyId, type, category, query, scope, page);
+  // Labels were made within the key's keywords, but the rest of its scope (e.g. "analysed only") can change or be
+  // turned on later, so it is checked in the source database whenever it restricts anything.
+  if (hasExtraFilters(query) || hasExtraRestrictions(scope)) return categoryWithFilters(apiKeyId, type, category, query, scope, page);
   const plain = await codesInCategory(apiKeyId, type, category, query, page);
   return { ...plain, all: null as string[] | null };
 }
