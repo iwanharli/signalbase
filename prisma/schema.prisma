@@ -162,8 +162,10 @@ model Invoice {
   number      String    @unique // SB-2026-0001
   accountId   String
   account     Admin     @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  plan        String // starter | pro | instansi
-  billing     String // monthly | yearly
+  kind        String    @default("plan") // plan | topup (extra Signalbase AI posts for one month)
+  plan        String // starter | pro | instansi (for a top-up: the plan it was bought on)
+  billing     String // monthly | yearly (top-up: monthly)
+  topupPosts  Int? // top-up only: posts added to that month's Signalbase AI quota
   subtotal    Int // rupiah, before tax
   tax         Int // rupiah
   total       Int
@@ -178,4 +180,13 @@ model Invoice {
 
   @@index([accountId, createdAt])
   @@index([status, createdAt])
+}
+
+// Extra Signalbase AI posts bought for one month (paid top-up invoices), on top of the plan's monthly quota.
+model AiCredit {
+  accountId String
+  month     String // YYYY-MM, Asia/Jakarta
+  posts     Int    @default(0)
+
+  @@id([accountId, month])
 }

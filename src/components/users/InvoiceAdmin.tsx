@@ -7,9 +7,9 @@ import { notifications } from "@mantine/notifications";
 import { IconCheck, IconFileInvoice, IconPlus, IconX } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { BILLING_LABEL, BILLINGS, invoiceAmounts, type Billing } from "@/lib/billing";
-import { PLAN_LABEL, isPlanId, type PlanId } from "@/lib/plans";
+import { PLAN_LABEL, type PlanId } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
-import { rupiah, STATUS, tanggal, type InvoiceRow } from "../billing/shared";
+import { describeInvoice, rupiah, STATUS, tanggal, type InvoiceRow } from "../billing/shared";
 import { Button, StatusPill } from "../ui/Button";
 import classes from "./contactRequests.module.css";
 
@@ -30,7 +30,7 @@ export function InvoiceAdmin({ accounts, onPlanChanged }: { accounts: Account[];
     setBusy(inv.id);
     try {
       await post(`/api/admin/billing/${inv.id}`, { action }, "PATCH");
-      notifications.show({ color: action === "paid" ? "teal" : "orange", message: action === "paid" ? `${inv.number} lunas; paket diperbarui` : `${inv.number} dibatalkan` });
+      notifications.show({ color: action === "paid" ? "teal" : "orange", message: action === "paid" ? `${inv.number} lunas; ${inv.kind === "topup" ? "kuota AI ditambah" : "paket diperbarui"}` : `${inv.number} dibatalkan` });
       list.reload();
       if (action === "paid") onPlanChanged();
     } catch (err) {
@@ -90,7 +90,7 @@ export function InvoiceAdmin({ accounts, onPlanChanged }: { accounts: Account[];
               <article key={i.id} data-handled={i.status !== "unpaid" || undefined}>
                 <div className={classes.head}>
                   <Link href={`/billing/${i.id}`}><b>{i.number}</b></Link>
-                  <span>{i.account?.name} · {isPlanId(i.plan) ? PLAN_LABEL[i.plan] : i.plan} {BILLING_LABEL[i.billing].toLowerCase()}</span>
+                  <span>{i.account?.name} · {describeInvoice(i)}</span>
                   <StatusPill tone={tone}>{label}</StatusPill>
                   <small>{rupiah(i.total)} · jatuh tempo {tanggal(i.dueAt)}</small>
                 </div>

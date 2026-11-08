@@ -25,10 +25,19 @@ export function platformProvider(tier: string): ProviderConfig | null {
 
 export const NOT_CONFIGURED = "Signalbase AI belum diaktifkan di server. Hubungi admin.";
 
+/** Current month in Jakarta, YYYY-MM. */
+export const monthKey = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).slice(0, 7);
+
 /** First day of the current month in Jakarta, as a Date. */
 function monthStart() {
-  const [y, m] = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).split("-");
-  return new Date(`${y}-${m}-01T00:00:00+07:00`);
+  return new Date(`${monthKey()}-01T00:00:00+07:00`);
+}
+
+/** This month's Signalbase AI quota for an account: the plan's posts plus paid top-ups; null = unlimited. */
+export async function aiQuota(ownerId: string, planPosts: number | null) {
+  if (planPosts === null) return null;
+  const credit = await prisma.aiCredit.findUnique({ where: { accountId_month: { accountId: ownerId, month: monthKey() } }, select: { posts: true } });
+  return planPosts + (credit?.posts ?? 0);
 }
 
 /** Posts labelled by Signalbase AI this month for all keys of an account (manual corrections not counted). */

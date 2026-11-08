@@ -36,3 +36,9 @@ export function billingIssuer() {
     accountName: process.env.BILLING_ACCOUNT_NAME || "",
   };
 }
+
+/** Extra Signalbase AI posts for the current month. Check the price against the real AI cost per 1,000 posts. */
+export const AI_TOPUP = { posts: 20_000, price: 500_000 };
+
+/** Share of the monthly AI quota at which the panel warns the user. */
+export const AI_WARN_AT = 0.8;

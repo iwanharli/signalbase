@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jakartaToday, limitsFor, PLAN_LABEL, isPlanId } from "@/lib/plans";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { platformPostsThisMonth } from "@/lib/server/ai/platform";
+import { aiQuota, platformPostsThisMonth } from "@/lib/server/ai/platform";
 
 // Today's public API calls: per key, and for a user account the total against its plan's daily limit.
 export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
@@ -20,6 +20,6 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     used: rows.reduce((t, r) => t + r.count, 0),
     limit: limits.callsPerDay,
     plan: isPlanId(account?.plan) ? PLAN_LABEL[account.plan] : null,
-    ai: { used: await platformPostsThisMonth(user.id), limit: limits.aiPostsPerMonth },
+    ai: { used: await platformPostsThisMonth(user.id), limit: await aiQuota(user.id, limits.aiPostsPerMonth) },
   });
 });

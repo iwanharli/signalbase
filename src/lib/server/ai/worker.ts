@@ -7,9 +7,9 @@ import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
 import { limitsFor } from "@/lib/plans";
-import { platformPostsThisMonth } from "./platform";
+import { aiQuota, platformPostsThisMonth } from "./platform";
 
-const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan atau setelah paket dinaikkan.";
+const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan, setelah menambah kuota, atau setelah paket dinaikkan.";
 import { prisma } from "../db";
 import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
@@ -52,6 +52,8 @@ type Job = {
   /** Item codes the provider refused this run, per type. */
   rejected: Record<MediaType, string[]>;
   failedCalls: number;
+  /** Signalbase AI with a monthly quota: posts the bank analysis marks "exclude" (not relevant) are not labelled. */
+  skipExcluded?: boolean;
 };
 
 /** Errors that stop the whole run (bad key, no credit, rate limit), as opposed to a batch the provider rejects. */
@@ -102,7 +104,7 @@ async function classifySplitting(job: Job, type: MediaType, items: { id: string;
 
 /** Classifies one batch and stores the results. Returns how many items were labelled. */
 async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
-  const classifiable = items.filter((i) => itemText(i));
+  const classifiable = items.filter((i) => itemText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
   const results = await classifySplitting(job, type, classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
@@ -168,10 +170,11 @@ async function runClassifier(classifierId: string) {
   let todayCount = row.todayDate === today ? row.todayCount : 0;
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
   let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
+  let limitedQuota = false;
   // Signalbase AI on a user's key: stay within the plan's monthly post quota (it resumes next month or on upgrade).
   if (platform && row.apiKey.ownerId) {
     const owner = await prisma.admin.findUnique({ where: { id: row.apiKey.ownerId }, select: { plan: true } });
-    const quota = limitsFor(owner?.plan).aiPostsPerMonth;
+    const quota = await aiQuota(row.apiKey.ownerId, limitsFor(owner?.plan).aiPostsPerMonth);
     if (quota !== null) {
       const left = quota - (await platformPostsThisMonth(row.apiKey.ownerId));
       if (left <= 0) {
@@ -179,10 +182,12 @@ async function runClassifier(classifierId: string) {
         return;
       }
       budget = Math.min(budget, left);
+      limitedQuota = true;
     }
   }
 
   const job = buildJob(row);
+  job.skipExcluded = limitedQuota;
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
   let lastError: string | null = null;

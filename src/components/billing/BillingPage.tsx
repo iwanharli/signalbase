@@ -4,17 +4,39 @@ import { useState } from "react";
 import Link from "next/link";
 import { Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconFileInvoice, IconReceipt } from "@tabler/icons-react";
+import { IconFileInvoice, IconReceipt, IconSparkles } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
-import { BILLING_LABEL, BILLINGS, invoiceAmounts, SELF_SERVE_PLANS, TAX_LABEL, type Billing } from "@/lib/billing";
+import { AI_TOPUP, AI_WARN_AT, BILLING_LABEL, BILLINGS, invoiceAmounts, SELF_SERVE_PLANS, TAX_LABEL, type Billing } from "@/lib/billing";
 import { daysLeft, PLAN_LABEL, isPlanId, type PlanId } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
-import { rupiah, STATUS, tanggal, type InvoiceRow } from "./shared";
+import { describeInvoice, rupiah, STATUS, tanggal, type InvoiceRow } from "./shared";
 import classes from "./billing.module.css";
 
-export function BillingPage({ plan, expiresAt }: { plan: string | null; expiresAt: string | null }) {
+/** This month's Signalbase AI usage, with a top-up for plans that allow it. */
+function AiQuotaCard({ used, limit, canTopup, busy, onTopup }: { used: number; limit: number; canTopup: boolean; busy: boolean; onTopup: () => void }) {
+  const share = Math.min(1, used / limit);
+  const state = share >= 1 ? "full" : share >= AI_WARN_AT ? "warn" : undefined;
+  return (
+    <section className={classes.card}>
+      <h2>Kuota kategorisasi AI bulan ini</h2>
+      <div className={classes.quota} data-state={state}>
+        <div><b>{used.toLocaleString("id-ID")}</b><span>dari {limit.toLocaleString("id-ID")} post</span></div>
+        <i><em style={{ width: `${share * 100}%` }} /></i>
+        <small>{state === "full" ? "Kuota habis: pelabelan dijeda sampai bulan depan atau kuota ditambah." : state === "warn" ? "Kuota hampir habis." : "Post yang ditandai tidak relevan oleh analisis bank data tidak memakai kuota."}</small>
+      </div>
+      {canTopup && (
+        <Button variant={state ? "primary" : "secondary"} icon={IconSparkles} loading={busy} onClick={onTopup}>
+          Tambah {AI_TOPUP.posts.toLocaleString("id-ID")} post · {rupiah(AI_TOPUP.price)} + PPN
+        </Button>
+      )}
+    </section>
+  );
+}
+
+export function BillingPage({ plan, expiresAt, canTopup }: { plan: string | null; expiresAt: string | null; canTopup: boolean }) {
   const invoices = useApi<InvoiceRow[]>("/api/admin/billing");
+  const usage = useApi<{ ai?: { used: number; limit: number | null } }>("/api/admin/usage");
   const [choice, setChoice] = useState<PlanId>("pro");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [busy, setBusy] = useState(false);
@@ -22,10 +44,10 @@ export function BillingPage({ plan, expiresAt }: { plan: string | null; expiresA
   const left = daysLeft(expiresAt);
   const open = invoices.data?.find((i) => i.status === "unpaid");
 
-  const order = async () => {
+  const order = async (body: object = { plan: choice, billing }) => {
     setBusy(true);
     try {
-      const inv = await post("/api/admin/billing", { plan: choice, billing }) as InvoiceRow;
+      const inv = await post("/api/admin/billing", body) as InvoiceRow;
       notifications.show({ color: "teal", message: `Tagihan ${inv.number} dibuat` });
       window.location.href = `/billing/${inv.id}`;
     } catch (err) {
@@ -65,10 +87,12 @@ export function BillingPage({ plan, expiresAt }: { plan: string | null; expiresA
               <dt>{TAX_LABEL}</dt><dd>{rupiah(amounts.tax)}</dd>
               <dt className={classes.total}>Total</dt><dd className={classes.total}>{rupiah(amounts.total)}</dd>
             </dl>
-            <Button variant="primary" icon={IconFileInvoice} loading={busy} onClick={order}>Buat tagihan</Button>
+            <Button variant="primary" icon={IconFileInvoice} loading={busy} onClick={() => order()}>Buat tagihan</Button>
             <p className={classes.note}>Paket aktif setelah pembayaran dikonfirmasi admin. Butuh paket Instansi? <Link href="/kontak?plan=instansi">Hubungi kami</Link>.</p>
           </>}
         </section>
+
+        {usage.data?.ai?.limit ? <AiQuotaCard used={usage.data.ai.used} limit={usage.data.ai.limit} canTopup={canTopup && !open} busy={busy} onTopup={() => order({ kind: "topup" })} /> : null}
 
         <section className={classes.card}>
           <h2>Riwayat tagihan</h2>
@@ -78,7 +102,7 @@ export function BillingPage({ plan, expiresAt }: { plan: string | null; expiresA
                 const [tone, label] = STATUS[i.status];
                 return (
                   <li key={i.id}>
-                    <Link href={`/billing/${i.id}`}><b>{i.number}</b><small>{isPlanId(i.plan) ? PLAN_LABEL[i.plan] : i.plan} · {BILLING_LABEL[i.billing]} · {tanggal(i.createdAt)}</small></Link>
+                    <Link href={`/billing/${i.id}`}><b>{i.number}</b><small>{describeInvoice(i)} · {tanggal(i.createdAt)}</small></Link>
                     <span>{rupiah(i.total)}</span>
                     <StatusPill tone={tone}>{label}</StatusPill>
                   </li>

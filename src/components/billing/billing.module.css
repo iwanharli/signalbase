@@ -28,3 +28,13 @@
 .list small { color: var(--mantine-color-dimmed); font-size: 12px; }
 .list span { font-weight: 700; font-variant-numeric: tabular-nums; }
 @media (max-width: 62em) { .grid { grid-template-columns: 1fr; } }
+
+.quota { display: grid; gap: 8px; }
+.quota > div { display: flex; align-items: baseline; gap: 8px; }
+.quota b { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.quota span, .quota small { color: var(--mantine-color-dimmed); font-size: 13px; }
+.quota i { height: 10px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-default-hover); }
+.quota em { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #7c3aed, #22d3ee); }
+.quota[data-state="warn"] em { background: linear-gradient(90deg, #f59e0b, #f97316); }
+.quota[data-state="full"] em { background: #ef4444; }
+.quota[data-state="full"] small { color: #b91c1c; }

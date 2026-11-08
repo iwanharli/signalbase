@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { IconAlertTriangle, IconClockHour4 } from "@tabler/icons-react";
+import { IconAlertTriangle, IconClockHour4, IconSparkles } from "@tabler/icons-react";
+import { AI_WARN_AT } from "@/lib/billing";
 import { daysLeft, PLAN_LABEL, isPlanId } from "@/lib/plans";
 import classes from "./shell.module.css";
 
@@ -19,6 +20,23 @@ export function PlanBanner({ plan, expiresAt }: { plan: string | null; expiresAt
           : <><b>{name}: {left === 1 ? "hari terakhir" : `sisa ${left} hari`}.</b> Pilih paket agar kunci API tetap bekerja setelahnya.</>}
       </span>
       <Link href="/billing">Perpanjang paket</Link>
+    </div>
+  );
+}
+
+/** Signalbase AI quota notice for user accounts: from 80% of this month's posts, and when it has run out. */
+export function AiQuotaBanner({ used, limit }: { used: number; limit: number | null }) {
+  if (!limit || used < limit * AI_WARN_AT) return null;
+  const full = used >= limit;
+  return (
+    <div className={classes.planBanner} data-expired={full || undefined} role="status">
+      {full ? <IconAlertTriangle size={18} /> : <IconSparkles size={18} />}
+      <span>
+        {full
+          ? <><b>Kuota kategorisasi AI bulan ini habis</b> ({used.toLocaleString("id-ID")} post). Pelabelan dijeda sampai bulan depan; data media tetap bisa diakses.</>
+          : <><b>Kuota kategorisasi AI {Math.floor((used / limit) * 100)}% terpakai</b> ({used.toLocaleString("id-ID")} dari {limit.toLocaleString("id-ID")} post).</>}
+      </span>
+      <Link href="/billing">Tambah kuota</Link>
     </div>
   );
 }

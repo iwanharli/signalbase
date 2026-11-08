@@ -38,7 +38,9 @@ export function InvoiceView({ invoice: inv, issuer, isAdmin }: { invoice: Invoic
           <thead><tr><th>Deskripsi</th><th>Periode</th><th className={classes.num}>Jumlah</th></tr></thead>
           <tbody>
             <tr>
-              <td><b>Signalbase {planName}</b><small>Langganan {BILLING_LABEL[inv.billing].toLowerCase()}{inv.note ? ` · ${inv.note}` : ""}</small></td>
+              <td>{inv.kind === "topup"
+                ? <><b>Tambah kuota kategorisasi AI</b><small>{(inv.topupPosts ?? 0).toLocaleString("id-ID")} post untuk bulan berjalan · paket {planName}</small></>
+                : <><b>Signalbase {planName}</b><small>Langganan {BILLING_LABEL[inv.billing].toLowerCase()}{inv.note ? ` · ${inv.note}` : ""}</small></>}</td>
               <td>{tanggal(inv.periodStart)} – {tanggal(inv.periodEnd)}</td>
               <td className={classes.num}>{rupiah(inv.subtotal)}</td>
             </tr>
@@ -57,7 +59,7 @@ export function InvoiceView({ invoice: inv, issuer, isAdmin }: { invoice: Invoic
               <ol>
                 <li>Transfer tepat <b>{rupiah(inv.total)}</b> ke <b>{issuer.bank} {issuer.accountNumber}</b> a.n. <b>{issuer.accountName}</b>.</li>
                 <li>Tulis <b>{inv.number}</b> di berita transfer.</li>
-                <li>Paket aktif setelah admin mengonfirmasi pembayaran (biasanya 1×24 jam hari kerja).</li>
+                <li>{inv.kind === "topup" ? "Kuota bertambah" : "Paket aktif"} setelah admin mengonfirmasi pembayaran (biasanya 1×24 jam hari kerja).</li>
               </ol>
             ) : <p>Rekening pembayaran belum diatur. Hubungi admin untuk instruksi pembayaran.</p>}
           </section>

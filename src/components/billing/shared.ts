@@ -1,6 +1,8 @@
 // Client-side invoice shape and small display helpers shared by the billing pages.
+import { BILLING_LABEL } from "@/lib/billing";
+import { PLAN_LABEL, isPlanId } from "@/lib/plans";
 export type InvoiceRow = {
-  id: string; number: string; accountId: string; plan: string; billing: "monthly" | "yearly";
+  id: string; number: string; accountId: string; kind: "plan" | "topup"; topupPosts: number | null; plan: string; billing: "monthly" | "yearly";
   subtotal: number; tax: number; total: number; periodStart: string; periodEnd: string;
   status: "unpaid" | "paid" | "cancelled"; dueAt: string; paidAt: string | null; note: string | null; createdAt: string;
   account?: { name: string; username: string };
@@ -12,3 +14,9 @@ export const STATUS: Record<InvoiceRow["status"], [tone: "warning" | "success" |
 
 export const rupiah = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
 export const tanggal = (d: string | Date) => new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" });
+
+/** "Pro · Tahunan" for a plan invoice, "Tambah kuota AI · 20.000 post" for a top-up. */
+export const describeInvoice = (i: Pick<InvoiceRow, "kind" | "plan" | "billing" | "topupPosts">) =>
+  i.kind === "topup"
+    ? `Tambah kuota AI · ${(i.topupPosts ?? 0).toLocaleString("id-ID")} post`
+    : `${isPlanId(i.plan) ? PLAN_LABEL[i.plan] : i.plan} · ${BILLING_LABEL[i.billing]}`;

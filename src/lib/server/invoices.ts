@@ -1,5 +1,6 @@
 // Creating invoices and applying payments.
-import { invoiceAmounts, DUE_DAYS, type Billing } from "../billing";
+import { AI_TOPUP, invoiceAmounts, DUE_DAYS, TAX_RATE, type Billing } from "../billing";
+import { monthKey } from "./ai/platform";
 import type { PlanId } from "../plans";
 import { prisma } from "./db";
 
@@ -42,13 +43,40 @@ export async function createInvoice(accountId: string, plan: PlanId, billing: Bi
   }
 }
 
-/** Marks an invoice paid and gives the account its plan until the invoice's period end. */
+/** An unpaid invoice for extra Signalbase AI posts in the current month (Jakarta). */
+export async function createTopupInvoice(accountId: string, plan: string, createdBy: string) {
+  const month = monthKey();
+  const periodStart = new Date(`${month}-01T00:00:00+07:00`);
+  const periodEnd = addMonths(periodStart, 1);
+  const tax = Math.round(AI_TOPUP.price * TAX_RATE);
+  const now = new Date();
+  // Due by the end of the month at the latest: the posts only count for this month.
+  const dueAt = new Date(Math.min(now.getTime() + DUE_DAYS * DAY, periodEnd.getTime() - 1));
+  return prisma.invoice.create({
+    data: {
+      number: await nextNumber(), accountId, kind: "topup", plan, billing: "monthly", topupPosts: AI_TOPUP.posts,
+      subtotal: AI_TOPUP.price, tax, total: AI_TOPUP.price + tax, periodStart, periodEnd, dueAt, createdBy,
+    },
+  });
+}
+
+/** Marks an invoice paid: a plan invoice sets the account's plan until its period end; a top-up adds its posts to
+ *  that month's Signalbase AI quota. */
 export async function markPaid(invoiceId: string) {
   return prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.findUnique({ where: { id: invoiceId } });
     if (!inv || inv.status !== "unpaid") return null;
     await tx.invoice.update({ where: { id: invoiceId }, data: { status: "paid", paidAt: new Date() } });
-    await tx.admin.update({ where: { id: inv.accountId }, data: { plan: inv.plan, planExpiresAt: inv.periodEnd } });
+    if (inv.kind === "topup") {
+      const month = monthKey(inv.periodStart);
+      await tx.aiCredit.upsert({
+        where: { accountId_month: { accountId: inv.accountId, month } },
+        create: { accountId: inv.accountId, month, posts: inv.topupPosts ?? 0 },
+        update: { posts: { increment: inv.topupPosts ?? 0 } },
+      });
+    } else {
+      await tx.admin.update({ where: { id: inv.accountId }, data: { plan: inv.plan, planExpiresAt: inv.periodEnd } });
+    }
     return inv;
   });
 }
