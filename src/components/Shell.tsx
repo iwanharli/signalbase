@@ -6,6 +6,7 @@ import { Avatar, Menu, Text, UnstyledButton } from "@mantine/core";
 import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
+import { RoleProvider } from "./RoleContext";
 import classes from "./shell.module.css";
 
 const NAV = [
@@ -18,7 +19,7 @@ const NAV = [
 ];
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-export function Shell({ name, role, children }: { name: string; role: Role; children: React.ReactNode }) {
+export function Shell({ name, role, banner, children }: { name: string; role: Role; banner?: React.ReactNode; children: React.ReactNode }) {
   const path = usePathname();
   const nav = role === "user"
     ? NAV.filter((i) => !("adminOnly" in i)).map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i))
@@ -99,7 +100,7 @@ export function Shell({ name, role, children }: { name: string; role: Role; chil
         </nav>
       </header>
 
-      <main key={path} className={classes.main}>{children}</main>
+      <main key={path} className={classes.main}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
     </div>
   );
 }

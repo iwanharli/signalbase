@@ -88,6 +88,20 @@ PORT=4100 ./run.sh  # port lain
 4. menyinkronkan skema Prisma dan membuat admin awal;
 5. menjalankan server.
 
+### Signalbase AI (opsional)
+
+Kategorisasi AI tanpa API key dari user memakai penyedia milik platform. Isi di `.env` server:
+
+| Variabel | Isi |
+|---|---|
+| `SIGNALBASE_AI_KIND` | `anthropic` (bawaan) atau `openai_compatible` |
+| `SIGNALBASE_AI_BASE_URL` | Hanya untuk `openai_compatible` |
+| `SIGNALBASE_AI_MODEL` | Model standar, mis. `claude-haiku-5-5` |
+| `SIGNALBASE_AI_MODEL_ENHANCED` | Model enhancement paket Instansi (bawaan: sama dengan model standar) |
+| `SIGNALBASE_AI_API_KEY` | API key penyedia milik platform |
+
+Kuota per paket ada di `src/lib/plans.ts` (`aiPostsPerMonth`). Tanpa variabel ini, pilihan Signalbase AI ditolak dengan pesan yang jelas.
+
 ### Cara manual
 
 ```bash

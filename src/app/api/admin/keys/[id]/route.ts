@@ -4,6 +4,7 @@ import { providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
+import { accountPlan } from "@/lib/server/plan";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -52,7 +53,13 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
     provinces: [...new Set(parsed.data.scope.provinces)],
     categories: [...new Set(parsed.data.scope.categories)],
   };
-  if (user.role === "user" && !scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
+  if (user.role === "user") {
+    if (!scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
+    const { keywordsPerKey } = (await accountPlan(user.id)).limits;
+    if (keywordsPerKey !== null && scope.keywords.length > keywordsPerKey) {
+      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per kunci` }, { status: 403 });
+    }
+  }
   const scopeChanged = !sameScope(scope, parseKeyScope(key.scope, key.keywords));
   const { keywords, ...rest } = scope;
   const restartAi = scopeChanged && !!key.classifier;

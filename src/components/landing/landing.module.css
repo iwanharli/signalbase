@@ -1351,3 +1351,7 @@
   .waveGlow { opacity:.12; }
   .waveSpark { display:none; }
 }
+
+/* Footer legal links. */
+.legalLinks { display: inline-flex; flex-wrap: wrap; gap: 6px 18px; }
+.legalLinks a:hover { color: var(--purple); }

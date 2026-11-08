@@ -14,6 +14,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { Button } from "../ui/Button";
 import { PromptPreview } from "./PromptPreview";
+import { useRole } from "../RoleContext";
 import classes from "./ai.module.css";
 
 /** Start of the day N days ago, as ISO. */
@@ -107,14 +108,15 @@ const providerFromPreset = (id: string): ProviderDraft => {
   return { kind: p.kind, baseUrl: p.baseUrl, model: p.model, apiKey: "" };
 };
 const presetOf = (provider: ProviderDraft) =>
-  provider.kind === "anthropic" ? "claude" : PROVIDER_PRESETS.find((p) => p.baseUrl && p.baseUrl === provider.baseUrl.replace(/\/+$/, ""))?.id ?? "custom";
+  provider.kind === "signalbase" ? "signalbase" : provider.kind === "anthropic" ? "claude" : PROVIDER_PRESETS.find((p) => p.baseUrl && p.baseUrl === provider.baseUrl.replace(/\/+$/, ""))?.id ?? "custom";
 
 export const emptyDraft = (): ClassifierDraft => ({ provider: providerFromPreset("claude"), fallback: null, enabled: true, prompt: "", categories: [], onlineCategories: null, labelledOnly: false, minBalance: 1, dailyBudget: null, startFrom: daysAgo(7) });
 
 /** Rough checks shown before saving; the server validates again. `hasStoredKey`: an empty API key keeps the saved one. */
 export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
   const problems: string[] = [];
-  if (!draft.provider.apiKey.trim() && !hasStoredKey) problems.push("Isi API key penyedia AI");
+  const platform = draft.provider.kind === "signalbase";
+  if (!platform && !draft.provider.apiKey.trim() && !hasStoredKey) problems.push("Isi API key penyedia AI");
   const keyProblem = draft.provider.apiKey.trim() ? apiKeyProblem(draft.provider.kind, draft.provider.baseUrl, draft.provider.apiKey) : null;
   if (keyProblem) problems.push(keyProblem);
   if (draft.fallback) {
@@ -124,7 +126,7 @@ export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
     const fbProblem = fb.apiKey.trim() ? apiKeyProblem(fb.kind, fb.baseUrl, fb.apiKey) : null;
     if (fbProblem) problems.push(`Cadangan: ${fbProblem}`);
   }
-  if (draft.provider.model.trim().length < 2) problems.push("Isi model AI");
+  if (!platform && draft.provider.model.trim().length < 2) problems.push("Isi model AI");
   if (draft.provider.kind === "openai_compatible" && !/^https?:\/\//.test(draft.provider.baseUrl.trim())) problems.push("Isi base URL penyedia AI");
   if (draft.prompt.trim().length < 10) problems.push("Prompt minimal 10 karakter");
   const lists: [string, Category[]][] = draft.onlineCategories
@@ -168,6 +170,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
   /** Which stored key the test and copy button use when the key field is empty. */
   slot?: "primary" | "fallback";
 }) {
+  const role = useRole();
   const [test, setTest] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
   const inputClasses = { input: classes.input, label: classes.label, description: classes.description, innerInput: classes.innerInput };
@@ -189,11 +192,18 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
     <div className={classes.provider}>
       {slot === "primary" && <div className={classes.providerHead}><IconRobot size={15} />Penyedia AI<small>Khusus kunci ini · API key disimpan terenkripsi</small></div>}
       <div className={classes.presets}>
-        {PROVIDER_PRESETS.map((p) => (
+        {/* User accounts may only use the public providers; custom endpoints are refused on the server too. */}
+        {PROVIDER_PRESETS.filter((p) => (role === "admin" || p.id !== "custom") && (slot === "primary" || p.id !== "signalbase")).map((p) => (
           <button key={p.id} type="button" data-active={preset === p.id || undefined}
             onClick={() => { onChange({ ...providerFromPreset(p.id), apiKey: provider.apiKey }); setTest(null); }}>{p.label}</button>
         ))}
       </div>
+      {provider.kind === "signalbase" ? (
+        <p className={classes.platformNote}>
+          <IconSparkles size={15} />Model kategorisasi disediakan Signalbase, tanpa API key. Pemakaian dihitung per post sesuai kuota paket Anda
+          {role === "admin" && <> · <button type="button" onClick={() => onChange({ ...provider, model: provider.model === "enhanced" ? "standard" : "enhanced" })}>{provider.model === "enhanced" ? "Model enhancement" : "Model standar"} (klik untuk ganti)</button></>}.
+        </p>
+      ) : <>
       <div className={classes.row}>
         <TextInput classNames={inputClasses} label="Model" value={provider.model} onChange={(e) => onChange({ ...provider, model: e.currentTarget.value })}
           description={provider.kind === "anthropic" ? "mis. claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5" : "Nama model sesuai dokumentasi penyedia"} />
@@ -209,6 +219,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
         // Not a login field: stop browsers and password managers from filling in the admin password.
         autoComplete="new-password" name={`ai-${slot}-api-key`} data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
         error={provider.apiKey ? apiKeyProblem(provider.kind, provider.baseUrl, provider.apiKey) : null} />
+      </>}
       <div className={classes.testRow}>
         <Button size="sm" onDark variant="secondary" icon={IconPlayerPlay} onClick={runTest} loading={testing}>{testing ? "Menguji…" : "Uji koneksi"}</Button>
         {test && (

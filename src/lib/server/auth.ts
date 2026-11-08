@@ -11,7 +11,7 @@ export async function getSession() {
 export type PanelUser = { id: string; username: string; role: Role };
 
 /** Panel APIs only admins may call. */
-const ADMIN_ONLY = ["/api/admin/users"];
+const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact"];
 
 /** A user account still allowed in. Checked on every request, so suspending someone cuts off an open session at once. */
 export async function isActiveAccount(id: string) {

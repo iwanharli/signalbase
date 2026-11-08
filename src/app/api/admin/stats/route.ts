@@ -4,6 +4,7 @@ import { adminRoute, ownsKey } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { prisma } from "@/lib/server/db";
 import { typeStats } from "@/lib/server/overview";
+import { accountPlan, EXPIRED_MESSAGE } from "@/lib/server/plan";
 
 // Overview page data: per media type the last 14 days of volume, the mood split of the
 // last 7 days and the newest items; plus the active API keys.
@@ -12,6 +13,7 @@ import { typeStats } from "@/lib/server/overview";
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const requested = new URL(req.url).searchParams.get("key");
   const isUser = user.role === "user";
+  if (isUser && (await accountPlan(user.id)).expired) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
   const keys = await prisma.apiKey.findMany({
     where: { revokedAt: null, ...(isUser ? { ownerId: user.id } : {}) },
     orderBy: { createdAt: isUser ? "asc" : "desc" },

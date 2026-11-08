@@ -16,6 +16,12 @@ model Admin {
   passwordHash String
   role         String   @default("admin") // "admin" | "user"
   status       String   @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
+  /// Plan of a "user" account: trial | starter | pro | instansi. null = no plan limits (accounts set up by hand).
+  plan          String?
+  /// End of the trial or paid period; keys stop working after it. null = no end date.
+  planExpiresAt DateTime?
+  /// Plan chosen on /pricing when signing up (?plan=), shown to the admin who approves; it does not grant anything.
+  requestedPlan String?
   createdAt    DateTime @default(now())
 }
 
@@ -36,6 +42,7 @@ model ApiKey {
 
   classifier      Classifier?
   classifications Classification[]
+  usage           ApiKeyUsage[]
   balances        BalanceSnapshot[]
   tokenUsage      TokenUsage[]
 }
@@ -120,4 +127,30 @@ model TokenUsage {
   calls        Int      @default(0)
 
   @@id([apiKeyId, hour, model])
+}
+
+// Public API calls per key per day (Jakarta date). Summed over an account's keys for its daily plan limit.
+model ApiKeyUsage {
+  apiKeyId String
+  day      String // YYYY-MM-DD, Asia/Jakarta
+  count    Int    @default(0)
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@id([apiKeyId, day])
+  @@index([day])
+}
+
+// Sales enquiries from the public /kontak page (e.g. the Instansi plan's "Hubungi kami").
+model ContactRequest {
+  id           String   @id @default(uuid())
+  name         String
+  organization String
+  email        String
+  phone        String?
+  plan         String? // plan the visitor came from, e.g. "instansi"
+  message      String
+  handled      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([handled, createdAt])
 }

@@ -15,13 +15,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
+  // Plan picked on /pricing (?plan=pro); recorded for the admin, the account still starts with the trial.
+  const requestedPlan = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("plan") ?? undefined : undefined;
   const inactive = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("inactive");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(register ? { name, username, password } : { username, password }) });
+    const res = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(register ? { name, username, password, plan: requestedPlan } : { username, password }) });
     const body = await res.json().catch(() => ({}));
     if (res.ok && body.pending) { setPending(true); setBusy(false); return; }
     if (res.ok) return void (window.location.href = body.home ?? "/");
@@ -41,7 +43,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </div>
           {pending ? (
             <Alert color="teal" variant="light" title="Pendaftaran terkirim">
-              Akun <b>{username}</b> menunggu persetujuan admin. Anda bisa masuk setelah akun disetujui.
+              Akun <b>{username}</b> menunggu persetujuan admin. Anda bisa masuk setelah akun disetujui; trial dimulai saat itu.
             </Alert>
           ) : <>
           {inactive && !error && <Alert color="yellow" variant="light">Akun Anda belum aktif atau sudah dinonaktifkan. Hubungi admin.</Alert>}
@@ -51,6 +53,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             description={register ? "Huruf kecil, angka, titik, atau garis bawah" : undefined} />
           <PasswordInput label="Kata sandi" leftSection={<IconLock size={16} />} value={password} onChange={(e) => setPassword(e.currentTarget.value)}
             autoComplete={register ? "new-password" : "current-password"} description={register ? "Minimal 8 karakter" : undefined} required />
+          {register && <Text fz={12.5} c="dimmed">Dengan mendaftar, Anda menyetujui <Anchor component={Link} href="/syarat" fz={12.5}>Syarat & Ketentuan</Anchor> dan <Anchor component={Link} href="/privasi" fz={12.5}>Kebijakan Privasi</Anchor>.</Text>}
           <Button type="submit" size="md" loading={busy} variant="gradient" gradient={{ from: "violet.7", to: "cyan.6", deg: 120 }}>{register ? "Daftar" : "Masuk"}</Button>
           </>}
           <Text fz={14} ta="center" c="dimmed">

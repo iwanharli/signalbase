@@ -6,6 +6,9 @@ import { listItemsFromCursor } from "@/lib/server/bank";
 import { providerConfig, validationError } from "@/lib/server/ai/admin";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "@/lib/server/ai/providers";
 import { adminRoute } from "@/lib/server/auth";
+import { providerNotAllowed } from "@/lib/server/ai/providerPolicy";
+import { NOT_CONFIGURED, platformProvider } from "@/lib/server/ai/platform";
+import { accountPlan } from "@/lib/server/plan";
 import { prisma } from "@/lib/server/db";
 import { encryptSecret } from "@/lib/server/secrets";
 
@@ -23,11 +26,13 @@ const previewSchema = z.object({
 const textOf = (i: { title?: string | null; content?: string | null }) => [i.title, i.content].filter(Boolean).join("\n").trim();
 
 // Runs the form's prompt and categories on the newest items in the key's scope. Nothing is stored.
-export const POST = adminRoute(async (req: Request, { params }: Context) => {
+export const POST = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { id } = await params;
   const parsed = previewSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return validationError(parsed.error, "Data uji tidak valid");
   const input = parsed.data;
+  const blocked = providerNotAllowed(user, input.provider);
+  if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
 
   const key = await prisma.apiKey.findUnique({ where: { id }, include: { classifier: true } });
   if (!key) return NextResponse.json({ error: "Kunci tidak ditemukan" }, { status: 404 });
@@ -37,7 +42,12 @@ export const POST = adminRoute(async (req: Request, { params }: Context) => {
   let config: ProviderConfig;
   const p = input.provider;
   const baseUrl = p.kind === "openai_compatible" ? p.baseUrl : null;
-  if (p.apiKey) config = { kind: p.kind, baseUrl, model: p.model, apiKeyEnc: encryptSecret(p.apiKey) };
+  if (p.kind === "signalbase") {
+    if (user.role === "user" && (await accountPlan(user.id)).limits.aiPostsPerMonth === 0) return NextResponse.json({ error: "Paket Anda tidak termasuk kategorisasi AI." }, { status: 403 });
+    const platform = platformProvider(p.model);
+    if (!platform) return NextResponse.json({ error: NOT_CONFIGURED }, { status: 400 });
+    config = platform;
+  } else if (p.apiKey) config = { kind: p.kind, baseUrl, model: p.model, apiKeyEnc: encryptSecret(p.apiKey) };
   else if (key.classifier) config = { ...providerConfig(key.classifier), kind: p.kind, baseUrl, model: p.model };
   else return NextResponse.json({ error: "Isi API key penyedia AI dulu" }, { status: 400 });
 

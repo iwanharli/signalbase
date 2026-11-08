@@ -3,6 +3,7 @@ import { classifierInputSchema, LOW_CONFIDENCE } from "@/lib/ai/classifier";
 import { parseKeyScope } from "@/lib/media/keyScope";
 import { MissingProviderKeyError, publicClassifier, saveClassifier, validationError } from "@/lib/server/ai/admin";
 import { adminRoute } from "@/lib/server/auth";
+import { aiPlanProblem, providerNotAllowed } from "@/lib/server/ai/providerPolicy";
 import { prisma } from "@/lib/server/db";
 
 type Context = { params: Promise<{ id: string }> };
@@ -27,10 +28,14 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   });
 });
 
-export const PUT = adminRoute(async (req: Request, { params }: Context) => {
+export const PUT = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { id } = await params;
   const parsed = classifierInputSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return validationError(parsed.error, "Pengaturan kategorisasi tidak valid");
+  const blocked = providerNotAllowed(user, parsed.data.provider, parsed.data.fallback);
+  if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
+  const planProblem = await aiPlanProblem(user, parsed.data);
+  if (planProblem) return NextResponse.json({ error: planProblem }, { status: 403 });
   const key = await prisma.apiKey.findUnique({ where: { id } });
   if (!key || key.revokedAt) return NextResponse.json({ error: "Kunci tidak ditemukan atau sudah dicabut" }, { status: 404 });
   try {

@@ -5,6 +5,9 @@ import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategorie
 import { adminRoute, ownsKey, type PanelUser } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
+import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
+import { analysisForPlan } from "@/lib/media/planAnalysis";
+import type { PlanLimits } from "@/lib/plans";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
 import { prisma } from "@/lib/server/db";
 
@@ -30,10 +33,19 @@ async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ sc
 export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { type } = await params;
   if (!isMediaType(type)) return NextResponse.json({ error: "Jenis tidak dikenal" }, { status: 404 });
-  const query = new URL(req.url).searchParams;
+  let query = new URL(req.url).searchParams;
 
   try {
     if (query.get("view") === "options") return NextResponse.json(await filterOptions(type));
+
+    // Users read within their plan: nothing once it has ended, only its history window, and its analysis level.
+    let analysisLevel: PlanLimits["analysis"] = "full";
+    if (user.role === "user") {
+      const plan = await accountPlan(user.id);
+      analysisLevel = plan.limits.analysis;
+      if (plan.expired) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
+      query = clampHistory(query, plan.limits.historyDays);
+    }
 
     const resolved = await resolveScope(query.get("key"), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
@@ -75,7 +87,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     return NextResponse.json({
       page, hasMore, moods: await moods,
       items: items.map((item) => ({
-        ...item,
+        ...analysisForPlan(item, analysisLevel),
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
         ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),
       })),

@@ -3,11 +3,11 @@ import { COOKIE, verifySession } from "@/lib/session";
 
 // Guards the panel and its API. /api/v1 uses API keys instead (checked in the route).
 /** Marketing pages anyone can open. */
-const PUBLIC_PAGES = new Set(["/", "/fitur", "/integrasi", "/solusi", "/pricing", "/faq"]);
+const PUBLIC_PAGES = new Set(["/", "/fitur", "/integrasi", "/solusi", "/pricing", "/faq", "/kontak", "/syarat", "/privasi"]);
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC_PAGES.has(pathname) || pathname === "/login" || pathname === "/register" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/v1/")) return NextResponse.next();
+  if (PUBLIC_PAGES.has(pathname) || pathname === "/login" || pathname === "/register" || pathname.startsWith("/api/auth/") || pathname === "/api/contact" || pathname.startsWith("/api/v1/")) return NextResponse.next();
   if (await verifySession(req.cookies.get(COOKIE)?.value)) return NextResponse.next();
   if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.redirect(new URL("/login", publicOrigin(req)));

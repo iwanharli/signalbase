@@ -7,7 +7,7 @@ export const GET = adminRoute(async () => {
   const users = await prisma.admin.findMany({
     where: { role: "user" },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, username: true, status: true, createdAt: true },
+    select: { id: true, name: true, username: true, status: true, plan: true, planExpiresAt: true, requestedPlan: true, createdAt: true },
   });
   const keyCounts = await prisma.apiKey.groupBy({ by: ["ownerId"], where: { ownerId: { in: users.map((u) => u.id) }, revokedAt: null }, _count: true });
   const keysOf = new Map(keyCounts.map((k) => [k.ownerId, k._count]));

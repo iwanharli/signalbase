@@ -1,0 +1,14 @@
+.box { margin-top: 20px; padding: 18px 20px; border-radius: 22px; background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); }
+.box > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.box h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 800; }
+.empty { margin: 0; font-size: 13.5px; color: var(--mantine-color-dimmed); }
+.list { display: grid; gap: 10px; }
+.list article { padding: 14px 16px; border-radius: 14px; border: 1px solid var(--mantine-color-default-border); }
+.list article[data-handled] { opacity: .6; }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.head span { color: var(--mantine-color-dimmed); font-size: 13.5px; }
+.head small { margin-left: auto; font-size: 12px; color: var(--mantine-color-dimmed); }
+.list p { margin: 8px 0 10px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13.5px; }
+.foot a { font-weight: 600; color: var(--mantine-color-violet-7); text-decoration: none; }
+.foot button, .foot a:last-of-type + * { margin-left: auto; }

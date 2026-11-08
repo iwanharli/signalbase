@@ -4,6 +4,8 @@ import { resolveMediaType, type MediaItem, type MediaType } from "@/lib/media/ty
 import { categoryBreakdown, categoryPage, categoryTrend, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { apiRoute, type ApiCaller } from "@/lib/server/apiKey";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
+import { clampHistory } from "@/lib/server/plan";
+import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
 
@@ -19,11 +21,12 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 //   GET /api/v1/media/{social|online}?view=trend&interval=week|day&from=&to=   labelled items per period and AI category
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
-export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope }: ApiCaller) => {
+export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope, historyDays, analysis }: ApiCaller) => {
   const type = resolveMediaType((await params).type);
   if (!type) return NextResponse.json({ error: "Jenis tidak dikenal: pakai social atau online" }, { status: 404 });
   if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type}` }, { status: 403 });
-  const query = new URL(req.url).searchParams;
+  // The plan's history window narrows every request (a later `from` from the caller is kept).
+  const query = clampHistory(new URL(req.url).searchParams, historyDays);
 
   try {
     const categories = await keyCategories(keyId, type);
@@ -81,7 +84,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
       categories ? classificationsFor(keyId, type, codes, categories) : null,
       matchedKeywords(type, codes, scope.keywords),
     ]);
-    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, type, labels)) });
+    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic(analysisForPlan({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, analysis), type, labels)) });
   } catch (e) {
     return sourceErrorResponse(e, `v1/${type}`);
   }

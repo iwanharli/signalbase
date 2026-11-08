@@ -110,3 +110,8 @@
 .keyCopy { --size: 24px; }
 .fallbackFields { margin-top: 12px; }
 .fallbackFields > div { padding: 0; border: 0; background: none; }
+
+/* Signalbase AI chosen: a note instead of model / endpoint / key fields. */
+.platformNote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.82); background: rgba(103,232,249,.08); border: 1px solid rgba(103,232,249,.22); }
+.platformNote svg { color: #67e8f9; }
+.platformNote button { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: #c4b5fd; text-decoration: underline; cursor: pointer; }

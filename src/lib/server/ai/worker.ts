@@ -6,6 +6,10 @@ import { categoriesForType, categorySchema, type Category } from "@/lib/ai/class
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
+import { limitsFor } from "@/lib/plans";
+import { platformPostsThisMonth } from "./platform";
+
+const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan atau setelah paket dinaikkan.";
 import { prisma } from "../db";
 import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
@@ -158,11 +162,25 @@ async function runClassifier(classifierId: string) {
   const row = await loadClassifier(classifierId);
   if (!row || !row.enabled || row.apiKey.revokedAt) return;
   if (await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name)) return;
+  const platform = row.providerKind === "signalbase";
 
   const today = todayInJakarta();
   let todayCount = row.todayDate === today ? row.todayCount : 0;
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
   let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
+  // Signalbase AI on a user's key: stay within the plan's monthly post quota (it resumes next month or on upgrade).
+  if (platform && row.apiKey.ownerId) {
+    const owner = await prisma.admin.findUnique({ where: { id: row.apiKey.ownerId }, select: { plan: true } });
+    const quota = limitsFor(owner?.plan).aiPostsPerMonth;
+    if (quota !== null) {
+      const left = quota - (await platformPostsThisMonth(row.apiKey.ownerId));
+      if (left <= 0) {
+        await prisma.classifier.update({ where: { apiKeyId: row.apiKeyId }, data: { lastError: QUOTA_REACHED, lastRunAt: new Date() } });
+        return;
+      }
+      budget = Math.min(budget, left);
+    }
+  }
 
   const job = buildJob(row);
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
@@ -260,7 +278,7 @@ async function runClassifier(classifierId: string) {
     console.error(`[classifier] ${row.apiKey.name}: ${lastError}`);
   }
   await save();
-  await snapshotIfDue(row.apiKeyId, providerConfig(row));
+  if (!platform) await snapshotIfDue(row.apiKeyId, providerConfig(row));
   await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name);
 }
 

@@ -1,11 +1,15 @@
 // Shared (client + server) definitions for AI categorisation: providers, categories, presets.
 import { z } from "zod";
 
-export const PROVIDER_KINDS = ["anthropic", "openai_compatible"] as const;
+/** "signalbase" = Signalbase AI: the platform's own provider (server env), no API key from the user. */
+export const PROVIDER_KINDS = ["signalbase", "anthropic", "openai_compatible"] as const;
+/** Signalbase AI tiers, stored as the model; "enhanced" is the Instansi plan's model enhancement. */
+export const SIGNALBASE_TIERS = ["standard", "enhanced"] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 
 /** Ready-made provider settings the admin can start from. */
 export const PROVIDER_PRESETS = [
+  { id: "signalbase", label: "Signalbase AI", kind: "signalbase", baseUrl: "", model: "standard" },
   { id: "claude", label: "Claude (Anthropic)", kind: "anthropic", baseUrl: "", model: "claude-opus-5-5" },
   { id: "deepseek", label: "DeepSeek", kind: "openai_compatible", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
   { id: "openai", label: "OpenAI", kind: "openai_compatible", baseUrl: "https://api.openai.com/v1", model: "" },
@@ -14,6 +18,7 @@ export const PROVIDER_PRESETS = [
 
 /** Short display name of a provider: "Claude", a preset name, or the endpoint host. */
 export function providerLabel(kind: string, baseUrl: string | null | undefined) {
+  if (kind === "signalbase") return "Signalbase AI";
   if (kind === "anthropic") return "Claude";
   const preset = PROVIDER_PRESETS.find((p) => p.baseUrl && baseUrl?.replace(/\/+$/, "") === p.baseUrl);
   if (preset) return preset.label;

@@ -33,7 +33,7 @@ function AiCell({ apiKey }: { apiKey: ApiKeyRow }) {
   );
 }
 
-function KeyRow({ apiKey, provinceName, onRevoke }: { apiKey: ApiKeyRow; provinceName: (code: string) => string; onRevoke: (key: ApiKeyRow) => void }) {
+function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKeyRow; provinceName: (code: string) => string; onRevoke: (key: ApiKeyRow) => void; callsToday?: number }) {
   const revoked = !!apiKey.revokedAt;
   const recent = isRecentlyUsed(apiKey);
   const restrictions = scopeRestrictions(apiKey.scope, provinceName);
@@ -68,7 +68,7 @@ function KeyRow({ apiKey, provinceName, onRevoke }: { apiKey: ApiKeyRow; provinc
       <div className={classes.cell} role="cell" data-label="Terakhir dipakai">
         {revoked
           ? <StatusPill tone="neutral">Dicabut {formatDate(apiKey.revokedAt!).split(",")[0]}</StatusPill>
-          : apiKey.lastUsedAt ? <Tip label={formatDate(apiKey.lastUsedAt)}><span>{fromNow(apiKey.lastUsedAt)}</span></Tip> : <span className={classes.muted}>Belum pernah</span>}
+          : apiKey.lastUsedAt ? <Tip label={formatDate(apiKey.lastUsedAt)}><span className={classes.aiCell}>{fromNow(apiKey.lastUsedAt)}{callsToday ? <small>{formatNumber(callsToday)} panggilan hari ini</small> : null}</span></Tip> : <span className={classes.muted}>Belum pernah</span>}
       </div>
 
       <div className={classes.actions} role="cell">
@@ -102,9 +102,13 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
   );
 }
 
+/** Today's API calls (/api/admin/usage). limit is set for user accounts with a plan. */
+type Usage = { day: string; perKey: Record<string, number>; used: number | null; limit: number | null; plan: string | null; ai?: { used: number; limit: number | null } };
+
 /** /api-keys — every key as a row; creating and editing happen on their own pages. */
 export function ApiKeyList() {
   const keys = useApi<ApiKeyRow[]>("/api/admin/keys");
+  const usage = useApi<Usage>("/api/admin/usage");
   const provinceName = useProvinceNames();
   const [filter, setFilter] = useState<Filter>("active");
   const [search, setSearch] = useState("");
@@ -148,8 +152,12 @@ export function ApiKeyList() {
         <div className={classes.heroSide}>
           <div className={classes.stats}>
             <div><b>{keys.data ? active.length : "—"}</b><span>Aktif</span></div>
-            <div><b>{keys.data ? usedToday : "—"}</b><span>Dipakai 24 jam</span></div>
-            <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>
+            {usage.data?.limit != null
+              ? <div><b>{formatNumber(usage.data.used ?? 0)}</b><span>dari {formatNumber(usage.data.limit)} panggilan hari ini</span></div>
+              : <div><b>{keys.data ? usedToday : "—"}</b><span>Dipakai 24 jam</span></div>}
+            {usage.data?.ai?.limit
+              ? <div><b>{formatNumber(usage.data.ai.used)}</b><span>dari {formatNumber(usage.data.ai.limit)} post AI bulan ini</span></div>
+              : <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>}
           </div>
           <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat kunci</Button>
         </div>
@@ -179,7 +187,7 @@ export function ApiKeyList() {
         {!keys.data ? (
           Array.from({ length: 3 }, (_, i) => <div key={i} className={classes.skeletonRow}><Skeleton h={22} radius="md" /></div>)
         ) : rows.length ? (
-          rows.map((k) => <KeyRow key={k.id} apiKey={k} provinceName={provinceName} onRevoke={setRevoking} />)
+          rows.map((k) => <KeyRow key={k.id} apiKey={k} provinceName={provinceName} onRevoke={setRevoking} callsToday={usage.data?.perKey[k.id]} />)
         ) : (
           <div className={classes.empty}>
             <IconKey size={24} />

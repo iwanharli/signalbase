@@ -205,7 +205,7 @@ export function LandingFooter() {
       <div><b>Jelajahi</b><Link href="/faq">Pertanyaan umum</Link><Link href="/login">Masuk</Link><Link href="/register">Daftar</Link><Link href="/docs">Dokumentasi ↗</Link><a href={BROCHURE_URL} download={BROCHURE_FILENAME}>Product knowledge (PDF)</a></div>
       <div className={c.footerBottom}>
         <span>© {new Date().getFullYear()} Signalbase.</span>
-        <span>Menemukan makna di antara jutaan percakapan.</span>
+        <span className={c.legalLinks}><Link href="/syarat">Syarat & Ketentuan</Link><Link href="/privasi">Kebijakan Privasi</Link><Link href="/kontak">Hubungi kami</Link></span>
         <a href="#main">Kembali ke atas ↑</a>
       </div>
     </footer>

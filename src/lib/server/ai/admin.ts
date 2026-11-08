@@ -6,6 +6,7 @@ import type { ClassifierInput, ProviderKind } from "@/lib/ai/classifier";
 import { prisma } from "../db";
 import { encryptSecret, secretHint } from "../secrets";
 import type { ProviderConfig } from "./providers";
+import { platformProvider } from "./platform";
 import { Prisma } from "@prisma/client";
 import { MEDIA_TYPES } from "@/lib/media/types";
 import { categoriesForType } from "@/lib/ai/classifier";
@@ -20,9 +21,12 @@ export const publicClassifier = (c: Classifier) => ({
   lastError: c.lastError, lastRunAt: c.lastRunAt, updatedAt: c.updatedAt,
 });
 
-export const providerConfig = (c: Pick<Classifier, "providerKind" | "providerBaseUrl" | "providerModel" | "providerKeyEnc">): ProviderConfig => ({
-  kind: c.providerKind as ProviderKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyEnc: c.providerKeyEnc,
-});
+/** The provider to call. Signalbase AI resolves to the platform's configured provider (an empty key when unset,
+ *  so the call fails with a clear error instead of crashing the worker). */
+export const providerConfig = (c: Pick<Classifier, "providerKind" | "providerBaseUrl" | "providerModel" | "providerKeyEnc">): ProviderConfig =>
+  c.providerKind === "signalbase"
+    ? platformProvider(c.providerModel) ?? { kind: "anthropic", baseUrl: null, model: "unconfigured", apiKeyEnc: "" }
+    : { kind: c.providerKind as ProviderKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyEnc: c.providerKeyEnc };
 
 export class MissingProviderKeyError extends Error {
   constructor(message = "API key penyedia AI wajib diisi") { super(message); }
@@ -40,14 +44,19 @@ export const fallbackConfig = (c: Pick<Classifier, "fallbackKind" | "fallbackBas
  */
 export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
   const existing = await prisma.classifier.findUnique({ where: { apiKeyId } });
-  if (!existing && !input.provider.apiKey) throw new MissingProviderKeyError();
+  const platform = input.provider.kind === "signalbase";
+  if (!existing && !input.provider.apiKey && !platform) throw new MissingProviderKeyError();
 
   const provider = {
     providerKind: input.provider.kind,
     providerBaseUrl: input.provider.kind === "openai_compatible" ? input.provider.baseUrl || null : null,
     providerModel: input.provider.model,
-    ...(input.provider.apiKey ? { providerKeyEnc: encryptSecret(input.provider.apiKey), providerKeyHint: secretHint(input.provider.apiKey) } : {}),
+    ...(platform
+      // Signalbase AI keeps no user key; the platform's key lives in the server environment.
+      ? { providerKeyEnc: "", providerKeyHint: "" }
+      : input.provider.apiKey ? { providerKeyEnc: encryptSecret(input.provider.apiKey), providerKeyHint: secretHint(input.provider.apiKey) } : {}),
   };
+  if (!platform && existing?.providerKind === "signalbase" && !input.provider.apiKey) throw new MissingProviderKeyError();
   const fb = input.fallback;
   if (fb && !fb.apiKey && !existing?.fallbackKeyEnc) throw new MissingProviderKeyError("API key penyedia cadangan wajib diisi");
   const fallback = fb
@@ -57,7 +66,9 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
       }
     : { fallbackKind: null, fallbackBaseUrl: null, fallbackModel: null, fallbackKeyEnc: null, fallbackKeyHint: null };
   const startFrom = input.startFrom ? new Date(input.startFrom) : null;
-  const data = { ...provider, ...fallback, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly, minBalance: input.minBalance, dailyBudget: input.dailyBudget, startFrom };
+  const data = { ...provider, ...fallback, enabled: input.enabled, prompt: input.prompt, categories: input.categories, onlineCategories: input.onlineCategories ?? Prisma.DbNull, labelledOnly: input.labelledOnly,
+    // Signalbase AI is paid by the platform, so the user's balance/budget guards do not apply.
+    minBalance: platform ? null : input.minBalance, dailyBudget: platform ? null : input.dailyBudget, startFrom };
 
   if (!existing) {
     return prisma.classifier.create({ data: { apiKeyId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });

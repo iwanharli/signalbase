@@ -1,17 +1,80 @@
 "use client";
 // Admin page for user accounts: approve or reject sign-ups, suspend or re-activate accounts.
-import { useState } from "react";
-import { Skeleton } from "@mantine/core";
+import { useEffect, useState } from "react";
+import { Modal, Select, Skeleton, Stack, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconPlayerPause, IconPlayerPlay, IconUserPlus, IconUsers, IconX } from "@tabler/icons-react";
+import { IconCheck, IconCreditCard, IconPlayerPause, IconPlayerPlay, IconUserPlus, IconUsers, IconX } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
+import { daysLeft, PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, TRIAL_DAYS, type PlanId } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "../apiKeys/shared";
 import { Button, ButtonGroup, StatusPill } from "../ui/Button";
 import classes from "../apiKeys/apiKeyList.module.css";
+import { ContactRequests } from "./ContactRequests";
 
 type Status = "pending" | "active" | "suspended";
-type UserRow = { id: string; name: string; username: string; status: Status; createdAt: string; keys: number };
+type UserRow = { id: string; name: string; username: string; status: Status; plan: PlanId | null; planExpiresAt: string | null; requestedPlan: PlanId | null; createdAt: string; keys: number };
+
+/** "Trial · sisa 3 hari", "Pro · berakhir", or "Tanpa paket". */
+function PlanCell({ user }: { user: UserRow }) {
+  if (user.status === "pending") {
+    return user.requestedPlan && user.requestedPlan !== "trial"
+      ? <span className={classes.aiCell}><StatusPill tone="info">{PLAN_LABEL[user.requestedPlan]}</StatusPill><small>diminati saat daftar</small></span>
+      : <span className={classes.muted}>Trial saat disetujui</span>;
+  }
+  if (!user.plan) return <span className={classes.muted}>Tanpa paket</span>;
+  const left = daysLeft(user.planExpiresAt);
+  const tone = left === null ? "success" : left <= 0 ? "danger" : left <= 2 ? "warning" : "info";
+  const note = left === null ? "tanpa batas waktu" : left <= 0 ? "berakhir" : left === 1 ? "hari terakhir" : `sisa ${left} hari`;
+  return <span className={classes.aiCell}><StatusPill tone={tone}>{PLAN_LABEL[user.plan]}</StatusPill><small>{note}</small></span>;
+}
+
+/** Choose a plan and its end date. Picking a plan proposes a sensible end date (trial 7 days, paid 1 month). */
+function PlanModal({ user, onClose, onSaved }: { user: UserRow | null; onClose: () => void; onSaved: () => void }) {
+  const [plan, setPlan] = useState<string | null>(null);
+  const [until, setUntil] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    setPlan(user.plan);
+    setUntil(user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) : "");
+  }, [user]);
+  const pick = (value: string | null) => {
+    setPlan(value);
+    const days = value === "trial" ? TRIAL_DAYS : value ? 30 : 0;
+    setUntil(days ? new Date(Date.now() + days * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) : "");
+  };
+  const save = async () => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await post(`/api/admin/users/${user.id}`, { action: "setPlan", plan, expiresAt: until || null }, "PATCH");
+      notifications.show({ color: "teal", message: `Paket ${user.name} disimpan` });
+      onSaved();
+      onClose();
+    } catch (err) {
+      notifications.show({ color: "red", message: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal opened={!!user} onClose={onClose} title={user ? `Paket ${user.name}` : ""} centered radius="lg">
+      <Stack gap="md">
+        <Select label="Paket" placeholder="Tanpa paket (tanpa batas)" clearable value={plan} onChange={pick}
+          data={PLAN_IDS.map((id) => ({ value: id, label: `${PLAN_LABEL[id]} · ${describeLimits(id)}` }))} />
+        <TextInput label="Berlaku sampai" type="date" value={until} onChange={(e) => setUntil(e.currentTarget.value)}
+          description="Kosongkan bila tanpa batas waktu. Setelah tanggal ini kunci API pengguna berhenti bekerja." />
+        <Button variant="primary" onClick={save} loading={busy}>Simpan paket</Button>
+      </Stack>
+    </Modal>
+  );
+}
+
+const describeLimits = (id: PlanId) => {
+  const l = PLAN_LIMITS[id];
+  return [`${l.keys ?? "∞"} kunci`, `${l.keywordsPerKey ?? "∞"} keyword`, l.historyDays ? `riwayat ${l.historyDays} hari` : "seluruh arsip"].join(", ");
+};
 
 const TABS: { id: Status; label: string }[] = [
   { id: "pending", label: "Menunggu" },
@@ -19,12 +82,13 @@ const TABS: { id: Status; label: string }[] = [
   { id: "suspended", label: "Nonaktif" },
 ];
 const STATUS_PILL = { pending: ["warning", "Menunggu"], active: ["success", "Aktif"], suspended: ["danger", "Nonaktif"] } as const;
-const COLUMNS = { ["--cols" as string]: "minmax(0,1.6fr) minmax(0,.8fr) minmax(0,.7fr) minmax(0,.9fr) auto" };
+const COLUMNS = { ["--cols" as string]: "minmax(0,1.5fr) minmax(0,.7fr) minmax(0,1fr) minmax(0,.6fr) minmax(0,.9fr) auto" };
 
 export function UserList() {
   const users = useApi<UserRow[]>("/api/admin/users");
   const [tab, setTab] = useState<Status>("pending");
   const [busy, setBusy] = useState<string | null>(null);
+  const [editing, setEditing] = useState<UserRow | null>(null);
   const count = (s: Status) => users.data?.filter((u) => u.status === s).length ?? 0;
   const rows = users.data?.filter((u) => u.status === tab) ?? [];
 
@@ -71,7 +135,7 @@ export function UserList() {
         </div>
 
         <div className={classes.head} role="row" style={COLUMNS}>
-          <span role="columnheader">Pengguna</span><span role="columnheader">Status</span><span role="columnheader">Kunci API</span>
+          <span role="columnheader">Pengguna</span><span role="columnheader">Status</span><span role="columnheader">Paket</span><span role="columnheader">Kunci API</span>
           <span role="columnheader">Mendaftar</span><span role="columnheader">Aksi</span>
         </div>
 
@@ -87,6 +151,7 @@ export function UserList() {
                 <span className={classes.name}><b>{u.name}</b><code>@{u.username}</code></span>
               </div>
               <div className={classes.cell} role="cell"><StatusPill tone={tone}>{label}</StatusPill></div>
+              <div className={classes.cell} role="cell"><PlanCell user={u} /></div>
               <div className={classes.cell} role="cell">{u.keys ? u.keys : <span className={classes.muted}>—</span>}</div>
               <div className={classes.cell} role="cell">{fromNow(u.createdAt)}</div>
               <div className={classes.actions} role="cell">
@@ -95,6 +160,7 @@ export function UserList() {
                     <Button size="sm" variant="primary" icon={IconCheck} loading={working} onClick={() => act(u, "approve")}>Setujui</Button>
                     <Button size="sm" variant="subtle" icon={IconX} disabled={working} onClick={() => act(u, "reject")}>Tolak</Button>
                   </>}
+                  {u.status !== "pending" && <Button size="sm" variant="subtle" icon={IconCreditCard} onClick={() => setEditing(u)}>Paket</Button>}
                   {u.status === "active" && <Button size="sm" variant="secondary" icon={IconPlayerPause} loading={working} onClick={() => act(u, "suspend")}>Nonaktifkan</Button>}
                   {u.status === "suspended" && <Button size="sm" variant="secondary" icon={IconPlayerPlay} loading={working} onClick={() => act(u, "activate")}>Aktifkan</Button>}
                 </ButtonGroup>
@@ -108,6 +174,8 @@ export function UserList() {
           </div>
         )}
       </section>
+      <ContactRequests />
+      <PlanModal user={editing} onClose={() => setEditing(null)} onSaved={users.reload} />
     </div>
   );
 }
