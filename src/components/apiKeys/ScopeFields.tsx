@@ -1,7 +1,7 @@
 "use client";
 // Keyword and fixed-scope inputs for an API key, shared by the create page and the key detail page.
 import { useMemo } from "react";
-import { TagsInput } from "@mantine/core";
+import { Switch, TagsInput } from "@mantine/core";
 import { IconAdjustmentsHorizontal, IconDatabase, IconMapPin, IconTag } from "@tabler/icons-react";
 import type { KeyScope } from "@/lib/media/keyScope";
 import { capitalize, humanize } from "@/lib/media/labels";
@@ -12,7 +12,6 @@ import { KeywordChips, keywordText, RestrictionChips, scopeRestrictions, useProv
 import classes from "./apiKeys.module.css";
 
 const TYPE_OPTIONS = [{ value: "both", label: "Keduanya" }, { value: "social", label: "Media Sosial" }, { value: "online", label: "Media Online" }] as const;
-const ANALYZED_OPTIONS = [{ value: "", label: "Semua" }, { value: "yes", label: "Hanya sudah dianalisis" }] as const;
 const RELEVANCE_OPTIONS = [{ value: "", label: "Semua" }, { value: "relevant", label: "Relevan" }, { value: "include", label: "Include" }, { value: "watchlist", label: "Watchlist" }] as const;
 const LANGUAGE_OPTIONS = [{ value: "", label: "Semua" }, { value: "id", label: "Indonesia" }, { value: "other", label: "Lainnya" }] as const;
 const LEVEL_OPTIONS = [{ value: "0", label: "Semua" }, ...[2, 3, 4, 5].map((n) => ({ value: String(n), label: `≥ ${n}` }))];
@@ -39,8 +38,22 @@ export function KeywordsInput({ scope, onChange }: { scope: KeyScope; onChange: 
   );
 }
 
+/** "Hanya sudah dikategorisasi" lives on the key's AI categorisation, not in its scope, so the page passes it in. */
+export type LabelledToggle = { checked: boolean; available: boolean; busy?: boolean; onChange: (value: boolean) => void };
+
+function DataToggle({ title, description, checked, disabled, onChange }: {
+  title: string; description: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className={classes.dataToggle} data-on={checked || undefined} data-disabled={disabled || undefined}>
+      <Switch checked={checked} disabled={disabled} onChange={(e) => onChange(e.currentTarget.checked)} color="violet" size="md" />
+      <span><b>{title}</b><small>{description}</small></span>
+    </label>
+  );
+}
+
 /** `bare` renders only the fields, for use inside a panel that already has its own title. */
-export function ScopeParams({ scope, onChange, bare }: { scope: KeyScope; onChange: (scope: KeyScope) => void; bare?: boolean }) {
+export function ScopeParams({ scope, onChange, bare, labelled }: { scope: KeyScope; onChange: (scope: KeyScope) => void; bare?: boolean; labelled?: LabelledToggle }) {
   const options = useScopeOptions();
   const update = (patch: Partial<KeyScope>) => onChange({ ...scope, ...patch });
   const typeValue = scope.types.length === 1 ? scope.types[0] : "both";
@@ -50,13 +63,21 @@ export function ScopeParams({ scope, onChange, bare }: { scope: KeyScope; onChan
     // Relevance and intensity only exist for social posts; drop them when the key can't read those.
     update(value === "both" ? { types: [] } : value === "online" ? { types: ["online"], relevance: "", minLevel: 0 } : { types: ["social"] });
 
+  const toggles = (
+    <div className={classes.dataToggles}>
+      <DataToggle title="Hanya sudah dianalisis" checked={scope.analyzedOnly} onChange={(analyzedOnly) => update({ analyzedOnly })}
+        description="Hanya post dan berita yang emosi atau sentimennya sudah dianalisis bank data." />
+      {labelled && (
+        <DataToggle title="Hanya sudah dikategorisasi" checked={labelled.checked} disabled={!labelled.available || labelled.busy} onChange={labelled.onChange}
+          description={labelled.available ? "Hanya item yang sudah diberi kategori oleh AI proyek ini. Disimpan langsung." : "Aktifkan kategorisasi AI proyek ini lebih dulu."} />
+      )}
+    </div>
+  );
+
   const grid = (
       <div className={classes.paramsGrid}>
         <Field label="Jenis media" wide>
           <Segmented full options={TYPE_OPTIONS} value={typeValue} onChange={setType} />
-        </Field>
-        <Field label="Status analisis" wide>
-          <Segmented full options={ANALYZED_OPTIONS} value={scope.analyzedOnly ? "yes" : ""} onChange={(v) => update({ analyzedOnly: v === "yes" })} />
         </Field>
         <Field label="Relevansi AI (media sosial)" wide>
           <Segmented full disabled={!socialAllowed} options={RELEVANCE_OPTIONS} value={scope.relevance} onChange={(relevance) => update({ relevance })} />
@@ -77,10 +98,11 @@ export function ScopeParams({ scope, onChange, bare }: { scope: KeyScope; onChan
         </Field>
       </div>
   );
-  if (bare) return <div className={classes.paramsBare}>{grid}</div>;
+  if (bare) return <div className={classes.paramsBare}>{toggles}{grid}</div>;
   return (
     <div className={classes.params}>
       <div className={classes.paramsHead}><IconAdjustmentsHorizontal size={15} />Parameter cakupan<small>Opsional · dikunci di server</small></div>
+      {toggles}
       {grid}
     </div>
   );

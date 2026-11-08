@@ -29,7 +29,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     copyable: !!key.keyEnc,
     access: { ips: key.allowedIps, origins: key.allowedOrigins },
     classifier: key.classifier && {
-      enabled: key.classifier.enabled, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
+      enabled: key.classifier.enabled, labelledOnly: key.classifier.labelledOnly, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,
     },
   });

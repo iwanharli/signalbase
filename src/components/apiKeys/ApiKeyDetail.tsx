@@ -25,7 +25,7 @@ import { RestartConfirm, type RestartRequest } from "../ai/RestartConfirm";
 
 type KeyDetail = {
   id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
-  classifier: { enabled: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
+  classifier: { enabled: boolean; labelledOnly: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
 };
 type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "security";
 
@@ -131,6 +131,21 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const data = detail.data;
   const revoked = !!data?.revokedAt;
   const ready = !!data && !!scope;
+
+  // "Hanya sudah dikategorisasi" belongs to the AI categorisation, so it saves on its own, right away.
+  const [labelledBusy, setLabelledBusy] = useState(false);
+  const setLabelledOnly = async (value: boolean) => {
+    setLabelledBusy(true);
+    try {
+      await post(`/api/admin/keys/${keyId}/labelled-only`, { value }, "PUT");
+      notifications.show({ color: "teal", message: value ? "API kini hanya mengirim item yang sudah dikategorisasi" : "API kini mengirim semua item, termasuk yang belum dikategorisasi" });
+      await detail.reload();
+    } catch (err) {
+      notifications.show({ color: "red", message: (err as Error).message });
+    } finally {
+      setLabelledBusy(false);
+    }
+  };
   const nameChanged = ready && name.trim() !== data.name;
   const keywordsChanged = ready && !sameKeywords(scope.keywords, data.scope.keywords);
   const scopeChanged = ready && !sameScope(scope, data.scope);
@@ -312,7 +327,8 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
 
           {tab === "scope" && (
             <SectionPanel icon={IconAdjustmentsHorizontal} title="Cakupan data" description="Batasan tetap yang dikunci di server. Aplikasi bisa menyaring lebih sempit, tapi tidak bisa melewatinya.">
-              <fieldset disabled={revoked || busy} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope} /></fieldset>
+              <fieldset disabled={revoked || busy} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope}
+                labelled={{ checked: !!data.classifier?.labelledOnly, available: !!data.classifier, busy: labelledBusy, onChange: setLabelledOnly }} /></fieldset>
               {paramsChanged && data.classifier && <div className={classes.warning}><IconAlertTriangle size={17} />Mengubah cakupan akan mengulang kategorisasi AI dari awal.</div>}
             </SectionPanel>
           )}
