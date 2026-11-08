@@ -37,3 +37,10 @@ export const allowsType = (scope: KeyScope, type: MediaType) => !scope.types.len
 /** True when the scope restricts something besides keywords. */
 export const hasExtraRestrictions = (scope: KeyScope) =>
   !!(scope.types.length || scope.analyzedOnly || scope.relevance || scope.language || scope.provinces.length || scope.categories.length || scope.minLevel);
+
+/** True when the only change is turning on "analysed items only": the key then sees a subset of what it saw, so the
+ *  AI labels it already has stay valid and categorisation need not start over. */
+export function onlyHidesUnanalysed(next: KeyScope, prev: KeyScope) {
+  const same = (a: KeyScope, b: KeyScope) => JSON.stringify({ ...a, analyzedOnly: false }) === JSON.stringify({ ...b, analyzedOnly: false });
+  return next.analyzedOnly && !prev.analyzedOnly && same(next, prev);
+}

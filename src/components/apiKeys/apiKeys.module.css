@@ -341,3 +341,6 @@ button.tile:disabled { cursor: default; }
 .accessNote { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.5); }
 .accessActions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 760px) { .accessFields { grid-template-columns: 1fr; } }
+.accessWarn { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5;
+  color: #fed7aa; background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.35); }
+.accessWarn b { font-size: 13px; color: #fdba74; }

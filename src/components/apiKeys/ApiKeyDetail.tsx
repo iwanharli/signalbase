@@ -9,7 +9,7 @@ import {
   IconRobot, IconShieldLock, IconShieldOff, IconTag,
 } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
-import { keyScopeSchema, type KeyScope } from "@/lib/media/keyScope";
+import { keyScopeSchema, onlyHidesUnanalysed, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
@@ -172,7 +172,8 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const save = async () => {
     if (!scope || !data) return;
     if (name.trim().length < 2) { setTab("identity"); return notifications.show({ color: "red", message: "Nama minimal 2 karakter" }); }
-    if (scopeChanged && data.classifier && data.classifier.processed > 0) {
+    // Hiding unanalysed items keeps the existing AI labels, so it needs no warning.
+    if (scopeChanged && data.classifier && data.classifier.processed > 0 && !onlyHidesUnanalysed(scope, data.scope)) {
       return setRestart({ changes: ["kata kunci atau cakupan"], results: data.classifier.processed, run: persist });
     }
     return persist();

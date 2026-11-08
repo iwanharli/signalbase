@@ -72,6 +72,16 @@ export function KeyAccess({ keyId, saved, onSaved }: { keyId: string; saved: Key
           onChange={(v) => setOrigins(cleaned(v, normalizeOriginRule, "Domain"))} />
       </div>
 
+      {origins.length > 0 && !ips.length && (
+        <div className={classes.accessWarn} role="alert">
+          <b>Aplikasi yang memanggil API dari server akan ditolak.</b>
+          <span>
+            Domain hanya dikenali bila browser memanggil API langsung. Jika aplikasi Anda (mis. Next.js, Laravel, atau backend lain) memanggil
+            Signalbase dari servernya, permintaan itu tidak membawa domain; tambahkan alamat IP server tersebut, termasuk IPv6 bila server memakainya.
+          </span>
+        </div>
+      )}
+
       <p className={classes.accessNote}>
         Domain dicek dari header Origin yang dikirim browser, jadi melindungi dari pemakaian di situs lain, bukan dari skrip server yang meniru header.
         Untuk kunci yang dipakai server, gunakan daftar IP.

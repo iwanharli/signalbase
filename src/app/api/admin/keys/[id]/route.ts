@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { providerLabel } from "@/lib/ai/classifier";
-import { keyScopeSchema, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { keyScopeSchema, onlyHidesUnanalysed, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { accountPlan } from "@/lib/server/plan";
@@ -61,9 +61,10 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
       return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per proyek` }, { status: 403 });
     }
   }
-  const scopeChanged = !sameScope(scope, parseKeyScope(key.scope, key.keywords));
+  const previous = parseKeyScope(key.scope, key.keywords);
+  const scopeChanged = !sameScope(scope, previous);
   const { keywords, ...rest } = scope;
-  const restartAi = scopeChanged && !!key.classifier;
+  const restartAi = scopeChanged && !!key.classifier && !onlyHidesUnanalysed(scope, previous);
 
   await prisma.$transaction([
     prisma.apiKey.update({ where: { id }, data: { name: parsed.data.name, keywords, scope: rest } }),

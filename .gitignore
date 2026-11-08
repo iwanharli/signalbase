@@ -12,3 +12,6 @@ next-env.d.ts
 
 # Internal reference documents (never publish)
 docs/*.pdf
+
+# Claude Code personal settings
+.claude/settings.local.json
