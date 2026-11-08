@@ -1,0 +1,32 @@
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 14px; }
+.actions { display: flex; justify-content: space-between; gap: 10px; }
+.paper { padding: clamp(22px, 4vw, 44px); border-radius: 18px; background: #fff; color: #18162c; border: 1px solid #e7e5ef; box-shadow: 0 30px 60px -40px rgba(52,30,120,.4); }
+.head { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 22px; border-bottom: 2px solid #18162c; }
+.brand { display: flex; gap: 12px; align-items: flex-start; }
+.brand b { display: block; font-size: 18px; }
+.brand small { display: block; font-size: 12.5px; color: #6f6a85; }
+.title { display: grid; justify-items: end; gap: 4px; }
+.title h1 { margin: 0; font-size: 26px; letter-spacing: 3px; color: #6d28d9; }
+.title b { font-family: ui-monospace, monospace; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 22px 0; }
+.meta small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #8a84a0; }
+.meta b { display: block; margin-top: 3px; }
+.meta span { font-size: 13px; color: #6f6a85; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { padding: 10px 8px; text-align: left; font-size: 11.5px; letter-spacing: .6px; text-transform: uppercase; color: #6f6a85; border-bottom: 1px solid #e7e5ef; }
+.table td { padding: 12px 8px; vertical-align: top; border-bottom: 1px solid #f0eef5; }
+.table td small { display: block; color: #6f6a85; }
+.table tfoot td { border-bottom: 0; padding: 6px 8px; color: #4c4766; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.total td { padding-top: 12px !important; font-size: 17px; font-weight: 800; color: #18162c !important; border-top: 2px solid #18162c !important; }
+.pay { margin-top: 26px; padding: 18px 20px; border-radius: 14px; background: #f7f4ff; border: 1px solid #ddd3f7; }
+.pay h2 { margin: 0 0 8px; font-size: 15px; }
+.pay ol, .pay p { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.7; }
+.pay p { padding-left: 0; }
+.foot { margin-top: 26px; font-size: 12px; color: #8a84a0; }
+.hint { margin: 0; font-size: 13px; color: var(--mantine-color-dimmed); }
+.hint a { color: var(--mantine-color-violet-7); font-weight: 600; }
+@media print {
+  .actions, .hint { display: none !important; }
+  .paper { border: 0; box-shadow: none; padding: 0; }
+}

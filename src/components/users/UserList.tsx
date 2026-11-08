@@ -11,6 +11,7 @@ import { fromNow } from "../apiKeys/shared";
 import { Button, ButtonGroup, StatusPill } from "../ui/Button";
 import classes from "../apiKeys/apiKeyList.module.css";
 import { ContactRequests } from "./ContactRequests";
+import { InvoiceAdmin } from "./InvoiceAdmin";
 
 type Status = "pending" | "active" | "suspended";
 type UserRow = { id: string; name: string; username: string; status: Status; plan: PlanId | null; planExpiresAt: string | null; requestedPlan: PlanId | null; createdAt: string; keys: number };
@@ -174,6 +175,7 @@ export function UserList() {
           </div>
         )}
       </section>
+      <InvoiceAdmin accounts={users.data ?? []} onPlanChanged={users.reload} />
       <ContactRequests />
       <PlanModal user={editing} onClose={() => setEditing(null)} onSaved={users.reload} />
     </div>

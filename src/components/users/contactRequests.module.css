@@ -12,3 +12,9 @@
 .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13.5px; }
 .foot a { font-weight: 600; color: var(--mantine-color-violet-7); text-decoration: none; }
 .foot button, .foot a:last-of-type + * { margin-left: auto; }
+.form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; padding: 16px; border-radius: 14px; background: var(--mantine-color-default-hover); }
+.formFoot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; }
+.formFoot small { font-weight: 500; color: var(--mantine-color-dimmed); }
+.head a { color: inherit; text-decoration: none; }
+.head a:hover b { color: var(--mantine-color-violet-7); }
+@media (max-width: 62em) { .form { grid-template-columns: 1fr; } }

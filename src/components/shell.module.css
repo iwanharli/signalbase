@@ -115,3 +115,6 @@
 .planBanner span { flex: 1; }
 .planBanner a { flex-shrink: 0; padding: 7px 13px; border-radius: 10px; font-weight: 700; color: #fff; text-decoration: none; background: linear-gradient(120deg, #7c3aed, #0891b2); }
 .planBanner[data-expired] { color: #9a3412; background: #fff7ed; border-color: #fed7aa; }
+
+/* Printing an invoice: only the paper. */
+@media print { .bar, .backdrop, .planBanner { display: none !important; } .main { padding: 0 !important; margin: 0 !important; } .root { background: #fff !important; } }

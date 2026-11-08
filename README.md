@@ -88,6 +88,18 @@ PORT=4100 ./run.sh  # port lain
 4. menyinkronkan skema Prisma dan membuat admin awal;
 5. menjalankan server.
 
+### Tagihan (manual)
+
+User memesan Starter/Pro di **Tagihan** (`/billing`); admin membuat tagihan (termasuk Instansi dengan harga khusus) dan menandai lunas di **Pengguna → Tagihan**, yang langsung mengaktifkan/memperpanjang paket. Data penerbit dan rekening di invoice dari `.env`:
+
+| Variabel | Isi |
+|---|---|
+| `BILLING_COMPANY` | Nama penerbit invoice (bawaan: Signalbase) |
+| `BILLING_ADDRESS`, `BILLING_EMAIL` | Alamat dan email di kepala invoice |
+| `BILLING_BANK`, `BILLING_ACCOUNT_NO`, `BILLING_ACCOUNT_NAME` | Rekening tujuan transfer; tanpa ini invoice meminta user menghubungi admin |
+
+PPN dihitung 11% (`TAX_RATE` di `src/lib/billing.ts`).
+
 ### Signalbase AI (opsional)
 
 Kategorisasi AI tanpa API key dari user memakai penyedia milik platform. Isi di `.env` server:

@@ -22,6 +22,7 @@ model Admin {
   planExpiresAt DateTime?
   /// Plan chosen on /pricing when signing up (?plan=), shown to the admin who approves; it does not grant anything.
   requestedPlan String?
+  invoices      Invoice[]
   createdAt    DateTime @default(now())
 }
 
@@ -153,4 +154,28 @@ model ContactRequest {
   createdAt    DateTime @default(now())
 
   @@index([handled, createdAt])
+}
+
+// Manual billing: an invoice for one plan period. Marking it paid sets the account's plan and end date.
+model Invoice {
+  id          String    @id @default(uuid())
+  number      String    @unique // SB-2026-0001
+  accountId   String
+  account     Admin     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  plan        String // starter | pro | instansi
+  billing     String // monthly | yearly
+  subtotal    Int // rupiah, before tax
+  tax         Int // rupiah
+  total       Int
+  periodStart DateTime
+  periodEnd   DateTime
+  status      String    @default("unpaid") // unpaid | paid | cancelled
+  dueAt       DateTime
+  paidAt      DateTime?
+  note        String?
+  createdBy   String // username of whoever created it (the user or an admin)
+  createdAt   DateTime  @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([status, createdAt])
 }
