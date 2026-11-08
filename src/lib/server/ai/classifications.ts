@@ -27,7 +27,7 @@ const labelOf = (categories: Category[], code: string) =>
 export async function classificationsFor(apiKeyId: string, type: MediaType, codes: string[], categories: Category[], includeMetadata = false) {
   if (!codes.length) return new Map<string, ItemClassification>();
   const rows = await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } } });
-  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason, manual: r.manual, correctedBy: r.correctedBy, ...(includeMetadata ? { model: r.model, categorizedAt: r.createdAt.toISOString() } : {}) }]));
+  return new Map(rows.map((r) => [r.code, { category: r.category, label: labelOf(categories, r.category), confidence: r.confidence, reason: r.reason, manual: r.manual, correctedBy: r.correctedBy, ...(includeMetadata ? { categorizedAt: r.createdAt.toISOString() } : {}) }]));
 }
 
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);

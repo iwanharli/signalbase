@@ -103,7 +103,6 @@ function KeyAnalysis({ item, keyName, type, correction }: { item: MediaItem; key
       {result.reason && <div className={classes.summaryBlock}><h4>Alasan kategorisasi</h4><p className={classes.classificationReason}>{result.reason}</p></div>}
       <dl className={classes.rows}>
         <Row label="Keyakinan model"><Tooltip label="Estimasi keyakinan dari model, bukan ukuran akurasi yang telah diverifikasi." multiline maw={280} withArrow events={{ hover: true, focus: true, touch: true }}><span className={classes.confidence} tabIndex={0}>{confidence != null && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1 ? `${Math.round(confidence * 100)}%` : "Tidak tersedia"}</span></Tooltip></Row>
-        {(type === "social" || result.model) && <Row label="Model">{result.model || "Tidak tersedia"}</Row>}
         {(type === "social" || result.categorizedAt) && <Row label="Dikategorikan">{formatWibDate(result.categorizedAt)}</Row>}
         {result.manual && <Row label="Koreksi">Manual{result.correctedBy ? ` oleh ${result.correctedBy}` : ""}</Row>}
       </dl>

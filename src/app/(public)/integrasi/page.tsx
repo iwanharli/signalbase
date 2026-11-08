@@ -1,20 +1,11 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/landing/decor";
-import { ControlStrip, Cta, Integration } from "@/components/landing/sections";
+import { IntegrationPage } from "@/components/integration/IntegrationPage";
 
 export const metadata: Metadata = {
   title: "Integrasi API — Signalbase",
-  description: "Ambil konten, ringkasan emosi, dan tren kategori Signalbase lewat API JSON dengan cakupan per kunci.",
+  description: "REST API Signalbase: endpoint, parameter, field respons, contoh kode cURL, JavaScript, Python, PHP, batas pemakaian, dan kode status.",
 };
 
 export default function Page() {
-  return (
-    <>
-      <PageHeader label="INTEGRASI" title="Data Signalbase," accent="langsung di aplikasi Anda."
-        text="Setiap kunci API membawa keyword dan cakupannya sendiri. Aplikasi Anda menerima data yang sama dengan yang Anda lihat di panel." />
-      <Integration />
-      <ControlStrip />
-      <Cta />
-    </>
-  );
+  return <IntegrationPage />;
 }

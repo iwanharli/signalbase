@@ -1,16 +1,19 @@
 // Copy and lists for the public landing page. Edit text here; the section components only lay it out.
 import {
   IconBrandFacebook, IconBrandInstagram, IconBrandThreads, IconBrandTiktok, IconBrandX, IconBrandYoutube,
-  IconKey, IconLayersIntersect, IconPlugConnected, IconSearch, IconSparkles, IconWorldWww,
+  IconHelpCircle, IconKey, IconLayersIntersect, IconPlugConnected, IconSearch, IconSparkles, IconTag, IconWorldWww,
 } from "@tabler/icons-react";
+
+/** Public address of the site, used in code examples. */
+export const SITE_URL = "https://signalbase.kecup.in";
 
 /** Top-bar links: one page each. */
 export const NAV_LINKS = [
-  { href: "/fitur", label: "Fitur" },
-  { href: "/integrasi", label: "Integrasi" },
-  { href: "/solusi", label: "Solusi" },
-  { href: "/pricing", label: "Harga" },
-  { href: "/faq", label: "FAQ" },
+  { href: "/fitur", label: "Fitur", icon: IconSparkles },
+  { href: "/integrasi", label: "Integrasi", icon: IconPlugConnected },
+  { href: "/solusi", label: "Solusi", icon: IconLayersIntersect },
+  { href: "/pricing", label: "Harga", icon: IconTag },
+  { href: "/faq", label: "FAQ", icon: IconHelpCircle },
 ] as const;
 
 /** Home page cards that lead to the detailed pages. */

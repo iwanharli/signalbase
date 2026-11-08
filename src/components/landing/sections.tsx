@@ -1,7 +1,7 @@
 // The landing page sections, top to bottom. Server components: only UseCases, the nav, and the product preview run in the browser.
 import Link from "next/link";
 import { IconArrowRight, IconArrowUpRight, IconBolt, IconCheck, IconChevronDown, IconCode, IconSearch, IconShieldCheck, IconSparkles } from "@tabler/icons-react";
-import { AI_POINTS, AI_PROVIDERS, API_POINTS, EXPLORE, FAQS, FEATURES, HERO_TRUST, SOURCES, STEPS } from "./content";
+import { AI_POINTS, AI_PROVIDERS, EXPLORE, FAQS, FEATURES, HERO_TRUST, SOURCES, STEPS } from "./content";
 import { Brand, Floaters, SectionTitle, SignalWave } from "./decor";
 import { BROCHURE_FILENAME, BROCHURE_URL } from "../pricing/plans";
 import { ProductPreview } from "./preview/ProductPreview";
@@ -134,45 +134,6 @@ export function Workflow() {
             <IconArrowRight size={22} />
           </article>
         ))}
-      </div>
-    </section>
-  );
-}
-
-export function Integration() {
-  return (
-    <section id="integrasi" className={reveal(c.integration)}>
-      <div>
-        <span className={c.eyebrow}>BUILT TO CONNECT</span>
-        <h2>Insight tidak berhenti <br />di satu dashboard.</h2>
-        <p>Gunakan Signalbase sebagai fondasi data untuk aplikasi Anda. Respons JSON terstruktur membawa konten dan konteks ke tempat keputusan dibuat.</p>
-        <div className={c.apiPoints}>{API_POINTS.map((p) => <span key={p}><IconCheck />{p}</span>)}</div>
-        <Link href="/docs" className={c.textLink}>Lihat dokumentasi di panel <IconArrowUpRight size={17} /></Link>
-      </div>
-      <div className={c.codeWindow}>
-        <header><span><i /><i /><i /></span><b>signalbase-api.ts</b><span>REST / JSON</span></header>
-        <pre><code>
-          <span className={c.codePurple}>const</span> response = <span className={c.codePurple}>await</span> fetch(<br />
-          <span className={c.codeGreen}>  `${"{"}SIGNALBASE_URL{"}"}/api/v1/media/social`</span>, {"{"}<br />
-          {"  "}headers: {"{"}<br />
-          {"    "}<span className={c.codeBlue}>&quot;x-api-key&quot;</span>: process.env.SIGNALBASE_KEY<br />
-          {"  "}{"}"}<br />
-          {"}"});<br /><br />
-          <span className={c.codePurple}>const</span> {"{"} items {"}"} = <span className={c.codePurple}>await</span> response.json();
-        </code></pre>
-        <div className={c.jsonPreview}>
-          <small>EXAMPLE RESPONSE</small>
-          <code>
-            {"{"}<br />
-            {"  "}<span>&quot;source&quot;</span>: &quot;twitter&quot;,<br />
-            {"  "}<span>&quot;mood&quot;</span>: &quot;mendukung&quot;,<br />
-            {"  "}<span>&quot;classification&quot;</span>: {"{"}<br />
-            {"    "}<span>&quot;category&quot;</span>: &quot;layanan_publik&quot;<br />
-            {"  "}{"}"}<br />
-            {"}"}
-          </code>
-        </div>
-        <footer><IconShieldCheck size={15} />Simpan kunci di server aplikasi Anda.</footer>
       </div>
     </section>
   );

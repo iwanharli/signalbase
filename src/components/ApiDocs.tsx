@@ -4,101 +4,10 @@ import { CopyButton, Tooltip } from "@mantine/core";
 import {
   IconAlertTriangle, IconBolt, IconCheck, IconCopy, IconKey, IconListDetails, IconLock, IconRoute, IconShieldLock, IconTable, IconTag,
 } from "@tabler/icons-react";
+import { ERRORS, FIELDS, LIST_RESPONSE, PARAM_GROUPS, SUMMARY_RESPONSE, type Scope } from "@/lib/media/apiReference";
 import classes from "./apiDocs.module.css";
 
 // ── Content ────────────────────────────────────────────────────────────────────
-
-type Scope = "all" | "social" | "online";
-type Param = { name: string; values: string; description: string; scope?: Scope };
-
-const PARAM_GROUPS: { title: string; params: Param[] }[] = [
-  {
-    title: "Halaman & urutan",
-    params: [
-      { name: "page", values: "angka ≥ 1", description: "Nomor halaman (default 1)" },
-      { name: "size", values: "1–100", description: "Item per halaman (default 24)" },
-      { name: "sort", values: "newest | oldest", description: "Urutan waktu terbit (default newest)" },
-    ],
-  },
-  {
-    title: "Filter umum",
-    params: [
-      { name: "from, to", values: "YYYY-MM-DD", description: "Rentang tanggal terbit, inklusif" },
-      { name: "q", values: "teks", description: "Pencarian teks penuh di isi post / judul berita" },
-      { name: "source", values: "teks", description: "Platform (twitter, threads, …) atau kode media (news-kompas, …)" },
-      { name: "mood", values: "teks", description: "Emosi (marah, menolak, …) atau sentimen (positive, neutral, negative)" },
-      { name: "analyzed", values: "yes | no", description: "Hanya yang memiliki / belum memiliki label emosi atau sentimen" },
-      { name: "lang", values: "id | other", description: "Hanya bahasa Indonesia / selain Indonesia" },
-      { name: "province", values: "kode BPS", description: "Mis. 31 DKI Jakarta, 32 Jawa Barat, 35 Jawa Timur" },
-      { name: "category", values: "teks", description: "Kategori, mis. politik, hukum, kamtibmas" },
-    ],
-  },
-  {
-    title: "Khusus jenis media",
-    params: [
-      { name: "relevance", values: "relevant | include | watchlist | exclude", description: "Penilaian relevansi AI; relevant = semua kecuali exclude", scope: "social" },
-      { name: "postType", values: "post | reply | quote | repost", description: "Jenis post", scope: "social" },
-      { name: "level", values: "1–5", description: "Intensitas emosi minimal", scope: "social" },
-      { name: "image", values: "yes", description: "Hanya berita bergambar", scope: "online" },
-    ],
-  },
-  {
-    title: "Kategorisasi AI (kunci dengan AI aktif)",
-    params: [
-      { name: "aiCategory", values: "kode, mis. QW3", description: "Item dalam satu kategori AI. Hanya from, to, sort, page, size yang berlaku bersama parameter ini." },
-    ],
-  },
-];
-
-const FIELDS: [string, string, string][] = [
-  ["id", "string", "Kode unik item"],
-  ["type", "social | online", "Jenis media"],
-  ["source", "string", "Platform atau kode media"],
-  ["title", "string | null", "Judul (berita)"],
-  ["content", "string | null", "Isi post / cuplikan berita"],
-  ["url", "string | null", "Tautan berita; selalu null untuk media sosial"],
-  ["image", "string | null", "Gambar berita"],
-  ["publishedAt", "ISO 8601", "Waktu terbit (UTC)"],
-  ["category · province · location", "string | null", "Kategori, nama provinsi, lokasi yang disebut"],
-  ["mood · moodLevel", "string · 1–5", "Emosi/sentimen dan intensitasnya"],
-  ["metrics", "objek", "likes, comments, shares, views (null bila tidak tersedia)"],
-  ["analysis", "objek | null", "summary, target, score, signals, topics, factors, relevance"],
-  ["classification", "objek | null", "Hanya untuk kunci dengan kategorisasi AI: category, label, confidence, reason"],
-];
-
-const ERRORS: [number, string, string][] = [
-  [200, "OK", "Berhasil"],
-  [401, "Unauthorized", "Kunci tidak ada, salah, atau sudah dicabut"],
-  [403, "Forbidden", "Kunci tidak punya akses ke jenis media ini"],
-  [404, "Not Found", "Jenis bukan social / online"],
-  [502, "Bad Gateway", "Sumber data tidak bisa dihubungi"],
-];
-
-const LIST_RESPONSE = `{
-  "page": 1, "pages": 27, "size": 24,
-  "total": 642, "capped": false,
-  "items": [{
-    "id": "6e6968b9df9fe6f94c18ac371488142a",
-    "type": "online",
-    "source": "news-kompas",
-    "title": "…", "content": "…",
-    "url": "https://…", "image": "https://…",
-    "category": "hukum", "province": "Jawa Timur",
-    "publishedAt": "2026-11-06T02:38:00.000Z",
-    "mood": "negative", "moodLevel": null,
-    "metrics": { "likes": null, "comments": null, "shares": null, "views": null },
-    "analysis": { "summary": null, "topics": ["hukum"], "relevance": null, … }
-  }]
-}`;
-
-const SUMMARY_RESPONSE = `{
-  "total": 2192, "capped": false,
-  "moods": [
-    { "value": "netral",  "n": 370 },
-    { "value": "menolak", "n": 224 },
-    { "value": "marah",   "n": 112 }
-  ]
-}`;
 
 const SECTIONS = [
   { id: "quickstart", label: "Mulai cepat", icon: IconBolt },
@@ -299,7 +208,7 @@ const { items, total, capped } = await res.json();`;
 
           <Section id="privacy" icon={IconShieldLock} title="Privasi & batas">
             <ul className={classes.facts}>
-              <li><IconShieldLock size={16} />Nama akun, username, URL post media sosial, dan jumlah follower tidak pernah dikirim.</li>
+              <li><IconShieldLock size={16} />Setiap item membawa detail pembuat (nama, username, tautan profil, jumlah pengikut) dan tautan post asli. Ini data pribadi: simpan dan tampilkan sesuai aturan perlindungan data yang berlaku bagi aplikasi Anda.</li>
               <li><IconKey size={16} />Kunci diperiksa melalui hash. Nilai lengkap kunci baru disimpan terenkripsi agar admin dapat menyalinnya kembali; cabut akses dari halaman Kunci API.</li>
               <li><IconBolt size={16} />Hitungan di-cache sekitar 2 menit per kombinasi filter; data baru bisa muncul dengan jeda tersebut.</li>
               <li><IconTable size={16} />Post spam dan item bertanggal tidak wajar (sebelum 2010 atau di masa depan) selalu disembunyikan.</li>

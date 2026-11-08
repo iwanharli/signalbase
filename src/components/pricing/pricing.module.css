@@ -11,10 +11,13 @@
 }
 .heroGlow {
   position: absolute;
-  top: 0;
+  /* Starts behind the floating nav and fades in, so there is no hard edge under the bar. */
+  top: -96px;
   left: calc(50% - 50vw);
   right: calc(50% - 50vw);
-  height: 520px;
+  height: 620px;
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
   z-index: -1;
   background: radial-gradient(ellipse at 25% 20%, #e7ddff90, transparent 45%), radial-gradient(ellipse at 78% 30%, #c8f2f880, transparent 45%);
 }
