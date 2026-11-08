@@ -102,8 +102,16 @@ async function classifySplitting(job: Job, type: MediaType, items: { id: string;
   }
 }
 
-/** Classifies one batch and stores the results. Returns how many items were labelled. */
+/** Classifies one batch and stores the results. Returns how many items were labelled.
+ *  Items this key already has a label for are left out before the AI is called, so a wider scope or a cursor that
+ *  walks the timeline again never pays twice for the same post. */
 async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
+  const labelled = new Set((await prisma.classification.findMany({
+    where: { apiKeyId: job.apiKeyId, type, code: { in: items.map((i) => i.code) } }, select: { code: true },
+  })).map((r) => r.code));
+  const fresh = items.filter((i) => !labelled.has(i.code));
+  if (!fresh.length) return { labelled: 0, skipped: 0, sent: 0 };
+  items = fresh;
   const classifiable = items.filter((i) => itemText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
   const results = await classifySplitting(job, type, classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
@@ -114,7 +122,7 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
     })),
     skipDuplicates: true,
   });
-  return { labelled: results.length, skipped: items.length - results.length };
+  return { labelled: results.length, skipped: items.length - results.length, sent: items.length };
 }
 
 /** Runs up to `budget` items for one classifier. */
@@ -230,9 +238,10 @@ async function runClassifier(classifierId: string) {
       while (budget > 0 && state.newest) {
         const page = await listItemsFromCursor(type, job.scope, "newer", state.newest, Math.min(BATCH_SIZE, budget));
         if (!page.items.length) break;
-        const { labelled, skipped } = await processBatch(job, type, page.items);
+        const { labelled, skipped, sent } = await processBatch(job, type, page.items);
         state.newest = page.next!;
-        processed += labelled; failed += skipped; todayCount += page.items.length; budget -= page.items.length;
+        // Only items sent to the AI count against the daily quota; already-labelled ones are free.
+        processed += labelled; failed += skipped; todayCount += sent; budget -= sent;
         await save();
       }
 
@@ -241,11 +250,11 @@ async function runClassifier(classifierId: string) {
         const page = await listItemsFromCursor(type, job.scope, "older", state.oldest ?? null, Math.min(BATCH_SIZE, budget));
         if (!page.items.length) { state.backfillDone = true; break; }
         const inRange = job.startFrom ? page.items.filter((i) => new Date(i.publishedAt) >= job.startFrom!) : page.items;
-        const { labelled, skipped } = inRange.length ? await processBatch(job, type, inRange) : { labelled: 0, skipped: 0 };
+        const { labelled, skipped, sent } = inRange.length ? await processBatch(job, type, inRange) : { labelled: 0, skipped: 0, sent: 0 };
         // The very first batch starts at the present, so its newest item anchors the forward pass.
         if (!state.newest) state.newest = page.first!;
         state.oldest = page.next!;
-        processed += labelled; failed += skipped; todayCount += inRange.length; budget -= inRange.length;
+        processed += labelled; failed += skipped; todayCount += sent; budget -= sent;
         await save();
         if (inRange.length < page.items.length) { state.backfillDone = true; break; }
       }
@@ -268,7 +277,7 @@ async function runClassifier(classifierId: string) {
           for (let i = 0; i < missing.length; i += BATCH_SIZE) {
             const batch = missing.slice(i, i + BATCH_SIZE);
             const result = await processBatch(job, type, batch);
-            processed += result.labelled; failed += result.skipped; todayCount += batch.length; budget -= batch.length;
+            processed += result.labelled; failed += result.skipped; todayCount += result.sent; budget -= result.sent;
             await save();
           }
           if (new Date(page.items.at(-1)!.publishedAt).getTime() < floor) break; // walked past the window

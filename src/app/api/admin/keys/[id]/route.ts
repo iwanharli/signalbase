@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { providerLabel } from "@/lib/ai/classifier";
-import { keyScopeSchema, onlyHidesUnanalysed, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { keyScopeSchema, labelImpact, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { accountPlan } from "@/lib/server/plan";
@@ -64,7 +64,10 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
   const previous = parseKeyScope(key.scope, key.keywords);
   const scopeChanged = !sameScope(scope, previous);
   const { keywords, ...rest } = scope;
-  const restartAi = scopeChanged && !!key.classifier && !onlyHidesUnanalysed(scope, previous);
+  const impact = key.classifier ? labelImpact(scope, previous) : "none";
+  const restartAi = impact === "restart";
+  // "extend": labels stay; the worker walks the scope again from the start and labels only posts without a label.
+  const extendAi = impact === "extend";
 
   await prisma.$transaction([
     prisma.apiKey.update({ where: { id }, data: { name: parsed.data.name, keywords, scope: rest } }),
@@ -73,9 +76,11 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
         prisma.classification.deleteMany({ where: { apiKeyId: id } }),
         prisma.classifier.update({ where: { apiKeyId: id }, data: { cursors: {}, processed: 0, failed: 0, lastError: null } }),
       ]
-      : []),
+      : extendAi
+        ? [prisma.classifier.update({ where: { apiKeyId: id }, data: { cursors: {}, lastError: null } })]
+        : []),
   ]);
-  return NextResponse.json({ ok: true, scopeChanged, aiRestarted: restartAi });
+  return NextResponse.json({ ok: true, scopeChanged, aiRestarted: restartAi, aiExtended: extendAi });
 });
 
 // Revoking keeps the row so the list shows when and which key was cut off.

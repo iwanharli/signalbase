@@ -9,7 +9,7 @@ import {
   IconRobot, IconShieldLock, IconShieldOff, IconTag,
 } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
-import { keyScopeSchema, onlyHidesUnanalysed, type KeyScope } from "@/lib/media/keyScope";
+import { keyScopeSchema, labelImpact, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
@@ -196,21 +196,20 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const save = () => {
     if (!scope || !data) return;
     if (name.trim().length < 2) { setTab("identity"); return notifications.show({ color: "red", message: "Nama minimal 2 karakter" }); }
-    // Hiding unanalysed items keeps the existing AI labels; any other scope change starts categorisation over.
-    const restart = scopeChanged && !!data.classifier && !onlyHidesUnanalysed(scope, data.scope);
-    setConfirmSave({ changes: describeChanges(), ai: data.classifier ? { restart, labels: data.classifier.processed } : null });
+    // Toggling "analysed only" keeps the existing AI labels; any other scope change starts categorisation over.
+    setConfirmSave({ changes: describeChanges(), ai: data.classifier ? { impact: labelImpact(scope, data.scope), labels: data.classifier.processed } : null });
   };
 
   const persist = async () => {
     if (!scope) return;
     setBusy(true);
     try {
-      let aiRestarted = false;
+      let aiRestarted = false, aiExtended = false;
       if (nameChanged || scopeChanged) {
-        ({ aiRestarted } = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean });
+        ({ aiRestarted, aiExtended } = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean; aiExtended: boolean });
       }
       if (labelledChanged) await post(`/api/admin/keys/${keyId}/labelled-only`, { value: labelled }, "PUT");
-      notifications.show({ color: "teal", message: aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : "Perubahan disimpan" });
+      notifications.show({ color: "teal", message: aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : aiExtended ? "Disimpan. Label tetap; post tambahan akan dilabeli bertahap." : "Perubahan disimpan" });
       setConfirmSave(null);
       setLabelledOnly(null);
       await detail.reload();
@@ -342,10 +341,13 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
             <SectionPanel icon={IconAdjustmentsHorizontal} title="Cakupan data" description="Batasan tetap yang dikunci di server. Aplikasi bisa menyaring lebih sempit, tapi tidak bisa melewatinya.">
               <fieldset disabled={revoked || busy} className={classes.fieldset}><ScopeParams bare scope={scope} onChange={setScope}
                 labelled={{ checked: labelled, available: !!data.classifier, onChange: setLabelledOnly }} /></fieldset>
-              {/* Only a change that lets in different items invalidates the stored AI labels; hiding unanalysed items doesn't. */}
-              {paramsChanged && data.classifier && (onlyHidesUnanalysed(scope, data.scope)
-                ? <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Item yang belum dianalisis hanya disembunyikan dari API.</div>
-                : <div className={classes.warning}><IconAlertTriangle size={17} />Perubahan ini memasukkan data yang berbeda, jadi kategorisasi AI akan diulang dari awal agar label sesuai cakupan baru.</div>)}
+              {/* Only a change that lets in different items invalidates the stored AI labels; the "analysed only" switch doesn't. */}
+              {paramsChanged && data.classifier && (() => {
+                const impact = labelImpact(scope, data.scope);
+                if (impact === "keep") return <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Item yang belum dianalisis hanya disembunyikan dari API.</div>;
+                if (impact === "extend") return <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Post yang belum dianalisis ikut masuk dan dilabeli bertahap; post yang sudah berlabel tidak diproses ulang.</div>;
+                return <div className={classes.warning}><IconAlertTriangle size={17} />Perubahan ini memasukkan data yang berbeda, jadi kategorisasi AI akan diulang dari awal agar label sesuai cakupan baru.</div>;
+              })()}
             </SectionPanel>
           )}
 

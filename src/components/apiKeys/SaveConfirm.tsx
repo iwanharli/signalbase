@@ -2,18 +2,19 @@
 // Confirms saving a project's settings: what changes (before → after) and what happens to its AI categorisation.
 import { Modal } from "@mantine/core";
 import { IconDeviceFloppy, IconRefreshAlert } from "@tabler/icons-react";
+import type { LabelImpact } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { Button } from "../ui/Button";
 import classes from "./apiKeys.module.css";
 
 export type SettingChange = { label: string; before: string; after: string };
-/** restart: stored AI labels are wiped and categorisation starts over; null when the project has no AI categorisation. */
-export type SaveRequest = { changes: SettingChange[]; ai: { restart: boolean; labels: number } | null };
+/** What happens to the stored AI labels (see labelImpact); null when the project has no AI categorisation. */
+export type SaveRequest = { changes: SettingChange[]; ai: { impact: LabelImpact; labels: number } | null };
 
 export function SaveConfirm({ request, onClose, onConfirm, loading }: {
   request: SaveRequest | null; onClose: () => void; onConfirm: () => void; loading?: boolean;
 }) {
-  const restart = !!request?.ai?.restart;
+  const restart = request?.ai?.impact === "restart";
   return (
     <Modal aria-label="Konfirmasi simpan pengaturan" opened={!!request} onClose={onClose} centered size="lg" radius={20} padding={0} withCloseButton={false}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
@@ -36,6 +37,11 @@ export function SaveConfirm({ request, onClose, onConfirm, loading }: {
             <div className={classes.aiImpact} data-tone="warning">
               <b>Kategorisasi AI diulang dari awal</b>
               <span>Perubahan ini memasukkan data yang berbeda, jadi {formatNumber(request.ai.labels)} label yang ada dihapus dan semua item dilabeli ulang. Kredit AI terpakai lagi dan hasil lama tidak bisa dikembalikan.</span>
+            </div>
+          ) : request.ai.impact === "extend" ? (
+            <div className={classes.aiImpact}>
+              <b>Label kategorisasi AI tetap, post tambahan dilabeli</b>
+              <span>{formatNumber(request.ai.labels)} label yang sudah ada tidak berubah. Post yang belum dianalisis ikut masuk dan dilabeli bertahap; post yang sudah berlabel tidak diproses ulang.</span>
             </div>
           ) : (
             <div className={classes.aiImpact}>

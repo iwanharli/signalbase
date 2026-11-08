@@ -38,9 +38,20 @@ export const allowsType = (scope: KeyScope, type: MediaType) => !scope.types.len
 export const hasExtraRestrictions = (scope: KeyScope) =>
   !!(scope.types.length || scope.analyzedOnly || scope.relevance || scope.language || scope.provinces.length || scope.categories.length || scope.minLevel);
 
-/** True when the only change is turning on "analysed items only": the key then sees a subset of what it saw, so the
- *  AI labels it already has stay valid and categorisation need not start over. */
-export function onlyHidesUnanalysed(next: KeyScope, prev: KeyScope) {
-  const same = (a: KeyScope, b: KeyScope) => JSON.stringify({ ...a, analyzedOnly: false }) === JSON.stringify({ ...b, analyzedOnly: false });
-  return next.analyzedOnly && !prev.analyzedOnly && same(next, prev);
+/**
+ * What a scope change means for the key's stored AI labels:
+ *  - "none":    nothing changed.
+ *  - "keep":    only "analysed items only" was turned on; the key sees a subset, every label stays valid.
+ *  - "extend":  only "analysed items only" was turned off; every label stays valid and the posts that come in are
+ *               labelled on top (the worker skips posts that already have a label, so nothing is paid twice).
+ *  - "restart": anything else lets in different posts, so labels are wiped and categorisation starts over.
+ */
+export type LabelImpact = "none" | "keep" | "extend" | "restart";
+
+export function labelImpact(next: KeyScope, prev: KeyScope): LabelImpact {
+  const json = (s: KeyScope) => JSON.stringify(s);
+  if (json(next) === json(prev)) return "none";
+  const withoutAnalysed = (s: KeyScope) => json({ ...s, analyzedOnly: false });
+  if (withoutAnalysed(next) !== withoutAnalysed(prev)) return "restart";
+  return next.analyzedOnly ? "keep" : "extend";
 }
