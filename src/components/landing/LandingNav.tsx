@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { IconArrowUpRight, IconMenu2 } from "@tabler/icons-react";
 import { NAV_LINKS } from "./content";
 import { Brand } from "./decor";
@@ -14,6 +15,7 @@ const SCROLLED_OFF = 8;
 export function LandingNav() {
   const [menu, setMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setScrolled((on) => (on ? window.scrollY > SCROLLED_OFF : window.scrollY > SCROLLED_ON));
@@ -24,14 +26,16 @@ export function LandingNav() {
 
   return (
     <header className={c.nav} data-scrolled={scrolled || undefined}>
-      <a href="#" aria-label="Signalbase beranda"><Brand /></a>
+      <Link href="/" aria-label="Signalbase beranda"><Brand /></Link>
       <nav aria-label="Navigasi landing page" data-open={menu}>
-        {NAV_LINKS.map(({ href, label }) => <a key={href} href={href} onClick={() => setMenu(false)}>{label}</a>)}
+        {NAV_LINKS.map(({ href, label }) => (
+          <Link key={href} href={href} onClick={() => setMenu(false)} aria-current={pathname === href ? "page" : undefined}>{label}</Link>
+        ))}
         <Link href="/login" className={c.menuSignIn}>Masuk</Link>
       </nav>
       <div className={c.navActions}>
         <Link href="/login" className={c.navSignIn}>Masuk</Link>
-        <Link href="/register" className={c.navLogin}>Daftar gratis <IconArrowUpRight size={15} /></Link>
+        <Link href="/register?plan=trial" className={c.navLogin}>Coba 7 hari <IconArrowUpRight size={15} /></Link>
       </div>
       <button type="button" className={c.menuButton} onClick={() => setMenu(!menu)} aria-label="Buka navigasi" aria-expanded={menu}><IconMenu2 /></button>
     </header>

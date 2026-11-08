@@ -1,8 +1,9 @@
 // The landing page sections, top to bottom. Server components: only UseCases, the nav, and the product preview run in the browser.
 import Link from "next/link";
 import { IconArrowRight, IconArrowUpRight, IconBolt, IconCheck, IconChevronDown, IconCode, IconSearch, IconShieldCheck, IconSparkles } from "@tabler/icons-react";
-import { AI_POINTS, AI_PROVIDERS, API_POINTS, FAQS, FEATURES, HERO_TRUST, SOURCES, STEPS } from "./content";
+import { AI_POINTS, AI_PROVIDERS, API_POINTS, EXPLORE, FAQS, FEATURES, HERO_TRUST, SOURCES, STEPS } from "./content";
 import { Brand, Floaters, SectionTitle, SignalWave } from "./decor";
+import { BROCHURE_FILENAME, BROCHURE_URL } from "../pricing/plans";
 import { ProductPreview } from "./preview/ProductPreview";
 import { UseCases } from "./UseCases";
 import c from "./landing.module.css";
@@ -23,7 +24,7 @@ export function Hero() {
         <p>Satukan percakapan media sosial dan pemberitaan.<br className={c.desktopBreak} /> Pahami konteksnya dengan AI. Hubungkan insight ke aplikasi Anda.</p>
         <div className={c.heroActions}>
           <a href="#platform" className={c.primary}>Jelajahi Signalbase <IconArrowRight size={18} /></a>
-          <a href="#integrasi" className={c.secondary}><IconCode size={18} />Kenali API-nya</a>
+          <Link href="/integrasi" className={c.secondary}><IconCode size={18} />Kenali API-nya</Link>
         </div>
         <div className={c.heroTrust}>{HERO_TRUST.map((t) => <span key={t}><IconCheck size={14} />{t}</span>)}</div>
       </div>
@@ -40,6 +41,25 @@ export function Sources() {
     <section className={reveal(c.sources)}>
       <p>Beragam sumber. <br /><strong>Satu ruang pemahaman.</strong></p>
       <div>{SOURCES.map(({ icon: Icon, label }) => <span key={label}><Icon size={21} />{label}</span>)}</div>
+    </section>
+  );
+}
+
+export function Explore() {
+  return (
+    <section className={reveal(c.section)}>
+      <SectionTitle label="JELAJAHI SIGNALBASE" title="Satu platform, empat hal yang perlu Anda tahu." />
+      <div className={c.explore}>
+        {EXPLORE.map((e) => (
+          <Link key={e.href} href={e.href} className={c.exploreCard}>
+            <span className={c.featureIcon}><e.icon size={22} /></span>
+            <small>{e.label}</small>
+            <h3>{e.title}</h3>
+            <p>{e.text}</p>
+            <span className={c.exploreMore}>Selengkapnya <IconArrowRight size={16} /></span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
@@ -161,7 +181,7 @@ export function Integration() {
 export function UseCaseSection() {
   return (
     <section className={reveal(c.section, c.useCases)}>
-      <SectionTitle label="SATU FONDASI, BANYAK PERSPEKTIF" title="Dibangun untuk pertanyaan yang berbeda." />
+      <SectionTitle label="CONTOH PENGGUNAAN" title="Dibangun untuk pertanyaan yang berbeda." />
       <UseCases />
     </section>
   );
@@ -205,10 +225,10 @@ export function Cta() {
       <h2>Informasi terus bergerak. <br /><em>Pemahaman Anda juga.</em></h2>
       <p>Mulai jelajahi data. Temukan konteks yang relevan. <br />Bangun pengalaman yang lebih berarti dengan Signalbase.</p>
       <div className={c.ctaButtons}>
-        <Link href="/register" className={c.primary}>Buat akun <IconArrowUpRight size={18} /></Link>
+        <Link href="/register?plan=trial" className={c.primary}>Mulai trial 7 hari <IconArrowUpRight size={18} /></Link>
         <Link href="/login" className={c.ctaGhost}>Saya sudah punya akun</Link>
       </div>
-      <a href="#platform" className={c.ctaSmall}>Lihat kembali pratinjau produk ↑</a>
+      <Link href="/#platform" className={c.ctaSmall}>Lihat pratinjau produk ↑</Link>
     </section>
   );
 }
@@ -217,15 +237,15 @@ export function LandingFooter() {
   return (
     <footer className={c.footer}>
       <div>
-        <a href="#" aria-label="Signalbase beranda"><Brand /></a>
+        <Link href="/" aria-label="Signalbase beranda"><Brand /></Link>
         <p>Media intelligence. <br />Connected to your world.</p>
       </div>
-      <div><b>Platform</b><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><a href="#integrasi">Integrasi API</a></div>
-      <div><b>Jelajahi</b><a href="#faq">Pertanyaan umum</a><Link href="/login">Masuk</Link><Link href="/register">Daftar</Link><Link href="/docs">Dokumentasi ↗</Link></div>
+      <div><b>Platform</b><Link href="/fitur">Fitur</Link><Link href="/integrasi">Integrasi API</Link><Link href="/solusi">Solusi</Link><Link href="/pricing">Harga</Link></div>
+      <div><b>Jelajahi</b><Link href="/faq">Pertanyaan umum</Link><Link href="/login">Masuk</Link><Link href="/register">Daftar</Link><Link href="/docs">Dokumentasi ↗</Link><a href={BROCHURE_URL} download={BROCHURE_FILENAME}>Product knowledge (PDF)</a></div>
       <div className={c.footerBottom}>
         <span>© {new Date().getFullYear()} Signalbase.</span>
         <span>Menemukan makna di antara jutaan percakapan.</span>
-        <a href="#">Kembali ke atas ↑</a>
+        <a href="#main">Kembali ke atas ↑</a>
       </div>
     </footer>
   );

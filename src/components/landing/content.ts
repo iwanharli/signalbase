@@ -4,12 +4,21 @@ import {
   IconKey, IconLayersIntersect, IconPlugConnected, IconSearch, IconSparkles, IconWorldWww,
 } from "@tabler/icons-react";
 
+/** Top-bar links: one page each. */
 export const NAV_LINKS = [
-  { href: "#platform", label: "Platform" },
-  { href: "#fitur", label: "Fitur" },
-  { href: "#cara-kerja", label: "Cara kerja" },
-  { href: "#integrasi", label: "Integrasi" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/fitur", label: "Fitur" },
+  { href: "/integrasi", label: "Integrasi" },
+  { href: "/solusi", label: "Solusi" },
+  { href: "/pricing", label: "Harga" },
+  { href: "/faq", label: "FAQ" },
+] as const;
+
+/** Home page cards that lead to the detailed pages. */
+export const EXPLORE = [
+  { href: "/fitur", icon: IconSparkles, label: "FITUR", title: "Dari eksplorasi sampai kategorisasi AI.", text: "Pencarian, filter, analisis emosi dan isi, serta kategori AI yang Anda tentukan sendiri." },
+  { href: "/integrasi", icon: IconPlugConnected, label: "INTEGRASI", title: "Data yang sama, langsung di aplikasi Anda.", text: "API JSON dengan cakupan per kunci: daftar konten, ringkasan, dan tren kategori." },
+  { href: "/solusi", icon: IconLayersIntersect, label: "SOLUSI", title: "Untuk humas, layanan publik, dan produk.", text: "Contoh cara organisasi memakai Signalbase untuk pertanyaan yang berbeda." },
+  { href: "/pricing", icon: IconKey, label: "HARGA", title: "Mulai dengan trial 7 hari.", text: "Pilih Starter, Pro, atau Instansi sesuai jumlah isu dan kebutuhan analisis Anda." },
 ] as const;
 
 export const HERO_TRUST = ["Sosial & berita", "AI sesuai kebutuhan", "Siap diintegrasikan"] as const;

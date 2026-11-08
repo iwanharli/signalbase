@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "classifier": "tsx --env-file=.env scripts/classifier.ts"
+    "classifier": "tsx --env-file=.env scripts/classifier.ts",
+    "brochure": "tsx --tsconfig scripts/brochure/tsconfig.json scripts/brochure/build.tsx"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
@@ -43,6 +44,7 @@
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "prisma": "^6.19.3",
+    "puppeteer-core": "^24.43.1",
     "tsx": "^4.23.15",
     "typescript": "^5"
   }

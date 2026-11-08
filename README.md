@@ -141,7 +141,10 @@ npm run dev                   # http://localhost:3100
 |---|---|---|
 | Login | `/login` | Satu halaman masuk untuk admin dan user. 5 kali gagal per 15 menit → dikunci sementara. |
 | Daftar | `/register` | Pendaftaran mandiri, selalu role **user** dan menunggu persetujuan admin sebelum bisa masuk. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
-| Landing page publik | `/` | Pengenalan platform, pratinjau ilustrasi interaktif, fitur, integrasi, dan FAQ. |
+| Beranda publik | `/` | Hero, pratinjau panel interaktif, sumber data, kartu menuju halaman detail. |
+| Fitur · Integrasi · Solusi · FAQ | `/fitur` `/integrasi` `/solusi` `/faq` | Halaman publik terpisah; satu layout (navbar, footer) di `src/app/(public)/layout.tsx`, teks di `src/components/landing/content.ts`. |
+| Harga | `/pricing` | Paket Coba, Starter, Pro, Instansi (bulanan/tahunan) dan tabel perbandingan. Isi di `src/components/pricing/plans.ts`; batas paket belum ditegakkan otomatis. |
+| Product knowledge | `/signalbase-product-knowledge.pdf` | Brosur PDF 9 halaman dari data website yang sama. Setelah mengubah `content.ts` atau `plans.ts`, jalankan `npm run brochure` lalu commit PDF-nya. |
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
