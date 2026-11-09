@@ -18,6 +18,10 @@ import { classifyBatch, providerErrorMessage, type ProviderConfig, type TokenCou
 const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
 const MAX_BATCHES_PER_TICK = 5;
+/** While a key still has history to label, it gets more batches per tick so a long backfill finishes in hours, not a day. */
+const BACKFILL_BATCHES_PER_TICK = 20;
+/** The extra backfill batches stop after this long, so the other keys still get their turn about once a minute. */
+const BACKFILL_MAX_MS = 40_000;
 
 type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean; sweptAt?: number; rejected?: string[]; rejectedSince?: number };
 /** Most rejected item codes remembered per type (newest kept), so the sweep doesn't retry them forever. */
@@ -177,7 +181,14 @@ async function runClassifier(classifierId: string) {
   const today = todayInJakarta();
   let todayCount = row.todayDate === today ? row.todayCount : 0;
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
-  let budget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
+  const started = Date.now();
+  const normalBudget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
+  const scope = parseKeyScope(row.apiKey.scope, row.apiKey.keywords);
+  const backfilling = MEDIA_TYPES.some((t) => allowsType(scope, t) && !(row.cursors as Cursors | null)?.[t]?.backfillDone);
+  let budget = backfilling ? BATCH_SIZE * BACKFILL_BATCHES_PER_TICK : normalBudget;
+  let sentThisTick = 0;
+  // The normal share is always processed; only the extra part is cut off by time.
+  const overtime = () => sentThisTick >= normalBudget && Date.now() - started > BACKFILL_MAX_MS;
   let limitedQuota = false;
   // Signalbase AI on a user's key: stay within the plan's monthly post quota (it resumes next month or on upgrade).
   if (platform && row.apiKey.ownerId) {
@@ -246,7 +257,7 @@ async function runClassifier(classifierId: string) {
       }
 
       // 2. Backfill: walk back through older items until the start date (or the end of the scope).
-      while (budget > 0 && !state.backfillDone) {
+      while (budget > 0 && !state.backfillDone && !overtime()) {
         const page = await listItemsFromCursor(type, job.scope, "older", state.oldest ?? null, Math.min(BATCH_SIZE, budget));
         if (!page.items.length) { state.backfillDone = true; break; }
         const inRange = job.startFrom ? page.items.filter((i) => new Date(i.publishedAt) >= job.startFrom!) : page.items;
@@ -254,7 +265,7 @@ async function runClassifier(classifierId: string) {
         // The very first batch starts at the present, so its newest item anchors the forward pass.
         if (!state.newest) state.newest = page.first!;
         state.oldest = page.next!;
-        processed += labelled; failed += skipped; todayCount += sent; budget -= sent;
+        processed += labelled; failed += skipped; todayCount += sent; budget -= sent; sentThisTick += sent;
         await save();
         if (inRange.length < page.items.length) { state.backfillDone = true; break; }
       }
