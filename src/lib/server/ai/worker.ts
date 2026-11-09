@@ -244,6 +244,9 @@ async function runClassifier(classifierId: string) {
       budget = allotted;
       const state = (cursors[type] ??= {});
       if (state.rejectedSince && Date.now() - state.rejectedSince > REJECTED_TTL_MS) { state.rejected = []; state.rejectedSince = undefined; }
+      // A start date moved earlier must reopen the backfill. The admin save does this, but a tick that was already
+      // running can write its stale cursors back over it. If the scope really has nothing older, this costs one query.
+      if (state.backfillDone && job.startFrom && state.oldest && new Date(`${state.oldest.ts}Z`) > job.startFrom) state.backfillDone = false;
 
       // 1. Items that arrived since the newest one labelled so far.
       while (budget > 0 && state.newest) {
