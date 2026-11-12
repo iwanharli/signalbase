@@ -57,7 +57,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - *Isu Polisi* hanya memuat isu yang judulnya mengandung `polisi`, `polri`, atau `polda` (daftar kata di `ISSUE_TOPICS`, `src/lib/issues.ts`);
   - isu spam (zodiak, iklan, harga emas, emas antam, dll.) dilewati (`SPAM_TERMS` di berkas yang sama);
   - akun user hanya melihat isu yang judulnya cocok dengan kata kunci proyek yang dipilih.
-- **Laporan eksekutif** — tombol "Unduh laporan" di Ringkasan membuka halaman cetak A4 `/laporan` (1/3/7 hari, Untuk, Sifat); simpan sebagai PDF lewat dialog cetak browser. Data: `GET /api/admin/report`.
+- **Laporan eksekutif** — tombol "Laporan eksekutif" di Ringkasan membuka halaman A4 `/laporan` dengan tombol Download PDF (langsung terunduh, dibuat di browser) dan Cetak (1/3/7 hari, Untuk, Sifat). Sumber data bisa semua (admin) / semua proyek saya (user) atau satu proyek. Memuat juga peringatan dini, isu media online, engagement/hashtag, dan aktor/target/wilayah isu EWS. Data: `GET /api/admin/report`.
 - **Kunci API** — buat kunci (ditampilkan sekali), batasi dengan kata kunci, cabut, lihat terakhir dipakai.
 - **Dokumentasi API** — referensi endpoint di dalam panel.
 

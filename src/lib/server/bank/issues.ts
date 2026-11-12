@@ -1,4 +1,4 @@
-import { ISSUE_NEWS_PAGE, ISSUES_LIMIT, titleFilter, topicTerms, type IssueDays, type IssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
+import { ISSUE_NEWS_PAGE, ISSUES_LIMIT, titleFilter, topicTerms, type IssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
 import { sharedCache } from "./cache";
 import { bankPool } from "./pool";
 
@@ -17,7 +17,7 @@ const toIssue = (r: IssueRow): IssueSummary => ({
 });
 
 /** The highest-scoring issues seen within the last `days` days. */
-export function listIssues(days: IssueDays, keywords: string[], topic: IssueTopic) {
+export function listIssues(days: number, keywords: string[], topic: IssueTopic) {
   return listCache(`${days}|${topic}|${keywords.join("\u0001")}`, async () => {
     const filter = titleFilter(keywords, 2, topicTerms(topic));
     const { rows } = await bankPool().query<IssueRow>(

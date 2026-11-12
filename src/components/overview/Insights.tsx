@@ -3,9 +3,9 @@
 // indicators, always shown, plus the most intense negative posts), the opinion trend, this period vs the one before,
 // top topics, the project's keywords and hashtags. Both types are always fetched, so "Semua" is merged in the browser.
 // Loads apart from the rest of the page because the grouped scans take a few seconds when the cache is cold.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Alert as MantineAlert, Button, Modal, SegmentedControl, Skeleton, TextInput, Tooltip } from "@mantine/core";
+import { Alert as MantineAlert, Button, Modal, SegmentedControl, Select, Skeleton, Text, TextInput, Tooltip } from "@mantine/core";
 import {
   IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
   IconFileDownload, IconTag, IconTrendingUp, IconWorldWww,
@@ -21,6 +21,7 @@ import { capitalize, formatNumber, humanize, MEDIA_TYPE_LABEL, sourceLabel } fro
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { DEFAULT_SIFAT, REPORT_PERIODS } from "@/lib/report";
 import { useApi } from "@/lib/useApi";
+import { useRole } from "../RoleContext";
 import { PlatformMark } from "../media/PlatformIcon";
 import c from "./insights.module.css";
 
@@ -530,6 +531,7 @@ function TopAccounts({ accounts, period }: { accounts: TopAccount[] | null; peri
 
 // ── Project & keywords ──────────────────────────────────────────────────────────
 
+const REPORT_STORAGE = "signalbase.report";
 export type ProjectSummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
 
 /** Insights of another project, loaded only when its group is opened (cached on the server like the viewed one). */
@@ -641,10 +643,21 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
   const title = view === "all" ? "semua media" : MEDIA_TYPE_LABEL[view];
   // The report opens in a new tab and prints itself; its own period (1/3/7 days), recipient and classification are asked here.
   const [reportOpen, setReportOpen] = useState(false);
-  const [report, setReport] = useState({ days: "1", untuk: "", sifat: DEFAULT_SIFAT });
+  const [report, setReport] = useState({ days: "1", untuk: "", sifat: DEFAULT_SIFAT, key: null as string | null });
+  // Recipient and classification are remembered in this browser so they need not be typed again.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(REPORT_STORAGE) ?? "{}") as { untuk?: string; sifat?: string };
+      setReport((r) => ({ ...r, untuk: saved.untuk ?? r.untuk, sifat: saved.sifat || r.sifat }));
+    } catch { /* storage unavailable or corrupt: keep the defaults */ }
+  }, []);
+  // Data source: an admin may take the whole bank, a user all own projects (when more than one), either may take a single project.
+  const admin = useRole() === "admin";
+  const reportSources = [...(admin ? [{ value: "all", label: "Semua data" }] : projects.length > 1 ? [{ value: "all", label: "Semua proyek saya" }] : []), ...projects.map((p) => ({ value: p.id, label: p.name }))];
+  const source = report.key ?? keyId ?? "all";
   const downloadReport = () => {
-    const q = new URLSearchParams(report);
-    if (keyId) q.set("key", keyId);
+    const q = new URLSearchParams({ days: report.days, untuk: report.untuk, sifat: report.sifat, key: source });
+    try { localStorage.setItem(REPORT_STORAGE, JSON.stringify({ untuk: report.untuk, sifat: report.sifat })); } catch { /* ignore */ }
     window.open(`/laporan?${q}`, "_blank");
     setReportOpen(false);
   };
@@ -656,7 +669,7 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
         <div className={c.headText}>
           <h2>Analisis periode</h2>
           <p>Peringatan dini, tren opini, dan topik dibanding {period} hari sebelumnya{data && <> · diperbarui {dayjs(data.at).format("HH:mm")}</>}</p>
-          <button type="button" className={c.reportBtn} onClick={() => setReportOpen(true)}><IconFileDownload size={16} />Unduh laporan</button>
+          <button type="button" className={c.reportBtn} onClick={() => setReportOpen(true)}><IconFileDownload size={16} />Laporan eksekutif</button>
         </div>
         <div className={c.controls}>
           {both && (
@@ -677,9 +690,11 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
         </div>
       </header>
 
-      <Modal opened={reportOpen} onClose={() => setReportOpen(false)} title="Unduh laporan" centered>
-        <TextInput label="Untuk" placeholder="Nama / jabatan penerima" value={report.untuk} onChange={(e) => setReport({ ...report, untuk: e.currentTarget.value })} mb="sm" />
-        <TextInput label="Sifat" value={report.sifat} onChange={(e) => setReport({ ...report, sifat: e.currentTarget.value })} mb="sm" />
+      <Modal opened={reportOpen} onClose={() => setReportOpen(false)} title="Laporan eksekutif" centered>
+        <Select label="Sumber data" data={reportSources} value={source} onChange={(key) => setReport({ ...report, key })} allowDeselect={false} mb="sm" />
+        <TextInput label="Untuk" description="Penerima laporan: nama dan jabatan pejabat yang akan membacanya. Dicetak di sampul sebagai “UNTUK: …”. Boleh dikosongkan." placeholder="Contoh: Pimpinan / stakeholder terkait" value={report.untuk} onChange={(e) => setReport({ ...report, untuk: e.currentTarget.value })} mb="sm" />
+        <TextInput label="Sifat" description="Tingkat kerahasiaan dokumen, dicetak di pojok kiri atas setiap halaman." value={report.sifat} onChange={(e) => setReport({ ...report, sifat: e.currentTarget.value })} mb="sm" />
+        <Text size="sm" fw={500} mb={4}>Periode</Text>
         <SegmentedControl fullWidth mb="md" aria-label="Periode laporan" value={report.days} onChange={(days) => setReport({ ...report, days })}
           data={REPORT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
         <Button fullWidth leftSection={<IconFileDownload size={16} />} onClick={downloadReport}>Buka laporan</Button>
