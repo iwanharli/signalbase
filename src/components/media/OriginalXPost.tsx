@@ -4,7 +4,7 @@ import { Tabs } from "@mantine/core";
 import { IconBrandX, IconChevronDown, IconCornerUpLeft, IconDatabase, IconExternalLink } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { formatWibDate } from "@/lib/media/presentation";
-import type { XPostPreview } from "@/lib/media/xPost";
+import { xVideoFrame, type XPostPreview } from "@/lib/media/xPost";
 import { PostText } from "./PostText";
 import { StoredPostFallback } from "./StoredPostFallback";
 import { PostContent } from "./PostContent";
@@ -44,23 +44,24 @@ function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?:
       ? <img src={post.author.avatar} alt="" className={classes.avatar} referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} />
       : <span className={classes.avatarFallback} aria-hidden>{post.author.name.charAt(0)}</span>}
     <div><strong>{post.author.name}</strong><span>@{post.author.handle}</span></div>
+    {!quoted && <a href={post.url} target="_blank" rel="noopener noreferrer nofollow" className={classes.xLogo} aria-label="Buka post di X (tab baru)" title="Buka di X"><IconBrandX size={20} aria-hidden /></a>}
     {quoted && <a href={post.url} target="_blank" rel="noopener noreferrer nofollow" className={classes.source} aria-label="Buka kutipan di X (tab baru)" title="Buka di X"><IconExternalLink size={15} aria-hidden /></a>}
   </div>;
   return <>
     <article className={quoted ? classes.quote : classes.post} data-focused={(!quoted && !!post.replyTo) || undefined}>
-    {!quoted && post.replyTo && <span className={classes.focusLabel}>Post yang dipilih</span>}
-    <PostContent text={post.text} header={author} metrics={{ likes: post.likes, comments: post.replies, shares: null, views: null }}>
+    {!quoted && post.replyTo && <span className={classes.focusLabel}>Reply</span>}
+    <PostContent text={post.text} header={author} textClassName={quoted ? undefined : classes.xText} metrics={{ likes: post.likes, comments: post.replies, shares: null, views: null }}>
     {post.isTruncated && <p className={classes.note}>Post panjang mungkin terpotong. <a href={post.url} target="_blank" rel="noopener noreferrer">Baca selengkapnya di X</a>.</p>}
     {!!post.media.length && <div className={classes.media}>
       {post.media.map((media) => media.kind === "video"
-        ? <video key={media.url} src={media.url} poster={media.poster ?? undefined} controls preload="none" playsInline aria-label={media.alt} />
+        ? <iframe key={media.url} {...xVideoFrame(media.url, media.poster)} title={media.alt} sandbox="" allow="fullscreen" allowFullScreen className={classes.xVideo} />
         : <a key={media.url} href={media.url} target="_blank" rel="noopener noreferrer" aria-label="Buka gambar (tab baru)">
           {/* eslint-disable-next-line @next/next/no-img-element -- allowlisted X-hosted media */}
           <img src={media.url} alt={media.alt} loading="lazy" referrerPolicy="no-referrer" />
         </a>)}
     </div>}
     {post.quoted && <PreviewContent post={post.quoted} quoted />}
-    {quoted && <time className={classes.quoteTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time>}
+    {quoted ? <time className={classes.quoteTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time> : <time className={classes.xTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time>}
     </PostContent>
   </article>
     {!quoted && post.replyTo && <ReplyContext key={post.replyTo.id} reply={post.replyTo} />}

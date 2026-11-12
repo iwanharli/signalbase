@@ -9,7 +9,7 @@ const GAP = 16;
  * Cards dealt round-robin into as many columns as fit. Dealing by index (not by height) means
  * appending a page never moves cards that are already on screen.
  */
-export function Masonry({ children, view = "cards" }: { children: React.ReactNode[]; view?: "cards" | "list" }) {
+export function Masonry({ children }: { children: React.ReactNode[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
 
@@ -24,8 +24,8 @@ export function Masonry({ children, view = "cards" }: { children: React.ReactNod
 
   const columns = Array.from({ length: columnCount }, (_, c) => children.filter((_, i) => i % columnCount === c));
   return (
-    <div ref={ref} className={classes.masonry} data-view={view}>
-      {view === "list" ? children : columns.map((column, c) => <div key={c} className={classes.column}>{column}</div>)}
+    <div ref={ref} className={classes.masonry}>
+      {columns.map((column, c) => <div key={c} className={classes.column}>{column}</div>)}
     </div>
   );
 }

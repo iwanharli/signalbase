@@ -24,7 +24,7 @@ function useSlashToFocus(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 /** Compact toolbar for search, filters, sort and result layout. */
-export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, view, onViewChange, source, onSourceChange }: {
+export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
@@ -34,8 +34,6 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
   advancedOpen: boolean;
   onToggleAdvanced: () => void;
   busy: boolean;
-  view: "cards" | "list";
-  onViewChange: (view: "cards" | "list") => void;
   /** Social cards only: the Quick card or the original post. */
   source?: "quick" | "asli";
   onSourceChange?: (source: "quick" | "asli") => void;
@@ -67,9 +65,7 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
         onChange={(label) => onChange(presetRange(DATE_PRESETS.find((p) => p.label === label)!))} />
       <Segmented label="Urutan" className={classes.sortSegmented} options={SORT_OPTIONS} value={filters.sort} onChange={(sort) => onChange({ sort })} />
 
-      <Segmented label="Tampilan hasil" className={classes.viewSegmented}
-        options={[{ value: "cards", label: "Kartu" }, { value: "list", label: "Daftar ringkas" }]} value={view} onChange={onViewChange} />
-      {type === "social" && view === "cards" && source && onSourceChange && (
+      {type === "social" && source && onSourceChange && (
         <Segmented label="Sumber tampilan" className={classes.viewSegmented}
           options={[{ value: "quick", label: "Quick View" }, { value: "asli", label: "Original View" }]} value={source} onChange={onSourceChange} />
       )}

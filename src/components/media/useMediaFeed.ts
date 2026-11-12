@@ -62,7 +62,7 @@ export function useMediaFeed(type: MediaType, query: string) {
 }
 
 /** Calls `onReach` when the returned ref's element comes within `margin` of the viewport. */
-export function useInfiniteScroll(enabled: boolean, onReach: () => void, margin = "800px") {
+export function useInfiniteScroll(enabled: boolean, onReach: () => void, margin = "2000px") {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;

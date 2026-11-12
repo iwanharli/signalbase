@@ -44,7 +44,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
 
 - **Ringkasan** — volume 7 hari per jenis media (dengan perubahan vs minggu sebelumnya), grafik batang 14 hari, sebaran emosi/sentimen, sinyal terbaru, dan daftar aplikasi terhubung.
 - **Media Sosial / Media Online** — jelajah seluruh isi database sumber:
-  - kartu *masonry* dengan *infinite scroll*, gambar berita, metrik interaksi, ringkasan AI;
+  - kartu *masonry* dengan *infinite scroll* (halaman berikutnya dimuat saat dasar daftar tinggal ±2000 px dari layar), gambar berita, metrik interaksi, ringkasan AI;
   - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, relevansi), kategori, lokasi, tautan sumber;
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
@@ -430,7 +430,7 @@ npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name sig
 
 ## Pratinjau post X di panel admin
 
-Di Media Sosial, pilihan **Quick View / Original View** (mode Kartu) memakai komponen pratinjau yang sama untuk setiap kartu: kartu Quick tampil dulu, post asli dimuat di belakang (maks. 4 serentak, hanya kartu dekat layar) lalu menggantikannya. Instagram/Facebook memakai tombol "Lihat tampilan asli". Original View adalah default; pilihan disimpan di `?tampilan=` dan `localStorage`.
+Di Media Sosial, pilihan **Quick View / Original View** memakai komponen pratinjau yang sama untuk setiap kartu: kartu Quick tampil dulu, post asli dimuat di belakang (maks. 4 serentak, hanya kartu dekat layar) lalu menggantikannya. Instagram/Facebook memakai tombol "Lihat tampilan asli". Original View adalah default; pilihan disimpan di `?tampilan=` dan `localStorage`.
 
 Modal media sosial memuat bagian **Post asli** untuk URL `x.com` atau `twitter.com` yang memiliki ID post valid. Server mencoba `react-tweet` lebih dulu, lalu API FxTwitter jika sumber pertama gagal atau tidak menemukan post. Kedua sumber tidak memerlukan kredensial akun X. Pratinjau menampilkan teks, identitas akun publik, media, dan kutipan yang tersedia; video diputar atas tindakan pengguna. Data tersimpan dan analisis Signalbase tetap ditampilkan terpisah.
 

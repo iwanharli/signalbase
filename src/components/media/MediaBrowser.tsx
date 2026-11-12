@@ -48,12 +48,6 @@ function ScrollTopButton() {
 export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
-  const viewMode = searchParams.get("layout") === "list" ? "list" : "cards";
-  const changeView = (layout: "cards" | "list") => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("layout", layout);
-    window.history.replaceState(null, "", url);
-  };
   // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
   const urlSource = searchParams.get("tampilan");
   const [original, setOriginal] = useState(true); // Original View unless the user chose Quick
@@ -69,7 +63,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
     url.searchParams.set("tampilan", source);
     window.history.replaceState(null, "", url);
   };
-  const originalView = type === "social" && viewMode === "cards" && original;
+  const originalView = type === "social" && original;
   const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/keys/${keyId}/classifier` : null);
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
@@ -139,8 +133,6 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           advancedCount={advancedCount}
           advancedOpen={drawerOpen}
           onToggleAdvanced={() => setDrawerOpen((open) => !open)}
-          view={viewMode}
-          onViewChange={changeView}
           source={original ? "asli" : "quick"}
           onSourceChange={changeSource}
           busy={feed.loading}
@@ -154,7 +146,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           </Alert>
         )}
 
-        <Masonry view={viewMode}>
+        <Masonry>
           {[
             ...feed.items.map((item, i) => {
               const Card = originalView ? OriginalCard : ItemCard;
