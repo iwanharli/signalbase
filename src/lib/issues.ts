@@ -34,10 +34,33 @@ export const likePatterns = (keywords: string[]) => keywords.map((k) => `%${k.re
 /** Issues whose title contains any of these are skipped (horoscopes, ads, daily gold price). Plain "contains", so keep the words specific. */
 export const SPAM_TERMS = ["zodiak", "zodiac", "iklan", "harga emas", "emas antam"];
 
-/** WHERE fragment: title mentions any keyword (none = all) AND contains no SPAM_TERMS word; params are numbered from `first`. */
-export function titleFilter(keywords: string[], first: number, column = "ni.title") {
-  const params = [...likePatterns(keywords), ...likePatterns(SPAM_TERMS)];
-  const include = keywords.length ? `(${keywords.map((_, i) => `${column} ILIKE $${first + i}`).join(" OR ")})` : "TRUE";
-  const skip = SPAM_TERMS.map((_, i) => `${column} NOT ILIKE $${first + keywords.length + i}`);
-  return { sql: [include, ...skip].join(" AND "), params };
+/** The submenu of /isu. A topic with `terms` only keeps issues whose title contains one of them (hardcoded for now). */
+export const ISSUE_TOPICS = [
+  { id: "nasional", label: "Isu Nasional", terms: [] as string[] },
+  { id: "polisi", label: "Isu Polisi", terms: ["polisi", "polri", "polda"] },
+] as const;
+export type IssueTopic = (typeof ISSUE_TOPICS)[number]["id"];
+export const DEFAULT_ISSUE_TOPIC: IssueTopic = "nasional";
+
+/** The topic from ?topik=; null when it is not one of the allowed choices. */
+export function parseIssueTopic(raw: string | null): IssueTopic | null {
+  if (raw === null) return DEFAULT_ISSUE_TOPIC;
+  return ISSUE_TOPICS.find((t) => t.id === raw)?.id ?? null;
+}
+export const topicTerms = (topic: IssueTopic): readonly string[] => ISSUE_TOPICS.find((t) => t.id === topic)!.terms;
+
+/**
+ * WHERE fragment: title mentions any project keyword (none = all) AND any topic term (none = all) AND contains no
+ * SPAM_TERMS word. Params are numbered from `first`, in that order.
+ */
+export function titleFilter(keywords: string[], first: number, topic: readonly string[] = [], column = "ni.title") {
+  const params = [...likePatterns(keywords), ...likePatterns([...topic]), ...likePatterns(SPAM_TERMS)];
+  const any = (from: number, count: number) => `(${Array.from({ length: count }, (_, i) => `${column} ILIKE $${first + from + i}`).join(" OR ")})`;
+  const skipFrom = keywords.length + topic.length;
+  const parts = [
+    keywords.length ? any(0, keywords.length) : "TRUE",
+    ...(topic.length ? [any(keywords.length, topic.length)] : []),
+    ...SPAM_TERMS.map((_, i) => `${column} NOT ILIKE $${first + skipFrom + i}`),
+  ];
+  return { sql: parts.join(" AND "), params };
 }

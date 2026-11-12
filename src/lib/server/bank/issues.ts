@@ -1,9 +1,9 @@
-import { ISSUE_NEWS_PAGE, ISSUES_LIMIT, titleFilter, type IssueDays, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
+import { ISSUE_NEWS_PAGE, ISSUES_LIMIT, titleFilter, topicTerms, type IssueDays, type IssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
 import { sharedCache } from "./cache";
 import { bankPool } from "./pool";
 
 // News issues (clusters of related online news) from the source database. `keywords` limits them to issues whose
-// title mentions one of them (a project's view); empty = every issue (admin overview).
+// title mentions one of them (a project's view); empty = every issue (admin overview). `topic` narrows further (Isu Polisi).
 const listCache = sharedCache<IssueSummary[]>("issues", { ttlMs: 60_000, staleWhileRevalidate: true });
 
 type IssueRow = { id: string; title: string; label: string | null; news_count: number; first_seen_at: Date; last_seen_at: Date; score: number; status: string };
@@ -17,9 +17,9 @@ const toIssue = (r: IssueRow): IssueSummary => ({
 });
 
 /** The highest-scoring issues seen within the last `days` days. */
-export function listIssues(days: IssueDays, keywords: string[]) {
-  return listCache(`${days}|${keywords.join("\u0001")}`, async () => {
-    const filter = titleFilter(keywords, 2);
+export function listIssues(days: IssueDays, keywords: string[], topic: IssueTopic) {
+  return listCache(`${days}|${topic}|${keywords.join("\u0001")}`, async () => {
+    const filter = titleFilter(keywords, 2, topicTerms(topic));
     const { rows } = await bankPool().query<IssueRow>(
       `${SELECT} WHERE ${filter.sql} AND ni.last_seen_at >= CURRENT_DATE - ($1::int * INTERVAL '1 day') ORDER BY ni.score DESC LIMIT ${ISSUES_LIMIT}`,
       [days, ...filter.params],
@@ -28,9 +28,9 @@ export function listIssues(days: IssueDays, keywords: string[]) {
   });
 }
 
-/** One issue, or null when it does not exist or is outside the keywords' view (so an id alone never opens another project's issue). */
-export async function findIssue(id: string, keywords: string[]) {
-  const filter = titleFilter(keywords, 2);
+/** One issue, or null when it does not exist or is outside the keywords' and topic's view (so an id alone never opens another project's issue). */
+export async function findIssue(id: string, keywords: string[], topic: IssueTopic) {
+  const filter = titleFilter(keywords, 2, topicTerms(topic));
   const { rows } = await bankPool().query<IssueRow>(`${SELECT} WHERE ni.id = $1::bigint AND ${filter.sql}`, [id, ...filter.params]);
   return rows[0] ? toIssue(rows[0]) : null;
 }

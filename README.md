@@ -49,6 +49,11 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
   - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi.
+- **Isu** (`/isu`, submenu **Isu Nasional** dan **Isu Polisi**) — berita online yang sejenis dikelompokkan menjadi isu dan diurutkan dari yang paling ramai:
+  - periode 3 hari, 7 hari (bawaan), 14 hari, atau 1 bulan; daftar peringkat berskor di kiri, berita di balik isu terpilih di kanan (kartu bergambar per hari, saring per sumber, *Sebelumnya/Berikutnya*, pintasan `↑` `↓` `j` `k` `/`);
+  - *Isu Polisi* hanya memuat isu yang judulnya mengandung `polisi`, `polri`, atau `polda` (daftar kata di `ISSUE_TOPICS`, `src/lib/issues.ts`);
+  - isu spam (zodiak, iklan, harga emas, emas antam, dll.) dilewati (`SPAM_TERMS` di berkas yang sama);
+  - akun user hanya melihat isu yang judulnya cocok dengan kata kunci proyek yang dipilih.
 - **Kunci API** — buat kunci (ditampilkan sekali), batasi dengan kata kunci, cabut, lihat terakhir dipakai.
 - **Dokumentasi API** — referensi endpoint di dalam panel.
 
@@ -156,6 +161,8 @@ npm run dev                   # http://localhost:3100
 | `npm run lint` | ESLint |
 | `npm run db:push` | Sinkronkan skema Prisma ke database |
 | `npm run db:seed` | Buat admin pertama (aman dijalankan berulang) |
+| `npm run db:seed:projects` | Buat proyek contoh "Polisi" (kata kunci `polisi`, tanpa AI; aman diulang) |
+| `npm test` | Jalankan tes `node:test` di `tests/` lewat `tsx` |
 | `npm run classifier` | Worker kategorisasi AI (berjalan terus) |
 | `npx tsc --noEmit` | Pemeriksaan tipe |
 
@@ -169,11 +176,13 @@ npm run dev                   # http://localhost:3100
 | Daftar | `/register` | Pendaftaran mandiri, selalu role **user** dan menunggu persetujuan admin sebelum bisa masuk. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
 | Beranda publik | `/` | Hero, pratinjau panel interaktif, sumber data, kartu menuju halaman detail. |
 | Fitur · Integrasi · Solusi · FAQ | `/fitur` `/integrasi` `/solusi` `/faq` | Halaman publik terpisah; satu layout (navbar, footer) di `src/app/(public)/layout.tsx`, teks di `src/components/landing/content.ts`. |
-| Harga | `/pricing` | Paket Coba, Starter, Pro, Instansi (bulanan/tahunan) dan tabel perbandingan. Isi di `src/components/pricing/plans.ts`; batas paket belum ditegakkan otomatis. |
+| Harga | `/pricing` | Paket Coba, Starter, Pro, Instansi (bulanan/tahunan) dan tabel perbandingan. Isi di `src/components/pricing/plans.ts`; batas paket (proyek, keyword, panggilan harian, kuota AI, masa aktif) ditegakkan di `src/lib/plans.ts`. |
 | Product knowledge | `/signalbase-product-knowledge.pdf` | Brosur PDF 9 halaman dari data website yang sama. Setelah mengubah `content.ts` atau `plans.ts`, jalankan `npm run brochure` lalu commit PDF-nya. |
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
+| Isu Nasional | `/isu` | Isu berita periode `?days=` (3, 7, 14, 30), dipilih lewat `?issue=<id>`. Akun user wajib lewat proyek (`?key=<id>`, otomatis dipilih) yang mencakup media online. |
+| Isu Polisi | `/isu?topik=polisi` | Sama dengan Isu Nasional, tetapi hanya isu berjudul polisi/polri/polda. |
 | Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
 | Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
 | Buat kunci | `/api-keys/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
@@ -206,6 +215,8 @@ curl -H "Authorization: Bearer $SIGNALBASE_KEY" \
 ---
 
 ## Sumber data & pemetaan kolom
+
+**Isu** (halaman `/isu`) dibaca dari dua tabel tambahan di database sumber: `news_issues` (`id`, `title`, `label`, `score`, `status` `active`/`closed`, `first_seen_at`, `last_seen_at`) dan `news_issue_items` (`issue_id`, `news_code`), yang digabung dengan `news_main` lewat `news_code`. Kolom `news_issues.news_count` tidak sinkron dengan isi tabel item, jadi jumlah berita dihitung dari `news_issue_items`. Daftar dibatasi 200 isu teratas menurut `score`.
 
 | Field API | Media sosial (`post_main` p + `post_analyses` a) | Media online (`news_main` n + `news_analyses` a) |
 |---|---|---|
@@ -272,12 +283,13 @@ src/
 │   ├── (panel)/                  Halaman panel (dilindungi sesi)
 │   │   ├── page.tsx              Ringkasan
 │   │   ├── media/[type]/         Media Sosial / Media Online
+│   │   ├── isu/                  Isu berita (submenu Nasional / Polisi lewat ?topik=)
 │   │   ├── api-keys/             Kunci API (daftar) · api-keys/new (buat kunci)
 │   │   └── docs/                 Dokumentasi API
 │   ├── login/                    Halaman login
 │   └── api/
 │       ├── auth/                 login, logout
-│       ├── admin/                media, stats, keys (butuh sesi)
+│       ├── admin/                media, stats, keys, issues (butuh sesi)
 │       └── v1/media/[type]/      API publik (butuh kunci API)
 ├── components/
 │   ├── media/                    Penjelajah media
@@ -295,6 +307,7 @@ src/
 │   ├── Overview.tsx              Halaman Ringkasan
 │   ├── Shell.tsx                 Topbar & tata letak
 │   ├── apiKeys/                  Daftar kunci (ApiKeyList) dan halaman buat kunci (CreateApiKey)
+│   ├── issues/                   Halaman Isu (IssueBoard + issues.module.css)
 │   ├── ApiDocs.tsx
 │   └── Logo.tsx
 ├── lib/
@@ -310,10 +323,13 @@ src/
 │   │   │   ├── items.ts          Daftar item & pemetaan baris
 │   │   │   ├── stats.ts          Hitungan, sebaran, volume harian
 │   │   │   ├── options.ts        Pilihan filter
+│   │   │   ├── issues.ts         Isu berita & berita terkait (news_issues)
 │   │   │   └── cache.ts          Cache TTL
 │   │   ├── apiKey.ts             Kunci API & pembungkus route publik
 │   │   ├── auth.ts               Sesi admin & pembungkus route admin
+│   │   ├── panelScope.ts         Cakupan proyek untuk panel (resolveScope) & hak baca isu
 │   │   └── db.ts                 Prisma client
+│   ├── issues.ts                 Periode, topik (Nasional/Polisi), kata spam, filter judul isu
 │   ├── session.ts                JWT sesi (edge-safe, dipakai middleware)
 │   ├── api-client.ts / useApi.ts Fetch dari browser
 │   └── useDebouncedValue.ts
@@ -321,7 +337,9 @@ src/
 └── theme.ts                      Tema Mantine
 prisma/
 ├── schema.prisma                 Admin, ApiKey
-└── seed.ts                       Admin pertama
+├── seed.ts                       Admin pertama
+└── seed-projects.ts              Proyek contoh "Polisi" (tanpa AI)
+tests/                            Tes node:test (npm test)
 ```
 
 ### Menambah filter baru

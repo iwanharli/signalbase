@@ -8,7 +8,7 @@ import {
   IconSparkles, IconTrendingUp, IconTrophy, IconUser, IconX,
 } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
-import { DEFAULT_ISSUE_DAYS, ISSUE_PERIODS, parseIssueDays, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
+import { DEFAULT_ISSUE_DAYS, DEFAULT_ISSUE_TOPIC, ISSUE_PERIODS, ISSUE_TOPICS, parseIssueDays, parseIssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { capitalize, formatNumber, sourceLabel } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
@@ -63,8 +63,8 @@ function NewsCard({ news, delay }: { news: IssueNews; delay: number }) {
   );
 }
 
-function IssueDetail({ issue, rank, max, keyId, nav }: {
-  issue: IssueSummary; rank: number; max: number; keyId: string | null;
+function IssueDetail({ issue, rank, max, keyId, topic, nav }: {
+  issue: IssueSummary; rank: number; max: number; keyId: string | null; topic: string;
   nav: { prev: (() => void) | null; next: (() => void) | null; position: string };
 }) {
   const [source, setSource] = useState<string | null>(null);
@@ -80,6 +80,7 @@ function IssueDetail({ issue, rank, max, keyId, nav }: {
     setError(null);
     try {
       const qs = new URLSearchParams({ page: String(nextPage) });
+      qs.set("topik", topic);
       if (keyId) qs.set("key", keyId);
       if (nextSource) qs.set("source", nextSource);
       const res = await api<DetailResponse>(`/api/admin/issues/${issue.id}?${qs}`);
@@ -93,7 +94,7 @@ function IssueDetail({ issue, rank, max, keyId, nav }: {
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [issue.id, keyId]);
+  }, [issue.id, keyId, topic]);
 
   // The component is keyed by issue, so a new issue starts from scratch; a new source filter reloads page 1.
   useEffect(() => {
@@ -169,6 +170,8 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
   const params = useSearchParams();
   const keyId = params.get("key");
   const days = parseIssueDays(params.get("days")) ?? DEFAULT_ISSUE_DAYS;
+  const topic = parseIssueTopic(params.get("topik")) ?? DEFAULT_ISSUE_TOPIC;
+  const topicLabel = ISSUE_TOPICS.find((t) => t.id === topic)!.label;
   const issueParam = params.get("issue");
   const [search, setSearch] = useState("");
   const [onlyActive, setOnlyActive] = useState(false);
@@ -183,7 +186,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
   const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "online"));
-  const list = useApi<ListResponse>(`/api/admin/issues?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
+  const list = useApi<ListResponse>(`/api/admin/issues?days=${days}&topik=${topic}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => list.data?.issues ?? [], [list.data]);
   const max = Math.max(1, ...issues.map((i) => i.score));
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
@@ -229,7 +232,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
         <IconFlame className={classes.heroIcon} size={150} stroke={1} aria-hidden />
         <div className={classes.heroText}>
           <span className={classes.badge}><IconRadar2 size={13} />Radar isu</span>
-          <h1>Isu <em>{periodLabel || "…"}</em> terakhir</h1>
+          <h1>{topicLabel} <em>{periodLabel || "…"}</em> terakhir</h1>
           <p>Berita yang sejenis dikelompokkan menjadi satu isu dan diurutkan dari yang paling ramai. Pilih isu untuk melihat berita di baliknya.</p>
         </div>
         <div className={classes.stats}>
@@ -294,7 +297,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
 
         <div ref={detailRef} className={classes.detailWrap}>
           {selected ? (
-            <IssueDetail key={selected.id} issue={selected} rank={rankOf.get(selected.id)!} max={max} keyId={keyId}
+            <IssueDetail key={`${topic}-${selected.id}`} issue={selected} rank={rankOf.get(selected.id)!} max={max} keyId={keyId} topic={topic}
               nav={{ prev: index > 0 ? () => step(-1) : null, next: index < visible.length - 1 ? () => step(1) : null, position: `${index + 1} dari ${visible.length}` }} />
           ) : (
             list.data && <div className={classes.empty}><IconNews size={26} /><b>Pilih isu di sebelah kiri</b></div>
