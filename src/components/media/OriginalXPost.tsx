@@ -67,7 +67,7 @@ function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?:
   </>;
 }
 
-export function OriginalXPost({ id, fallback }: { id: string; fallback: ReactNode }) {
+export function OriginalXPost({ id, fallback, onStatus }: { id: string; fallback: ReactNode; onStatus?: (status: "ready" | "failed") => void }) {
   const [post, setPost] = useState<XPostPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -81,6 +81,7 @@ export function OriginalXPost({ id, fallback }: { id: string; fallback: ReactNod
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [id, attempt]);
+  useEffect(() => { if (!loading) onStatus?.(post ? "ready" : "failed"); }, [loading, post, onStatus]);
   if (loading || !post) return <StoredPostFallback loading={loading} onRetry={error ? () => setAttempt((value) => value + 1) : undefined}>{fallback}</StoredPostFallback>;
   return <Tabs defaultValue="original" keepMounted={false} className={classes.root}>
     <Tabs.List className={classes.tabsList} aria-label="Sumber konten post">

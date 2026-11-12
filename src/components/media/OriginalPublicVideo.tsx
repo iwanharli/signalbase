@@ -9,7 +9,7 @@ import { PostContent } from './PostContent';
 import classes from './originalXPost.module.css';
 
 type Metadata = { title: string; author: string };
-export function OriginalPublicVideo({ video, fallback, storedText }: { video: PublicVideo; fallback: ReactNode; storedText: string | null }) {
+export function OriginalPublicVideo({ video, fallback, storedText, onStatus }: { video: PublicVideo; fallback: ReactNode; storedText: string | null; onStatus?: (status: 'ready' | 'failed') => void }) {
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -39,6 +39,7 @@ export function OriginalPublicVideo({ video, fallback, storedText }: { video: Pu
     window.addEventListener('message', message);
     return () => window.removeEventListener('message', message);
   }, [video.platform]);
+  useEffect(() => { if (!loading) onStatus?.(failed || !metadata ? 'failed' : 'ready'); }, [loading, failed, metadata, onStatus]);
   if (loading || failed || !metadata) return <StoredPostFallback loading={loading} onRetry={() => setAttempt((n) => n + 1)}>{fallback}</StoredPostFallback>;
   const originalText = metadata.title.trim();
   const caption = originalText || storedText?.trim() || null;

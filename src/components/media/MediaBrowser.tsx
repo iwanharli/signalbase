@@ -11,6 +11,7 @@ import { useApi } from "@/lib/useApi";
 import { ActiveFilters } from "./ActiveFilters";
 import { AdvancedFilters } from "./AdvancedFilters";
 import { ItemCard } from "./ItemCard";
+import { OriginalCard } from "./OriginalCard";
 import { ItemDetailModal } from "./ItemDetailModal";
 import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
 import { Masonry } from "./Masonry";
@@ -26,6 +27,7 @@ type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classif
 const SKELETON_HEIGHTS = [260, 180, 320, 220];
 const CARD_STAGGER_MS = 30;
 const PAGE_SIZE = 24;
+const SOURCE_KEY = "signalbase.media.tampilan";
 
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false);
@@ -52,6 +54,22 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
     url.searchParams.set("layout", layout);
     window.history.replaceState(null, "", url);
   };
+  // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
+  const urlSource = searchParams.get("tampilan");
+  const [original, setOriginal] = useState(true); // Original View unless the user chose Quick
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(SOURCE_KEY); } catch { /* storage unavailable */ }
+    setOriginal((urlSource ?? saved ?? "asli") === "asli");
+  }, [urlSource]);
+  const changeSource = (source: "quick" | "asli") => {
+    setOriginal(source === "asli");
+    try { localStorage.setItem(SOURCE_KEY, source); } catch { /* ignore */ }
+    const url = new URL(window.location.href);
+    url.searchParams.set("tampilan", source);
+    window.history.replaceState(null, "", url);
+  };
+  const originalView = type === "social" && viewMode === "cards" && original;
   const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/keys/${keyId}/classifier` : null);
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
@@ -123,6 +141,8 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           onToggleAdvanced={() => setDrawerOpen((open) => !open)}
           view={viewMode}
           onViewChange={changeView}
+          source={original ? "asli" : "quick"}
+          onSourceChange={changeSource}
           busy={feed.loading}
         />
 
@@ -136,7 +156,10 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
 
         <Masonry view={viewMode}>
           {[
-            ...feed.items.map((item, i) => <ItemCard key={item.code} item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />),
+            ...feed.items.map((item, i) => {
+              const Card = originalView ? OriginalCard : ItemCard;
+              return <Card key={item.code} item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />;
+            }),
             ...(feed.loading
               ? Array.from({ length: feed.items.length ? 4 : 12 }, (_, i) => <Skeleton key={`skeleton-${i}`} h={SKELETON_HEIGHTS[i % SKELETON_HEIGHTS.length]} radius={18} />)
               : []),

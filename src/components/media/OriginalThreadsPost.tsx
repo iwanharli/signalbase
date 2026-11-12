@@ -7,7 +7,7 @@ import { threadsEmbedHeight, threadsEmbedUrl, type ThreadsPost } from '@/lib/med
 import { StoredPostFallback } from './StoredPostFallback';
 import classes from './originalXPost.module.css';
 
-export function OriginalThreadsPost({ post, fallback }: { post: ThreadsPost; fallback: ReactNode }) {
+export function OriginalThreadsPost({ post, fallback, onStatus }: { post: ThreadsPost; fallback: ReactNode; onStatus?: (status: 'ready' | 'failed') => void }) {
   const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [attempt, setAttempt] = useState(0);
   const [height, setHeight] = useState(500);
@@ -34,6 +34,7 @@ export function OriginalThreadsPost({ post, fallback }: { post: ThreadsPost; fal
     window.addEventListener('message', onMessage);
     return () => { window.clearTimeout(timeout); window.removeEventListener('message', onMessage); };
   }, [state, tab, attempt]);
+  useEffect(() => { if (rendered) onStatus?.('ready'); else if (state === 'failed') onStatus?.('failed'); }, [rendered, state, onStatus]);
   if (state !== 'ready') return <StoredPostFallback loading={state === 'loading'} onRetry={() => { setTab('original'); setAttempt((n) => n + 1); }}>{fallback}</StoredPostFallback>;
   return <Tabs value={tab} onChange={setTab} keepMounted={false} className={classes.root}>
     <Tabs.List className={classes.tabsList} aria-label="Sumber konten post">

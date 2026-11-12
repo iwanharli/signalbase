@@ -407,6 +407,7 @@ PORT=3100 npm start      # atau lewat PM2: pm2 start "npm start" --name signalba
 npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name signalbase-classifier -- run classifier)
 ```
 
+- Deploy manual di server: produksi dibaca dari slot build (`.next-active` = `.next-a`/`.next-b`) lewat `NEXT_DIST_DIR` di PM2. Bangun ke slot yang tidak aktif (`NEXT_DIST_DIR="$next" npm run build`), lalu `NEXT_DIST_DIR="$next" pm2 restart signalbase-3720 --update-env`, cek `/login` = 200, tulis `.next-active`. `npm run build` polos masuk ke `.next` dan tidak mengubah tampilan produksi. Langkah lengkap: catatan Obsidian "Deployment dan Operasi".
 - Pasang di belakang reverse proxy (nginx) dengan HTTPS; middleware membaca `x-forwarded-host` / `x-forwarded-proto` untuk redirect yang benar.
 - Cache berada di memori per proses; menjalankan beberapa instance tetap aman, hanya cache-nya tidak dibagi.
 - Jangan menjalankan `next build` di folder yang sama saat server dev berjalan (keduanya memakai `.next`); gunakan `NEXT_DIST_DIR` bila perlu.
@@ -422,10 +423,14 @@ npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name sig
 | Semua halaman error 500 setelah ubah CSS | Biasanya galat sintaks CSS Module; cek pesan di terminal dev. |
 | Kolom baru di Prisma tidak terbaca | Jalankan `npx prisma db push` lalu restart server dev (client Prisma dimuat saat start). |
 | API mengembalikan 401 | Kunci salah atau sudah dicabut. |
+| Web tidak berubah setelah build + restart PM2 | Build masuk ke `.next` padahal PM2 membaca slot (`cat .next-active`). Build ke slot lain dengan `NEXT_DIST_DIR` dan restart dengan `--update-env`, atau pakai `./deploy.sh`. Bila masih lama: cache Cloudflare/browser. |
+| `ETIMEDOUT` / "Connection terminated" ke database sumber di log | Database sumber tidak terjangkau atau lambat dari server (cek egress IP, firewall, beban); halaman yang membaca sumber jadi lambat/gagal. Periksa dengan `scripts/prod.sh egress` dan `scripts/prod.sh db`. |
 | Port 3100 dipakai | `PORT=4100 ./run.sh` atau hentikan proses lama. |
 
 
 ## Pratinjau post X di panel admin
+
+Di Media Sosial, pilihan **Quick View / Original View** (mode Kartu) memakai komponen pratinjau yang sama untuk setiap kartu: kartu Quick tampil dulu, post asli dimuat di belakang (maks. 4 serentak, hanya kartu dekat layar) lalu menggantikannya. Instagram/Facebook memakai tombol "Lihat tampilan asli". Original View adalah default; pilihan disimpan di `?tampilan=` dan `localStorage`.
 
 Modal media sosial memuat bagian **Post asli** untuk URL `x.com` atau `twitter.com` yang memiliki ID post valid. Server mencoba `react-tweet` lebih dulu, lalu API FxTwitter jika sumber pertama gagal atau tidak menemukan post. Kedua sumber tidak memerlukan kredensial akun X. Pratinjau menampilkan teks, identitas akun publik, media, dan kutipan yang tersedia; video diputar atas tindakan pengguna. Data tersimpan dan analisis Signalbase tetap ditampilkan terpisah.
 
