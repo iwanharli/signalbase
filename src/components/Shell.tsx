@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconFlame, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
 import { RoleProvider } from "./RoleContext";
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/dashboard", label: "Ringkasan", icon: IconLayoutDashboard },
   { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
+  { href: "/isu", label: "Isu", icon: IconFlame },
   { href: "/api-keys", label: "Proyek", icon: IconKey },
 ];
 /** Secondary pages: icon buttons on the right and entries in the account menu. */
