@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconChartDonut, IconFlag, IconFlame, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconShield, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconChartDonut, IconChartDots3, IconFlag, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconShield, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -20,6 +20,10 @@ const NAV: NavItem[] = [
   { href: "/isu", label: "Isu", icon: IconFlame, children: [
     { href: "/isu", label: "Isu Nasional", icon: IconFlag },
     { href: "/isu?topik=polisi", label: "Isu Polisi", icon: IconShield },
+  ] },
+  { href: "/analisis", label: "Analisis", icon: IconChartDots3, children: [
+    { href: "/analisis/sna", label: "SNA", icon: IconChartDots3 },
+    { href: "/analisis/ontologi", label: "Ontologi", icon: IconHierarchy2 },
   ] },
   { href: "/api-keys", label: "Proyek", icon: IconKey },
 ];
