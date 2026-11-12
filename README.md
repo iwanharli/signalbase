@@ -185,7 +185,7 @@ npm run dev                   # http://localhost:3100
 | Media Online | `/media/online` | Jelajah berita. |
 | Command Center | `/command-center` | Ringkasan satu layar dari data Ringkasan + Isu (`?key=<id>` untuk admin melihat satu proyek). Grafik Chart.js di `src/components/commandCenter/`. Logo/atribusi Mapbox di pojok peta disembunyikan lewat CSS demi tampilan; ketentuan Mapbox meminta atribusi tetap tampil, jadi pertimbangkan menampilkannya lagi (hapus aturan `.stage :global(.mapboxgl-ctrl-bottom-left)` di `commandCenter.module.css`) atau mencantumkan "© Mapbox © OpenStreetMap" di tempat lain. |
 | SNA | `/analisis/sna` | Graf d3 (`src/components/sna/`); data dari `GET /api/admin/sna?days=1\|3\|7[&key=]` (`src/lib/server/bank/sna.ts`, tabel `post_main` + `post_mentioned`). |
-| Ontologi | `/analisis/ontologi` | Masih "sedang dalam pengembangan" (`src/components/analisis/InDevelopment.tsx`). |
+| Ontologi | `/analisis/ontologi` | Graf d3 isu (alert EWS, tabel `alerts`) ↔ aktor/target (`src/components/ontologi/`); data dari `GET /api/admin/ontologi?days=1\|3\|7[&key=]` (`src/lib/server/bank/ontologi.ts`). Filter proyek: aktor/target mengandung kata kunci. |
 | Isu Nasional | `/isu` | Isu berita periode `?days=` (3, 7, 14, 30), dipilih lewat `?issue=<id>`. Akun user wajib lewat proyek (`?key=<id>`, otomatis dipilih) yang mencakup media online. |
 | Isu Polisi | `/isu?topik=polisi` | Sama dengan Isu Nasional, tetapi hanya isu berjudul polisi/polri/polda. |
 | Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
@@ -312,6 +312,7 @@ src/
 │   ├── Overview.tsx              Halaman Ringkasan
 │   ├── Shell.tsx                 Topbar & tata letak
 │   ├── apiKeys/                  Daftar kunci (ApiKeyList) dan halaman buat kunci (CreateApiKey)
+│   ├── ontologi/                 Graf Ontologi (isu ↔ aktor/target)
 │   ├── sna/                      Graf SNA (d3-force, zoom, drag)
 │   ├── commandCenter/            Command Center (grafik Chart.js + layar satu halaman)
 │   ├── issues/                   Halaman Isu (IssueBoard + issues.module.css)
