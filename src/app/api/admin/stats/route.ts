@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isInsightPeriod } from "@/lib/media/insights";
 import { adminRoute } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { typeStats } from "@/lib/server/overview";
@@ -6,6 +7,7 @@ import { overviewView } from "@/lib/server/overviewKey";
 
 // Overview page data: per media type the last 14 days of volume, the mood split of the
 // last 7 days and the newest items; plus the active API keys.
+// ?days=7|14|30 sets the volume and mood window for both (Command Center); default is 14 / 7 days.
 // Admins see the whole bank, or one key's view with ?key=. Users always see one of their own keys
 // (?key= or their oldest active key) and only their own keys are listed; with no key they get { noKey: true }.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
@@ -13,8 +15,11 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   if (view instanceof Response) return view;
   if (view.noKey) return NextResponse.json({ noKey: true, keys: [], at: new Date().toISOString() });
   const { key, keys, scope } = view;
+  const raw = new URL(req.url).searchParams.get("days");
+  const days = raw === null ? undefined : Number(raw);
+  if (days !== undefined && !isInsightPeriod(days)) return NextResponse.json({ error: "days harus 7, 14, atau 30" }, { status: 400 });
   try {
-    const [social, online] = await Promise.all([typeStats("social", scope), typeStats("online", scope)]);
+    const [social, online] = await Promise.all([typeStats("social", scope, days), typeStats("online", scope, days)]);
     return NextResponse.json({
       social, online,
       key: key ? { id: key.id, name: key.name, keywords: key.keywords } : null,

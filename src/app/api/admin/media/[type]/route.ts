@@ -1,29 +1,19 @@
 import { NextResponse } from "next/server";
-import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { allowsType } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
-import { adminRoute, ownsKey, type PanelUser } from "@/lib/server/auth";
+import { adminRoute } from "@/lib/server/auth";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import type { PlanLimits } from "@/lib/plans";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
-import { prisma } from "@/lib/server/db";
+import { resolveScope } from "@/lib/server/panelScope";
 
 const PAGE_SIZE = 24;
 
 type Context = { params: Promise<{ type: string }> };
-
-/** The scope to browse with: the whole bank, or one API key's view of it when ?key= is given. */
-async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
-  // Users only ever see the bank through one of their own keys.
-  if (!keyId) return user.role === "user" ? { error: "Pilih proyek dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
-  if (!(await ownsKey(user, keyId))) return { error: "Proyek tidak ditemukan", status: 404 };
-  const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
-  if (!key) return { error: "Proyek tidak ditemukan", status: 404 };
-  return { scope: parseKeyScope(key.scope, key.keywords), keyId: key.id };
-}
 
 // Panel browser over the bank, optionally as seen through one API key (?key=).
 //   ?view=options → filter choices
