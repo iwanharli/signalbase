@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildOntologi, filterLevels, matchesKeywords, parseOntDays, type OntIssue } from "../src/lib/ontologi";
+import { buildOntologi, formatWindow, filterLevels, matchesKeywords, parseOntDays, type OntIssue } from "../src/lib/ontologi";
 
 const issue = (id: string, level: string, actors: string[], targets: string[]): OntIssue => ({
   id, title: `Isu ${id}`, level, score: 70, postCount: 5, sentAt: "2026-11-10T00:00:00.000Z", actors, targets,
@@ -9,8 +9,8 @@ const issue = (id: string, level: string, actors: string[], targets: string[]): 
 
 test("only the offered periods are accepted, and 7 days is the default", () => {
   assert.equal(parseOntDays(null), 7);
-  for (const d of [1, 3, 7]) assert.equal(parseOntDays(String(d)), d);
-  for (const bad of ["", "0", "14", "7; DROP TABLE x"]) assert.equal(parseOntDays(bad), null);
+  for (const d of [1, 3, 7, 14, 30]) assert.equal(parseOntDays(String(d)), d);
+  for (const bad of ["", "0", "5", "31", "7; DROP TABLE x"]) assert.equal(parseOntDays(bad), null);
 });
 
 test("keywords match actors or targets, ignoring case; no keywords keeps everything", () => {
@@ -35,4 +35,10 @@ test("switching a level off drops its issues and the entities only they named", 
   const issues = [issue("1", "High", ["A"], ["B"]), issue("2", "Critical", ["C"], ["B"])];
   const g = buildOntologi(filterLevels(issues, ["High"]));
   assert.deepEqual(g.nodes.map((n) => n.id).sort(), ["e:b", "e:c", "i:2"]);
+});
+
+test("the alert time window is shown as readable Jakarta times, and kept as is when it cannot be read", () => {
+  assert.match(formatWindow("2026-10-12T12:00:00+07:00 - 2026-10-13T18:00:00+07:00")!, /^12 Okt 2026.*12[.:]00 – 13 Okt 2026.*18[.:]00 WIB$/);
+  assert.equal(formatWindow("kemarin"), "kemarin");
+  assert.equal(formatWindow(null), null);
 });

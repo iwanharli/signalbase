@@ -62,7 +62,7 @@ export function OntologiPanel({ node, graph, issues, onPick, onClose }: {
             <div className={classes.tags}>
               {issue.location && <span className={classes.tag}>{issue.location}</span>}
               {issue.category && <span className={classes.tag}>{issue.category}</span>}
-              {issue.emotion && <span className={classes.tag} style={{ boxShadow: `inset 0 0 0 1px ${TONE_COLOR[toneOf(issue.emotion)]}` }}>emosi: {issue.emotion}</span>}
+              {issue.emotion && <span className={classes.tag}>emosi: {issue.emotion}</span>}
               {issue.contentType === "commentary" && <span className={classes.tag}>komentar</span>}
               {issue.signals.map((s) => <span key={s} className={classes.tag}>{s}</span>)}
             </div>

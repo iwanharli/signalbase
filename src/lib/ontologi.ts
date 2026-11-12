@@ -1,6 +1,6 @@
 // Shared by the Ontologi page and its API: early-warning alerts (an issue) and the actors / targets they name.
 
-export const ONT_PERIODS = [{ days: 1, label: "1 hari" }, { days: 3, label: "3 hari" }, { days: 7, label: "7 hari" }] as const;
+export const ONT_PERIODS = [{ days: 1, label: "1 hari" }, { days: 3, label: "3 hari" }, { days: 7, label: "7 hari" }, { days: 14, label: "14 hari" }, { days: 30, label: "1 bulan" }] as const;
 export type OntDays = (typeof ONT_PERIODS)[number]["days"];
 export const DEFAULT_ONT_DAYS: OntDays = 7; // alerts are rare (tens a week), so a week is the useful default
 
@@ -69,4 +69,13 @@ export function buildOntologi(issues: OntIssue[]): OntGraph {
   }
   for (const e of entities.values()) { e.kind = e.asActor >= e.asTarget ? "actor" : "target"; nodes.push(e); }
   return { nodes, links };
+}
+
+/** "2026-10-12T12:00:00+07:00 - 2026-10-13T18:00:00+07:00" as "12 Okt 2026, 12.00 – 13 Okt 2026, 18.00 WIB"; the raw text when it cannot be read. */
+export function formatWindow(raw: string | null): string | null {
+  if (!raw) return null;
+  const fmt = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jakarta" });
+  const parts = raw.split(/\s+-\s+/).map((p) => new Date(p.trim()));
+  if (parts.length !== 2 || parts.some((d) => Number.isNaN(d.getTime()))) return raw;
+  return `${parts.map((d) => fmt.format(d)).join(" – ")} WIB`;
 }
