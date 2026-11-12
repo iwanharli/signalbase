@@ -1,0 +1,14 @@
+.wrap { position: relative; }
+.quick { position: relative; }
+.quick[data-hidden] { display: none; }
+.shimmer { position: absolute; inset: 0 0 auto; z-index: 3; height: 3px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--mantine-color-cyan-5), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: sweep 1.2s ease-in-out infinite; }
+@keyframes sweep { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+.chip { position: absolute; right: 12px; bottom: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); color: var(--mantine-color-violet-7); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.chip[data-muted] { color: var(--mantine-color-dimmed); font-weight: 500; cursor: default; }
+/* Loaded behind the Quick card: invisible and out of the layout, but still rendered so the embed really loads. */
+.original { position: absolute; inset: 0 0 auto; height: 0; overflow: hidden; opacity: 0; pointer-events: none; z-index: -1; }
+.original[data-visible] { position: static; height: auto; overflow: visible; opacity: 1; pointer-events: auto; z-index: auto; animation: swap 420ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes swap { from { opacity: 0; transform: translateY(8px); } }
+.shell { background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); border-radius: 18px; padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 10px; }
+.foot { display: flex; justify-content: space-between; border-top: 1px solid var(--mantine-color-default-border); padding-top: 8px; }
+.foot button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: var(--mantine-color-violet-7); cursor: pointer; }

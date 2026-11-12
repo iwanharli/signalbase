@@ -24,7 +24,7 @@ function useSlashToFocus(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 /** Compact toolbar for search, filters, sort and result layout. */
-export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, view, onViewChange }: {
+export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, view, onViewChange, source, onSourceChange }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
@@ -36,6 +36,9 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
   busy: boolean;
   view: "cards" | "list";
   onViewChange: (view: "cards" | "list") => void;
+  /** Social cards only: the Quick card or the original post. */
+  source?: "quick" | "asli";
+  onSourceChange?: (source: "quick" | "asli") => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashToFocus(searchRef);
@@ -66,6 +69,10 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
 
       <Segmented label="Tampilan hasil" className={classes.viewSegmented}
         options={[{ value: "cards", label: "Kartu" }, { value: "list", label: "Daftar ringkas" }]} value={view} onChange={onViewChange} />
+      {type === "social" && view === "cards" && source && onSourceChange && (
+        <Segmented label="Sumber tampilan" className={classes.viewSegmented}
+          options={[{ value: "quick", label: "Quick View" }, { value: "asli", label: "Original View" }]} value={source} onChange={onSourceChange} />
+      )}
 
       {activeCount > 0 && <button type="button" className={classes.reset} onClick={onReset}><IconFilterOff size={14} />Reset ke awal · {activeCount}</button>}
     </section>
