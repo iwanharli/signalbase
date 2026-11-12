@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconFlag, IconFlame, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconShield, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconChartDonut, IconFlag, IconFlame, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconShield, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
 ];
 /** Secondary pages: icon buttons on the right and entries in the account menu. */
 const TOOLS = [
+  { href: "/command-center", label: "Command Center", icon: IconChartDonut },
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
   { href: "/billing", label: "Paket & tagihan", icon: IconReceipt, userOnly: true },
@@ -43,6 +44,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
   name: string; username: string; role: Role; plan?: PlanChip | null; banner?: React.ReactNode; children: React.ReactNode;
 }) {
   const path = usePathname();
+  const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
   const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
   const tools = TOOLS.filter((t) => (role === "user" ? !("adminOnly" in t) : !("userOnly" in t)));
@@ -81,7 +83,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
     <div className={classes.root}>
       <div className={classes.backdrop} aria-hidden><span /><span /><span /></div>
 
-      <header className={classes.bar} data-scrolled={scrolled || undefined}>
+      {!bare && <header className={classes.bar} data-scrolled={scrolled || undefined}>
         <div className={classes.frame}>
           <Link href="/dashboard" className={classes.brand} aria-label="Signalbase">
             <span className={classes.mark}><LogoMark size={32} /></span>
@@ -157,9 +159,9 @@ export function Shell({ name, username, role, plan, banner, children }: {
             </Link>
           ))}
         </nav>
-      </header>
+      </header>}
 
-      <main key={path} className={classes.main}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
+      <main key={path} className={classes.main} data-bare={bare || undefined}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
     </div>
   );
 }

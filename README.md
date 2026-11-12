@@ -49,6 +49,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
   - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi.
+- **Command Center** (`/command-center`) — rangkuman Ringkasan dalam satu layar tanpa scroll, latar bola dunia Mapbox (`MAPBOX_TOKEN`), kartu kaca, dengan grafik sederhana (donat emosi/sentimen, garis volume, tiga cincin perbandingan dengan periode sebelumnya, batang kata kunci dan isu); segar otomatis tiap 60 detik, bisa layar penuh.
 - **Isu** (`/isu`, submenu **Isu Nasional** dan **Isu Polisi**) — berita online yang sejenis dikelompokkan menjadi isu dan diurutkan dari yang paling ramai:
   - periode 3 hari, 7 hari (bawaan), 14 hari, atau 1 bulan; daftar peringkat berskor di kiri, berita di balik isu terpilih di kanan (kartu bergambar per hari, saring per sumber, *Sebelumnya/Berikutnya*, pintasan `↑` `↓` `j` `k` `/`);
   - *Isu Polisi* hanya memuat isu yang judulnya mengandung `polisi`, `polri`, atau `polda` (daftar kata di `ISSUE_TOPICS`, `src/lib/issues.ts`);
@@ -181,6 +182,7 @@ npm run dev                   # http://localhost:3100
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
 | Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
 | Media Online | `/media/online` | Jelajah berita. |
+| Command Center | `/command-center` | Ringkasan satu layar dari data Ringkasan + Isu (`?key=<id>` untuk admin melihat satu proyek). Grafik Chart.js di `src/components/commandCenter/`. Logo/atribusi Mapbox di pojok peta disembunyikan lewat CSS demi tampilan; ketentuan Mapbox meminta atribusi tetap tampil, jadi pertimbangkan menampilkannya lagi (hapus aturan `.stage :global(.mapboxgl-ctrl-bottom-left)` di `commandCenter.module.css`) atau mencantumkan "© Mapbox © OpenStreetMap" di tempat lain. |
 | Isu Nasional | `/isu` | Isu berita periode `?days=` (3, 7, 14, 30), dipilih lewat `?issue=<id>`. Akun user wajib lewat proyek (`?key=<id>`, otomatis dipilih) yang mencakup media online. |
 | Isu Polisi | `/isu?topik=polisi` | Sama dengan Isu Nasional, tetapi hanya isu berjudul polisi/polri/polda. |
 | Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
@@ -307,6 +309,7 @@ src/
 │   ├── Overview.tsx              Halaman Ringkasan
 │   ├── Shell.tsx                 Topbar & tata letak
 │   ├── apiKeys/                  Daftar kunci (ApiKeyList) dan halaman buat kunci (CreateApiKey)
+│   ├── commandCenter/            Command Center (grafik Chart.js + layar satu halaman)
 │   ├── issues/                   Halaman Isu (IssueBoard + issues.module.css)
 │   ├── ApiDocs.tsx
 │   └── Logo.tsx

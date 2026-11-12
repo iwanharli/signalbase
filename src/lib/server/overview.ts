@@ -17,14 +17,17 @@ const SLOW_WARM_MS = 20_000;
 
 const cache = sharedCache<TypeStats>("overview", { ttlMs: 60_000, maxEntries: 100, staleWhileRevalidate: true });
 
-/** Stats for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type. */
-export function typeStats(type: MediaType, scope?: KeyScope): Promise<TypeStats> | null {
+/**
+ * Stats for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type.
+ * `days` (Command Center) sets both the volume window and the mood window; without it: 14 days of volume, 7 days of moods.
+ */
+export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Promise<TypeStats> | null {
   if (scope && !allowsType(scope, type)) return null;
   const s = scope ?? OPEN_SCOPE;
-  return cache(scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`, async () => {
-    const weekStart = new Date(Date.now() - 6 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  return cache((scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`) + (days ? `|d${days}` : ""), async () => {
+    const weekStart = new Date(Date.now() - ((days ?? 7) - 1) * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
     const [daily, moods, latest] = await Promise.all([
-      dailyVolume(type, 14, scope),
+      dailyVolume(type, days ?? 14, scope),
       moodBreakdown(type, new URLSearchParams({ from: weekStart }), s),
       listItems(type, new URLSearchParams(), s, { limit: LATEST_PER_TYPE, offset: 0 }),
     ]);

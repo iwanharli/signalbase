@@ -1,0 +1,78 @@
+/* Command Center: a dark stage (Mapbox globe when available) with glass cards floating on top. */
+.stage { position: fixed; inset: 0; z-index: 0; background: radial-gradient(ellipse at 50% 40%, #14123a, #05040f 70%); }
+.page { position: relative; z-index: 1; color: #fff; display: flex; flex-direction: column; gap: 10px; }
+.page[data-fit] { height: var(--cc-h); overflow: hidden; }
+
+/* No backdrop-filter: the globe repaints every frame, and blurring nine cards over it every frame is slow and made the header vanish on some GPUs. */
+.head, .panel { background: rgba(16,14,46,.7); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+.head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 16px; border-radius: 20px; }
+.head h1 { margin: 2px 0 0; font-size: 22px; line-height: 1; color: #fff; }
+.head h1 em { font-style: normal; background: linear-gradient(90deg, #c084fc, #22d3ee); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #67e8f9; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; animation: blink 1.6s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.chips { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.chips span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.1); font-size: 13px; }
+.chips span svg { color: #c4b5fd; } .chips b { font-size: 15px; }
+.chips small { color: #6ee7b7; font-weight: 700; } .chips small[data-down] { color: #fda4af; }
+.tools { display: flex; align-items: center; gap: 8px; }
+.iconBtn { text-decoration: none; width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: inherit; cursor: pointer; display: grid; place-items: center; }
+.iconBtn:hover { background: rgba(255,255,255,.16); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; padding-right: 14px; border-right: 1px solid rgba(255,255,255,.18); }
+.brand span { color: #fff; font-weight: 800; font-size: 18px; letter-spacing: -.3px; }
+.brand b { background: linear-gradient(90deg, #a78bfa, #22d3ee); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand:hover span { opacity: .85; }
+
+/* The cards tile the whole screen; the globe shows through the glass. */
+.grid { flex: 1; min-height: 0; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: 1fr 1fr 1fr auto;
+  grid-template-areas: "a b d" "c b e" "f t g" "h h h"; }
+.a { grid-area: a; } .b { grid-area: b; } .c { grid-area: c; } .d { grid-area: d; } .e { grid-area: e; } .f { grid-area: f; } .g { grid-area: g; } .h { grid-area: h; } .t { grid-area: t; }
+.panel { --ac: #c084fc; position: relative; min-height: 0; min-width: 0; display: flex; flex-direction: column; border-radius: 20px; padding: 10px 14px; border-top: 2px solid var(--ac); overflow: hidden; animation: rise 500ms backwards; }
+.badge { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; color: var(--ac); background: color-mix(in srgb, var(--ac) 20%, transparent); }
+.panel h2 { margin: 0 0 6px; display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #cfcaf5; font-weight: 600; }
+.body { flex: 1; min-height: 0; display: grid; place-items: center; }
+.empty { color: #a9a4d6; font-size: 13px; text-align: center; margin: 0; }
+.page[data-wait] .body { opacity: .5; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+
+.pair, .gauges { width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; gap: 8px; }
+.donut, .gauge { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 0; min-width: 0; height: 100%; justify-content: center; }
+.ring { position: relative; flex: 1; min-height: 0; aspect-ratio: 1; max-height: 11vh; }
+.ringText { position: absolute; inset: 0; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: #fff; pointer-events: none; }
+.donut figcaption, .gauge figcaption { font-size: 11px; color: #e4e0fb; text-align: center; } .gauge small { display: block; color: #a9a4d6; }
+.donut ul { list-style: none; margin: 0; padding: 0; font-size: 11px; display: grid; gap: 1px; }
+.donut li { display: flex; align-items: center; gap: 5px; color: #e4e0fb; } .donut li b { margin-left: auto; padding-left: 8px; color: #fff; }
+.donut i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.line, .bars { position: relative; width: 100%; height: 100%; min-height: 0; }
+
+/* Alert bar: one compact row, label on the left like a news headline strip. */
+.h { flex-direction: row; align-items: center; gap: 12px; padding: 6px 14px; }
+.h h2 { margin: 0; flex-shrink: 0; padding-right: 12px; border-right: 1px solid rgba(255,255,255,.18); }
+.ticker { container-type: inline-size; overflow: hidden; flex: 1; min-width: 0; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.track span { font-size: 13px; padding-left: 14px; position: relative; color: #fff; }
+.track span::before { content: ""; position: absolute; left: 0; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; }
+.track span[data-tone="bad"]::before { background: #fb7185; }
+.calm { font-size: 13px; color: #6ee7b7; }
+/* Two identical sets, each at least as wide as the bar, so the loop at -50% has no gap or jump. */
+.track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+.track:hover { animation-play-state: paused; }
+.set { display: flex; flex-shrink: 0; gap: 28px; min-width: 100cqw; padding-right: 28px; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+.onboard { position: relative; margin: 40px auto; max-width: 480px; text-align: center; display: grid; gap: 10px; justify-items: center; padding: 32px; border-radius: 24px; background: #151326; color: #fff; }
+.onboard a { color: #67e8f9; font-weight: 700; }
+
+/* Not enough room to fit one screen: cards stack and the page scrolls. */
+@media (max-width: 1099px), (max-height: 639px) {
+  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: none; grid-template-areas: "b b" "a c" "d e" "f g" "t t" "h h"; } .panel { min-height: 240px; } .ring { max-height: 130px; }
+}
+@media (max-width: 640px) { .grid { grid-template-columns: 1fr; grid-template-areas: "b" "a" "c" "d" "e" "f" "g" "t" "h"; } }
+@media (min-width: 1100px) and (max-height: 860px) { .donut li:nth-child(n+3) { display: none; } }
+@media (prefers-reduced-motion: reduce) { .page *, .panel { animation: none !important; } }
+@media (min-width: 1100px) and (max-height: 800px) { .donut ul { display: none; } }
+
+/* Own compositing layer: without it Chrome could leave the header unpainted above the animated globe canvas. */
+.head { position: relative; z-index: 2; transform: translateZ(0); }
+
+/* Mapbox wordmark hidden for the look of the page (its terms ask for it to be shown; see README). */
+.stage :global(.mapboxgl-ctrl-bottom-left), .stage :global(.mapboxgl-ctrl-bottom-right) { display: none; }
