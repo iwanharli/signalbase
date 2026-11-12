@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:projects": "tsx --env-file=.env prisma/seed-projects.ts",
     "classifier": "tsx --env-file=.env scripts/classifier.ts",
     "brochure": "tsx --tsconfig scripts/brochure/tsconfig.json scripts/brochure/build.tsx"
   },
