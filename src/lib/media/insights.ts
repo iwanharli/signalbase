@@ -33,7 +33,7 @@ export type TopAccount = {
 export type TopMedia = { source: string; n: number; prev: number; labelled: number; neg: number };
 
 export type Insights = {
-  period: InsightPeriod;
+  period: number;
   trend: TrendPoint[];
   current: PeriodTotals;
   previous: PeriodTotals;

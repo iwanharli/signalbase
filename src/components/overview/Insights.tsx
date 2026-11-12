@@ -5,10 +5,10 @@
 // Loads apart from the rest of the page because the grouped scans take a few seconds when the cache is cold.
 import { useState } from "react";
 import Link from "next/link";
-import { Alert as MantineAlert, SegmentedControl, Skeleton, Tooltip } from "@mantine/core";
+import { Alert as MantineAlert, Button, Modal, SegmentedControl, Skeleton, TextInput, Tooltip } from "@mantine/core";
 import {
   IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
-  IconTag, IconTrendingUp, IconWorldWww,
+  IconFileDownload, IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/media/insights";
 import { capitalize, formatNumber, humanize, MEDIA_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
+import { DEFAULT_SIFAT, REPORT_PERIODS } from "@/lib/report";
 import { useApi } from "@/lib/useApi";
 import { PlatformMark } from "../media/PlatformIcon";
 import c from "./insights.module.css";
@@ -638,6 +639,15 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const href = (row: Row, params: Record<string, string>) => mediaHref(row.t, keyId, { from, ...params });
   const title = view === "all" ? "semua media" : MEDIA_TYPE_LABEL[view];
+  // The report opens in a new tab and prints itself; its own period (1/3/7 days), recipient and classification are asked here.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [report, setReport] = useState({ days: "1", untuk: "", sifat: DEFAULT_SIFAT });
+  const downloadReport = () => {
+    const q = new URLSearchParams(report);
+    if (keyId) q.set("key", keyId);
+    window.open(`/laporan?${q}`, "_blank");
+    setReportOpen(false);
+  };
 
   return (
     <section className={c.section}>
@@ -646,6 +656,7 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
         <div className={c.headText}>
           <h2>Analisis periode</h2>
           <p>Peringatan dini, tren opini, dan topik dibanding {period} hari sebelumnya{data && <> · diperbarui {dayjs(data.at).format("HH:mm")}</>}</p>
+          <button type="button" className={c.reportBtn} onClick={() => setReportOpen(true)}><IconFileDownload size={16} />Unduh laporan</button>
         </div>
         <div className={c.controls}>
           {both && (
@@ -665,6 +676,14 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
           </div>
         </div>
       </header>
+
+      <Modal opened={reportOpen} onClose={() => setReportOpen(false)} title="Unduh laporan" centered>
+        <TextInput label="Untuk" placeholder="Nama / jabatan penerima" value={report.untuk} onChange={(e) => setReport({ ...report, untuk: e.currentTarget.value })} mb="sm" />
+        <TextInput label="Sifat" value={report.sifat} onChange={(e) => setReport({ ...report, sifat: e.currentTarget.value })} mb="sm" />
+        <SegmentedControl fullWidth mb="md" aria-label="Periode laporan" value={report.days} onChange={(days) => setReport({ ...report, days })}
+          data={REPORT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
+        <Button fullWidth leftSection={<IconFileDownload size={16} />} onClick={downloadReport}>Buka laporan</Button>
+      </Modal>
 
       {error && <MantineAlert color="red">{error}</MantineAlert>}
 

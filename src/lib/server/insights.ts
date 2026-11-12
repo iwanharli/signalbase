@@ -5,7 +5,7 @@
 import type { KeyScope } from "@/lib/media/keyScope";
 import { allowsType, OPEN_SCOPE } from "@/lib/media/keyScope";
 import type {
-  Alert, EngagementMetrics, InsightPeriod, Insights, PeriodTotals, PlatformEngagement, Ranked, TopAccount, TopMedia, TrendPoint,
+  Alert, EngagementMetrics, Insights, PeriodTotals, PlatformEngagement, Ranked, TopAccount, TopMedia, TrendPoint,
 } from "@/lib/media/insights";
 import { moodPolarity, type Polarity } from "@/lib/media/mood";
 import type { MediaType } from "@/lib/media/types";
@@ -258,7 +258,7 @@ function spikes(now: Map<string, number>, baseline: (value: string) => number, s
   });
 }
 
-async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: InsightPeriod): Promise<Insights> {
+async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: number): Promise<Insights> {
   const [rows, keywords, tags, latestHot, engaged, accounts, media] = await Promise.all([
     scan(type, scope, period),
     scoped ? keywordCounts(type, scope, period) : Promise.resolve(null),
@@ -309,7 +309,7 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
 }
 
 /** Insights for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type. */
-export function typeInsights(type: MediaType, period: InsightPeriod, scope?: KeyScope): Promise<Insights> | null {
+export function typeInsights(type: MediaType, period: number, scope?: KeyScope): Promise<Insights> | null {
   if (scope && !allowsType(scope, type)) return null;
   const s = scope ?? OPEN_SCOPE;
   return cache(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}`, () => compute(type, s, !!scope, period));
