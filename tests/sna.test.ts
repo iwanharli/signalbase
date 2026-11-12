@@ -58,3 +58,15 @@ test("node counts sum a hub's outgoing and a child's incoming emotion counts", a
   assert.deepEqual(nodeCounts(g.links, "a", "hub"), { negative: 2, neutral: 4, positive: 0, unknown: 0 });
   assert.deepEqual(nodeCounts(g.links, "c", "child"), { negative: 2, neutral: 0, positive: 1, unknown: 0 });
 });
+
+test("switching emotions off drops their counts, empty links and accounts left without a link, hubs included", async () => {
+  const { filterGraph, buildGraph } = await import("../src/lib/sna");
+  const g = buildGraph([{ username: "a", source: "x", posts: 5 }], [
+    { hub: "a", target: "b", emotion: "marah", n: 2 }, { hub: "a", target: "b", emotion: "puas", n: 3 }, { hub: "a", target: "c", emotion: "marah", n: 1 },
+  ]);
+  assert.equal(filterGraph(g, []), g);
+  const f = filterGraph(g, ["negative"]);
+  assert.deepEqual(f.links.map((l) => [l.target, l.n, l.tone]), [["b", 3, "positive"]]);
+  assert.deepEqual(f.nodes.map((n) => n.id), ["a", "b"]);
+  assert.deepEqual(filterGraph(g, ["negative", "positive", "neutral", "unknown"]).nodes, []);
+});

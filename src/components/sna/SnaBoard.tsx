@@ -7,10 +7,10 @@ import { IconAlertTriangle, IconChartDots3, IconChevronDown, IconChevronUp, Icon
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
-import { zoom } from "d3-zoom";
+import { zoom, zoomIdentity } from "d3-zoom";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
-import { dominantTone, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
+import { dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
@@ -69,7 +69,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     const link = view.append("g").selectAll<SVGLineElement, Edge>("line").data(edges).join("line")
       .attr("stroke", (d) => TONE_COLOR[d.tone]).attr("stroke-width", (d) => 1 + Math.sqrt(d.n)).attr("stroke-opacity", 0.9).attr("stroke-linecap", "round").attr("class", classes.flow);
     const node = view.append("g").selectAll<SVGGElement, Node>("g").data(nodes).join("g").attr("data-id", (d) => d.id).style("cursor", "pointer");
-    node.append("circle").attr("r", radius).attr("fill", (d) => (d.kind === "hub" ? TONE_COLOR[toneOfNode(d.id, "hub")] : "#1e1b4b")).attr("stroke", (d) => (d.kind === "hub" ? "#ffffff" : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", (d) => (d.kind === "hub" ? 3 : 2));
+    node.append("circle").attr("r", radius).attr("fill", (d) => (d.kind === "hub" ? "#ffffff" : "#1e1b4b")).attr("stroke", (d) => (d.kind === "hub" ? TONE_COLOR[toneOfNode(d.id, "hub")] : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", (d) => (d.kind === "hub" ? 4 : 2));
     node.append("g").attr("fill", "none").attr("stroke", (d) => (d.kind === "hub" ? "#2e1065" : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", 2).attr("stroke-linecap", "round").attr("stroke-linejoin", "round")
       .attr("transform", (d) => { const k = (radius(d) * (d.kind === "hub" ? 1.15 : toneOfNode(d.id) === "unknown" ? 1.25 : 1.7)) / 24; return `scale(${k}) translate(-12,-12)`; })
       .style("pointer-events", "none").html((d) => (d.kind === "hub" ? ICON.hub : CHILD_ICON[toneOfNode(d.id)]));
@@ -109,6 +109,22 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     };
     simRef.current = sim;
     sim.stop();
+    const z = zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 4]).on("zoom", (e) => view.attr("transform", e.transform.toString()))
+      .filter((e) => !lockedRef.current && (!e.target.closest?.("[data-id]") || e.type === "wheel"));
+    root.call(z);
+    // Pan and zoom so every node is in view (called whenever the layout is rebuilt, e.g. after switching an emotion off).
+    const fitView = () => {
+      const { width, height } = wrap.getBoundingClientRect();
+      const xs = nodes.map((n) => n.x ?? 0), ys = nodes.map((n) => n.y ?? 0);
+      const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 40, y1 = Math.max(...ys) + 40;
+      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), height / (y1 - y0))));
+      root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, height / 2 - (k * (y0 + y1)) / 2).scale(k));
+    };
+    // The graph fades in once it is arranged and framed, so nodes do not jump around on screen.
+    el.style.transition = "none";
+    el.style.opacity = "0";
+    let timer = 0;
+    const reveal = () => requestAnimationFrame(() => { el.style.transition = "opacity 450ms ease"; el.style.opacity = "1"; });
     const fit = () => {
       const { width, height } = wrap.getBoundingClientRect();
       // Hubs sit on a ring so their clusters stay apart; children are only pulled loosely to the middle.
@@ -117,7 +133,8 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       sim.force("x", forceX<Node>((d) => at(d)?.[0] ?? width / 2).strength((d) => (d.kind === "hub" ? 0.25 : 0.015)))
         .force("y", forceY<Node>((d) => at(d)?.[1] ?? cy).strength((d) => (d.kind === "hub" ? 0.25 : 0.015))).alpha(0.5);
       // Locked: settle the layout off-screen so it opens already arranged, then keep it still.
-      if (lockedRef.current) { for (let i = 0; i < 300; i++) sim.tick(); paint(); } else sim.restart();
+      if (lockedRef.current) { for (let i = 0; i < 300; i++) sim.tick(); paint(); fitView(); reveal(); }
+      else { sim.on("end", () => { fitView(); sim.on("end", null); }); sim.restart(); window.clearTimeout(timer); timer = window.setTimeout(() => { fitView(); reveal(); }, 600); }
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -126,8 +143,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
       .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
       .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
-    root.call(zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 4]).on("zoom", (e) => view.attr("transform", e.transform.toString())).filter((e) => !lockedRef.current && (!e.target.closest?.("[data-id]") || e.type === "wheel")));
-    return () => { sim.stop(); ro.disconnect(); root.on(".zoom", null).selectAll("*").remove(); };
+    return () => { window.clearTimeout(timer); sim.stop(); ro.disconnect(); root.on(".zoom", null).selectAll("*").remove(); };
   }, [graph]);
 
   // Locked: the layout freezes and pan, zoom and drag are off; unlocking lets it settle again.
@@ -158,6 +174,13 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
   const [locked, setLocked] = useState(true);
+  const [off, setOff] = useState<Tone[]>([]);
+  const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after an emotion toggle
+  useEffect(() => {
+    if (!busy) return;
+    const t = window.setTimeout(() => setBusy(false), 700);
+    return () => window.clearTimeout(t);
+  }, [busy]);
   const [full, setFull] = useState(false);
   const stage = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -179,6 +202,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const graph = res.data;
   useEffect(() => setPicked(null), [graph]);
   const hubs = useMemo(() => (graph?.nodes ?? []).filter((n) => n.kind === "hub").sort((a, b) => b.posts - a.posts), [graph]);
+  useEffect(() => setOff([]), [days, limit, keyId]);
+  const view = useMemo(() => (graph ? filterGraph(graph, [...off, "unknown"]) : null), [graph, off]); // posts without an emotion are never drawn
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
   const stats = [
@@ -230,8 +255,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </div>
         )}
                 {graph && graph.nodes.length === 0 && <p className={classes.empty}>Belum ada post yang menyebut akun lain pada rentang ini.</p>}
-        {graph && graph.nodes.length > 0 && <Graph graph={graph} picked={picked} onPick={setPicked} locked={locked} />}
-        {(res.loading || (!graph && !res.error)) && (
+        {view && view.nodes.length > 0 && <Graph graph={view!} picked={picked} onPick={setPicked} locked={locked} />}
+        {(res.loading || busy || (!graph && !res.error)) && (
           <div className={classes.loading} data-covering={graph ? "" : undefined} role="status" aria-live="polite">
             <div className={classes.ghost} aria-hidden>
               <i /><i /><i /><i /><i /><i /><i />
@@ -246,14 +271,26 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
             </button>
             {legendOpen && (
               <ul>
-                {TONES.map((t) => <li key={t}><i className={classes.swatch} style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}</li>)}
-                <li><IconUsers size={14} />Akun top poster; warna = emosi postingannya</li>
-                <li><IconMoodSmile size={14} />Akun yang disebut; ikon = emosi post yang menyebutnya</li>
-                <li>Tebal garis = jumlah mention; garis bergerak dari akun utama ke yang disebut</li>
+                <li className={classes.legendHead}>Warna = emosi postingan (klik toggle untuk menyembunyikan)</li>
+                {TONES.filter((t) => t !== "unknown").map((t) => {
+                  const on = !off.includes(t);
+                  return (
+                    <li key={t} data-off={!on || undefined}>
+                      <i className={classes.swatch} style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
+                      <button type="button" role="switch" aria-checked={on} aria-label={`Tampilkan ${TONE_LABEL[t]}`} className={classes.switch} onClick={() => { setOff(on ? [...off, t] : off.filter((x) => x !== t)); setBusy(true); }} />
+                    </li>
+                  );
+                })}
+                <li className={classes.legendHead}>Simpul</li>
+                <li className={classes.legendNote}><IconUsers size={16} /><span><b>Akun top poster</b>: lingkaran putih, border = emosi dominan postingannya.</span></li>
+                <li className={classes.legendNote}><IconMoodSmile size={16} /><span><b>Akun yang disebut</b>: wajah = emosi dominan post yang menyebutnya.</span></li>
+                <li className={classes.legendHead}>Garis</li>
+                <li className={classes.legendNote}><span>Makin tebal = makin sering disebut. Garis bergerak dari top poster ke akun yang disebut.</span></li>
               </ul>
             )}
           </aside>
         )}
+        {off.length > 0 && view && view.links.length === 0 && <p className={classes.empty}>Semua emosi disembunyikan.</p>}
         {picked && node && graph && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} onPick={setPicked} onClose={() => setPicked(null)} />}
       </section>
     </div>

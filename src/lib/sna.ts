@@ -89,3 +89,17 @@ export function nodeCounts(links: SnaLink[], id: string, role: SnaRole): Record<
   for (const l of links) if ((role === "hub" ? l.source : l.target) === id) for (const t of TONE_ORDER) c[t] += l.counts[t];
   return c;
 }
+
+/** The graph with some emotions switched off: links keep only the counts of the emotions still on (and vanish when none is left), accounts left without a link vanish (hubs included). */
+export function filterGraph(g: SnaGraph, off: readonly Tone[]): SnaGraph {
+  if (!off.length) return g;
+  const links: SnaLink[] = [];
+  for (const l of g.links) {
+    const counts = { ...l.counts };
+    for (const t of off) counts[t] = 0;
+    const n = TONE_ORDER.reduce((sum, t) => sum + counts[t], 0);
+    if (n > 0) links.push({ ...l, counts, n, tone: dominantTone(counts) });
+  }
+  const linked = new Set(links.flatMap((l) => [l.source, l.target]));
+  return { nodes: g.nodes.filter((n) => linked.has(n.id)), links };
+}
