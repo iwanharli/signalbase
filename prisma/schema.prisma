@@ -10,12 +10,12 @@ datasource db {
 // Panel account. role "admin" manages everything; role "user" signs up, waits for an admin to approve,
 // then manages only their own API keys.
 model Admin {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  name         String
-  passwordHash String
-  role         String   @default("admin") // "admin" | "user"
-  status       String   @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
+  id            String    @id @default(uuid())
+  username      String    @unique
+  name          String
+  passwordHash  String
+  role          String    @default("admin") // "admin" | "user"
+  status        String    @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
   /// Plan of a "user" account: trial | starter | pro | instansi. null = no plan limits (accounts set up by hand).
   plan          String?
   /// End of the trial or paid period; keys stop working after it. null = no end date.
@@ -23,25 +23,25 @@ model Admin {
   /// Plan chosen on /pricing when signing up (?plan=), shown to the admin who approves; it does not grant anything.
   requestedPlan String?
   invoices      Invoice[]
-  createdAt    DateTime @default(now())
+  createdAt     DateTime  @default(now())
 }
 
 model ApiKey {
-  id         String    @id @default(uuid())
-  name       String
-  prefix     String
-  hash       String    @unique
-  keyEnc     String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
-  keywords   String[]  @default([]) // empty = whole bank; else items must mention one
-  scope      Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
-  ownerId    String? // account that owns the key (role user); null = managed by admins
-  createdBy  String? // admin username; null for keys made before this was recorded
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime?
-  revokedAt  DateTime?
-  showAuthors Boolean @default(false) // unused: author details are now always returned
-  allowedIps     String[] @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
-  allowedOrigins String[] @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
+  id             String    @id @default(uuid())
+  name           String
+  prefix         String
+  hash           String    @unique
+  keyEnc         String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
+  keywords       String[]  @default([]) // empty = whole bank; else items must mention one
+  scope          Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
+  ownerId        String? // account that owns the key (role user); null = managed by admins
+  createdBy      String? // admin username; null for keys made before this was recorded
+  createdAt      DateTime  @default(now())
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  showAuthors    Boolean   @default(false) // unused: author details are now always returned
+  allowedIps     String[]  @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
+  allowedOrigins String[]  @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
 
   classifier      Classifier?
   classifications Classification[]
@@ -52,40 +52,40 @@ model ApiKey {
 
 // AI categorisation settings and progress for one API key.
 model Classifier {
-  apiKeyId        String    @id
-  apiKey          ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  apiKeyId         String    @id
+  apiKey           ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
   // The AI service this key uses, with its own credentials.
-  providerKind    String // "anthropic" | "openai_compatible"
-  providerBaseUrl String? // openai_compatible only, e.g. https://api.deepseek.com
-  providerModel   String
-  providerKeyEnc  String // AES-256-GCM, see lib/server/secrets.ts
-  providerKeyHint String // last 4 characters, for display only
+  providerKind     String // "anthropic" | "openai_compatible"
+  providerBaseUrl  String? // openai_compatible only, e.g. https://api.deepseek.com
+  providerModel    String
+  providerKeyEnc   String // AES-256-GCM, see lib/server/secrets.ts
+  providerKeyHint  String // last 4 characters, for display only
   // Optional fallback, used for a batch only when the main provider fails (5xx, empty reply, timeout).
-  fallbackKind    String?
-  fallbackBaseUrl String?
-  fallbackModel   String?
-  fallbackKeyEnc  String?
-  fallbackKeyHint String?
-  enabled         Boolean   @default(true)
-  prompt          String
-  categories      Json // [{ code, label, description }]
+  fallbackKind     String?
+  fallbackBaseUrl  String?
+  fallbackModel    String?
+  fallbackKeyEnc   String?
+  fallbackKeyHint  String?
+  enabled          Boolean   @default(true)
+  prompt           String
+  categories       Json // [{ code, label, description }]
   onlineCategories Json? // online news' own categories; null = same as `categories`
-  minBalance      Float?    @default(1) // pause when provider credit drops below this; null = no floor
-  dailyBudget     Float? // pause once today's spend reaches this; null = no cap
+  minBalance       Float?    @default(1) // pause when provider credit drops below this; null = no floor
+  dailyBudget      Float? // pause once today's spend reaches this; null = no cap
   // Item counts for the key's whole scope ({ social, online, at }); counting takes ~25 s, so it is kept here.
-  scopeCounts     Json?
-  labelledOnly    Boolean   @default(false) // API returns only items the AI has labelled
-  startFrom       DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
+  scopeCounts      Json?
+  labelledOnly     Boolean   @default(false) // API returns only items the AI has labelled
+  startFrom        DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
   // Progress per media type: { social: { newest, oldest, done }, online: {...} } (ISO timestamps)
-  cursors         Json      @default("{}")
-  processed       Int       @default(0)
-  failed          Int       @default(0)
-  todayCount      Int       @default(0)
-  todayDate       String    @default("")
-  lastError       String?
-  lastRunAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  cursors          Json      @default("{}")
+  processed        Int       @default(0)
+  failed           Int       @default(0)
+  todayCount       Int       @default(0)
+  todayDate        String    @default("")
+  lastError        String?
+  lastRunAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 // One item's category for one API key.
@@ -191,4 +191,96 @@ model AiCredit {
   posts     Int    @default(0)
 
   @@id([accountId, month])
+}
+
+// Platform AI settings (one row, id "global"): the provider behind Ringkasan AI, its schedule, and token prices for cost tracking.
+model AiSetting {
+  id               String   @id @default("global")
+  providerKind     String   @default("openai_compatible") // "anthropic" | "openai_compatible"
+  providerBaseUrl  String?
+  providerModel    String
+  providerKeyEnc   String // AES-256-GCM, see lib/server/secrets.ts
+  providerKeyHint  String // last 4 characters, for display only
+  summaryEnabled   Boolean  @default(true)
+  summaryHour      Int      @default(6) // Jakarta hour the daily summaries are written
+  includeProjects  Boolean  @default(true) // also one summary per active project, not only the whole bank
+  monthlyBudget    Float? // stop writing summaries once this month's cost reaches this; null = no cap
+  // Prices per 1M tokens, used to estimate each call's cost.
+  priceInput       Float    @default(0.3)
+  priceCachedInput Float    @default(0.006)
+  priceOutput      Float    @default(1.2)
+  currency         String   @default("USD")
+  updatedBy        String?
+  updatedAt        DateTime @updatedAt
+}
+
+// One AI summary of one scope ("bank" or an API key id) for one complete Jakarta data day (written the morning after).
+model AiSummary {
+  id        String   @id @default(uuid())
+  scope     String // "bank" | ApiKey.id
+  scopeName String // name when written, so history stays readable after a project is removed
+  day       String // data day YYYY-MM-DD, Asia/Jakarta (normally yesterday when written)
+  status    String // "ok" | "failed"
+  content   Json? // SummaryContent (lib/ai/summary.ts)
+  error     String?
+  model     String
+  attempts  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scope, day])
+  @@index([day])
+}
+
+// Every call to the platform AI provider, with tokens and estimated cost: the cost history on the AI settings page.
+model AiUsageLog {
+  id           Int      @id @default(autoincrement())
+  at           DateTime @default(now())
+  purpose      String // "summary" | "test"
+  scope        String?
+  scopeName    String?
+  model        String
+  inputTokens  Int      @default(0)
+  cachedTokens Int      @default(0) // part of inputTokens served from the provider's cache
+  outputTokens Int      @default(0)
+  cost         Float    @default(0)
+  currency     String
+  ok           Boolean
+  error        String?
+  ms           Int      @default(0)
+
+  @@index([at])
+}
+
+// Executive report snapshot of one scope ("bank" or an API key id) for one complete period, written by the worker once the
+// period is over: harian (one Jakarta day), mingguan (Monday-Sunday) or bulanan (a calendar month). `data` is the ReportData
+// the print page renders; `cover` holds the few numbers the archive cards show.
+model ArchivedReport {
+  id        String   @id @default(uuid())
+  scope     String // "bank" | ApiKey.id
+  scopeName String // name when written, so the archive stays readable after a project is renamed or removed
+  kind      String // "harian" | "mingguan" | "bulanan"
+  start     String // first data day YYYY-MM-DD, Asia/Jakarta
+  day       String // last data day YYYY-MM-DD, Asia/Jakarta
+  data      Json // ReportData (lib/report.ts)
+  cover     Json // ReportCover (lib/report.ts)
+  createdAt DateTime @default(now())
+
+  @@unique([scope, kind, start])
+  @@index([scope, kind, day])
+}
+
+// Who an executive report is written for, per scope ("bank" or an API key id): the reader's position and name, the
+// institution whose decisions the report serves ("lensa"), its region, coordination partners and the classification.
+// Read when a report is written and copied into it, so the archive keeps what was printed at the time.
+model ReportProfile {
+  scope          String   @id // "bank" | ApiKey.id
+  recipientTitle String   @default("") // "Kapolda Riau"
+  recipientName  String   @default("") // "Irjen Pol Dr. …"
+  institution    String   @default("") // "Polda Riau": the institution the analysis is written for
+  region         String   @default("") // "Provinsi Riau"
+  partners       String[] @default([]) // "Plt. Gubernur", "Kajati", …
+  sifat          String   @default("RAHASIA / TERBATAS")
+  updatedBy      String?
+  updatedAt      DateTime @updatedAt
 }

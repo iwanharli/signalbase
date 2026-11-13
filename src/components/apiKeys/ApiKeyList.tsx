@@ -12,6 +12,7 @@ import { CopyKeyButton } from "./CopyKeyButton";
 import { formatDate, fromNow, isRecentlyUsed, scopeRestrictions, useProvinceNames, type ApiKeyRow } from "./shared";
 import classes from "./apiKeyList.module.css";
 import { Tip } from "../ui/Tip";
+import { useRole } from "../RoleContext";
 
 type Filter = "active" | "revoked";
 
@@ -107,6 +108,7 @@ type Usage = { day: string; perKey: Record<string, number>; used: number | null;
 
 /** /api-keys — every key as a row; creating and editing happen on their own pages. */
 export function ApiKeyList() {
+  const role = useRole(); // viewers are read-only: no "Buat proyek"
   const keys = useApi<ApiKeyRow[]>("/api/admin/keys");
   const usage = useApi<Usage>("/api/admin/usage");
   const provinceName = useProvinceNames();
@@ -159,7 +161,7 @@ export function ApiKeyList() {
               ? <div><b>{formatNumber(usage.data.ai.used)}</b><span>dari {formatNumber(usage.data.ai.limit)} post AI bulan ini</span></div>
               : <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>}
           </div>
-          <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>
+          {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
         </div>
       </header>
 
@@ -192,7 +194,7 @@ export function ApiKeyList() {
           <div className={classes.empty}>
             <IconKey size={24} />
             <b>{term ? "Tidak ada proyek yang cocok" : filter === "active" ? "Belum ada proyek aktif" : "Belum ada proyek yang dicabut"}</b>
-            {!term && filter === "active" && <Button variant="primary" size="sm" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
+            {!term && filter === "active" && role !== "viewer" && <Button variant="primary" size="sm" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
           </div>
         )}
       </section>

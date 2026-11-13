@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
     { href: "/analisis/sna", label: "SNA", icon: IconChartDots3 },
     { href: "/analisis/ontologi", label: "Ontologi", icon: IconHierarchy2 },
   ] },
+  { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
   { href: "/api-keys", label: "Proyek", icon: IconKey },
 ];
 /** Secondary pages: icon buttons on the right and entries in the account menu. */
@@ -32,6 +33,7 @@ const TOOLS = [
   { href: "/command-center", label: "Command Center", icon: IconChartDonut },
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
+  { href: "/ai", label: "Pengaturan AI", icon: IconSparkles, adminOnly: true },
   { href: "/billing", label: "Paket & tagihan", icon: IconReceipt, userOnly: true },
 ];
 
@@ -51,7 +53,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
   const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
   const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
-  const tools = TOOLS.filter((t) => (role === "user" ? !("adminOnly" in t) : !("userOnly" in t)));
+  const tools = TOOLS.filter((t) => (role === "admin" ? !("userOnly" in t) : role === "user" ? !("adminOnly" in t) : !("adminOnly" in t) && !("userOnly" in t)));
   const barTools = tools.filter((t) => t.href !== "/billing");
   const menuTools = tools.filter((t) => t.href === "/billing");
   const [open, setOpen] = useState(false);
@@ -139,7 +141,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
               <Menu.Dropdown>
                 <div className={classes.menuHead}>
                   <Avatar size={38} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
-                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : "User"}</small></div>
+                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "User"}</small></div>
                 </div>
                 {/* Only what has no icon in the bar (billing); docs and users already sit there. */}
                 {menuTools.length > 0 && <Menu.Divider />}

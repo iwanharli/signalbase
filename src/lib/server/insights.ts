@@ -36,36 +36,46 @@ type Row = { b: number; m: string | null; cat: string | null; hot: boolean; n: n
 const jakartaDate = (msAgo: number) => new Date(Date.now() - msAgo).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 const emptyTotals = (): PeriodTotals => ({ total: 0, labelled: 0, pos: 0, neg: 0 });
 
-/** WHERE for the scope limited to the last `days` days, plus its bound values. */
-function windowWhere(type: MediaType, scope: KeyScope, days: number) {
+/** The calendar date `offset` days from `day` (YYYY-MM-DD). */
+const shiftDay = (day: string, offset: number) => new Date(Date.parse(`${day}T12:00:00Z`) + offset * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * WHERE for the scope limited to the `days` days before "now", plus its bound values and the SQL for "now".
+ * "now" is the real clock, or, with `end` (YYYY-MM-DD), midnight at the start of that day, so the windows are whole
+ * calendar days ending the day before (source timestamps are Jakarta wall-clock times); items from `end` on are left out.
+ */
+function windowWhere(type: MediaType, scope: KeyScope, days: number, end?: string) {
   const { where, values } = buildWhere(type, new URLSearchParams(), scope);
+  const ts = COLUMNS[type].timestamp;
+  let now = "now()";
+  if (end) { values.push(end); now = `$${values.length}::date::timestamp`; }
   values.push(days);
-  return { where: `${where} AND ${COLUMNS[type].timestamp} >= now() - make_interval(days => $${values.length})`, values };
+  return { where: `${where} AND ${ts} >= ${now} - make_interval(days => $${values.length})${end ? ` AND ${ts} < ${now}` : ""}`, values, now };
 }
 
 /** Counts per 24-hour window (0 = last 24 hours), mood, category and high intensity, over both periods. */
-async function scan(type: MediaType, scope: KeyScope, period: number): Promise<Row[]> {
+async function scan(type: MediaType, scope: KeyScope, period: number, end?: string): Promise<Row[]> {
   const c = COLUMNS[type];
-  const { where, values } = windowWhere(type, scope, period * 2);
+  const { where, values, now } = windowWhere(type, scope, period * 2, end);
   const hot = type === "social" ? `coalesce(a.emotion_level >= ${INTENSE_LEVEL}, false)` : "false";
   return withLongTimeout(90_000, async (client) => (await client.query<Row>(
-    `SELECT floor(extract(epoch FROM now() - ${c.timestamp}) / 86400)::int b, lower(${c.mood}) m, lower(${c.category}) cat, ${hot} hot, count(*)::int n
+    `SELECT floor(extract(epoch FROM ${now} - ${c.timestamp}) / 86400)::int b, lower(${c.mood}) m, lower(${c.category}) cat, ${hot} hot, count(*)::int n
      FROM ${c.from} WHERE ${where} GROUP BY 1, 2, 3, 4`, values)).rows);
 }
 
 /** Per keyword of the key: matches this period, the period before, and negative matches this period. */
-async function keywordCounts(type: MediaType, scope: KeyScope, period: number): Promise<Ranked[] | null> {
+async function keywordCounts(type: MediaType, scope: KeyScope, period: number, end?: string): Promise<Ranked[] | null> {
   const keywords = scope.keywords.filter((k) => keywordQuery([k]));
   if (keywords.length < 2) return null; // one keyword is just the total
   const c = COLUMNS[type];
-  const { where, values } = windowWhere(type, scope, period * 2);
+  const { where, values, now } = windowWhere(type, scope, period * 2, end);
   const columns = keywords.map((k, i) => {
     values.push(keywordQuery([k]));
     return `count(*) FILTER (WHERE ${c.search} @@ to_tsquery('indonesian', $${values.length}))::int k${i}`;
   });
   values.push(period);
   const { rows } = await withLongTimeout(90_000, (client) => client.query<Record<string, number | string | boolean | null>>(
-    `SELECT lower(${c.mood}) m, ${c.timestamp} >= now() - make_interval(days => $${values.length}) cur, ${columns.join(", ")}
+    `SELECT lower(${c.mood}) m, ${c.timestamp} >= ${now} - make_interval(days => $${values.length}) cur, ${columns.join(", ")}
      FROM ${c.from} WHERE ${where} GROUP BY 1, 2`, values));
   return keywords.map((value, i) => {
     const out: Ranked = { value, n: 0, prev: 0, neg: 0 };
@@ -78,11 +88,11 @@ async function keywordCounts(type: MediaType, scope: KeyScope, period: number): 
 }
 
 /** Most used hashtags in the newest posts of this period, with their count in the period before (social only). */
-async function hashtags(scope: KeyScope, period: number): Promise<Ranked[]> {
+async function hashtags(scope: KeyScope, period: number, end?: string): Promise<Ranked[]> {
   const c = COLUMNS.social;
-  const { where, values } = windowWhere("social", scope, period * 2);
+  const { where, values, now } = windowWhere("social", scope, period * 2, end);
   values.push(period);
-  const split = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
+  const split = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
   const { rows } = await analyticsPool().query<{ cur: boolean; tag: string; n: number }>(
     `SELECT s.cur, lower(r.m[1]) tag, count(*)::int n FROM (
        (SELECT true cur, p.post_content FROM ${c.from} WHERE ${where} AND ${split} ORDER BY ${c.timestamp} DESC LIMIT ${HASHTAG_SAMPLE})
@@ -110,11 +120,11 @@ type Metric = keyof typeof METRIC_FIELDS;
 const FACEBOOK_MAX = 50_000;
 
 /** Likes, comments, shares and views per platform over both periods. Counts are as captured when the post was scraped. */
-async function engagement(scope: KeyScope, period: number): Promise<PlatformEngagement[]> {
+async function engagement(scope: KeyScope, period: number, end?: string): Promise<PlatformEngagement[]> {
   const c = COLUMNS.social;
-  const { where, values } = windowWhere("social", scope, period * 2);
+  const { where, values, now } = windowWhere("social", scope, period * 2, end);
   values.push(period);
-  const cur = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
+  const cur = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
   const cols = (Object.keys(METRIC_FIELDS) as Metric[]).flatMap((name) => {
     // The first of the platform's field names the post has; only plain whole numbers count. Implausible values are
     // scraper errors and are skipped: 10 million or more on any post, and 50,000 or more on Facebook, where small local
@@ -156,11 +166,11 @@ function moodCounts(rows: { m: string | null; n: number }[]) {
 }
 
 /** The accounts with the most posts this period (top 10 overall plus top 10 of each platform), with their previous count, opinion and likes. */
-async function topAccounts(scope: KeyScope, period: number): Promise<TopAccount[]> {
+async function topAccounts(scope: KeyScope, period: number, end?: string): Promise<TopAccount[]> {
   const c = COLUMNS.social;
-  const { where, values } = windowWhere("social", scope, period * 2);
+  const { where, values, now } = windowWhere("social", scope, period * 2, end);
   values.push(period);
-  const cur = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
+  const cur = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
   const like = `CASE WHEN p.additional_data->>'like' ~ '^[0-9]{1,7}$' AND (${c.source} <> 'facebook' OR (p.additional_data->>'like')::bigint < ${FACEBOOK_MAX}) THEN (p.additional_data->>'like')::bigint END`;
   return withLongTimeout(90_000, async (client) => {
     // The top accounts overall and the top accounts of each platform (for the platform tabs), in one scan.
@@ -189,11 +199,11 @@ async function topAccounts(scope: KeyScope, period: number): Promise<TopAccount[
 }
 
 /** The news outlets with the most articles this period, with their previous count and sentiment. */
-async function topMedia(scope: KeyScope, period: number): Promise<TopMedia[]> {
+async function topMedia(scope: KeyScope, period: number, end?: string): Promise<TopMedia[]> {
   const c = COLUMNS.online;
-  const { where, values } = windowWhere("online", scope, period * 2);
+  const { where, values, now } = windowWhere("online", scope, period * 2, end);
   values.push(period);
-  const cur = `${c.timestamp} >= now() - make_interval(days => $${values.length})`;
+  const cur = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
   const { rows } = await withLongTimeout(90_000, (client) => client.query<{ src: string; m: string | null; cur: boolean; n: number }>(
     `SELECT ${c.source} src, lower(${c.mood}) m, ${cur} cur, count(*)::int n FROM ${c.from}
      WHERE ${where} AND ${c.source} IS NOT NULL GROUP BY 1, 2, 3`, values));
@@ -210,13 +220,13 @@ async function topMedia(scope: KeyScope, period: number): Promise<TopMedia[]> {
     .map(([source, e]) => ({ source, n: e.n, prev: e.prev, ...moodCounts(e.moods) }));
 }
 
-function summarize(rows: Row[], period: number) {
+function summarize(rows: Row[], period: number, end?: string) {
   const polarity = new Map<string, Polarity>();
   const polarityOf = (m: string) => { if (!polarity.has(m)) polarity.set(m, moodPolarity(m)); return polarity.get(m)!; };
 
   const trend: TrendPoint[] = Array.from({ length: period }, (_, i) => {
     const b = period - 1 - i;
-    return { day: jakartaDate(b * DAY_MS), total: 0, pos: 0, neu: 0, neg: 0 };
+    return { day: end ? shiftDay(end, -1 - b) : jakartaDate(b * DAY_MS), total: 0, pos: 0, neu: 0, neg: 0 };
   });
   const current = emptyTotals(), previous = emptyTotals();
   const categories = new Map<string, Ranked>();
@@ -258,19 +268,20 @@ function spikes(now: Map<string, number>, baseline: (value: string) => number, s
   });
 }
 
-async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: number): Promise<Insights> {
+async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: number, end?: string): Promise<Insights> {
+  const lastDay = end ? shiftDay(end, -1) : jakartaDate(DAY_MS);
   const [rows, keywords, tags, latestHot, engaged, accounts, media] = await Promise.all([
-    scan(type, scope, period),
-    scoped ? keywordCounts(type, scope, period) : Promise.resolve(null),
-    type === "social" ? hashtags(scope, period) : Promise.resolve(null),
+    scan(type, scope, period, end),
+    scoped ? keywordCounts(type, scope, period, end) : Promise.resolve(null),
+    type === "social" ? hashtags(scope, period, end) : Promise.resolve(null),
     type === "social"
-      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: jakartaDate(DAY_MS) }), scope, { limit: 12, offset: 0 })
+      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 })
       : Promise.resolve([]),
-    type === "social" ? engagement(scope, period) : Promise.resolve(null),
-    type === "social" ? topAccounts(scope, period) : Promise.resolve(null),
-    type === "online" ? topMedia(scope, period) : Promise.resolve(null),
+    type === "social" ? engagement(scope, period, end) : Promise.resolve(null),
+    type === "social" ? topAccounts(scope, period, end) : Promise.resolve(null),
+    type === "online" ? topMedia(scope, period, end) : Promise.resolve(null),
   ]);
-  const { trend, current, previous, categories, recent } = summarize(rows, period);
+  const { trend, current, previous, categories, recent } = summarize(rows, period, end);
   const [today, ...week] = recent;
 
   const alerts: Alert[] = [];
@@ -279,7 +290,7 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   // Keyword spikes from the trend of each keyword would need a per-window scan; the 24-hour count vs the period's daily
   // average is a fair, cheap approximation.
   if (keywords) {
-    const recentKw = await keywordCounts(type, scope, 1).catch(() => null);
+    const recentKw = await keywordCounts(type, scope, 1, end).catch(() => null);
     if (recentKw) {
       const perDay = new Map(keywords.map((k) => [k.value, (k.n + k.prev) / (period * 2)]));
       alerts.push(...spikes(new Map(recentKw.map((k) => [k.value, k.n])), (v) => perDay.get(v) ?? 0, "keyword"));
@@ -308,9 +319,13 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   };
 }
 
-/** Insights for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type. */
-export function typeInsights(type: MediaType, period: number, scope?: KeyScope): Promise<Insights> | null {
+/**
+ * Insights for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type.
+ * With `day` (YYYY-MM-DD) the period is the `period` whole calendar days ending on that day instead of the hours up to now.
+ */
+export function typeInsights(type: MediaType, period: number, scope?: KeyScope, day?: string): Promise<Insights> | null {
   if (scope && !allowsType(scope, type)) return null;
   const s = scope ?? OPEN_SCOPE;
-  return cache(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}`, () => compute(type, s, !!scope, period));
+  const end = day ? shiftDay(day, 1) : undefined;
+  return cache(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : ""}`, () => compute(type, s, !!scope, period, end));
 }

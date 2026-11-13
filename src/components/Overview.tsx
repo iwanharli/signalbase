@@ -1,4 +1,5 @@
 "use client";
+import type { Role } from "@/lib/session";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
+import { AiSummary } from "./overview/AiSummary";
 import { Insights } from "./overview/Insights";
 import { Tip } from "./ui/Tip";
 
@@ -210,7 +212,7 @@ function Onboarding({ name }: { name: string }) {
   );
 }
 
-export function Overview({ name, role }: { name: string; role: "admin" | "user" }) {
+export function Overview({ name, role }: { name: string; role: Role }) {
   const keyId = useSearchParams().get("key");
   const { data, error } = useApi<OverviewStats>(`/api/admin/stats${keyId ? `?key=${encodeURIComponent(keyId)}` : ""}`);
   if (data?.noKey) return <div className={classes.page}><Onboarding name={name} /></div>;
@@ -247,6 +249,8 @@ export function Overview({ name, role }: { name: string; role: "admin" | "user" 
       </section>
 
       {error && <Alert color="red" mb="lg">{error}</Alert>}
+
+      {data && <AiSummary keyId={key?.id ?? null} admin={role === "admin"} />}
 
       {data && <Insights keyId={key?.id ?? null} social={data.social !== null} online={data.online !== null} projects={data.keys} />}
 

@@ -1,4 +1,5 @@
 "use client";
+import type { Role } from "@/lib/session";
 // One-screen summary of Ringkasan: round charts only, no scrolling on a normal desktop viewport.
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -43,7 +44,7 @@ function Panel({ title, icon: Icon, accent, children, className }: { title: stri
   return <section className={[classes.panel, className].filter(Boolean).join(" ")} style={{ ["--ac" as string]: accent }}><h2><span className={classes.badge}><Icon size={15} strokeWidth={2.2} /></span>{title}</h2><div className={classes.body}>{children}</div></section>;
 }
 
-export function CommandCenter({ role, mapToken }: { role: "admin" | "user"; mapToken: string | null }) {
+export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string | null }) {
   const router = useRouter();
   const params = useSearchParams();
   const keyParam = params.get("key");
@@ -58,7 +59,7 @@ export function CommandCenter({ role, mapToken }: { role: "admin" | "user"; mapT
   const q = (type: string) => (ready && stats.data && stats.data[type as "social" | "online"] ? `/api/admin/stats/insights?type=${type}&days=${days}${kid ? `&key=${encodeURIComponent(kid)}` : ""}` : null);
   const social = useApi<{ insights: Insights }>(q("social"));
   const online = useApi<{ insights: Insights }>(q("online"));
-  const issues = useApi<{ issues: IssueSummary[] }>(ready && stats.data?.online && (role === "admin" || kid) ? `/api/admin/issues?days=${days}&topik=nasional${kid ? `&key=${encodeURIComponent(kid)}` : ""}` : null);
+  const issues = useApi<{ issues: IssueSummary[] }>(ready && stats.data?.online && (role !== "user" || kid) ? `/api/admin/issues?days=${days}&topik=nasional${kid ? `&key=${encodeURIComponent(kid)}` : ""}` : null);
 
   const reloaders = useRef<(() => void)[]>([]);
   reloaders.current = [stats.reload, social.reload, online.reload, issues.reload].filter(Boolean) as (() => void)[];
@@ -135,10 +136,10 @@ export function CommandCenter({ role, mapToken }: { role: "admin" | "user"; mapT
         </div>
         <div className={classes.tools}>
           <Segmented label="Periode" options={PERIODS} value={String(days)} onChange={(v) => setDays(Number(v) as InsightPeriod)} />
-          {(role === "admin" || (s?.keys.length ?? 0) > 1) && s && (
+          {(role !== "user" || (s?.keys.length ?? 0) > 1) && s && (
             <Select aria-label="Proyek" w={180} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyParam ?? (role === "admin" ? "" : kid ?? "")} onChange={(v) => setKey(v || null)}
-              data={[...(role === "admin" ? [{ value: "", label: "Nasional" }] : []), ...s.keys.map((k) => ({ value: k.id, label: k.name }))]} />
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyParam ?? (role !== "user" ? "" : kid ?? "")} onChange={(v) => setKey(v || null)}
+              data={[...(role !== "user" ? [{ value: "", label: "Nasional" }] : []), ...s.keys.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
           <Link href="/dashboard" className={classes.iconBtn} aria-label={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"} title={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"}><LayoutDashboard size={17} /></Link>
           <button type="button" className={classes.iconBtn} onClick={toggleFull} aria-label={full ? "Keluar layar penuh" : "Layar penuh"}>{full ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>

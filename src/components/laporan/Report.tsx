@@ -1,6 +1,6 @@
 "use client";
 // Executive report as A4 pages for the browser's print dialog ("Simpan sebagai PDF"). Opened from Ringkasan with
-// ?days=&key=&untuk=&sifat=; prints itself once the data is in.
+// ?days=&key=&untuk=&sifat= (custom report, the hours up to now) or ?id=&untuk=&sifat= (a stored archive report: a whole day, week or month).
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
@@ -13,8 +13,10 @@ import { moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import type { IssueSummary } from "@/lib/issues";
 import { formatWindow, levelColor, type OntIssue } from "@/lib/ontologi";
-import { changePct, closingNarrative, DEFAULT_SIFAT, entityRanking, issueHeat, locationRanking, narrative, reportFileName, reportTitle, type ReportData, type ReportSection } from "@/lib/report";
+import { changePct, closingNarrative, DEFAULT_SIFAT, KIND_LABEL, entityRanking, issueHeat, locationRanking, narrative, periodLabel, reportFileName, reportTitle, type ReportData, type ReportSection } from "@/lib/report";
+import { isBrief, type BriefData } from "@/lib/brief";
 import { useApi } from "@/lib/useApi";
+import { BriefDocument } from "./Brief";
 import r from "./report.module.css";
 
 // Decorative network on the cover: [x, y, radius] nodes and the pairs joined by a line.
@@ -137,10 +139,10 @@ function Ranking({ rows, title }: { rows: { value: string; n: number; prev: numb
   );
 }
 
-function MediaPage({ type, ins, moods, days, n, total, sifat }: { type: MediaType; ins: Insights; moods: MoodCount[]; days: number; n: number; total: number; sifat: string }) {
+function MediaPage({ type, ins, moods, compare, n, total, sifat }: { type: MediaType; ins: Insights; moods: MoodCount[]; compare: string; n: number; total: number; sifat: string }) {
   return (
     <Page n={n} total={total} sifat={sifat}>
-      <H sub={`${days} hari terakhir dibanding ${days} hari sebelumnya`}>{MEDIA_TYPE_LABEL[type]}</H>
+      <H sub={compare}>{MEDIA_TYPE_LABEL[type]}</H>
       <Totals ins={ins} label={type === "social" ? "Total post" : "Total berita"} />
       <h3>Volume harian</h3>
       <TrendChart trend={ins.trend} current={ins.current} previous={ins.previous} />{ins.trend.length >= 3 && <Legend />}
@@ -318,7 +320,7 @@ function Notes({ d }: { d: ReportData }) {
       <div className={r.notesHead}><H>Sumber &amp; metodologi</H></div>
       <ul className={r.notes}>
         <li>Data: post media sosial dan berita online dari bank data Signalbase, {source}.</li>
-        <li>Periode: {d.days} hari terakhir dibanding {d.days} hari sebelumnya; hari ini belum lengkap.</li>
+        <li>Periode: {d.day ? `${periodLabel(d)} (${d.days === 1 ? "satu hari penuh" : `${d.days} hari penuh`}, 00.00–24.00 WIB), dibanding ${d.days === 1 ? "hari" : `${d.days} hari`} sebelumnya.` : `${d.days} hari terakhir dibanding ${d.days} hari sebelumnya; hari ini belum lengkap.`}</li>
         <li>Emosi: label hasil analisis otomatis; porsi dihitung dari post yang sudah berlabel.</li>
         <li>Isu EWS: peringatan dini dari klaster post media sosial (level High/Critical); “Implikasi” adalah penilaian risiko otomatis dan perlu ditinjau analis.</li>
       </ul>
@@ -347,7 +349,7 @@ function Section({ x, d, mode, start, total, sifat, period, to, untuk, notes }: 
         <div className={r.tiles}>
           <div style={{ background: "#1f3a5f" }}><b>{formatNumber(volume)}</b><small>Total unggahan dianalisis</small></div>
           {parts.map(([t, v], k) => <div key={t} style={{ background: ["#b8962e", "#b4443a"][k] }}><b>{pct(v.insights.current.neg, v.insights.current.labelled)}</b><small>Porsi negatif {MEDIA_TYPE_LABEL[t]}</small></div>)}
-          <div style={{ background: "#3f8f78" }}><b>{x.issues.length}</b><small>Isu EWS dipantau</small></div>
+          <div style={{ background: "#3f8f78" }}><b>{x.issueCount ?? x.issues.length}</b><small>Isu EWS dipantau</small></div>
           <div style={{ background: heat.color }}><b>{heat.label}</b><small>Suhu isu</small></div>
         </div>
         <div className={r.band}>
@@ -360,7 +362,7 @@ function Section({ x, d, mode, start, total, sifat, period, to, untuk, notes }: 
         <div className={r.two}>{parts.map(([t, v]) => <div key={t}><h3>Kategori {MEDIA_TYPE_LABEL[t]}</h3><Ranking rows={v.insights.categories} title="" /></div>)}</div>
       </Page>
 
-      {parts.map(([t, v]) => <MediaPage key={t} type={t} ins={v.insights} moods={v.moods} days={d.days} n={++n} total={total} sifat={sifat} />)}
+      {parts.map(([t, v]) => <MediaPage key={t} type={t} ins={v.insights} moods={v.moods} compare={compareText(d)} n={++n} total={total} sifat={sifat} />)}
       {x.social && <EngagementPage ins={x.social.insights} n={++n} total={total} sifat={sifat} />}
       <WarningPage x={x} n={++n} total={total} sifat={sifat} />
       {x.newsIssues.length > 0 && <NewsIssuesPage rows={x.newsIssues} n={++n} total={total} sifat={sifat} />}
@@ -407,9 +409,15 @@ function Comparison({ d, n, total, sifat }: { d: ReportData; n: number; total: n
   );
 }
 
+/** What the numbers of a media page are compared with. */
+const compareText = (d: ReportData) => (d.day
+  ? `${periodLabel(d)} dibanding ${d.days === 1 ? "hari" : `${d.days} hari`} sebelumnya`
+  : `${d.days} hari terakhir dibanding ${d.days} hari sebelumnya`);
+
 function Document({ d, untuk, sifat, author }: { d: ReportData; untuk: string; sifat: string; author: string }) {
+  // `to` is when the report was put together; the period is the stored day of a daily report, else the days up to `to`.
   const to = dayjs(d.at), from = to.subtract(d.days - 1, "day");
-  const period = `${fmtDate(from)} – ${fmtDate(to)}`;
+  const period = d.day ? periodLabel(d) : `${fmtDate(from)} – ${fmtDate(to)}`;
   const multi = d.mode === "multi";
   // Notes sit on the comparison page of a combined report, else on the matrix page of the only section.
   const sizes = d.sections.map((x) => sectionPages(x, !multi));
@@ -478,11 +486,16 @@ export function Report({ author }: { author: string }) {
     setSaving(true); setSaveError(null);
     savePdf(document.title).catch(() => setSaveError("PDF gagal dibuat. Coba lagi, atau pakai Cetak lalu Simpan sebagai PDF.")).finally(() => setSaving(false));
   };
-  const days = sp.get("days") ?? "1", key = sp.get("key");
-  const { data, error } = useApi<ReportData>(`/api/admin/report?days=${encodeURIComponent(days)}${key ? `&key=${encodeURIComponent(key)}` : ""}`);
+  const id = sp.get("id"), days = sp.get("days") ?? "1", key = sp.get("key");
+  const { data, error } = useApi<ReportData | BriefData>(id
+    ? `/api/admin/reports/${encodeURIComponent(id)}`
+    : `/api/admin/report?days=${encodeURIComponent(days)}${key ? `&key=${encodeURIComponent(key)}` : ""}`);
   useEffect(() => {
     if (!data) return;
-    document.title = reportFileName(data); // the PDF file name, also the suggested one when printing
+    // The PDF file name, also the suggested one when printing.
+    document.title = isBrief(data)
+      ? `Laporan Eksekutif ${KIND_LABEL[data.kind]} - ${data.scope.name} - ${data.start === data.day ? data.day : `${data.start} sd ${data.day}`}`.replace(/[\\/:*?"<>|]/g, "")
+      : reportFileName(data);
   }, [data]);
   return (
     <div className={r.root}>
@@ -494,7 +507,9 @@ export function Report({ author }: { author: string }) {
       </div>
       {error && <p className={r.state}>{error}</p>}
       {!data && !error && <p className={r.state}>Menyusun laporan…</p>}
-      {data && <Document d={data} untuk={sp.get("untuk") ?? ""} sifat={sp.get("sifat") || DEFAULT_SIFAT} author={author} />}
+      {data && (isBrief(data)
+        ? <BriefDocument d={data} />
+        : <Document d={data} untuk={sp.get("untuk") ?? ""} sifat={sp.get("sifat") || DEFAULT_SIFAT} author={data.day ? "Signalbase (otomatis)" : author} />)}
     </div>
   );
 }

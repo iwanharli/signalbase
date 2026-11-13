@@ -139,3 +139,50 @@ export function providerErrorMessage(error: unknown) {
   if (error instanceof SyntaxError) return "Jawaban model bukan JSON yang valid";
   return error instanceof Error ? error.message.slice(0, 300) : "Kesalahan tidak diketahui";
 }
+
+/** Tokens of one call, with the part of the input the provider served from its cache. */
+export type CallUsage = { input: number; cached: number; output: number };
+
+/** Parses a JSON reply, tolerating a ```json fence some models add. */
+const parseJsonReply = (text: string) => JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+
+/**
+ * One free-form request that must answer with a JSON object (e.g. Ringkasan AI). Reports usage even when the reply
+ * turns out unusable, so the cost is still recorded.
+ */
+export async function completeJson(config: ProviderConfig, system: string, user: string, onUsage: (u: CallUsage) => void, maxTokens = 6000): Promise<unknown> {
+  const apiKey = decryptSecret(config.apiKeyEnc);
+  if (config.kind === "anthropic") {
+    const client = new Anthropic({ apiKey, timeout: 180_000, maxRetries: 2 });
+    const response = await client.messages.create({
+      model: config.model, max_tokens: maxTokens,
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: user }],
+    });
+    const u = response.usage;
+    const cached = u?.cache_read_input_tokens ?? 0;
+    onUsage({ input: (u?.input_tokens ?? 0) + cached + (u?.cache_creation_input_tokens ?? 0), cached, output: u?.output_tokens ?? 0 });
+    if (response.stop_reason === "refusal") throw new Error("Model menolak permintaan ini");
+    if (response.stop_reason === "max_tokens") throw new Error("Jawaban model terpotong (max_tokens)");
+    return parseJsonReply(response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join(""));
+  }
+  if (!config.baseUrl) throw new Error("Base URL penyedia belum diatur");
+  const res = await fetch(`${config.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: config.model, max_tokens: maxTokens, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    }),
+    signal: AbortSignal.timeout(180_000),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? res.statusText}`);
+  const u = body?.usage;
+  // DeepSeek reports prompt_cache_hit_tokens; OpenAI prompt_tokens_details.cached_tokens.
+  if (u) onUsage({ input: Number(u.prompt_tokens) || 0, cached: Number(u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens) || 0, output: Number(u.completion_tokens) || 0 });
+  const choice = body?.choices?.[0];
+  if (choice?.finish_reason === "length") throw new Error("Jawaban model terpotong (max_tokens)");
+  if (typeof choice?.message?.content !== "string" || !choice.message.content.trim()) throw new Error("Respons penyedia AI tidak berisi teks");
+  return parseJsonReply(choice.message.content);
+}

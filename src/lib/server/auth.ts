@@ -11,7 +11,10 @@ export async function getSession() {
 export type PanelUser = { id: string; username: string; role: Role };
 
 /** Panel APIs only admins may call. */
-const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact"];
+const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-settings"];
+/** Viewers read like admins but never change anything, see settings, or reveal secrets. */
+const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
+const isSecretPath = (path: string) => /^\/api\/admin\/keys\/[^/]+\/secret/.test(path);
 
 /** A user account still allowed in. Checked on every request, so suspending someone cuts off an open session at once. */
 export async function isActiveAccount(id: string) {
@@ -22,7 +25,7 @@ export async function isActiveAccount(id: string) {
 
 /** True when the account may act on this API key: admins on every key, users only on their own. */
 export async function ownsKey(user: PanelUser, keyId: string) {
-  if (user.role === "admin") return true;
+  if (user.role !== "user") return true; // admins and viewers (viewers are read-only, see adminRoute)
   const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { ownerId: true } });
   return key?.ownerId === user.id;
 }
@@ -36,6 +39,11 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const user: PanelUser = { id: session.sub, username: session.username, role: roleOf(session) };
+    if (user.role === "viewer") {
+      const path = new URL(req.url).pathname;
+      if (req.method !== "GET" && req.method !== "HEAD") return NextResponse.json({ error: "Akun viewer hanya dapat melihat data" }, { status: 403 });
+      if (VIEWER_BLOCKED.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Tidak tersedia untuk akun viewer" }, { status: 403 });
+    }
     if (user.role === "user") {
       if (!(await isActiveAccount(user.id))) return NextResponse.json({ error: "Akun tidak aktif" }, { status: 401 });
       const path = new URL(req.url).pathname;
@@ -49,7 +57,7 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
 
 /** Signs the account in: sets the session cookie on the response and tells the client where to go. */
 export async function signedIn(account: { id: string; name: string; username: string; role: string }) {
-  const session = { sub: account.id, name: account.name, username: account.username, role: account.role === "user" ? "user" as const : "admin" as const };
+  const session = { sub: account.id, name: account.name, username: account.username, role: (account.role === "user" ? "user" : account.role === "viewer" ? "viewer" : "admin") as Role };
   const res = NextResponse.json({ ok: true, home: "/dashboard" });
   res.cookies.set(COOKIE, await signSession(session), {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 12,
