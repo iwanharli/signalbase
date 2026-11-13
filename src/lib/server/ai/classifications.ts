@@ -3,6 +3,8 @@ import { ANY_CATEGORY, LOW_CONFIDENCE, LOW_CONFIDENCE_FILTER, categoriesForType,
 import type { ItemClassification, MediaType } from "@/lib/media/types";
 import { hasExtraRestrictions, type KeyScope } from "@/lib/media/keyScope";
 import { filterCodes } from "../bank";
+import { sharedCache } from "../bank/cache";
+import { filterKey } from "../bank/query";
 import { prisma } from "../db";
 
 /** The key's category list, or null when the key has no categorisation. Paused keys keep serving stored labels. */
@@ -64,13 +66,21 @@ export const hasExtraFilters = (query: URLSearchParams) => EXTRA_FILTERS.some((k
 /** Most labelled codes considered when combining an AI category with other filters. */
 const COMBINE_CAP = 50_000;
 
+// Re-checking tens of thousands of labelled codes in the source database takes 10+ seconds (e.g. a key with
+// "analysed only" on every request). The matches per key and filter set are kept for a few minutes and then
+// refreshed in the background, so only the very first request waits; new labels show up within that window.
+const combinedCache = sharedCache<string[]>("ai.combined", { ttlMs: 5 * 60_000, maxEntries: 200, staleWhileRevalidate: true });
+
 /**
  * Items in an AI category that also match the other request filters, in timeline order: total, one page of
  * codes, and all matching codes (for summaries). Labels give the candidates; the source database filters them.
  */
 export async function categoryWithFilters(apiKeyId: string, type: MediaType, category: string, query: URLSearchParams, scope: KeyScope, { limit, offset }: { limit: number; offset: number }) {
-  const candidates = await codesInCategory(apiKeyId, type, category, query, { limit: COMBINE_CAP, offset: 0 });
-  const matching = await filterCodes(type, query, scope, candidates.codes);
+  const key = [apiKeyId, category, query.get("sort") ?? "", filterKey(type, query, scope)].join("|");
+  const matching = await combinedCache(key, async () => {
+    const candidates = await codesInCategory(apiKeyId, type, category, query, { limit: COMBINE_CAP, offset: 0 });
+    return filterCodes(type, query, scope, candidates.codes);
+  });
   return { total: matching.length, codes: matching.slice(offset, offset + limit), all: matching };
 }
 
