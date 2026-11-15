@@ -21,6 +21,7 @@ import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
 import { BalanceUsage } from "../ai/BalanceUsage";
+import { AiCosts } from "../aiSettings/AiCosts";
 import { SaveConfirm, type SaveRequest, type SettingChange } from "./SaveConfirm";
 
 type KeyDetail = {
@@ -74,6 +75,7 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
       </div>
       {ai.lastError && <div className={classes.warning}><IconAlertTriangle size={17} />{ai.lastError}</div>}
       <BalanceUsage keyId={detail.id} />
+      <AiCosts keyId={detail.id} />
     </div>
   );
 }

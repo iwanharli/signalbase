@@ -5,7 +5,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## [Belum dirilis]
 
 ### Ditambahkan
-- Halaman **Biaya AI** (`/ai/biaya`, admin): biaya AI yang dibayar key DeepSeek milik Signalbase (`SIGNALBASE_AI_API_KEY`), yaitu Ringkasan AI, laporan, dan kategorisasi proyek yang memakai key itu; grafik harian bertumpuk per modul, tabel per modul, porsi IndoBERT vs AI berbayar per proyek, saldo key, padanan Rupiah (kurs live). Key milik klien (mis. KIPERMAS) tidak dihitung. `TokenUsage.keyHint` mencatat 4 huruf terakhir key yang membayar (sejak 16 Nov 2026); harga per model di `src/lib/ai/pricing.ts`.
+- **Biaya AI proyek** di tab AI halaman detail proyek (admin dan viewer; tidak untuk akun klien): biaya yang dibayar key DeepSeek milik Signalbase (`SIGNALBASE_AI_API_KEY`) untuk kategorisasi dan Ringkasan AI proyek itu; bulan ini, perkiraan sebulan, rata-rata per hari, porsi IndoBERT, grafik harian bertumpuk per modul, padanan Rupiah (kurs live). Key milik klien (mis. KIPERMAS) tidak dihitung. `TokenUsage.keyHint` mencatat 4 huruf terakhir key yang membayar (sejak 16 Nov 2026); harga per model di `src/lib/ai/pricing.ts`.
 - Biaya AI (Pengaturan AI dan pemakaian key per proyek) kini juga tampil dalam Rupiah dengan kurs USD→IDR live dari open.er-api.com (`src/lib/server/kurs.ts`, disimpan 6 jam). Harga bawaan Pengaturan AI disamakan dengan harga resmi `deepseek-flash` rata-rata (±20% jam sibuk): 0,18 / 0,0036 / 0,72 USD per 1 juta token.
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
 

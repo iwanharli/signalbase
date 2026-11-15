@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconCoin, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -34,14 +34,12 @@ const TOOLS = [
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
   { href: "/ai", label: "Pengaturan AI", icon: IconSparkles, adminOnly: true },
-  { href: "/ai/biaya", label: "Biaya AI", icon: IconCoin, adminOnly: true },
   { href: "/billing", label: "Paket & tagihan", icon: IconReceipt, userOnly: true },
 ];
 
 /** Shown in the bar for user accounts: plan name and days left, linking to billing. */
 export type PlanChip = { label: string; daysLeft: number | null };
-// "/" dan "/ai" hanya aktif persis (/ai/biaya punya menu sendiri).
-const isActive = (href: string, path: string) => (href === "/" || href === "/ai" ? path === href : path.startsWith(href));
+const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 /** Like isActive, but a link with ?topik= is active only for that topic (a bare /isu is the default topic). */
 const isActiveTopic = (href: string, path: string, topic: string | null, exact = false) => {
   const [base, query] = href.split("?");
