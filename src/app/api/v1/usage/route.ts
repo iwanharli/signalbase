@@ -12,7 +12,7 @@ export const GET = apiRoute(async (req, _ctx: unknown, { keyId }) => {
   const rows = await prisma.$queryRaw<{ day: string; model: string; input: number; output: number; calls: number }[]>`
     select to_char(hour + interval '7 hours', 'YYYY-MM-DD') as day, model,
       sum("inputTokens")::float input, sum("outputTokens")::float output, sum(calls)::int calls
-    from "TokenUsage" where "apiKeyId" = ${keyId} and hour >= now() - make_interval(days => ${days})
+    from "TokenUsage" where "apiKeyId" = ${keyId} and hour >= ${new Date(Date.now() - days * 86_400_000)}
     group by 1, 2 order by 1`;
   return NextResponse.json({ days: rows }, { headers: { "Cache-Control": "no-store" } });
 });
