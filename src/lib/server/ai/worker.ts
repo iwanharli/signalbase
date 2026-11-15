@@ -2,7 +2,7 @@
 // newer than anything seen so far, then keeps walking back through older items until the whole
 // scope is labelled. Progress is stored as cursors, so the worker can stop and resume at any time.
 import type { Prisma } from "@prisma/client";
-import { categoriesForType, categorySchema, type Category } from "@/lib/ai/classifier";
+import { NO_CATEGORY, categoriesForType, categorySchema, type Category } from "@/lib/ai/classifier";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
@@ -14,6 +14,7 @@ import { prisma } from "../db";
 import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
 import { classifyBatch, providerErrorMessage, type ProviderConfig, type TokenCount } from "./providers";
+import { localQw, localQwMin, usesLocalQw } from "./localQw";
 
 const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
@@ -117,7 +118,21 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   if (!fresh.length) return { labelled: 0, skipped: 0, sent: 0 };
   items = fresh;
   const classifiable = items.filter((i) => itemText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
-  const results = await classifySplitting(job, type, classifiable.map((i) => ({ id: i.code, text: itemText(i) })));
+  let toProvider = classifiable.map((i) => ({ id: i.code, text: itemText(i) }));
+  // Model lokal (IndoBERT) dulu untuk key yang memakainya: yang yakin langsung disimpan, sisanya ke penyedia AI.
+  const local: Labelled[] = [];
+  if (usesLocalQw(job.apiKeyId)) {
+    const allowed = new Set(job.categories[type].map((c) => c.code));
+    const res = await localQw(type, toProvider);
+    for (const l of res?.items ?? []) {
+      if (l.confidence >= localQwMin() && (allowed.has(l.category) || l.category === NO_CATEGORY)) {
+        local.push({ id: l.id, category: l.category, confidence: l.confidence, reason: "IndoBERT lokal", model: res!.model });
+      }
+    }
+    const done = new Set(local.map((l) => l.id));
+    toProvider = toProvider.filter((x) => !done.has(x.id));
+  }
+  const results = [...local, ...await classifySplitting(job, type, toProvider)];
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
     data: results.map((r) => ({
