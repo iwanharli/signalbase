@@ -4,6 +4,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 ## [Belum dirilis]
 
+### Ditambahkan
+- API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
+
 ### Diperbaiki
 - Infinite scroll Media Sosial/Online memuat halaman berikutnya lebih awal: pemicu 2000 px di bawah layar (sebelumnya 800 px), sehingga data baru sudah siap sebelum sampai dasar daftar.
 - Video di post X (Original View) tidak bisa diputar: `video.twimg.com` membalas 403 bila permintaan membawa Referer dari domain lain (bukan karena `?tag=`, yang tidak berpengaruh). Video kini dimuat di iframe `srcdoc` dengan `referrer=no-referrer` (`xVideoFrame` di `src/lib/media/xPost.ts`).
