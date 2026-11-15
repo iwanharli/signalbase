@@ -1,0 +1,37 @@
+/* Biaya AI proyek di panel AI gelap; melengkapi usage.module.css (kartu, kepala, kotak angka). */
+.stats4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.chart { display: flex; flex-direction: column; gap: 6px; }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 3px; height: 150px; padding-top: 18px; border-bottom: 1px solid rgba(255,255,255,.22); }
+.max { position: absolute; top: 0; left: 0; font-size: 11px; color: rgba(255,255,255,.45); font-variant-numeric: tabular-nums; }
+.col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.stack { display: flex; flex-direction: column-reverse; width: 100%; max-width: 16px; border-radius: 4px 4px 0 0; overflow: hidden; transition: opacity 150ms; }
+.stack i { display: block; min-height: 1px; }
+.bars:hover .col:not(:hover) .stack { opacity: .45; }
+.tip { position: absolute; bottom: calc(100% + 6px); left: 50%; z-index: 3; transform: translateX(-50%); display: none; flex-direction: column; gap: 1px; padding: 8px 11px; border-radius: 10px; white-space: nowrap; pointer-events: none;
+  background: rgba(17,14,38,.97); border: 1px solid rgba(167,139,250,.3); box-shadow: 0 12px 30px -10px rgba(0,0,0,.7); }
+.tip small, .tip span { font-size: 11px; color: rgba(255,255,255,.55); }
+.tip b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.col:hover .tip { display: flex; }
+.col:nth-child(-n+6) .tip { left: 0; transform: none; }
+.col:nth-last-child(-n+6) .tip { left: auto; right: 0; transform: none; }
+.axis { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,.45); }
+.empty { margin: 0; padding: 28px 12px; text-align: center; font-size: 12.5px; color: rgba(255,255,255,.55); border-radius: 12px; border: 1px dashed rgba(255,255,255,.1); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: rgba(255,255,255,.6); }
+.legend span, .name { display: inline-flex; align-items: center; gap: 8px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.table th { padding: 8px 10px; text-align: left; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.5); border-bottom: 1px solid rgba(255,255,255,.1); }
+.table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.table tr:last-child td { border-bottom: 0; }
+.table small { color: rgba(255,255,255,.5); font-size: 11.5px; }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.foot { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 12px; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.55);
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); }
+.foot svg { flex-shrink: 0; margin-top: 2px; }
+.head code { font-size: 11.5px; color: rgba(255,255,255,.75); }
+
+@media (max-width: 760px) { .stats4 { grid-template-columns: 1fr 1fr; } }
