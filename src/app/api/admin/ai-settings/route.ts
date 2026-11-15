@@ -11,7 +11,7 @@ export const GET = adminRoute(async () => {
   const d = AI_SUMMARY_PROVIDERS[0];
   return NextResponse.json({
     setting: setting ? settingView(setting) : null,
-    defaults: { provider: { kind: d.kind, baseUrl: d.baseUrl, model: d.model, apiKeyHint: "" }, summaryEnabled: true, summaryHour: 6, includeProjects: true, monthlyBudget: null, priceInput: 0.3, priceCachedInput: 0.006, priceOutput: 1.2, currency: "USD" },
+    defaults: { provider: { kind: d.kind, baseUrl: d.baseUrl, model: d.model, apiKeyHint: "" }, summaryEnabled: true, summaryHour: 6, includeProjects: true, monthlyBudget: null, priceInput: 0.18, priceCachedInput: 0.0036, priceOutput: 0.72, currency: "USD" },
   });
 });
 

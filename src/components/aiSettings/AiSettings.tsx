@@ -8,7 +8,7 @@ import { IconAlertTriangle, IconCheck, IconChevronLeft, IconChevronRight, IconCo
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { apiKeyProblem } from "@/lib/ai/classifier";
-import { AI_SUMMARY_PROVIDERS, type AiSettingInput, type AiSettingView, type UsageResponse } from "@/lib/ai/summary";
+import { AI_SUMMARY_PROVIDERS, rupiah, type AiSettingInput, type AiSettingView, type UsageResponse } from "@/lib/ai/summary";
 import { api, post } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
@@ -82,7 +82,7 @@ export function AiSettings() {
           <p>Penyedia AI yang menulis Ringkasan AI setiap hari untuk seluruh bank data dan tiap proyek. Setiap panggilan dicatat beserta token dan perkiraan biayanya.</p>
         </div>
         <div className={c.stats}>
-          <div><b>{u ? money(u.month.cost, cur) : "—"}</b><span>Biaya bulan ini</span></div>
+          <div><b>{u ? money(u.month.cost, cur) : "—"}</b><span>Biaya bulan ini{u && rupiah(u.month.cost, cur, u.kurs) ? ` · ${rupiah(u.month.cost, cur, u.kurs)}` : ""}</span></div>
           <div><b>{u ? formatNumber(u.month.calls) : "—"}</b><span>Panggilan bulan ini</span></div>
           <div><b>{u?.balance?.length ? money(u.balance[0].total, u.balance[0].currency) : "—"}</b><span>Saldo penyedia</span></div>
         </div>
@@ -165,7 +165,7 @@ export function AiSettings() {
           {!u ? <Skeleton h={220} radius="lg" /> : <>
             <CostChart daily={u.daily} currency={cur} />
             <dl className={c.totals}>
-              <div><dt>Bulan ini</dt><dd>{money(u.month.cost, cur)}</dd></div>
+              <div><dt>Bulan ini</dt><dd>{money(u.month.cost, cur)} {rupiah(u.month.cost, cur, u.kurs)}</dd></div>
               <div><dt>Token bulan ini</dt><dd>{formatNumber(u.month.tokens)}</dd></div>
               <div><dt>30 hari</dt><dd>{money(u.daily.reduce((t, d) => t + d.cost, 0), cur)}</dd></div>
             </dl>

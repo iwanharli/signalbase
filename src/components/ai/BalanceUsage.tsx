@@ -7,12 +7,14 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { useApi } from "@/lib/useApi";
 import classes from "./usage.module.css";
+import { rupiah } from "@/lib/ai/summary";
 
 type Usage = {
   currency: string | null; current: number | null; checkedAt?: string; since: string | null; bucket?: "hour" | "day";
   buckets: { start: string; spent: number; topUp: number }[];
   tokens?: { start: string; input: number; output: number; calls: number }[];
   models?: string[];
+  kurs?: number | null;
 };
 type Mode = "balance" | "tokens";
 const compact = (n: number) => new Intl.NumberFormat("id-ID", { notation: n >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
@@ -101,12 +103,12 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
       </header>
 
       <div className={classes.stats}>
-        <div><small>{tokenMode ? "Total token" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir</span></div>
+        <div><small>{tokenMode ? "Total token" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir{!tokenMode && data && rupiah(spent, currency, data.kurs) ? ` · ${rupiah(spent, currency, data.kurs)}` : ""}</span></div>
         {tokenMode ? <>
           <div><small>Input</small><b>{data ? compact(inputTotal) : "—"}</b><span>token prompt</span></div>
           <div><small>Output</small><b>{data ? compact(outputTotal) : "—"}</b><span>token jawaban</span></div>
         </> : <>
-          <div><small>Rata-rata</small><b>{data ? money(average, currency) : "—"}</b><span>per {hourly ? "jam" : "hari"}</span></div>
+          <div><small>Rata-rata</small><b>{data ? money(average, currency) : "—"}</b><span>per {hourly ? "jam" : "hari"}{data && rupiah(average, currency, data.kurs) ? ` · ${rupiah(average, currency, data.kurs)}` : ""}</span></div>
           <div><small>Top-up</small><b>{data ? money(topUp, currency) : "—"}</b><span>dalam rentang</span></div>
         </>}
       </div>

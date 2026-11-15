@@ -152,4 +152,10 @@ export type UsageResponse = {
   rows: UsageRow[];
   total: number;
   balance: { currency: string; total: number }[] | null;
+  /** Kurs 1 USD dalam Rupiah (live, open.er-api.com); null bila tidak tersedia. */
+  kurs: number | null;
 };
+
+/** "≈ Rp…" untuk jumlah USD bila kurs tersedia, selain itu kosong. */
+export const rupiah = (usd: number, currency: string | null, kurs: number | null | undefined) =>
+  currency === "USD" && kurs ? `≈ Rp${Math.round(usd * kurs).toLocaleString("id-ID")}` : "";

@@ -5,6 +5,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## [Belum dirilis]
 
 ### Ditambahkan
+- Biaya AI (Pengaturan AI dan pemakaian key per proyek) kini juga tampil dalam Rupiah dengan kurs USD→IDR live dari open.er-api.com (`src/lib/server/kurs.ts`, disimpan 6 jam). Harga bawaan Pengaturan AI disamakan dengan harga resmi `deepseek-flash` rata-rata (±20% jam sibuk): 0,18 / 0,0036 / 0,72 USD per 1 juta token.
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
 
 ### Diperbaiki

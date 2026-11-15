@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { usageBuckets } from "@/lib/server/ai/balance";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
+import { liveKurs } from "@/lib/server/kurs";
 
 type Context = { params: Promise<{ id: string }> };
 const HOUR = 3_600_000, DAY = 24 * HOUR;
@@ -31,8 +32,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   }
   const models = [...new Set(tokenRows.map((t) => t.model))];
 
-  const latest = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId: id }, orderBy: { at: "desc" } });
-  if (!latest) return NextResponse.json({ currency: null, current: null, since: null, bucket: range.bucketMs === HOUR ? "hour" : "day", buckets: usageBuckets([], from, new Date(end), range.bucketMs), tokens, models });
+  const [latest, kurs] = await Promise.all([prisma.balanceSnapshot.findFirst({ where: { apiKeyId: id }, orderBy: { at: "desc" } }), liveKurs()]);
+  if (!latest) return NextResponse.json({ currency: null, current: null, since: null, bucket: range.bucketMs === HOUR ? "hour" : "day", buckets: usageBuckets([], from, new Date(end), range.bucketMs), tokens, models, kurs });
   const currency = latest.currency;
   const [before, inRange, first] = await Promise.all([
     prisma.balanceSnapshot.findFirst({ where: { apiKeyId: id, currency, at: { lt: from } }, orderBy: { at: "desc" } }),
@@ -42,6 +43,6 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const points = before ? [before, ...inRange] : inRange;
   return NextResponse.json({
     currency, current: latest.total, checkedAt: latest.at, since: first?.at ?? null, bucket: range.bucketMs === HOUR ? "hour" : "day",
-    buckets: usageBuckets(points, from, new Date(end), range.bucketMs), tokens, models,
+    buckets: usageBuckets(points, from, new Date(end), range.bucketMs), tokens, models, kurs,
   }, { headers: { "Cache-Control": "no-store" } });
 });
