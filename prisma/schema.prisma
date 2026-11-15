@@ -128,6 +128,7 @@ model TokenUsage {
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
   calls        Int      @default(0)
+  keyHint      String? // 4 huruf terakhir key penyedia yang membayar (sejak 16 Nov 2026); null = sebelum dicatat
 
   @@id([apiKeyId, hour, model])
 }

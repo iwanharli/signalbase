@@ -7,7 +7,7 @@ import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
 import { limitsFor } from "@/lib/plans";
-import { aiQuota, platformPostsThisMonth } from "./platform";
+import { aiQuota, platformKeyHint, platformPostsThisMonth } from "./platform";
 
 const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan, setelah menambah kuota, atau setelah paket dinaikkan.";
 import { prisma } from "../db";
@@ -50,6 +50,9 @@ type Job = {
   provider: ProviderConfig & { model: string };
   /** Tried for a batch when the main provider fails it. */
   fallback: ProviderConfig | null;
+  /** 4 huruf terakhir key yang membayar tiap penyedia, untuk biaya per key (halaman Biaya AI). */
+  providerHint: string | null;
+  fallbackHint: string | null;
   prompt: string;
   categories: Record<MediaType, Category[]>;
   /** Backfill stops at items published before this. */
@@ -70,14 +73,14 @@ const isFatal = (error: unknown) => /\((401|402|403|429)\)|tidak valid|tidak pun
  */
 type Labelled = Awaited<ReturnType<typeof classifyBatch>>[number] & { model: string };
 
-/** Adds a request's tokens to this hour's total for the key and model. Never fails the batch. */
-function recordTokens(apiKeyId: string, model: string) {
+/** Adds a request's tokens to this hour's total for the key and model, with the paying provider key's hint. Never fails the batch. */
+function recordTokens(apiKeyId: string, model: string, keyHint: string | null) {
   return (u: TokenCount) => {
     const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
     prisma.tokenUsage.upsert({
       where: { apiKeyId_hour_model: { apiKeyId, hour, model } },
-      create: { apiKeyId, hour, model, inputTokens: u.input, outputTokens: u.output, calls: 1 },
-      update: { inputTokens: { increment: u.input }, outputTokens: { increment: u.output }, calls: { increment: 1 } },
+      create: { apiKeyId, hour, model, inputTokens: u.input, outputTokens: u.output, calls: 1, keyHint },
+      update: { inputTokens: { increment: u.input }, outputTokens: { increment: u.output }, calls: { increment: 1 }, keyHint },
     }).catch(() => {});
   };
 }
@@ -85,12 +88,12 @@ function recordTokens(apiKeyId: string, model: string) {
 async function classifySplitting(job: Job, type: MediaType, items: { id: string; text: string }[]): Promise<Labelled[]> {
   if (!items.length) return [];
   try {
-    return (await classifyBatch(job.provider, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.provider.model))).map((r) => ({ ...r, model: job.provider.model }));
+    return (await classifyBatch(job.provider, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.provider.model, job.providerHint))).map((r) => ({ ...r, model: job.provider.model }));
   } catch (error) {
     // The fallback takes the whole batch first; only if it fails too is the batch split.
     if (job.fallback) {
       try {
-        return (await classifyBatch(job.fallback, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.fallback.model))).map((r) => ({ ...r, model: job.fallback!.model }));
+        return (await classifyBatch(job.fallback, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.fallback.model, job.fallbackHint))).map((r) => ({ ...r, model: job.fallback!.model }));
       } catch (fallbackError) {
         console.warn(`[classifier] cadangan gagal: ${providerErrorMessage(fallbackError)}`);
       }
@@ -155,6 +158,8 @@ function buildJob(row: ClassifierRow): Job {
     scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
     provider: providerConfig(row),
     fallback: fallbackConfig(row),
+    providerHint: row.providerKind === "signalbase" ? platformKeyHint() : row.providerKeyHint,
+    fallbackHint: row.fallbackKeyHint,
     prompt: row.prompt,
     categories,
     startFrom: row.startFrom,

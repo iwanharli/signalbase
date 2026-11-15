@@ -11,6 +11,9 @@ import type { ProviderConfig } from "./providers";
 
 let cachedEnc: { key: string; enc: string } | null = null;
 
+/** 4 huruf terakhir key penyedia milik Signalbase (SIGNALBASE_AI_API_KEY); null bila belum diatur. */
+export const platformKeyHint = () => (process.env.SIGNALBASE_AI_API_KEY ? process.env.SIGNALBASE_AI_API_KEY.slice(-4) : null);
+
 export const platformConfigured = () => !!(process.env.SIGNALBASE_AI_API_KEY && process.env.SIGNALBASE_AI_MODEL);
 
 /** The real provider behind Signalbase AI for a tier, or null when the server has not been configured. */
