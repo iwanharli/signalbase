@@ -13,7 +13,7 @@ export const BANK_SCOPE = "bank";
 const BANK_NAME = "Seluruh bank data";
 /** Failed days are retried on later ticks, at most this many attempts, at least RETRY_MS apart. */
 const MAX_ATTEMPTS = 3;
-const RETRY_MS = 20 * 60_000;
+const RETRY_MS = 3 * 60_000;
 
 export const jakartaDay = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 const jakartaHour = () => Number(new Date().toLocaleString("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", hour12: false }));
