@@ -7,7 +7,7 @@ import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
 import { limitsFor } from "@/lib/plans";
-import { aiQuota, platformKeyHint, platformPostsThisMonth } from "./platform";
+import { aiQuota, classifierKeyHint, platformPostsThisMonth } from "./platform";
 
 const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan, setelah menambah kuota, atau setelah paket dinaikkan.";
 import { prisma } from "../db";
@@ -158,7 +158,7 @@ function buildJob(row: ClassifierRow): Job {
     scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
     provider: providerConfig(row),
     fallback: fallbackConfig(row),
-    providerHint: row.providerKind === "signalbase" ? platformKeyHint() : row.providerKeyHint,
+    providerHint: classifierKeyHint(row),
     fallbackHint: row.fallbackKeyHint,
     prompt: row.prompt,
     categories,

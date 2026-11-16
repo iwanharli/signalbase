@@ -10,6 +10,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
 
 ### Diperbaiki
+- `GET /api/v1/usage` dan grafik "Penggunaan saldo" per proyek kini hanya memakai token dan saldo dari key penyedia yang sedang dipakai (`classifierKeyHint`, `keySince` di `src/lib/server/ai/platform.ts`). Sebelumnya token dan saldo key KIPERMAS dari masa key dipakai bersama ikut terhitung, sehingga biaya Signalbase di pbm terhitung dua kali dan grafik menampilkan saldo 1,03 lalu "isi ulang" palsu ke 6,01.
 - Infinite scroll Media Sosial/Online memuat halaman berikutnya lebih awal: pemicu 2000 px di bawah layar (sebelumnya 800 px), sehingga data baru sudah siap sebelum sampai dasar daftar.
 - Video di post X (Original View) tidak bisa diputar: `video.twimg.com` membalas 403 bila permintaan membawa Referer dari domain lain (bukan karena `?tag=`, yang tidak berpengaruh). Video kini dimuat di iframe `srcdoc` dengan `referrer=no-referrer` (`xVideoFrame` di `src/lib/media/xPost.ts`).
 

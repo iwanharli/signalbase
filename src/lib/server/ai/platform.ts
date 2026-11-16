@@ -14,6 +14,18 @@ let cachedEnc: { key: string; enc: string } | null = null;
 /** 4 huruf terakhir key penyedia milik Signalbase (SIGNALBASE_AI_API_KEY); null bila belum diatur. */
 export const platformKeyHint = () => (process.env.SIGNALBASE_AI_API_KEY ? process.env.SIGNALBASE_AI_API_KEY.slice(-4) : null);
 
+/** 4 huruf terakhir key yang kini membayar kategorisasi sebuah classifier (key Signalbase atau key milik klien). */
+export const classifierKeyHint = (c: { providerKind: string; providerKeyHint: string }) =>
+  c.providerKind === "signalbase" ? platformKeyHint() : c.providerKeyHint;
+
+/** Saat key itu pertama tercatat membayar token proyek ini; saldo sebelumnya milik key lain. Null bila belum pernah.
+ *  shortcut: keyHint baru dicatat sejak 16 Nov 2026, jadi saldo key yang tidak pernah diganti pun tampil sejak tanggal itu. */
+export async function keySince(apiKeyId: string, hint: string | null) {
+  if (!hint) return null;
+  const row = await prisma.tokenUsage.findFirst({ where: { apiKeyId, keyHint: hint }, orderBy: { hour: "asc" }, select: { hour: true } });
+  return row?.hour ?? null;
+}
+
 export const platformConfigured = () => !!(process.env.SIGNALBASE_AI_API_KEY && process.env.SIGNALBASE_AI_MODEL);
 
 /** The real provider behind Signalbase AI for a tier, or null when the server has not been configured. */
