@@ -22,7 +22,8 @@ const resultSchema = z.object({
   results: z.array(z.object({ id: z.string(), category: z.string(), confidence: z.number().nullable().optional(), reason: z.string().nullable().optional() })),
 });
 
-function systemPrompt(prompt: string, categories: Category[]) {
+/** `reason: false`: tanpa alasan (mis. pelabelan ulang data latih; ±80% token keluaran adalah alasan). */
+function systemPrompt(prompt: string, categories: Category[], reason = true) {
   const list = categories.map((c) => `- ${c.code}: ${c.label}${c.description ? ` — ${c.description}` : ""}`).join("\n");
   return [
     prompt.trim(),
@@ -31,7 +32,9 @@ function systemPrompt(prompt: string, categories: Category[]) {
     list,
     `- ${NO_CATEGORY}: tidak termasuk kategori mana pun`,
     "",
-    "Untuk setiap item, kembalikan tepat satu kode kategori dari daftar di atas, tingkat keyakinan 0 sampai 1, dan alasan singkat (maksimal 20 kata, bahasa Indonesia).",
+    reason
+      ? "Untuk setiap item, kembalikan tepat satu kode kategori dari daftar di atas, tingkat keyakinan 0 sampai 1, dan alasan singkat (maksimal 20 kata, bahasa Indonesia)."
+      : "Untuk setiap item, kembalikan tepat satu kode kategori dari daftar di atas dan tingkat keyakinan 0 sampai 1. Isi \"reason\" dengan string kosong.",
     "Kembalikan JSON dengan bentuk {\"results\": [{\"id\", \"category\", \"confidence\", \"reason\"}]} untuk semua item, memakai id yang sama.",
   ].join("\n");
 }
@@ -118,11 +121,11 @@ async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: stri
 }
 
 /** One category per item (items the model skipped are left out, so they are retried later). */
-export async function classifyBatch(config: ProviderConfig, prompt: string, categories: Category[], items: ClassifyItem[], onUsage?: (u: TokenCount) => void): Promise<ClassifyResult[]> {
+export async function classifyBatch(config: ProviderConfig, prompt: string, categories: Category[], items: ClassifyItem[], onUsage?: (u: TokenCount) => void, { reason = true } = {}): Promise<ClassifyResult[]> {
   if (!items.length) return [];
   const apiKey = decryptSecret(config.apiKeyEnc);
   const codes = categories.map((c) => c.code);
-  const system = systemPrompt(prompt, categories);
+  const system = systemPrompt(prompt, categories, reason);
   const raw = config.kind === "anthropic"
     ? await classifyWithClaude(config, apiKey, system, items, codes, onUsage)
     : await classifyWithOpenAiCompatible(config, apiKey, system, items, onUsage);

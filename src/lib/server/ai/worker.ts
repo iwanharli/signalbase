@@ -74,7 +74,7 @@ const isFatal = (error: unknown) => /\((401|402|403|429)\)|tidak valid|tidak pun
 type Labelled = Awaited<ReturnType<typeof classifyBatch>>[number] & { model: string };
 
 /** Adds a request's tokens to this hour's total for the key and model, with the paying provider key's hint. Never fails the batch. */
-function recordTokens(apiKeyId: string, model: string, keyHint: string | null) {
+export function recordTokens(apiKeyId: string, model: string, keyHint: string | null) {
   return (u: TokenCount) => {
     const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
     prisma.tokenUsage.upsert({
@@ -149,9 +149,9 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
 
 /** Runs up to `budget` items for one classifier. */
 type ClassifierRow = NonNullable<Awaited<ReturnType<typeof loadClassifier>>>;
-const loadClassifier = (apiKeyId: string) => prisma.classifier.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
+export const loadClassifier = (apiKeyId: string) => prisma.classifier.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
 
-function buildJob(row: ClassifierRow): Job {
+export function buildJob(row: ClassifierRow): Job {
   const categories = Object.fromEntries(MEDIA_TYPES.map((t) => [t, categorySchema.array().parse(categoriesForType(row, t))])) as Record<MediaType, Category[]>;
   return {
     apiKeyId: row.apiKeyId,
