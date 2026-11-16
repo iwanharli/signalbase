@@ -14,6 +14,10 @@ test("model lokal QW hanya untuk key di LOCAL_QW_KEYS dan bila LOCAL_QW_URL diis
   assert.equal(localQwMin(), 0.8);
   process.env.LOCAL_QW_MIN = "0.7";
   assert.equal(localQwMin(), 0.7);
+  process.env.LOCAL_QW_MIN = "0"; // semua lokal, bukan kembali ke 0,8
+  assert.equal(localQwMin(), 0);
+  process.env.LOCAL_QW_MIN = "abc";
+  assert.equal(localQwMin(), 0.8);
 });
 
 test("layanan model lokal mati: null (semua item ke penyedia AI), bukan error", async () => {

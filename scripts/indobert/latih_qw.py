@@ -30,6 +30,27 @@ DEV = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_av
 TWEET = "indobertweet" in BASE.lower()
 
 
+# Aturan kata kunci (sama dengan pelabelan pbm; label media hanya satu): QW3/QW8 hanya mengganti tebakan none/QW1/QW5,
+# QW5 hanya dipertahankan bila teks membahas kelanjutan perkara (audit emas 16 Nov 2026: berita kriminal biasa ditebak QW5).
+QW3 = re.compile(r"\b(per)?judi(an)?\b|\bjudol\b|\bslot\b|\btogel\b|sabung ayam|\bpinjol\b|pinjaman (daring|online)|\bpenipu(an)?\b|\bscam\b|\bsiber\b|\bcyber", re.I)
+QW8 = re.compile(r"\b(bbm|solar|elpiji|lpg|gas)\b[^.]{0,40}\b(ilegal|subsidi|oplos\w*|timbun\w*|penimbun\w*|selundup\w*)|\bpengoplos|\bpenimbunan\b"
+                 r"|tambang\s+(emas\s+)?(ilegal|liar)|pertambangan ilegal|\btppo\b|perdagangan orang|\bkorupsi\b|\bkoruptor|\btipikor\b|\btppu\b"
+                 r"|pencucian uang|mafia tanah|pidana pertanahan|labfor|\binafis\b|\bkuhp\b|\bkuhap\b", re.I)
+QW5_ISI = re.compile(r"sp2hp|perkembangan (laporan|perkara|kasus)|mandek|mangkrak|berkas|dilimpahkan|\bp-?21\b|\bsp3\b|gelar perkara|"
+                     r"restorative|keadilan restoratif|transparan|usut tuntas|mendesak|desak|tindak ?lanjut", re.I)
+
+
+def aturan(label, teks):
+    if label in ("none", "QW1", "QW5"):
+        if QW8.search(teks):
+            return "QW8"
+        if QW3.search(teks):
+            return "QW3"
+    if label == "QW5" and not QW5_ISI.search(teks):
+        return "none"
+    return label
+
+
 def prep(type_, text):
     t = " ".join(text.split())[:1200]
     if TWEET:  # praproses IndoBERTweet: huruf kecil, mention -> @USER, tautan -> HTTPURL

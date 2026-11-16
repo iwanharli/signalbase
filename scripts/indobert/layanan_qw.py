@@ -44,7 +44,8 @@ def classify(type_, items):
         p = NET(**enc).logits.softmax(-1)
         for it, row in zip(items[b:b + 32], p):
             k = int(row.argmax())
-            out.append({"id": it["id"], "category": LABELS[k], "confidence": round(float(row[k]), 4)})
+            # Aturan kata kunci QW3/QW8/QW5 (latih_qw.aturan): uji emas 16 Nov 2026 akurasi 0,68 -> 0,78.
+            out.append({"id": it["id"], "category": L.aturan(LABELS[k], it["text"]), "confidence": round(float(row[k]), 4)})
     return out
 
 

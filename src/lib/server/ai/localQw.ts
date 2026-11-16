@@ -8,7 +8,11 @@ import type { MediaType } from "@/lib/media/types";
 export type LocalLabel = { id: string; category: string; confidence: number };
 
 const keys = () => new Set((process.env.LOCAL_QW_KEYS ?? "").split(",").map((s) => s.trim()).filter(Boolean));
-export const localQwMin = () => Number(process.env.LOCAL_QW_MIN) || 0.8;
+/** Ambang keyakinan; 0 = semua post dilabel model lokal (tanpa DeepSeek). Kosong/tidak valid = 0,8. */
+export const localQwMin = () => {
+  const v = process.env.LOCAL_QW_MIN?.trim();
+  return v && Number.isFinite(Number(v)) ? Number(v) : 0.8;
+};
 
 export function usesLocalQw(apiKeyId: string) {
   return !!process.env.LOCAL_QW_URL && keys().has(apiKeyId);
