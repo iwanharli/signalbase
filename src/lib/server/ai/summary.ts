@@ -126,7 +126,8 @@ export async function writeSummary(setting: AiSetting, ref: ScopeRef, day = data
       attempts = MAX_ATTEMPTS;
       return save({ status: "failed", error: "Tidak ada data pada hari itu untuk cakupan ini." });
     }
-    const { raw, log } = await loggedCall(setting, "summary", { id: ref.id, name: ref.name }, SYSTEM_PROMPT, input.text, 8000);
+    // 16000: model berpikir (mis. deepseek-v4-pro) menghabiskan sebagian besar jatah untuk penalaran; 8000 terpotong (16 Nov 2026).
+    const { raw, log } = await loggedCall(setting, "summary", { id: ref.id, name: ref.name }, SYSTEM_PROMPT, input.text, 16000);
     const parsed = summaryContentSchema.safeParse(raw);
     if (!parsed.success) {
       await log(false, "Jawaban model tidak sesuai format");
