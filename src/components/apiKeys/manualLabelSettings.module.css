@@ -1,8 +1,70 @@
-.root { display: flex; flex-direction: column; gap: 14px; }
+/* "Label manual" settings. --label is a row's colour (the same one the label has on cards). */
+.root { display: flex; flex-direction: column; gap: 16px; }
 .note { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--mantine-color-dimmed); }
-.warn { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: 12.5px; color: var(--mantine-color-orange-8); background: var(--mantine-color-orange-0); }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips span { padding: 3px 10px; border-radius: 99px; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-0); }
 
-:global([data-mantine-color-scheme="dark"]) .warn { color: var(--mantine-color-orange-3); background: color-mix(in srgb, var(--mantine-color-orange-5) 12%, transparent); }
-:global([data-mantine-color-scheme="dark"]) .chips span { color: var(--mantine-color-violet-2); background: color-mix(in srgb, var(--mantine-color-violet-5) 16%, transparent); }
+.stats { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+.stats > div { display: flex; flex-direction: column; justify-content: center; min-width: 120px; padding: 10px 14px; border-radius: 14px;
+  border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-gray-0); }
+.stats b { font-size: 20px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stats > div > span { font-size: 11.5px; font-weight: 600; color: var(--mantine-color-dimmed); }
+.stats .preview { flex: 1; min-width: 220px; gap: 6px; }
+.previewBar { --label: var(--mantine-color-violet-6); position: relative; display: flex; align-items: center; justify-content: space-between; overflow: hidden;
+  padding: 6px 10px 6px 12px; border-radius: 10px; font-style: normal; background: color-mix(in srgb, var(--label) 9%, var(--mantine-color-body));
+  border: 1px solid color-mix(in srgb, var(--label) 30%, transparent); }
+.previewBar::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--label); }
+.previewBar small { font-size: 9.5px; font-weight: 800; letter-spacing: .08em; color: var(--mantine-color-dimmed); }
+.previewBar em { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 99px; font-style: normal; font-size: 12px; font-weight: 700;
+  color: var(--label); background: color-mix(in srgb, var(--label) 12%, var(--mantine-color-body)); border: 1px solid color-mix(in srgb, var(--label) 45%, transparent); }
+.previewBar s { width: 7px; height: 7px; border-radius: 50%; background: var(--label); }
+
+.adder { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 14px;
+  border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); transition: border-color 140ms, box-shadow 140ms; }
+.adder:focus-within { border-color: var(--mantine-color-violet-5); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-violet-5) 18%, transparent); }
+.adderIcon { flex-shrink: 0; color: var(--mantine-color-dimmed); }
+.adder input { flex: 1; min-width: 0; height: 32px; border: 0; outline: none; background: none; font: inherit; font-size: 14px; color: inherit; }
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.row { --label: var(--mantine-color-gray-5); position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+  padding: 8px 10px 8px 16px; border-radius: 12px; overflow: hidden; border: 1px solid var(--mantine-color-default-border);
+  background: color-mix(in srgb, var(--label) 5%, var(--mantine-color-body)); transition: border-color 140ms, opacity 140ms; }
+.row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--label); }
+.row:hover { border-color: color-mix(in srgb, var(--label) 40%, var(--mantine-color-default-border)); }
+.row[data-new] { border-style: dashed; }
+.row[data-removed] { opacity: .6; }
+.row[data-removed] .nameText { text-decoration: line-through; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--label); box-shadow: 0 0 0 3px color-mix(in srgb, var(--label) 22%, transparent); }
+.name, .nameText { min-width: 0; font: inherit; font-size: 14px; font-weight: 700; }
+.name { height: 30px; padding: 0 8px; margin-left: -8px; border-radius: 8px; border: 1px solid transparent; outline: none; background: none; color: inherit; }
+.name:hover { border-color: var(--mantine-color-default-border); }
+.name:focus { border-color: var(--mantine-color-violet-5); background: var(--mantine-color-body); }
+.nameText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { font-size: 12px; font-weight: 600; color: var(--mantine-color-dimmed); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.badge { padding: 2px 8px; border-radius: 99px; font-style: normal; font-size: 11px; font-weight: 700; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
+.badge[data-tone="danger"] { color: var(--mantine-color-red-7); background: var(--mantine-color-red-0); }
+.actions { display: flex; gap: 2px; }
+.actions button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; cursor: pointer; color: var(--mantine-color-dimmed); background: none; }
+.actions button:hover:not(:disabled) { color: var(--mantine-color-violet-6); background: var(--mantine-color-default-hover); }
+.actions button[data-danger]:hover { color: var(--mantine-color-red-6); }
+.actions button:disabled { opacity: .3; cursor: default; }
+
+.empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 16px; border-radius: 14px; text-align: center;
+  border: 1px dashed var(--mantine-color-default-border); color: var(--mantine-color-dimmed); }
+.empty b { color: var(--mantine-color-text); }
+.empty p { margin: 0; font-size: 13px; }
+.suggest { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 6px; }
+.suggest button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700;
+  color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); border: 1px solid transparent; }
+.suggest button:hover { border-color: var(--mantine-color-violet-4); }
+
+.savebar { position: sticky; bottom: 16px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; border-radius: 14px;
+  color: #fff; background: #191729; border: 1px solid rgba(167,139,250,.3); box-shadow: 0 16px 40px -18px rgba(46,16,101,.8); }
+.savebar > span { flex: 1; font-size: 13px; font-weight: 600; }
+
+:global([data-mantine-color-scheme="dark"]) .stats > div { background: var(--mantine-color-dark-6); }
+:global([data-mantine-color-scheme="dark"]) .row { background: color-mix(in srgb, var(--label) 7%, var(--mantine-color-dark-7)); }
+:global([data-mantine-color-scheme="dark"]) .previewBar { background: color-mix(in srgb, var(--label) 14%, var(--mantine-color-dark-7)); }
+:global([data-mantine-color-scheme="dark"]) .previewBar em { color: color-mix(in srgb, var(--label) 55%, white); background: color-mix(in srgb, var(--label) 20%, var(--mantine-color-dark-7)); }
+:global([data-mantine-color-scheme="dark"]) .badge { color: var(--mantine-color-violet-2); background: color-mix(in srgb, var(--mantine-color-violet-5) 16%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .badge[data-tone="danger"] { color: var(--mantine-color-red-3); background: color-mix(in srgb, var(--mantine-color-red-5) 14%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .suggest button { color: var(--mantine-color-violet-2); background: color-mix(in srgb, var(--mantine-color-violet-5) 16%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .adder { background: var(--mantine-color-dark-7); }

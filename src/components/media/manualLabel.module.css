@@ -1,11 +1,30 @@
-/* Manual label dropdown on a card: quiet until set, then tinted so labelled posts stand out in the grid. */
-.wrap { position: relative; z-index: 2; }
-.input { height: 30px; min-height: 30px; border-radius: 9px; font-size: 12.5px; font-weight: 700;
-  border: 1px dashed var(--mantine-color-default-border); background: transparent; }
-.input:disabled { opacity: 1; cursor: default; color: var(--mantine-color-dimmed); }
-.wrap[data-set] .input { border-style: solid; border-color: var(--mantine-color-violet-3); background: var(--mantine-color-violet-0); color: var(--mantine-color-violet-8); }
+/* Manual label strip at the top of a card. --label is the chosen label's colour. Quiet until a label is set; then the
+   strip takes a light wash of that colour with an accent line, so labelled cards stand out in the grid. */
+.bar { --label: var(--mantine-color-gray-5); position: relative; z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 12px 8px 14px; border-bottom: 1px dashed var(--mantine-color-default-border); background: var(--mantine-color-gray-0); }
+.bar[data-set] { border-bottom-style: solid; border-bottom-color: color-mix(in srgb, var(--label) 30%, transparent);
+  background: color-mix(in srgb, var(--label) 9%, var(--mantine-color-body)); }
+.bar[data-set]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--label); }
 
-:global([data-mantine-color-scheme="dark"]) .wrap[data-set] .input {
-  border-color: color-mix(in srgb, var(--mantine-color-violet-5) 55%, transparent);
-  background: color-mix(in srgb, var(--mantine-color-violet-5) 14%, transparent); color: var(--mantine-color-violet-2);
-}
+.bar[data-bleed] { margin: -14px -16px 0; border-radius: 18px 18px 0 0; }
+
+.caption { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mantine-color-dimmed); }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; max-width: 75%; height: 26px; padding: 0 10px; border-radius: 99px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-body); border: 1px dashed var(--mantine-color-default-border); transition: border-color 140ms, color 140ms, background 140ms; }
+.pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill:hover:not(:disabled) { color: var(--mantine-color-violet-6); border-color: var(--mantine-color-violet-4); }
+.pill:disabled { cursor: default; }
+.pill[data-set] { color: var(--label); border-style: solid; border-color: color-mix(in srgb, var(--label) 45%, transparent);
+  background: color-mix(in srgb, var(--label) 12%, var(--mantine-color-body)); }
+.pill[data-set]:hover:not(:disabled) { color: var(--label); border-color: var(--label); }
+.pill:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+.chevron { flex-shrink: 0; opacity: .7; }
+
+.dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--label); box-shadow: 0 0 0 3px color-mix(in srgb, var(--label) 22%, transparent); }
+
+:global([data-mantine-color-scheme="dark"]) .bar { background: color-mix(in srgb, var(--mantine-color-dark-6) 60%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .bar[data-set] { background: color-mix(in srgb, var(--label) 14%, var(--mantine-color-dark-7)); }
+:global([data-mantine-color-scheme="dark"]) .pill { background: var(--mantine-color-dark-7); }
+:global([data-mantine-color-scheme="dark"]) .pill[data-set] { color: color-mix(in srgb, var(--label) 55%, white); background: color-mix(in srgb, var(--label) 20%, var(--mantine-color-dark-7)); }

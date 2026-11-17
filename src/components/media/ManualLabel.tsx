@@ -1,18 +1,22 @@
 "use client";
-// Dropdown on each card to give a post or article one of the project's manual labels (not AI categorisation).
+// Strip at the top of each card to give a post or article one of the project's manual labels (not AI categorisation).
 // MediaBrowser provides the project's choices through ManualLabelContext; without a project, or without choices, nothing shows.
+// Each choice keeps one colour (by its position in the project's list), so labelled cards are easy to spot in the grid.
 import { createContext, useContext, useEffect, useState } from "react";
-import { Select } from "@mantine/core";
+import { Loader, Menu } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconTag } from "@tabler/icons-react";
+import { IconCheck, IconChevronDown, IconTag, IconX } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
+import { labelColor as colorOf } from "@/lib/media/manualLabels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import classes from "./manualLabel.module.css";
 
 export type ManualLabelContextValue = { keyId: string; type: MediaType; options: string[]; canLabel: boolean };
 export const ManualLabelContext = createContext<ManualLabelContextValue | null>(null);
 
-export function ManualLabelPicker({ item }: { item: MediaItem }) {
+
+/** bleed: inside a padded box (the Original View shell), pulled out to its edges like the strip on a Quick card. */
+export function ManualLabelPicker({ item, bleed }: { item: MediaItem; bleed?: boolean }) {
   const ctx = useContext(ManualLabelContext);
   const [value, setValue] = useState<string | null>(item.manualLabel ?? null);
   const [busy, setBusy] = useState(false);
@@ -35,23 +39,40 @@ export function ManualLabelPicker({ item }: { item: MediaItem }) {
     }
   };
 
-  // Clicks inside (the dropdown is portalled, but React events still bubble here) must not open the detail modal.
+  const color = value ? colorOf(ctx.options, value) : null;
+  const pill = (
+    <button type="button" className={classes.pill} data-set={value ? true : undefined} disabled={!ctx.canLabel || busy}
+      aria-label={value ? `Label: ${value}${ctx.canLabel ? ", ubah" : ""}` : "Beri label"}>
+      {busy ? <Loader size={11} color="currentColor" /> : value ? <i className={classes.dot} /> : <IconTag size={13} />}
+      <span>{value ?? (ctx.canLabel ? "Beri label" : "Belum diberi label")}</span>
+      {ctx.canLabel && <IconChevronDown size={13} className={classes.chevron} />}
+    </button>
+  );
+
+  // Clicks inside (the menu is portalled, but React events still bubble here) must not open the detail modal.
   return (
-    <div className={classes.wrap} data-set={value ? true : undefined} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <Select
-        size="xs"
-        aria-label="Label manual"
-        placeholder={ctx.canLabel ? "Beri label…" : "Belum diberi label"}
-        data={ctx.options}
-        value={value}
-        onChange={change}
-        clearable={ctx.canLabel}
-        disabled={!ctx.canLabel || busy}
-        allowDeselect={false}
-        comboboxProps={{ withinPortal: true, shadow: "md" }}
-        leftSection={<IconTag size={13} />}
-        classNames={{ input: classes.input }}
-      />
+    <div className={classes.bar} data-set={value ? true : undefined} data-bleed={bleed || undefined} style={color ? { ["--label" as string]: `var(--mantine-color-${color}-6)` } : undefined}
+      onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <span className={classes.caption}>Label</span>
+      {ctx.canLabel ? (
+        <Menu position="bottom-start" shadow="md" radius="md" width={220} withinPortal>
+          <Menu.Target>{pill}</Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Pilih label</Menu.Label>
+            {ctx.options.map((option) => (
+              <Menu.Item key={option} onClick={() => change(option)}
+                leftSection={<i className={classes.dot} style={{ ["--label" as string]: `var(--mantine-color-${colorOf(ctx.options, option)}-6)` }} />}
+                rightSection={option === value ? <IconCheck size={14} /> : null}>
+                {option}
+              </Menu.Item>
+            ))}
+            {value && <>
+              <Menu.Divider />
+              <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={() => change(null)}>Hapus label</Menu.Item>
+            </>}
+          </Menu.Dropdown>
+        </Menu>
+      ) : pill}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeLabels, type LabelSettings } from "@/lib/media/manualLabels";
+import { normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { adminRoute, keyAccess } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 
@@ -12,7 +12,9 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
   const key = await prisma.apiKey.findUnique({ where: { id }, select: { manualLabels: true, revokedAt: true } });
   if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   const access = await keyAccess(user, id);
+  const groups = await prisma.itemLabel.groupBy({ by: ["label"], where: { apiKeyId: id }, _count: true });
   const settings: LabelSettings = {
+    counts: Object.fromEntries(groups.map((g) => [g.label, g._count])),
     options: key.manualLabels,
     canEdit: access === "full" && !key.revokedAt,
     canLabel: user.role !== "viewer" && !!access && !key.revokedAt,
@@ -20,21 +22,30 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
   return NextResponse.json(settings);
 });
 
-// Owner or admin: replace the choices. Labels given with a choice that was removed are taken off those posts.
+// Owner or admin: replace the choices. `renames` move posts from an old name to its new one (they keep their label);
+// labels given with a choice that was removed are taken off those posts.
 export const PUT = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
+  const body = await req.json().catch(() => null);
   let options: string[];
   try {
-    options = normalizeLabels((await req.json().catch(() => null))?.options);
+    options = normalizeLabels(body?.options);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
-  const key = await prisma.apiKey.findUnique({ where: { id }, select: { revokedAt: true } });
+  const key = await prisma.apiKey.findUnique({ where: { id }, select: { revokedAt: true, manualLabels: true } });
   if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   if (key.revokedAt) return NextResponse.json({ error: "Proyek sudah dicabut" }, { status: 409 });
-  const [, removed] = await prisma.$transaction([
-    prisma.apiKey.update({ where: { id }, data: { manualLabels: options } }),
-    prisma.itemLabel.deleteMany({ where: { apiKeyId: id, label: { notIn: options } } }),
-  ]);
-  return NextResponse.json({ options, removed: removed.count });
+  // Only renames from a saved choice to a new choice count.
+  const renames: LabelRename[] = (Array.isArray(body?.renames) ? body.renames : [])
+    .filter((r: LabelRename) => typeof r?.from === "string" && typeof r?.to === "string" && r.from !== r.to && key.manualLabels.includes(r.from) && options.includes(r.to));
+  const tmp = `__rename_${Date.now()}_`;
+  const removed = await prisma.$transaction(async (tx) => {
+    // Two steps through a temporary name, so swapping two names (A↔B) cannot merge them.
+    for (const [i, r] of renames.entries()) await tx.itemLabel.updateMany({ where: { apiKeyId: id, label: r.from }, data: { label: `${tmp}${i}` } });
+    for (const [i, r] of renames.entries()) await tx.itemLabel.updateMany({ where: { apiKeyId: id, label: `${tmp}${i}` }, data: { label: r.to } });
+    await tx.apiKey.update({ where: { id }, data: { manualLabels: options } });
+    return (await tx.itemLabel.deleteMany({ where: { apiKeyId: id, label: { notIn: options } } })).count;
+  });
+  return NextResponse.json({ options, removed, renamed: renames.length });
 });

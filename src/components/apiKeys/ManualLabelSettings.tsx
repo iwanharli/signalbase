@@ -1,32 +1,82 @@
 "use client";
 // "Label manual" tab of a project: the label choices people pick from on each post's card. Saved on its own (not part of
-// the scope draft). Separate from AI categorisation.
-import { useEffect, useState } from "react";
-import { Skeleton, TagsInput } from "@mantine/core";
+// the scope draft). Separate from AI categorisation. Each row shows the label's colour and how many posts carry it;
+// renaming keeps those posts labelled, removing takes the label off them.
+import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconDeviceFloppy } from "@tabler/icons-react";
+import { IconArrowBackUp, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
-import { MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelSettings } from "@/lib/media/manualLabels";
+import { labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
-import classes from "./manualLabelSettings.module.css";
+import c from "./manualLabelSettings.module.css";
+
+type Row = { id: number; original: string | null; name: string; removed: boolean };
+const SUGGESTIONS = ["Hoaks", "Tidak hoaks", "Perlu verifikasi", "Tindak lanjut", "Prioritas", "Abaikan"];
+let nextId = 1;
+const rowsFrom = (options: string[]): Row[] => options.map((o) => ({ id: nextId++, original: o, name: o, removed: false }));
+const colorVar = (options: string[], label: string) => `var(--mantine-color-${labelColor(options, label)}-6)`;
 
 export function ManualLabelSettings({ keyId }: { keyId: string }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
-  const [draft, setDraft] = useState<string[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (settings.data) setDraft(settings.data.options); }, [settings.data]);
+  useEffect(() => { if (settings.data) setRows(rowsFrom(settings.data.options)); }, [settings.data]);
 
-  if (!settings.data) return settings.error ? <p className={classes.note}>{settings.error}</p> : <Skeleton h={90} radius="md" />;
-  const saved = settings.data.options;
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
-  const dropped = saved.filter((l) => !draft.includes(l));
+  const kept = rows.filter((r) => !r.removed);
+  const names = kept.map((r) => r.name.trim().replace(/\s+/g, " "));
+  const saved = settings.data?.options ?? [];
+  const counts = settings.data?.counts ?? {};
+  const problem = useMemo(() => {
+    if (names.some((n) => !n)) return "Nama label tidak boleh kosong";
+    if (names.some((n) => n.length > MAX_LABEL_LENGTH)) return `Nama label maksimal ${MAX_LABEL_LENGTH} karakter`;
+    const lower = names.map((n) => n.toLocaleLowerCase("id"));
+    if (new Set(lower).size !== lower.length) return "Ada nama label yang sama";
+    return null;
+  }, [names]);
+  const renames: LabelRename[] = kept.filter((r) => r.original && r.name.trim() !== r.original).map((r) => ({ from: r.original!, to: r.name.trim().replace(/\s+/g, " ") }));
+  const removedRows = rows.filter((r) => r.removed && r.original);
+  const lost = removedRows.reduce((n, r) => n + (counts[r.original!] ?? 0), 0);
+  const dirty = JSON.stringify(names) !== JSON.stringify(saved);
+
+  if (!settings.data) return settings.error ? <p className={c.note}>{settings.error}</p> : <Skeleton h={160} radius="md" />;
+  const canEdit = settings.data.canEdit;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  const add = (name: string) => {
+    const label = name.trim().replace(/\s+/g, " ");
+    if (!label) return;
+    if (names.some((n) => n.toLocaleLowerCase("id") === label.toLocaleLowerCase("id"))) {
+      notifications.show({ color: "orange", message: `Label "${label}" sudah ada` });
+      return;
+    }
+    if (kept.length >= MAX_LABELS) {
+      notifications.show({ color: "orange", message: `Maksimal ${MAX_LABELS} label per proyek` });
+      return;
+    }
+    setRows((rs) => [...rs, { id: nextId++, original: null, name: label.slice(0, MAX_LABEL_LENGTH), removed: false }]);
+    setDraft("");
+  };
+  const patch = (id: number, p: Partial<Row>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  const move = (id: number, by: -1 | 1) => setRows((rs) => {
+    const list = [...rs];
+    const i = list.findIndex((r) => r.id === id);
+    let j = i + by;
+    while (list[j]?.removed) j += by; // skip rows marked for removal
+    if (j < 0 || j >= list.length) return rs;
+    [list[i], list[j]] = [list[j], list[i]];
+    return list;
+  });
+  const remove = (row: Row) => (row.original ? patch(row.id, { removed: true }) : setRows((rs) => rs.filter((r) => r.id !== row.id)));
 
   const save = async () => {
     setBusy(true);
     try {
-      const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(draft) }, "PUT")) as { removed: number };
-      notifications.show({ color: "teal", message: res.removed ? `Label disimpan. ${res.removed} post dilepas dari label yang dihapus.` : "Label disimpan" });
+      const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(names), renames }, "PUT")) as { removed: number; renamed: number };
+      const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} post dilepas dari label yang dihapus`].filter(Boolean);
+      notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
       settings.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -35,32 +85,89 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
     }
   };
 
-  if (!settings.data.canEdit) {
-    return saved.length
-      ? <div className={classes.chips}>{saved.map((l) => <span key={l}>{l}</span>)}</div>
-      : <p className={classes.note}>Belum ada pilihan label. Pemilik proyek atau admin dapat menambahkannya.</p>;
-  }
-
+  const preview = names.find(Boolean);
   return (
-    <div className={classes.root}>
-      <TagsInput
-        label="Pilihan label"
-        description={`Ketik label lalu tekan Enter. Maksimal ${MAX_LABELS} label, masing-masing ${MAX_LABEL_LENGTH} karakter. Urutan di sini menjadi urutan di dropdown.`}
-        placeholder={draft.length ? "Tambah label…" : "Mis. Prioritas, Tindak lanjut, Hoaks, Abaikan"}
-        value={draft}
-        onChange={setDraft}
-        maxTags={MAX_LABELS}
-        splitChars={[","]}
-        clearable
-      />
-      {dropped.length > 0 && (
-        <p className={classes.warn}>Label yang dihapus ({dropped.join(", ")}) akan dilepas dari semua post yang memakainya.</p>
+    <div className={c.root}>
+      <div className={c.stats}>
+        <div><b>{saved.length}</b><span>pilihan label</span></div>
+        <div><b>{total.toLocaleString("id-ID")}</b><span>post diberi label</span></div>
+        {preview && (
+          <div className={c.preview} aria-hidden>
+            <span>Tampilan di kartu</span>
+            <i className={c.previewBar} style={{ ["--label" as string]: colorVar(names, preview) }}><small>LABEL</small><em><s />{preview}</em></i>
+          </div>
+        )}
+      </div>
+
+      {canEdit && (
+        <form className={c.adder} onSubmit={(e) => { e.preventDefault(); add(draft); }}>
+          <IconTag size={16} className={c.adderIcon} />
+          <input value={draft} onChange={(e) => setDraft(e.currentTarget.value)} maxLength={MAX_LABEL_LENGTH} placeholder="Nama label baru, mis. Hoaks" aria-label="Nama label baru" />
+          <Button type="submit" size="sm" variant="primary" icon={IconPlus} disabled={!draft.trim()}>Tambah</Button>
+        </form>
       )}
-      <p className={classes.note}>
-        Label muncul sebagai dropdown di setiap kartu Media Sosial dan Media Online saat dilihat lewat proyek ini. Pemilik proyek, admin, dan
-        anggota klien yang diberi akses dapat memberi label; viewer hanya melihat. Label ini terpisah dari kategorisasi AI.
+
+      {!rows.length ? (
+        <div className={c.empty}>
+          <IconTag size={22} />
+          <b>Belum ada pilihan label</b>
+          <p>{canEdit ? "Tambahkan label di atas, atau mulai dari contoh berikut:" : "Pemilik proyek atau admin dapat menambahkannya."}</p>
+          {canEdit && <div className={c.suggest}>{SUGGESTIONS.map((s) => <button key={s} type="button" onClick={() => add(s)}><IconPlus size={12} />{s}</button>)}</div>}
+        </div>
+      ) : (
+        <ol className={c.list}>
+          {rows.map((row) => {
+            const name = row.name.trim() || row.original || "";
+            const count = row.original ? counts[row.original] ?? 0 : 0;
+            const keptIndex = kept.indexOf(row);
+            return (
+              <li key={row.id} className={c.row} data-removed={row.removed || undefined} data-new={!row.original || undefined}
+                style={{ ["--label" as string]: row.removed ? "var(--mantine-color-gray-5)" : colorVar(names, name.replace(/\s+/g, " ")) }}>
+                <span className={c.dot} />
+                {canEdit && !row.removed
+                  ? <input className={c.name} value={row.name} maxLength={MAX_LABEL_LENGTH} onChange={(e) => patch(row.id, { name: e.currentTarget.value })} aria-label={`Nama label ${row.original ?? "baru"}`} />
+                  : <span className={c.nameText}>{row.original ?? row.name}</span>}
+                <span className={c.meta}>
+                  {!row.original ? <em className={c.badge}>baru</em>
+                    : row.removed ? <em className={c.badge} data-tone="danger">{count ? `dihapus · ${count} post dilepas` : "dihapus"}</em>
+                    : row.name.trim() !== row.original ? <em className={c.badge}>ganti nama · {count} post ikut</em>
+                    : <span>{count.toLocaleString("id-ID")} post</span>}
+                </span>
+                {canEdit && (
+                  <span className={c.actions}>
+                    {row.removed ? (
+                      <button type="button" onClick={() => patch(row.id, { removed: false })} title="Urungkan"><IconArrowBackUp size={15} /></button>
+                    ) : <>
+                      <button type="button" onClick={() => move(row.id, -1)} disabled={keptIndex <= 0} title="Naikkan"><IconChevronUp size={15} /></button>
+                      <button type="button" onClick={() => move(row.id, 1)} disabled={keptIndex === kept.length - 1} title="Turunkan"><IconChevronDown size={15} /></button>
+                      <button type="button" onClick={() => remove(row)} title="Hapus" data-danger><IconTrash size={15} /></button>
+                    </>}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      <p className={c.note}>
+        Label tampil di bagian atas setiap kartu Media Sosial dan Media Online saat dilihat lewat proyek ini, dengan warna sesuai urutan di sini.
+        Pemilik proyek, admin, dan anggota klien dapat memberi label; viewer hanya melihat. Terpisah dari kategorisasi AI.
       </p>
-      <div><Button variant="primary" icon={IconDeviceFloppy} onClick={save} loading={busy} disabled={!dirty}>Simpan label</Button></div>
+
+      {canEdit && (dirty || removedRows.length > 0) && (
+        <div className={c.savebar}>
+          <span>
+            {problem ?? ([
+              renames.length && `${renames.length} ganti nama`,
+              removedRows.length && `${removedRows.length} dihapus${lost ? ` (${lost} post dilepas)` : ""}`,
+              rows.filter((r) => !r.original).length && `${rows.filter((r) => !r.original).length} baru`,
+            ].filter(Boolean).join(" · ") || "Urutan diubah")}
+          </span>
+          <Button size="sm" variant="subtle" onClick={() => setRows(rowsFrom(saved))} disabled={busy}>Batalkan</Button>
+          <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={save} loading={busy} disabled={!!problem}>Simpan label</Button>
+        </div>
+      )}
     </div>
   );
 }

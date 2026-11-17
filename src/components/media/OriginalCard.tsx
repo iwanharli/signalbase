@@ -80,11 +80,11 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
       {mounted && (
         <div className={classes.original} data-visible={showOriginal || undefined}>
           <div className={classes.shell}>
+            <ManualLabelPicker item={item} bleed />
             {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} />}
             {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}
             {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
             {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}
-            <ManualLabelPicker item={item} />
             <footer className={classes.foot}>
               <button type="button" onClick={() => setQuick(true)}><IconLayoutList size={14} aria-hidden />Tampilan Quick</button>
               <button type="button" onClick={() => onOpen(item)}>Detail</button>

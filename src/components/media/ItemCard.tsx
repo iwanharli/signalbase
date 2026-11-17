@@ -48,6 +48,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
       onClick={open}
       style={{ animationDelay: `${delay}ms`, ["--tone" as string]: moodTone(item) }}
     >
+      <ManualLabelPicker item={item} />
       {hasImage && (
         <div className={classes.media}>
           {/* Remote images from many news hosts; next/image would need every domain allow-listed. */}
@@ -82,7 +83,6 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
         <AiCategoryBadge item={item} />
-        <ManualLabelPicker item={item} />
         {item.analysis && <AnalysisPreview analysis={item.analysis} />}
         {type === "social" && hasMetrics && <div className={classes.socialMetrics} role="group" aria-label="Interaksi post"><MetricList metrics={item.metrics} compact /></div>}
         <div className={classes.footer}>

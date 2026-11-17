@@ -26,6 +26,10 @@ export function normalizeLabels(input: unknown): string[] {
   return out;
 }
 
+/** Mantine colour of a label: fixed by its position in the project's list, the same on cards, filters and settings. */
+const LABEL_COLORS = ["violet", "red", "teal", "orange", "blue", "pink", "lime", "indigo", "yellow", "grape", "cyan", "green"];
+export const labelColor = (options: string[], label: string) => LABEL_COLORS[Math.max(0, options.indexOf(label)) % LABEL_COLORS.length];
+
 /** What the panel needs to show labels for one project. */
 export type LabelSettings = {
   options: string[];
@@ -33,4 +37,9 @@ export type LabelSettings = {
   canEdit: boolean;
   /** May label posts: owner, admins and sub-accounts it is shared with (not viewers). */
   canLabel: boolean;
+  /** Posts and articles carrying each label in this project. */
+  counts: Record<string, number>;
 };
+
+/** A choice renamed in the settings: posts labelled `from` move to `to`. */
+export type LabelRename = { from: string; to: string };
