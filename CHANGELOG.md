@@ -19,6 +19,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## 2026-11-18
 
 ### Ditambahkan
+- **Akun demo** (`Admin.demo`): tidak melihat menu "Paket & tagihan", chip paket, maupun banner paket/kuota; `/billing` dialihkan ke Beranda. Anggota mengikuti akun utamanya. Diatur admin lewat sakelar "Akun demo" di modal Paket dan saat membuat akun utama klien; badge "Demo" di daftar Pengguna.
+- **Lightbox gambar**: gambar post asli X dan gambar di modal detail dibuka layar penuh; panah, keyboard (←/→/Esc), geser di layar sentuh, penghitung dan thumbnail bila lebih dari satu gambar.
+- **Modal detail post baru**: dua kolom (isi post di kiri; label manual, kategorisasi AI, analisis sumber, konteks, dan kode di kanan) tanpa tab, tinggi mengikuti isi; header berisi akun/media, pengikut, waktu, dan emosi. Label manual bisa diberi langsung dari modal.
 - **Label manual per proyek** (terpisah dari kategorisasi AI): tab "Label manual" di detail proyek untuk mengatur pilihan label (pemilik proyek dan admin; maks. 30 label, 40 karakter). Bila proyek punya pilihan label, setiap kartu Media Sosial/Online yang dilihat lewat proyek itu (Quick dan Original View) menampilkan dropdown label; pemilik, admin, dan anggota klien dapat memberi label, viewer hanya melihat. Menghapus pilihan melepas label itu dari post. Tabel `ItemLabel`, kolom `ApiKey.manualLabels`; API `GET`/`PUT /api/admin/keys/[id]/labels`, `PUT /api/admin/keys/[id]/item-labels`.
 - Label manual tampil sebagai strip di bagian atas kartu (Quick dan Original View) dengan menu pilihan; tiap label punya warna tetap sesuai urutannya. Pengaturan label didesain ulang: jumlah post per label, pratinjau, contoh label, ganti nama langsung (post ikut pindah ke nama baru, `renames` di `PUT /api/admin/keys/[id]/labels`), urutan naik/turun, hapus label yang sedang dipakai lewat jendela peringatan (jumlah post yang kehilangan label; bila dilanjutkan label langsung dilepas dari post-post itu).
 - **Filter label manual**: bagian "Label manual" di Filter lanjutan (satu label atau semua yang sudah diberi label), bisa digabung dengan filter lain dan kategori AI (`?label=`, `__any`).
@@ -36,6 +39,8 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
 
 ### Diperbaiki
+- Filter lanjutan Media Sosial/Online tidak lagi memuat data setiap kali satu pilihan diubah: pilihan masuk draf ("N belum diterapkan") dan baru dimuat saat "Terapkan · N perubahan"; menutup panel atau "Batalkan" membuang draf.
+- Catatan sumber di bawah post asli ("Dari FxTwitter · dimuat …", "Pratinjau resmi …") dihapus; tab "Post asli / Data tersimpan" menjadi sakelar pil.
 - Kotak cari Media Sosial/Online: kursor tidak lagi melompat ke akhir saat menghapus huruf di tengah teks (input memegang teksnya sendiri, nilai dari URL hanya dipakai bila berubah dari luar).
 - Ringkasan: pilihan **14 dan 30 hari** tidak lagi menunggu ±25 dtk saat pertama dibuka; warmer (`warmOverview`) kini juga menyiapkan periode 30 dan 14 hari (setelah semua periode 7 hari), untuk seluruh bank dan tiap proyek. Bagian terberat: engagement per platform (±19 dtk untuk 60 hari data).
 - Video X di Original View tidak lagi menampilkan scrollbar kecil di sisi kanan (video inline menyisakan celah baseline di dalam iframe).
