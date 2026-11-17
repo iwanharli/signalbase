@@ -10,20 +10,27 @@ datasource db {
 // Panel account. role "admin" manages everything; role "user" signs up, waits for an admin to approve,
 // then manages only their own API keys.
 model Admin {
-  id            String    @id @default(uuid())
-  username      String    @unique
-  name          String
-  passwordHash  String
-  role          String    @default("admin") // "admin" | "user"
-  status        String    @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
+  id             String          @id @default(uuid())
+  username       String          @unique
+  name           String
+  passwordHash   String
+  role           String          @default("admin") // "admin" | "user"
+  status         String          @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
   /// Plan of a "user" account: trial | starter | pro | instansi. null = no plan limits (accounts set up by hand).
-  plan          String?
+  plan           String?
   /// End of the trial or paid period; keys stop working after it. null = no end date.
-  planExpiresAt DateTime?
+  planExpiresAt  DateTime?
   /// Plan chosen on /pricing when signing up (?plan=), shown to the admin who approves; it does not grant anything.
-  requestedPlan String?
-  invoices      Invoice[]
-  createdAt     DateTime  @default(now())
+  requestedPlan  String?
+  /// Sub-account of a client: set for extra logins of one client. It follows the parent's plan, period and status, owns no
+  /// projects and only sees the parent's projects an admin shared with it (ProjectMember). null = a main account.
+  parentId       String?
+  parent         Admin?          @relation("SubAccounts", fields: [parentId], references: [id], onDelete: Cascade)
+  subAccounts    Admin[]         @relation("SubAccounts")
+  invoices       Invoice[]
+  /// Sub-account only: the parent's projects an admin shared with it.
+  sharedProjects ProjectMember[]
+  createdAt      DateTime        @default(now())
 }
 
 model ApiKey {
@@ -48,6 +55,7 @@ model ApiKey {
   usage           ApiKeyUsage[]
   balances        BalanceSnapshot[]
   tokenUsage      TokenUsage[]
+  members         ProjectMember[]
 }
 
 // AI categorisation settings and progress for one API key.
@@ -284,4 +292,17 @@ model ReportProfile {
   sifat          String   @default("RAHASIA / TERBATAS")
   updatedBy      String?
   updatedAt      DateTime @updatedAt
+}
+
+/// A sub-account's access to one of its parent's projects, chosen by an admin. Members see the project and its data
+/// (media, insights, issues, reports) but cannot change, revoke or copy it; plan limits and quotas stay with the owner.
+model ProjectMember {
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Admin    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([apiKeyId, accountId])
+  @@index([accountId])
 }

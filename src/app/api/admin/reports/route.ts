@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isBrief } from "@/lib/brief";
 import { isReportKind, type ReportCover, type ReportKind } from "@/lib/report";
-import { adminRoute } from "@/lib/server/auth";
+import { adminRoute, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { BANK_SCOPE } from "@/lib/server/report";
 
@@ -33,7 +33,7 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const admin = user.role !== "user";
   const params = new URL(req.url).searchParams;
   const keys = await prisma.apiKey.findMany({
-    where: admin ? { revokedAt: null } : { ownerId: user.id, revokedAt: null },
+    where: admin ? { revokedAt: null } : { ...visibleKeys(user.id), revokedAt: null },
     orderBy: { createdAt: "asc" }, select: { id: true, name: true },
   });
   const scopes = [...(admin ? [{ id: BANK_SCOPE, name: "Seluruh data" }] : []), ...keys];

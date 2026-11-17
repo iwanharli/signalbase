@@ -3,7 +3,7 @@ import { z } from "zod";
 import { providerSchema, QUICK_WIN_PRESET } from "@/lib/ai/classifier";
 import { providerConfig, validationError } from "@/lib/server/ai/admin";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "@/lib/server/ai/providers";
-import { adminRoute, ownsKey } from "@/lib/server/auth";
+import { adminRoute, keyAccess } from "@/lib/server/auth";
 import { providerNotAllowed } from "@/lib/server/ai/providerPolicy";
 import { NOT_CONFIGURED, platformProvider } from "@/lib/server/ai/platform";
 import { accountPlan } from "@/lib/server/plan";
@@ -43,7 +43,7 @@ export const POST = adminRoute(async (req: Request, _ctx, _username, user) => {
   if (provider.apiKey) {
     config = { kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model, apiKeyEnc: encryptSecret(provider.apiKey) };
   } else {
-    const stored = apiKeyId && (await ownsKey(user, apiKeyId)) ? await prisma.classifier.findUnique({ where: { apiKeyId } }) : null;
+    const stored = apiKeyId && (await keyAccess(user, apiKeyId)) === "full" ? await prisma.classifier.findUnique({ where: { apiKeyId } }) : null;
     const enc = slot === "fallback" ? stored?.fallbackKeyEnc : stored?.providerKeyEnc;
     if (!stored || !enc) return NextResponse.json({ ok: false, ms: 0, error: "Isi API key penyedia AI dulu" });
     config = { ...providerConfig(stored), apiKeyEnc: enc, kind: provider.kind, baseUrl: provider.kind === "openai_compatible" ? provider.baseUrl : null, model: provider.model };

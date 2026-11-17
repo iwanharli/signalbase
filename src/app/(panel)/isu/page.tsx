@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { IssueBoard } from "@/components/issues/IssueBoard";
 import { NoKeyYet } from "@/components/media/NoKeyYet";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
-import { getSession } from "@/lib/server/auth";
+import { getSession, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { roleOf } from "@/lib/session";
 
@@ -13,7 +13,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
   // Like the media pages: users see issues only through one of their own projects that may read online media.
   const { key: keyParam, topik } = await searchParams;
   if (isUser && !keyParam) {
-    const keys = await prisma.apiKey.findMany({ where: { ownerId: session.sub, revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
+    const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
     const key = keys.find((k) => allowsType(parseKeyScope(k.scope, k.keywords), "online"));
     if (key) redirect(`/isu?key=${key.id}${topik ? `&topik=${encodeURIComponent(topik)}` : ""}`);
     return <NoKeyYet type="online" label="Isu" hasKeys={keys.length > 0} />;

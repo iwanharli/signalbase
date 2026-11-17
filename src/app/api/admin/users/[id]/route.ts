@@ -13,23 +13,24 @@ const actionSchema = z.discriminatedUnion("action", [
 ]);
 const NEXT_STATUS = { approve: "active", activate: "active", suspend: "suspended" } as const;
 
-// Admin only, user accounts only: approve a waiting sign-up (which starts the trial), suspend or re-activate it,
-// or set its plan and end date.
+// Admin only, user and viewer accounts: approve a waiting sign-up (which starts the trial), suspend or re-activate an
+// account, or set the plan and end date of a client's main account (sub-accounts follow it).
 export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
   const parsed = actionSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Aksi tidak dikenal" }, { status: 400 });
   const body = parsed.data;
-  const account = await prisma.admin.findFirst({ where: { id, role: "user" }, select: { plan: true } });
+  const account = await prisma.admin.findFirst({ where: { id, role: { in: ["user", "viewer"] } }, select: { plan: true, role: true, parentId: true } });
   if (!account) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
 
   if (body.action === "setPlan") {
+    if (account.role !== "user" || account.parentId) return NextResponse.json({ error: "Paket diatur di akun utama klien" }, { status: 409 });
     const planExpiresAt = body.expiresAt ? new Date(`${body.expiresAt}T23:59:59+07:00`) : null;
     await prisma.admin.update({ where: { id }, data: { plan: body.plan, planExpiresAt } });
     return NextResponse.json({ ok: true });
   }
   // Approving an account that has no plan yet starts its trial.
-  const trial = body.action === "approve" && !account.plan ? { plan: "trial", planExpiresAt: new Date(Date.now() + TRIAL_DAYS * 86_400_000) } : {};
+  const trial = body.action === "approve" && !account.plan && account.role === "user" && !account.parentId ? { plan: "trial", planExpiresAt: new Date(Date.now() + TRIAL_DAYS * 86_400_000) } : {};
   await prisma.admin.update({ where: { id }, data: { status: NEXT_STATUS[body.action], ...trial } });
   // A suspended account keeps its keys; the public API refuses them until the account is active again (apiRoute).
   return NextResponse.json({ ok: true });

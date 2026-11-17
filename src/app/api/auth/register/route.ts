@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/server/db";
+import { accountFields } from "@/lib/accounts";
 import { PLAN_IDS } from "@/lib/plans";
 
 const schema = z.object({
-  name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80),
-  username: z.string().trim().toLowerCase().regex(/^[a-z0-9_.]{3,30}$/, "Username 3–30 karakter: huruf kecil, angka, titik, atau garis bawah"),
-  password: z.string().min(8, "Kata sandi minimal 8 karakter").max(200),
+  ...accountFields,
   plan: z.enum(PLAN_IDS).optional().catch(undefined),
 });
 

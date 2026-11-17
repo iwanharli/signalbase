@@ -17,6 +17,8 @@ export type ApiKeyRow = {
   classifier: { enabled: boolean; processed: number; lastError: string | null; providerName: string } | null;
   /** The full value is stored encrypted and can be copied (false for keys made before that). */
   copyable: boolean;
+  /** A project of the client's main account shared with this sub-account: read-only for it. */
+  shared?: boolean;
 };
 export type CreatedKey = { name: string; key: string; scope: KeyScope };
 

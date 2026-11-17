@@ -19,6 +19,8 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## 2026-11-18
 
 ### Ditambahkan
+- **Akun dibuat admin & sub-akun klien** (halaman Pengguna): tombol "Tambah pengguna" membuat akun langsung aktif — **akun utama klien** (memegang paket, kuota, dan proyek), **anggota klien** (`Admin.parentId`: ikut paket, masa berlaku, dan status akun utamanya; nonaktifkan akun utama = anggotanya ikut terkunci), atau **viewer**. Admin baru tetap dibuat manual.
+- Tombol **Proyek** per akun: untuk akun utama memilih proyek admin yang menjadi miliknya (yang dilepas kembali ke admin); untuk anggota memilih proyek akun utama yang boleh dilihatnya (tabel `ProjectMember`). Anggota hanya melihat data proyek itu: tidak bisa mengubah, mencabut, menyalin kunci, atau membuat proyek; kuota API/AI tetap dihitung di akun utama. API: `POST /api/admin/users`, `GET`/`PUT /api/admin/users/[id]/projects`.
 - Pencarian Media Sosial/Online menunggu 2 dtk selama teks yang diketik kurang dari 4 karakter (selain itu 1 dtk), supaya tidak mencari kata yang belum selesai diketik.
 - **Pencarian dengan OR** di Media Sosial/Online: `polisi or polri` (atau `polisi | polri`) menampilkan konten yang mengandung salah satunya; kata dalam satu alternatif tetap harus muncul semua, maksimal 8 alternatif. Tetap full-text bahasa Indonesia dengan stemming (`searchTerms` di `lib/server/bank/query.ts`).
 - Filter proyek di `/isu/ews` menyembunyikan proyek yang namanya mengandung "slog" (hardcode sementara, `isHiddenEwsProject` di `src/lib/issues.ts`; `/isu` tidak terpengaruh).

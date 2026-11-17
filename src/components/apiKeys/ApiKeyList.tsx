@@ -44,10 +44,15 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
     <div className={classes.row} role="row" data-revoked={revoked || undefined}>
       <div className={classes.nameCell} role="cell">
         <span className={classes.icon} data-live={(!revoked && recent) || undefined}><IconPlugConnected size={17} /></span>
-        <Link href={href} className={classes.name}>
-          <b>{apiKey.name}</b>
-          <code>{apiKey.prefix}••••</code>
-        </Link>
+        {apiKey.shared ? (
+          // Shared with a sub-account: data only, no settings or key.
+          <span className={classes.name}><b>{apiKey.name}</b><code>dibagikan · lihat saja</code></span>
+        ) : (
+          <Link href={href} className={classes.name}>
+            <b>{apiKey.name}</b>
+            <code>{apiKey.prefix}••••</code>
+          </Link>
+        )}
       </div>
 
       <div className={classes.cell} role="cell" data-label="Kata kunci">
@@ -74,11 +79,11 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
 
       <div className={classes.actions} role="cell">
         {!revoked && <Button size="sm" variant="secondary" icon={IconEye} href={viewHref(apiKey)}>Data</Button>}
-        <ButtonGroup>
+        {!apiKey.shared && <ButtonGroup>
           {!revoked && <CopyKeyButton keyId={apiKey.id} copyable={apiKey.copyable} iconOnly />}
           <Button size="sm" variant="secondary" iconOnly icon={IconPencil} href={href}>{revoked ? "Lihat detail" : "Edit proyek"}</Button>
           {!revoked && <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut proyek</Button>}
-        </ButtonGroup>
+        </ButtonGroup>}
       </div>
     </div>
   );

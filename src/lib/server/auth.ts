@@ -16,23 +16,34 @@ const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-set
 const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
 const isSecretPath = (path: string) => /^\/api\/admin\/keys\/[^/]+\/secret/.test(path);
 
-/** A user account still allowed in. Checked on every request, so suspending someone cuts off an open session at once. */
+/** A user account still allowed in: active itself, and for a sub-account also its parent. Checked on every request, so
+ *  suspending someone (or the client's main account) cuts off an open session at once. */
 export async function isActiveAccount(id: string) {
-  const account = await prisma.admin.findUnique({ where: { id }, select: { status: true } });
-  return account?.status === "active";
+  const account = await prisma.admin.findUnique({ where: { id }, select: { status: true, parent: { select: { status: true } } } });
+  return account?.status === "active" && (!account.parent || account.parent.status === "active");
 }
 
+/** Projects a user account sees: the ones it owns, and (sub-accounts) the ones shared with it. */
+export const visibleKeys = (accountId: string) => ({ OR: [{ ownerId: accountId }, { members: { some: { accountId } } }] });
 
-/** True when the account may act on this API key: admins on every key, users only on their own. */
-export async function ownsKey(user: PanelUser, keyId: string) {
-  if (user.role !== "user") return true; // admins and viewers (viewers are read-only, see adminRoute)
-  const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { ownerId: true } });
-  return key?.ownerId === user.id;
+/** What the account may do with this project: "full" (admins, the owner), "read" (viewers, a sub-account it is shared
+ *  with), or null when it may not see it at all. */
+export async function keyAccess(user: PanelUser, keyId: string): Promise<"full" | "read" | null> {
+  if (user.role === "admin") return "full";
+  if (user.role === "viewer") return "read";
+  const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { ownerId: true, members: { where: { accountId: user.id }, select: { accountId: true } } } });
+  if (!key) return null;
+  return key.ownerId === user.id ? "full" : key.members.length ? "read" : null;
+}
+
+/** True when the account may see this project (and browse the bank through it). */
+export async function canSeeKey(user: PanelUser, keyId: string) {
+  return (await keyAccess(user, keyId)) !== null;
 }
 
 // Wraps panel route handlers; middleware already guards sign-in, this is defence in depth.
 // For "user" accounts it also checks the account is still active, blocks admin-only APIs, and blocks any
-// /api/admin/keys/<id>/… on a key they don't own,
+// /api/admin/keys/<id>/… on a key they don't own (a project shared with a sub-account: reading only, never its secret),
 // so every per-key route is covered in one place.
 export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, user: PanelUser) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -49,7 +60,13 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       const path = new URL(req.url).pathname;
       if (ADMIN_ONLY.some((p) => path.startsWith(p))) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
       const keyId = path.match(/^\/api\/admin\/keys\/([^/]+)/)?.[1];
-      if (keyId && !(await ownsKey(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+      if (keyId) {
+        const access = await keyAccess(user, decodeURIComponent(keyId));
+        if (!access) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+        if (access === "read" && ((req.method !== "GET" && req.method !== "HEAD") || isSecretPath(path))) {
+          return NextResponse.json({ error: "Proyek ini dibagikan untuk dilihat saja" }, { status: 403 });
+        }
+      }
     }
     return handler(req, ctx, session.username, user);
   };

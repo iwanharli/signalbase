@@ -4,7 +4,7 @@ import { classifierInputSchema, providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, parseKeyScope } from "@/lib/media/keyScope";
 import { saveClassifier } from "@/lib/server/ai/admin";
 import { createKey } from "@/lib/server/apiKey";
-import { adminRoute } from "@/lib/server/auth";
+import { adminRoute, visibleKeys } from "@/lib/server/auth";
 import { aiPlanProblem, providerNotAllowed } from "@/lib/server/ai/providerPolicy";
 import { prisma } from "@/lib/server/db";
 import { accountPlan, EXPIRED_MESSAGE } from "@/lib/server/plan";
@@ -19,15 +19,17 @@ const createKeySchema = z.object({
 // Lists every key with its scope. Only the prefix of each key is known; the full value is never stored.
 export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const rows = await prisma.apiKey.findMany({
-    where: user.role === "user" ? { ownerId: user.id } : undefined,
+    where: user.role === "user" ? visibleKeys(user.id) : undefined,
     orderBy: { createdAt: "desc" },
     select: {
-      id: true, name: true, prefix: true, keywords: true, scope: true, createdBy: true, createdAt: true, lastUsedAt: true, revokedAt: true, keyEnc: true,
+      id: true, name: true, prefix: true, keywords: true, scope: true, createdBy: true, createdAt: true, lastUsedAt: true, revokedAt: true, keyEnc: true, ownerId: true,
       classifier: { select: { enabled: true, processed: true, lastError: true, providerKind: true, providerBaseUrl: true, providerModel: true } },
     },
   });
-  return NextResponse.json(rows.map(({ scope, keywords, classifier, keyEnc, ...row }) => ({
-    ...row, keywords, scope: parseKeyScope(scope, keywords), copyable: !!keyEnc,
+  return NextResponse.json(rows.map(({ scope, keywords, classifier, keyEnc, ownerId, ...row }) => ({
+    ...row, keywords, scope: parseKeyScope(scope, keywords),
+    // A project shared with a sub-account is read-only for it: no copying, editing or revoking.
+    shared: user.role === "user" && ownerId !== user.id, copyable: !!keyEnc && !(user.role === "user" && ownerId !== user.id),
     classifier: classifier && {
       enabled: classifier.enabled, processed: classifier.processed, lastError: classifier.lastError,
       providerName: `${providerLabel(classifier.providerKind, classifier.providerBaseUrl)} · ${classifier.providerModel}`,
@@ -51,6 +53,9 @@ export const POST = adminRoute(async (req: Request, _ctx, username, user) => {
   };
   // User keys always need keywords: without them a key would read the whole bank.
   if (user.role === "user") {
+    if ((await prisma.admin.findUnique({ where: { id: user.id }, select: { parentId: true } }))?.parentId) {
+      return NextResponse.json({ error: "Akun anggota tidak dapat membuat proyek. Minta akun utama atau admin." }, { status: 403 });
+    }
     if (!scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
     const plan = await accountPlan(user.id);
     if (plan.expired) return NextResponse.json({ error: EXPIRED_MESSAGE }, { status: 403 });

@@ -1,7 +1,7 @@
 // Which key the Ringkasan / Beranda page looks through. Shared by its stats and insights APIs so both agree.
 import { NextResponse } from "next/server";
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
-import { ownsKey, type PanelUser } from "./auth";
+import { canSeeKey, visibleKeys, type PanelUser } from "./auth";
 import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 
@@ -15,13 +15,13 @@ export async function overviewView(req: Request, user: PanelUser): Promise<Overv
   const isUser = user.role === "user";
   if (isUser && (await accountPlan(user.id)).expired) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
   const keys = await prisma.apiKey.findMany({
-    where: { revokedAt: null, ...(isUser ? { ownerId: user.id } : {}) },
+    where: { revokedAt: null, ...(isUser ? visibleKeys(user.id) : {}) },
     orderBy: { createdAt: isUser ? "asc" : "desc" },
     select: { id: true, name: true, keywords: true, scope: true, lastUsedAt: true },
   });
   let key: KeyRow | undefined;
   if (requested) {
-    if (!(await ownsKey(user, requested))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+    if (!(await canSeeKey(user, requested))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     key = keys.find((k) => k.id === requested);
     if (!key) return NextResponse.json({ error: "Proyek sudah dicabut" }, { status: 404 });
   } else if (isUser) {

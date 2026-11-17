@@ -4,8 +4,10 @@ import { prisma } from "./db";
 
 export type AccountPlan = { plan: string | null; expiresAt: Date | null; expired: boolean; limits: PlanLimits };
 
+/** The plan an account works under: its own, or for a sub-account its parent's. */
 export async function accountPlan(accountId: string): Promise<AccountPlan> {
-  const a = await prisma.admin.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true } });
+  const row = await prisma.admin.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true, parent: { select: { plan: true, planExpiresAt: true } } } });
+  const a = row?.parent ?? row;
   return { plan: a?.plan ?? null, expiresAt: a?.planExpiresAt ?? null, expired: isExpired(a?.planExpiresAt), limits: limitsFor(a?.plan) };
 }
 

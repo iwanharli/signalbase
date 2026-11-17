@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
-import { ownsKey, type PanelUser } from "./auth";
+import { canSeeKey, visibleKeys, type PanelUser } from "./auth";
 import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 
@@ -8,16 +8,16 @@ import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 export async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
   // Users only ever see the bank through one of their own keys.
   if (!keyId) return user.role === "user" ? { error: "Pilih proyek dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
-  if (!(await ownsKey(user, keyId))) return { error: "Proyek tidak ditemukan", status: 404 };
+  if (!(await canSeeKey(user, keyId))) return { error: "Proyek tidak ditemukan", status: 404 };
   const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
   if (!key) return { error: "Proyek tidak ditemukan", status: 404 };
   return { scope: parseKeyScope(key.scope, key.keywords), keyId: key.id };
 }
 
-/** Keywords of the active project chosen in the media filter (users: only their own); null when it is not available to them. */
+/** Keywords of the active project chosen in the media filter (users: only the ones they see); null when it is not available to them. */
 export async function projectKeywords(projectId: string, user: PanelUser): Promise<string[] | null> {
   const key = await prisma.apiKey.findFirst({
-    where: { id: projectId, revokedAt: null, ...(user.role === "user" ? { ownerId: user.id } : {}) },
+    where: { id: projectId, revokedAt: null, ...(user.role === "user" ? visibleKeys(user.id) : {}) },
     select: { keywords: true },
   });
   return key?.keywords.length ? key.keywords : null;
