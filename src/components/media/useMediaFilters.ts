@@ -15,7 +15,7 @@ const MIN_SEARCH_CHARS = 4;
  * - unanalysed items have no mood, so picking "not analysed" clears mood and intensity;
  * - items the AI excluded are never labelled, so picking "excluded" also drops the analysed filter.
  */
-function applyRules(next: MediaFilters, patch: Partial<MediaFilters>): MediaFilters {
+export function applyRules(next: MediaFilters, patch: Partial<MediaFilters>): MediaFilters {
   if (patch.analyzed === "no") return { ...next, mood: null, minLevel: "" };
   if (patch.relevance === "exclude") return { ...next, analyzed: "", mood: null, minLevel: "" };
   return next;

@@ -1,14 +1,15 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconTags, IconX } from "@tabler/icons-react";
 import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
-import type { MediaFilters } from "@/lib/media/filters";
+import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
 import { ANY_LABEL } from "@/lib/media/manualLabels";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { DarkSelect, DateRange, Field, Segmented } from "./controls";
 import { PlatformMark } from "./PlatformIcon";
+import { applyRules } from "./useMediaFilters";
 import classes from "./filters.module.css";
 
 const ANALYZED_OPTIONS = [{ value: "yes", label: "Sudah dianalisis" }, { value: "no", label: "Belum" }, { value: "", label: "Semua" }] as const;
@@ -43,15 +44,15 @@ function useEscape(enabled: boolean, onEscape: () => void) {
   }, [enabled, onEscape]);
 }
 
-/** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, projects, aiCategories, manualLabels, activeCount, advancedCount, total }: {
+/** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. Choices go into a draft and
+ *  only load data when applied ("Terapkan"); closing the drawer drops the draft. */
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, projects, aiCategories, manualLabels, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
   escapeEnabled: boolean;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
-  onReset: () => void;
   options: FilterOptions | null;
   projects: ProjectOption[];
   activeCount: number;
@@ -64,6 +65,15 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
   manualLabels?: string[] | null;
 }) {
   useEscape(open && escapeEnabled, onClose);
+  const [filters, setDraft] = useState(applied);
+  const appliedKey = JSON.stringify(applied);
+  // A fresh draft from what is applied, on opening and whenever the applied filters change (e.g. a chip removed).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setDraft(applied), [open, appliedKey]);
+  const onChange = (patch: Partial<MediaFilters>) => setDraft((d) => applyRules({ ...d, ...patch }, patch));
+  const changed = (Object.keys(applied) as (keyof MediaFilters)[]).filter((k) => applied[k] !== filters[k]).length;
+  const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort });
+  const submit = () => { if (changed) apply(filters); onClose(); };
   const social = type === "social";
   const unanalyzed = filters.analyzed === "no";
 
@@ -74,7 +84,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
         <div className={classes.panel}>
           <header className={classes.panelHeader}>
             <div className={classes.panelTitle}>
-              <IconAdjustmentsHorizontal size={18} />Filter lanjutan{advancedCount > 0 && <span>{advancedCount} aktif</span>}
+              <IconAdjustmentsHorizontal size={18} />Filter lanjutan{advancedCount > 0 && <span>{advancedCount} aktif</span>}{changed > 0 && <span data-pending>{changed} belum diterapkan</span>}
             </div>
             <button type="button" className={classes.close} onClick={onClose} aria-label="Tutup"><IconX size={18} /></button>
           </header>
@@ -163,8 +173,12 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
           </div>
 
           <footer className={classes.panelFooter}>
-            <button type="button" className={classes.secondary} onClick={onReset} disabled={!activeCount}>Reset ke awal</button>
-            <button type="button" className={classes.primary} onClick={onClose}>{total != null ? `Lihat ${formatNumber(total)} data` : "Menghitung…"}</button>
+            {changed > 0
+              ? <button type="button" className={classes.secondary} onClick={() => setDraft(applied)}>Batalkan</button>
+              : <button type="button" className={classes.secondary} onClick={resetDraft} disabled={!activeCount}>Reset ke awal</button>}
+            <button type="button" className={classes.primary} onClick={submit}>
+              {changed > 0 ? `Terapkan · ${changed} perubahan` : total != null ? `Lihat ${formatNumber(total)} data` : "Menghitung…"}
+            </button>
           </footer>
         </div>
       </aside>

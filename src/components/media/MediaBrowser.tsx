@@ -72,7 +72,13 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
     : null;
   // Manual labels of the project (separate from AI categorisation): the dropdown on each card.
   const labelSettings = useApi<LabelSettings>(keyId ? `/api/admin/keys/${keyId}/labels` : null);
-  const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel } : null;
+  const [, setLabelVersion] = useState(0);
+  const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel, onLabelled: (code: string, label: string | null) => {
+    // The modal may hold a copy of the item (after an AI correction): update the feed's own object too, then re-render.
+    const target = feed.items.find((i) => i.code === code);
+    if (target) target.manualLabel = label;
+    setLabelVersion((v) => v + 1);
+  } } : null;
   const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
@@ -105,7 +111,6 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
         escapeEnabled={!selected}
         filters={filters}
         onChange={update}
-        onReset={reset}
         options={options.data}
         projects={projects}
         aiCategories={aiCategories}
@@ -115,6 +120,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
         total={total}
       />
 
+      <ManualLabelContext.Provider value={labelContext}>
       <div className={classes.content}>
         {view && <KeyViewBanner view={view} type={type} canLeave={!keyLocked} />}
         {keyInfo.error && <Alert color="red" mb="md" title="Proyek tidak bisa dimuat">{keyInfo.error}</Alert>}
@@ -158,7 +164,6 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
 
         {/* First load: a full grid of card-shaped placeholders. Next pages: one placeholder under each column. */}
         {feed.loading && !feed.items.length ? <SkeletonGrid type={type} /> : (
-          <ManualLabelContext.Provider value={labelContext}>
           <Masonry>
             {[
               ...feed.items.map((item, i) => {
@@ -168,7 +173,6 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
               ...(feed.loading ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={feed.items.length + i} type={type} />) : []),
             ]}
           </Masonry>
-          </ManualLabelContext.Provider>
         )}
 
         {feed.loaded && !feed.items.length && !feed.loading && (
@@ -188,6 +192,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
             setSelected((s) => (s && s.code === code ? { ...s, classification } : s));
           } } : undefined} />
       </div>
+      </ManualLabelContext.Provider>
     </div>
   );
 }

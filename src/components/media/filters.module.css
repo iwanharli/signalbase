@@ -71,6 +71,7 @@
 .panelHeader { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.07); }
 .panelTitle { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
 .panelTitle span { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: #67e8f9; background: rgba(34,211,238,.12); }
+.panelTitle span[data-pending] { color: #fcd34d; background: rgba(251,191,36,.14); }
 .close { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 10px; cursor: pointer; color: #fff; background: rgba(255,255,255,.07);
   transition: background 160ms, transform 200ms; }
 .close:hover { background: rgba(255,255,255,.14); transform: rotate(90deg); }
