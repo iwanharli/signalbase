@@ -21,7 +21,7 @@ const escapeAttr = (value: string) => value.replace(/&/g, "&amp;").replace(/"/g,
  */
 export function xVideoFrame(url: string, poster: string | null) {
   const size = url.match(/\/(\d{2,4})x(\d{2,4})\//);
-  const srcDoc = `<!doctype html><meta name="referrer" content="no-referrer"><style>html,body{margin:0;height:100%;background:#000}video{width:100%;height:100%;object-fit:contain}</style>`
+  const srcDoc = `<!doctype html><meta name="referrer" content="no-referrer"><style>html,body{margin:0;height:100%;overflow:hidden;background:#000}video{display:block;width:100%;height:100%;object-fit:contain}</style>`
     + `<video src="${escapeAttr(url)}"${poster ? ` poster="${escapeAttr(poster)}"` : ""} controls preload="none" playsinline></video>`;
   return { srcDoc, style: { aspectRatio: size ? `${size[1]} / ${size[2]}` : "16 / 9" } };
 }
