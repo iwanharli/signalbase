@@ -19,7 +19,8 @@ type Context = { params: Promise<{ type: string }> };
 // Panel browser over the bank, optionally as seen through one API key (?key=).
 //   ?view=options → filter choices
 //   ?view=count   → exact total (slow, cached; fetched separately so the list isn't blocked)
-//   otherwise     → one page of items, plus the mood breakdown on page 1
+//   ?view=moods   → the mood breakdown (slow on broad scopes, cached; fetched separately for the same reason)
+//   otherwise     → one page of items
 // With a key that has AI categorisation, items carry `classification` and ?aiCategory= filters by it. With a key, items
 // also carry `manualLabel` (the project's manual label, or null).
 export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
@@ -66,10 +67,12 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       return NextResponse.json({ total: await countExact(type, query, scope) });
     }
 
-    // The breakdown ignores the mood filter so every slice stays visible.
-    const withoutMood = new URLSearchParams(query);
-    withoutMood.delete("mood");
-    const moods = page === 1 ? moodBreakdown(type, withoutMood, scope) : Promise.resolve(null);
+    if (query.get("view") === "moods") {
+      // The breakdown ignores the mood filter so every slice stays visible.
+      const withoutMood = new URLSearchParams(query);
+      withoutMood.delete("mood");
+      return NextResponse.json({ moods: await moodBreakdown(type, withoutMood, scope) });
+    }
 
     let items, hasMore;
     if (manualLabel) {
@@ -96,7 +99,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       keyId ? manualLabelsFor(keyId, type, codes) : null,
     ]);
     return NextResponse.json({
-      page, hasMore, moods: await moods,
+      page, hasMore,
       items: items.map((item) => ({
         ...analysisForPlan(item, analysisLevel),
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),

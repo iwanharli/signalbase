@@ -22,8 +22,15 @@ git push -q origin main
 # Zero-downtime build: the running app serves from one build folder ("slot") while the next build goes into the
 # other, so pages never lose their CSS/JS mid-deploy. The app is only switched (restart with NEXT_DIST_DIR) once the
 # new build is complete, and switched back if it does not answer. The previous slot stays for a quick rollback.
+echo "▸ deploy ke $HOST"
 ssh "$HOST" "APP_DIR='$APP_DIR' PROCESS='$PROCESS' bash -s" <<'REMOTE'
 set -euo pipefail
+# Guard against deploying to the wrong machine (the old server was retired on 18 Nov 2026 and its app folder renamed):
+# only a host that already runs Signalbase from APP_DIR is deployed to.
+if [ ! -d "$APP_DIR/.git" ]; then
+  echo "✘ $APP_DIR tidak ada di $(hostname) ($(hostname -I | awk '{print $1}')). Server Signalbase sekarang 161.97.179.203: periksa DEPLOY_HOST di .env.deploy." >&2
+  exit 1
+fi
 cd "$APP_DIR"
 git fetch -q origin main
 git reset -q --hard origin/main

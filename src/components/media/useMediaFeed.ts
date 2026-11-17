@@ -1,9 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
-import type { MediaItem, MediaType, MoodCount } from "@/lib/media/types";
+import type { MediaItem, MediaType } from "@/lib/media/types";
 
-type PageResponse = { page: number; hasMore: boolean; moods: MoodCount[] | null; items: MediaItem[] };
+type PageResponse = { page: number; hasMore: boolean; items: MediaItem[] };
 
 /**
  * Paged item list for one filter query. Starts over whenever `query` changes and
@@ -15,8 +15,6 @@ export function useMediaFeed(type: MediaType, query: string) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  // The breakdown comes with page 1 only.
-  const [moods, setMoods] = useState<MoodCount[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
@@ -34,7 +32,6 @@ export function useMediaFeed(type: MediaType, query: string) {
         if (stale()) return;
         setPage(res.page);
         setHasMore(res.hasMore);
-        if (res.moods) setMoods(res.moods);
         setItems((prev) => {
           if (pageNumber === 1) return res.items;
           const seen = new Set(prev.map((i) => i.code));
@@ -51,14 +48,13 @@ export function useMediaFeed(type: MediaType, query: string) {
     setItems([]);
     setPage(0);
     setHasMore(false);
-    setMoods(null);
     fetchPage(1);
   }, [fetchPage]);
 
   const loadMore = useCallback(() => fetchPage(page + 1), [fetchPage, page]);
   const retry = useCallback(() => fetchPage(page ? page + 1 : 1), [fetchPage, page]);
 
-  return { items, hasMore, moods, loading, error, loaded: page > 0, loadMore, retry };
+  return { items, hasMore, loading, error, loaded: page > 0, loadMore, retry };
 }
 
 /** Calls `onReach` when the returned ref's element comes within `margin` of the viewport. */

@@ -6,7 +6,7 @@ import { Alert, Button, Text } from "@mantine/core";
 import { IconArrowUp } from "@tabler/icons-react";
 import type { Category } from "@/lib/ai/classifier";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
-import type { FilterOptions, MediaItem, MediaType } from "@/lib/media/types";
+import type { FilterOptions, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { ActiveFilters } from "./ActiveFilters";
 import { AdvancedFilters } from "./AdvancedFilters";
@@ -97,6 +97,10 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
   const countQuery = new URLSearchParams(query);
   countQuery.delete("sort");
   const count = useApi<{ total: number }>(`/api/admin/media/${type}?view=count&${countQuery}`);
+  // The mood bar loads on its own too (slow on broad scopes), so the posts never wait for it; it ignores the mood filter.
+  const moodQuery = new URLSearchParams(countQuery);
+  moodQuery.delete("mood");
+  const moods = useApi<{ moods: MoodCount[] }>(`/api/admin/media/${type}?view=moods&${moodQuery}`);
   const total = count.data && !count.loading ? count.data.total : null;
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -136,7 +140,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           total={total}
           totalError={!!count.error}
           shown={feed.items.length}
-          moods={feed.moods}
+          moods={moods.data?.moods ?? null}
           busy={feed.loading}
           onMoodChange={(mood) => update({ mood })}
         />

@@ -11,7 +11,8 @@ export const COUNT_CAP = MOOD_SAMPLE_LIMIT;
 
 const exactCountCache = createCache<number>({ ttlMs: 10 * 60_000 });
 const cappedCountCache = createCache<{ total: number; capped: boolean }>({ ttlMs: 2 * 60_000, maxEntries: 100 });
-const moodCache = sharedCache<MoodCount[]>("bank.mood", { ttlMs: 2 * 60_000, maxEntries: 100, staleWhileRevalidate: true });
+// Kept 10 minutes and refreshed in the background: a broad scope (e.g. "polri") takes ~13 s, so only the first look waits.
+const moodCache = sharedCache<MoodCount[]>("bank.mood", { ttlMs: 10 * 60_000, maxEntries: 200, staleWhileRevalidate: true });
 
 /** Exact number of matches. Can take ~20 s on the full social table, so it gets a 90 s timeout. */
 export function countExact(type: MediaType, params: URLSearchParams, scope: KeyScope) {
@@ -34,17 +35,18 @@ export function countCapped(type: MediaType, params: URLSearchParams, scope: Key
   });
 }
 
-/** Matches per emotion (social) or sentiment (online), over the newest COUNT_CAP matches. */
+/** Matches per emotion (social) or sentiment (online), over the newest COUNT_CAP matches. Runs on the analytics pool with a
+ *  longer timeout, so a slow breakdown never takes the connections the item lists need. */
 export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: KeyScope) {
   return moodCache(filterKey(type, params, scope), async () => {
     const c = COLUMNS[type];
     const { where, values } = buildWhere(type, params, scope);
-    const { rows } = await bankPool().query<MoodCount>(
+    const { rows } = await withLongTimeout(60_000, (client) => client.query<MoodCount>(
       `SELECT value, count(*)::int n FROM (
          SELECT lower(${c.mood}) value FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} DESC LIMIT ${COUNT_CAP}
        ) t WHERE value IS NOT NULL AND value <> '' GROUP BY 1 ORDER BY 2 DESC`,
       values,
-    );
+    ));
     return rows;
   });
 }
