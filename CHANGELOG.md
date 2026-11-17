@@ -5,6 +5,11 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## [Belum dirilis]
 
 ### Ditambahkan
+- **Tema gelap**: situs publik (beranda, harga, integrasi, kontak, legal) selalu gelap. Panel punya mode gelap dengan tombol bulan/matahari di bar atas; bawaan mengikuti sistem (`defaultColorScheme="auto"`), pilihan disimpan di browser. Laporan dan brief cetak (A4) tetap terang.
+- **Halaman Ringkasan didesain ulang**: hero memuat filter (Semua / Media Sosial / Media Online, 7/14/30 hari) dan deretan KPI dengan sparkline; filter ikut menempel di atas saat halaman digulir. Engagement jadi tabel per platform dengan baris total; tren memakai garis rata-rata. Kartu Ringkasan AI tampil ringkas (3 sorotan + yang perlu diwaspadai) dengan tombol "Baca analisis lengkap".
+- Halaman Ringkasan: "Sinyal terbaru" dipecah jadi **Sinyal Terbaru Sosial Media** dan **Sinyal Terbaru Media Online**; kartu "Aplikasi terhubung" dihapus.
+- Media Sosial/Online: grid **maksimal 4 kolom**; skeleton berbentuk kartu (bukan blok polos) saat memuat, dan `loading.tsx` menampilkan kerangka halaman saat berpindah ke halaman media.
+- Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
 - **Filter Proyek** di filter lanjutan halaman media sosial/online (bagian Sumber & konten): memilih proyek aktif menampilkan konten yang menyebut salah satu kata kunci proyek (OR, full-text bahasa Indonesia seperti kunci API). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
 - Alat model QW lokal: `scripts/indobert/relabel-latih.ts` (label ulang data latih, opsi tanpa alasan), `emas-media.ts` dan `uji_emas_media.py` (data uji emas berlabel manual).
 - **Biaya AI proyek** di tab AI halaman detail proyek (admin dan viewer; tidak untuk akun klien): biaya yang dibayar key DeepSeek milik Signalbase (`SIGNALBASE_AI_API_KEY`) untuk kategorisasi dan Ringkasan AI proyek itu; bulan ini, perkiraan sebulan, rata-rata per hari, porsi IndoBERT, grafik harian bertumpuk per modul, padanan Rupiah (kurs live). Key milik klien (mis. KIPERMAS) tidak dihitung. `TokenUsage.keyHint` mencatat 4 huruf terakhir key yang membayar (sejak 16 Nov 2026); harga per model di `src/lib/ai/pricing.ts`.
@@ -12,6 +17,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
 
 ### Diperbaiki
+- Ringkasan: pilihan **14 dan 30 hari** tidak lagi menunggu ±25 dtk saat pertama dibuka; warmer (`warmOverview`) kini juga menyiapkan periode 30 dan 14 hari (setelah semua periode 7 hari), untuk seluruh bank dan tiap proyek. Bagian terberat: engagement per platform (±19 dtk untuk 60 hari data).
+- Video X di Original View tidak lagi menampilkan scrollbar kecil di sisi kanan (video inline menyisakan celah baseline di dalam iframe).
+- Hydration error di panel: tombol tema kini merender markup yang sama di server dan browser (ikon dipilih lewat CSS).
 - Kategorisasi QW: `LOCAL_QW_MIN=0` kini berarti semua post dilabel model lokal (sebelumnya terbaca 0,8). Layanan model lokal menerapkan aturan kata kunci QW3/QW8/QW5; prompt preset Quick Win memakai aturan pembeda yang sama dengan pbm. Ringkasan AI: batas token keluaran 16.000, percobaan ulang setelah 3 menit.
 - `GET /api/v1/usage` dan grafik "Penggunaan saldo" per proyek kini hanya memakai token dan saldo dari key penyedia yang sedang dipakai (`classifierKeyHint`, `keySince` di `src/lib/server/ai/platform.ts`). Sebelumnya token dan saldo key KIPERMAS dari masa key dipakai bersama ikut terhitung, sehingga biaya Signalbase di pbm terhitung dua kali dan grafik menampilkan saldo 1,03 lalu "isi ulang" palsu ke 6,01.
 - Infinite scroll Media Sosial/Online memuat halaman berikutnya lebih awal: pemicu 2000 px di bawah layar (sebelumnya 800 px), sehingga data baru sudah siap sebelum sampai dasar daftar.
