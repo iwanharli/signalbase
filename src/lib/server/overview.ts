@@ -35,15 +35,19 @@ export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Pro
   });
 }
 
-/** Overview and default 7-day insights. Whole bank first, then each active key one at a time (keyword searches are heavy; this keeps the source DB calm). */
+/** Overview and default 7-day insights, then the 14- and 30-day ones (a cold 30-day social scan takes ~25 s).
+ *  Whole bank first, then each active key one at a time (keyword searches are heavy; this keeps the source DB calm). */
 async function warmAll() {
   await Promise.all([typeStats("social"), typeStats("online")]);
   await Promise.all([typeInsights("social", 7), typeInsights("online", 7)]);
   const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { scope: true, keywords: true } });
-  for (const key of keys) {
-    const scope = parseKeyScope(key.scope, key.keywords);
+  const scopes = keys.map((key) => parseKeyScope(key.scope, key.keywords));
+  for (const scope of scopes) {
     await Promise.all([typeStats("social", scope), typeStats("online", scope)]);
     await Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]);
+  }
+  for (const period of [30, 14]) {
+    for (const scope of [undefined, ...scopes]) await Promise.all([typeInsights("social", period, scope), typeInsights("online", period, scope)]);
   }
 }
 
