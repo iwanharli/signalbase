@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { IconAdjustmentsHorizontal, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
 import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { MediaFilters } from "@/lib/media/filters";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
@@ -18,6 +18,9 @@ const LEVEL_OPTIONS = [2, 3, 4, 5].map((n) => ({ value: String(n), label: `≥ $
 const LANGUAGE_OPTIONS = [{ value: "id", label: "Indonesia" }, { value: "other", label: "Bahasa lain" }];
 const IMAGE_OPTIONS = [{ value: "", label: "Semua" }, { value: "yes", label: "Hanya bergambar" }] as const;
 const SOURCE_DROPDOWN_LIMIT = 80;
+
+/** An active project with keywords, as a choice for the Proyek filter. */
+export type ProjectOption = { value: string; label: string };
 
 /** Titled group of fields laid out on a two-column grid. */
 function Section({ icon: Icon, title, children }: { icon: typeof IconNews; title: string; children: React.ReactNode }) {
@@ -40,7 +43,7 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 }
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, aiCategories, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, projects, aiCategories, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
@@ -49,6 +52,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
   onChange: (patch: Partial<MediaFilters>) => void;
   onReset: () => void;
   options: FilterOptions | null;
+  projects: ProjectOption[];
   activeCount: number;
   advancedCount: number;
   /** Exact total for the current filters, or null while counting. */
@@ -105,6 +109,10 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
             </Section>
 
             <Section icon={IconNews} title="Sumber & konten">
+              <Field label="Proyek / Isu" wide>
+                <DarkSelect leftSection={<IconBriefcase size={15} />} placeholder="Semua" value={filters.project}
+                  data={projects} onChange={(project) => onChange({ project })} />
+              </Field>
               <Field label={SOURCE_KIND_LABEL[type]}>
                 <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
                   value={filters.source} data={(options?.sources ?? []).map((v) => ({ value: v, label: sourceLabel(v) }))} onChange={(source) => onChange({ source })} />

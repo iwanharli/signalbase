@@ -1,6 +1,6 @@
 "use client";
 import { categoriesForType } from "@/lib/ai/classifier";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Alert, Button, Group, Loader, Skeleton, Text } from "@mantine/core";
 import { IconArrowUp } from "@tabler/icons-react";
@@ -79,6 +79,9 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
   const [selected, setSelected] = useState<MediaItem | null>(null);
 
   const options = useApi<FilterOptions>(`/api/admin/media/${type}?view=options`);
+  // Active projects with keywords; the list is already limited to the account's own projects for users.
+  const keyList = useApi<{ id: string; name: string; keywords: string[]; revokedAt: string | null }[]>("/api/admin/keys");
+  const projects = useMemo(() => (keyList.data ?? []).filter((k) => !k.revokedAt && k.keywords.length).map((k) => ({ value: k.id, label: k.name })), [keyList.data]);
   // The exact total is slow on large sets, so it loads on its own; sort doesn't change it.
   const countQuery = new URLSearchParams(query);
   countQuery.delete("sort");
@@ -99,6 +102,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
         onChange={update}
         onReset={reset}
         options={options.data}
+        projects={projects}
         aiCategories={aiCategories}
         activeCount={activeCount}
         advancedCount={advancedCount}
@@ -138,7 +142,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           busy={feed.loading}
         />
 
-        <ActiveFilters filters={filters} options={options.data} onChange={update} />
+        <ActiveFilters filters={filters} options={options.data} projects={projects} onChange={update} />
 
         {feed.error && (
           <Alert color="red" mb="md" title="Gagal memuat">
