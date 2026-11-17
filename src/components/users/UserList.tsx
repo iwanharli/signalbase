@@ -16,7 +16,7 @@ import { InvoiceAdmin } from "./InvoiceAdmin";
 
 type Status = "pending" | "active" | "suspended";
 type UserRow = {
-  id: string; name: string; username: string; role: "user" | "viewer"; status: Status; plan: PlanId | null; planExpiresAt: string | null;
+  id: string; name: string; username: string; role: "admin" | "user" | "viewer"; status: Status; self: boolean; plan: PlanId | null; planExpiresAt: string | null;
   requestedPlan: PlanId | null; createdAt: string; keys: number;
   /** Set for a sub-account: the client's main account, whose plan and status it follows. */
   parentId: string | null; parent: { id: string; name: string; plan: PlanId | null; planExpiresAt: string | null; status: Status } | null;
@@ -25,6 +25,7 @@ const isMain = (u: UserRow) => u.role === "user" && !u.parentId;
 
 /** "Trial · sisa 3 hari", "Pro · berakhir", or "Tanpa paket". */
 function PlanCell({ user }: { user: UserRow }) {
+  if (user.role === "admin") return <span className={classes.muted}>Admin · akses penuh</span>;
   if (user.role === "viewer") return <span className={classes.muted}>Viewer · lihat semua data</span>;
   if (user.parent) {
     const p = user.parent;
@@ -93,11 +94,12 @@ const KIND_HELP: Record<Kind, string> = {
 };
 
 /** Create an account directly: active at once, no sign-up or approval. */
-function CreateAccountModal({ opened, mains, onClose, onSaved }: { opened: boolean; mains: UserRow[]; onClose: () => void; onSaved: (account: UserRow, kind: Kind) => void }) {
+/** parentId: open as "Anggota klien" of that main account (the group's "Tambah anggota"). */
+function CreateAccountModal({ opened, parentId, mains, onClose, onSaved }: { opened: boolean; parentId: string | null; mains: UserRow[]; onClose: () => void; onSaved: (account: UserRow, kind: Kind) => void }) {
   const [kind, setKind] = useState<Kind>("main");
   const [form, setForm] = useState({ name: "", username: "", password: "", parentId: null as string | null, plan: "trial" as string | null, until: today(TRIAL_DAYS) });
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (opened) { setKind("main"); setForm({ name: "", username: "", password: "", parentId: null, plan: "trial", until: today(TRIAL_DAYS) }); } }, [opened]);
+  useEffect(() => { if (opened) { setKind(parentId ? "sub" : "main"); setForm({ name: "", username: "", password: "", parentId, plan: "trial", until: today(TRIAL_DAYS) }); } }, [opened, parentId]);
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const save = async () => {
     setBusy(true);
@@ -214,10 +216,13 @@ export function UserList() {
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [projectsOf, setProjectsOf] = useState<UserRow | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<false | { parentId: string | null }>(false);
   const mains = users.data?.filter((u) => isMain(u) && u.status !== "pending") ?? [];
-  const count = (s: Status) => users.data?.filter((u) => u.status === s).length ?? 0;
-  const rows = users.data?.filter((u) => u.status === tab) ?? [];
+  // Each client is one group: its main account, then its sub-accounts (whatever their own status). The tabs go by the main
+  // account's status, so a group never splits across tabs; viewers and plain accounts are groups of one.
+  const groups = (users.data ?? []).filter((u) => !u.parentId).map((main) => ({ main, subs: users.data!.filter((u) => u.parentId === main.id) }));
+  const count = (s: Status) => groups.filter((g) => g.main.status === s).reduce((n, g) => n + 1 + g.subs.length, 0);
+  const shown = groups.filter((g) => g.main.status === tab);
 
   const act = async (user: UserRow, action: "approve" | "suspend" | "activate" | "reject") => {
     setBusy(user.id);
@@ -234,6 +239,36 @@ export function UserList() {
     }
   };
 
+  const renderRow = (u: UserRow, subs = 0) => {
+    const working = busy === u.id;
+    return (
+          <div key={u.id} className={classes.row} role="row" style={COLUMNS} data-sub={u.parentId ? true : undefined}>
+            <div className={classes.nameCell} role="cell">
+              <span className={classes.icon} data-kind={u.role === "user" ? (u.parentId ? "sub" : undefined) : u.role}>{u.name.charAt(0).toUpperCase()}</span>
+              <span className={classes.name}>
+                <b>{u.name}{u.self && <span className={classes.muted}> (Anda)</span>}</b>
+                <code>@{u.username}{u.role !== "user" ? ` · ${u.role}` : u.parentId ? " · anggota" : subs ? ` · akun utama · ${subs} anggota` : ""}{u.parentId && u.status === "suspended" ? " · nonaktif" : ""}</code>
+              </span>
+            </div>
+            <div className={classes.cell} role="cell"><PlanCell user={u} /></div>
+            <div className={classes.cell} role="cell">{u.keys ? u.keys : <span className={classes.muted}>—</span>}</div>
+            <div className={classes.cell} role="cell" title={new Date(u.createdAt).toLocaleString("id-ID")}>{fromNow(u.createdAt)}</div>
+            <div className={classes.actions} role="cell">
+              {u.role !== "admin" && <ButtonGroup>
+                {u.status === "pending" && <>
+                  <Button size="sm" variant="primary" icon={IconCheck} loading={working} onClick={() => act(u, "approve")}>Setujui</Button>
+                  <Button size="sm" variant="subtle" icon={IconX} disabled={working} onClick={() => act(u, "reject")}>Tolak</Button>
+                </>}
+                {u.status !== "pending" && u.role === "user" && <Button size="sm" variant="subtle" icon={IconFolders} onClick={() => setProjectsOf(u)}>Proyek</Button>}
+                {u.status !== "pending" && isMain(u) && <Button size="sm" variant="subtle" icon={IconCreditCard} onClick={() => setEditing(u)}>Paket</Button>}
+                {u.status === "active" && <Button size="sm" variant="secondary" icon={IconPlayerPause} loading={working} onClick={() => act(u, "suspend")}>Nonaktifkan</Button>}
+                {u.status === "suspended" && <Button size="sm" variant="secondary" icon={IconPlayerPlay} loading={working} onClick={() => act(u, "activate")}>Aktifkan</Button>}
+              </ButtonGroup>}
+            </div>
+          </div>
+    );
+  };
+
   return (
     <div className={classes.page}>
       <header className={classes.hero}>
@@ -247,7 +282,7 @@ export function UserList() {
           <div className={classes.stats}>
             {TABS.map((t) => <div key={t.id}><b>{users.data ? count(t.id) : "—"}</b><span>{t.label}</span></div>)}
           </div>
-          <Button variant="primary" icon={IconPlus} onClick={() => setCreating(true)}>Tambah pengguna</Button>
+          <Button variant="primary" icon={IconPlus} onClick={() => setCreating({ parentId: null })}>Tambah pengguna</Button>
         </div>
       </header>
 
@@ -274,46 +309,26 @@ export function UserList() {
 
         {!users.data ? (
           Array.from({ length: 3 }, (_, i) => <div key={i} className={classes.skeletonRow}><Skeleton h={22} radius="md" /></div>)
-        ) : rows.length ? rows.map((u) => {
-          const working = busy === u.id;
-          return (
-            <div key={u.id} className={classes.row} role="row" style={COLUMNS} data-sub={u.parentId ? true : undefined}>
-              <div className={classes.nameCell} role="cell">
-                <span className={classes.icon} data-kind={u.role === "viewer" ? "viewer" : u.parentId ? "sub" : undefined}>{u.name.charAt(0).toUpperCase()}</span>
-                <span className={classes.name}>
-                  <b>{u.name}</b>
-                  <code>@{u.username}{u.role === "viewer" ? " · viewer" : u.parent ? ` · anggota ${u.parent.name}` : ""}</code>
-                </span>
-              </div>
-              <div className={classes.cell} role="cell"><PlanCell user={u} /></div>
-              <div className={classes.cell} role="cell">{u.keys ? u.keys : <span className={classes.muted}>—</span>}</div>
-              <div className={classes.cell} role="cell" title={new Date(u.createdAt).toLocaleString("id-ID")}>{fromNow(u.createdAt)}</div>
-              <div className={classes.actions} role="cell">
-                <ButtonGroup>
-                  {u.status === "pending" && <>
-                    <Button size="sm" variant="primary" icon={IconCheck} loading={working} onClick={() => act(u, "approve")}>Setujui</Button>
-                    <Button size="sm" variant="subtle" icon={IconX} disabled={working} onClick={() => act(u, "reject")}>Tolak</Button>
-                  </>}
-                  {u.status !== "pending" && u.role === "user" && <Button size="sm" variant="subtle" icon={IconFolders} onClick={() => setProjectsOf(u)}>Proyek</Button>}
-                  {u.status !== "pending" && isMain(u) && <Button size="sm" variant="subtle" icon={IconCreditCard} onClick={() => setEditing(u)}>Paket</Button>}
-                  {u.status === "active" && <Button size="sm" variant="secondary" icon={IconPlayerPause} loading={working} onClick={() => act(u, "suspend")}>Nonaktifkan</Button>}
-                  {u.status === "suspended" && <Button size="sm" variant="secondary" icon={IconPlayerPlay} loading={working} onClick={() => act(u, "activate")}>Aktifkan</Button>}
-                </ButtonGroup>
-              </div>
-            </div>
-          );
-        }) : (
+        ) : shown.length ? shown.map(({ main, subs }) => (
+          <div key={main.id} className={classes.group} data-client={main.role === "user" || undefined}>
+            {renderRow(main, subs.length)}
+            {subs.map((u) => renderRow(u))}
+            {isMain(main) && main.status === "active" && subs.length > 0 && (
+              <button type="button" className={classes.addMember} onClick={() => setCreating({ parentId: main.id })}><IconPlus size={13} />Tambah anggota {main.name}</button>
+            )}
+          </div>
+        )) : (
           <div className={classes.empty}>
             <IconUserPlus size={24} />
             <b>{tab === "pending" ? "Tidak ada pendaftaran yang menunggu" : tab === "active" ? "Belum ada user aktif" : "Tidak ada akun nonaktif"}</b>
           </div>
         )}
       </section>
-      <InvoiceAdmin accounts={users.data ?? []} onPlanChanged={users.reload} />
+      <InvoiceAdmin accounts={users.data?.filter(isMain) ?? []} onPlanChanged={users.reload} />
       <ContactRequests />
       <PlanModal user={editing} onClose={() => setEditing(null)} onSaved={users.reload} />
       <ProjectsModal user={projectsOf} onClose={() => setProjectsOf(null)} onSaved={users.reload} />
-      <CreateAccountModal opened={creating} mains={mains} onClose={() => setCreating(false)} onSaved={(account, kind) => {
+      <CreateAccountModal opened={!!creating} parentId={creating ? creating.parentId : null} mains={mains} onClose={() => setCreating(false)} onSaved={(account, kind) => {
         setCreating(false);
         setTab("active");
         users.reload();
