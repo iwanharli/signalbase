@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconAdjustmentsHorizontal, IconFilterOff, IconSearch, IconX } from "@tabler/icons-react";
 import { activePreset, DATE_PRESETS, presetRange, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
@@ -23,6 +23,27 @@ function useSlashToFocus(ref: React.RefObject<HTMLInputElement | null>) {
   }, [ref]);
 }
 
+/**
+ * The search text typed in the box. `filters.search` comes back from the URL a moment after each keystroke; feeding it
+ * straight into the input made React reset the caret to the end whenever the stale value landed mid-edit. The input keeps
+ * its own text and only takes `filters.search` when it changes from outside (reset, clearing a chip, browser back).
+ */
+function useSearchText(search: string, onChange: (patch: Partial<MediaFilters>) => void) {
+  const [text, setText] = useState(search);
+  const sent = useRef<string[]>([search]); // values typed whose echo from the URL may still be on its way
+  useEffect(() => {
+    const own = sent.current.includes(search);
+    if (!own) setText(search);
+    sent.current = own && search === sent.current[sent.current.length - 1] ? [search] : own ? sent.current : [search];
+  }, [search]);
+  const change = (value: string) => {
+    setText(value);
+    sent.current.push(value);
+    onChange({ search: value });
+  };
+  return [text, change] as const;
+}
+
 /** Compact toolbar for search, filters, sort and result layout. */
 export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange }: {
   type: MediaType;
@@ -41,6 +62,7 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashToFocus(searchRef);
   const preset = activePreset(filters);
+  const [searchText, changeSearch] = useSearchText(filters.search, onChange);
 
   return (
     <section className={classes.quick} data-busy={busy || undefined}>
@@ -54,10 +76,10 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
 
       <label className={classes.search}>
         <IconSearch size={18} />
-        <input aria-label={type === "social" ? "Cari isi post" : "Cari judul berita"} ref={searchRef} value={filters.search} onChange={(e) => onChange({ search: e.currentTarget.value })}
-          placeholder={type === "social" ? "Cari isi post…" : "Cari judul berita…"} />
-        {filters.search
-          ? <button type="button" onClick={() => onChange({ search: "" })} aria-label="Hapus pencarian"><IconX size={15} /></button>
+        <input aria-label={type === "social" ? "Cari isi post" : "Cari judul berita"} ref={searchRef} value={searchText} onChange={(e) => changeSearch(e.currentTarget.value)}
+          placeholder={type === "social" ? "Cari isi post… (gunakan OR untuk mencari lebih dari satu kata sekaligus)" : "Cari judul berita… (gunakan OR untuk mencari lebih dari satu kata sekaligus)"} />
+        {searchText
+          ? <button type="button" onClick={() => changeSearch("")} aria-label="Hapus pencarian"><IconX size={15} /></button>
           : <kbd>/</kbd>}
       </label>
 

@@ -5,7 +5,10 @@ import { countActive, countAdvanced, defaultFilters, filtersFromSearchParams, br
 import type { MediaType } from "@/lib/media/types";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
-const SEARCH_DEBOUNCE_MS = 500;
+const SEARCH_DEBOUNCE_MS = 1000;
+/** Fewer than MIN_SEARCH_CHARS typed: the word is probably unfinished and matches little, so wait longer before querying. */
+const SHORT_SEARCH_DEBOUNCE_MS = 2000;
+const MIN_SEARCH_CHARS = 4;
 
 /**
  * Keeps dependent filters consistent:
@@ -38,7 +41,9 @@ export function useMediaFilters(type: MediaType) {
   const reset = useCallback(() => write(defaultFilters(type)), [type, write]);
 
   // Typing in the search box shouldn't scan the bank on every keystroke.
-  const search = useDebouncedValue(filters.search.trim(), SEARCH_DEBOUNCE_MS);
+  const typed = filters.search.trim();
+  // An empty box (cleared) applies at the normal pace.
+  const search = useDebouncedValue(typed, typed && typed.length < MIN_SEARCH_CHARS ? SHORT_SEARCH_DEBOUNCE_MS : SEARCH_DEBOUNCE_MS);
   const query = useMemo(() => toSearchParams({ ...filters, search }).toString(), [filters, search]);
 
   return {

@@ -40,6 +40,9 @@ export const ISSUE_TOPICS = [
   { id: "polisi", label: "Isu Polisi", terms: ["polisi", "polri", "polda"] },
 ] as const;
 export type IssueTopic = (typeof ISSUE_TOPICS)[number]["id"];
+/** shortcut: hardcoded; projects whose name contains "slog" are hidden from the project filter of /isu/ews (not /isu). Move to a per-project setting when more are needed. */
+export const isHiddenEwsProject = (name: string) => /slog/i.test(name);
+
 export const DEFAULT_ISSUE_TOPIC: IssueTopic = "nasional";
 
 /** The topic from ?topik=; null when it is not one of the allowed choices. */
