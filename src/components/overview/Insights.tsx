@@ -1,13 +1,14 @@
 "use client";
-// Ringkasan "Analisis periode" for all media, social or online, over 7/14/30 days: an early-warning board (three
-// indicators, always shown, plus the most intense negative posts), the opinion trend, this period vs the one before,
-// top topics, the project's keywords and hashtags. Both types are always fetched, so "Semua" is merged in the browser.
-// Loads apart from the rest of the page because the grouped scans take a few seconds when the cache is cold.
+// Ringkasan analysis for all media, social or online, over 7/14/30 days: the filter and KPI tiles shown in the page
+// hero, then an early-warning board (three indicators plus the most intense negative posts), the opinion trend, top
+// topics, engagement, top accounts/outlets, the project's keywords and hashtags. Both types are always fetched, so
+// "Semua" is merged in the browser. Loads apart from the rest of the page because the grouped scans take a few seconds
+// when the cache is cold.
 import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton, Tooltip } from "@mantine/core";
 import {
-  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChartHistogram, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
+  IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBolt, IconChevronRight, IconEdit, IconEye, IconFlame, IconHash, IconHeart, IconLayoutGrid, IconMessageCircle, IconMessages, IconMoodSad, IconNews, IconPlugConnected, IconRepeat, IconUsers,
   IconTag, IconTrendingUp, IconWorldWww,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -26,13 +27,13 @@ import c from "./insights.module.css";
 dayjs.extend(relativeTime);
 
 type Response = { insights: InsightsData | null };
-type View = "all" | MediaType;
+export type View = "all" | MediaType;
 type Tone = "pos" | "neu" | "neg";
 /** A ranked value tagged with the media type it mostly comes from, so links open the right page. */
 type Row = Ranked & { t: MediaType };
 type Spike = Extract<Alert, { kind: "spike" }> & { t: MediaType };
 /** What the page shows for the chosen view: one type, or both merged. */
-type ViewData = {
+export type ViewData = {
   trend: InsightsData["trend"]; current: PeriodTotals; previous: PeriodTotals; at: string;
   categories: Row[]; keywords: Row[] | null; hashtags: Row[] | null;
   now: PulseWindow; avg: PulseWindow; spikes: Spike[]; intense: MediaItem[]; hasSocial: boolean;
@@ -45,10 +46,12 @@ const TONES: { key: Tone; label: string }[] = [
   { key: "neu", label: "Netral" },
   { key: "pos", label: "Positif" },
 ];
-const VIEW_LABEL: Record<View, string> = { all: "Semua media", social: MEDIA_TYPE_LABEL.social, online: MEDIA_TYPE_LABEL.online };
+export const VIEW_LABEL: Record<View, string> = { all: "Semua media", social: MEDIA_TYPE_LABEL.social, online: MEDIA_TYPE_LABEL.online };
 const VIEW_ICON = { all: IconLayoutGrid, social: IconMessages, online: IconWorldWww } as const;
 const TOP_ROWS = 8;
 const segClasses = { root: c.seg, indicator: c.segIndicator, label: c.segText, control: c.segControl };
+/** Hashtags come from a sample of recent posts, so their bars start just under the smallest count to show the spread. */
+const RELATIVE_FLOOR = 0.85;
 /** Below this previous count a percentage change is noise (5 → 105 is "+2.000%"), so it reads "baru" instead. */
 const MIN_BASE = 20;
 /** Early-warning thresholds (the server applies the same ones to spikes and the negative share). */
@@ -236,6 +239,11 @@ function Trend({ data }: { data: ViewData }) {
         {TONES.map((t) => <span key={t.key}><i data-tone={t.key} />{t.label}<b>{fmtPct(share[t.key])}</b></span>)}
       </div>
       <div className={c.bars} data-dense={dense || undefined} onMouseLeave={() => setHover(null)}>
+        {labelled > 0 && (
+          <span className={c.avgLine} style={{ ["--s" as string]: share.neg / 100 }} aria-hidden>
+            <em>rata-rata negatif {fmtPct(share.neg)}</em>
+          </span>
+        )}
         {data.trend.map((p, i) => {
           const n = p.pos + p.neu + p.neg;
           return (
@@ -256,7 +264,7 @@ function Trend({ data }: { data: ViewData }) {
           );
         })}
       </div>
-      <p className={c.note}>Porsi dari item yang sudah dianalisis AI, per 24 jam. Arahkan kursor ke batang untuk detail.</p>
+      <p className={c.note}>Porsi dari item yang sudah dianalisis AI, per 24 jam. Garis putus-putus: rata-rata negatif periode ini. Arahkan kursor ke batang untuk detail.</p>
     </div>
   );
 }
@@ -276,40 +284,88 @@ function Delta({ now, before, points, goodWhenUp }: { now: number; before: numbe
   );
 }
 
-function Compare({ current, previous, period }: { current: PeriodTotals; previous: PeriodTotals; period: number }) {
-  const neg = [pct(current.neg, current.labelled), pct(previous.neg, previous.labelled)];
-  const pos = [pct(current.pos, current.labelled), pct(previous.pos, previous.labelled)];
-  const rows = [
-    { label: "Volume", value: formatNumber(current.total), delta: <Delta now={current.total} before={previous.total} />, sub: `sebelumnya ${formatNumber(previous.total)}` },
-    { label: "Porsi negatif", value: fmtPct(neg[0]), delta: <Delta now={neg[0]} before={neg[1]} points goodWhenUp={false} />, sub: `sebelumnya ${fmtPct(neg[1])}` },
-    { label: "Porsi positif", value: fmtPct(pos[0]), delta: <Delta now={pos[0]} before={pos[1]} points goodWhenUp />, sub: `sebelumnya ${fmtPct(pos[1])}` },
-    { label: "Teranalisis AI", value: fmtPct(pct(current.labelled, current.total)), delta: null, sub: `${formatNumber(current.labelled)} item` },
+/** Tiny area chart for a KPI tile; the shape only, the scale is the tile's own range. */
+function Spark({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values), min = Math.min(...values), span = max - min || 1;
+  const line = values.map((v, i) => `${i ? "L" : "M"}${((i / (values.length - 1)) * 100).toFixed(1)} ${(26 - ((v - min) / span) * 22).toFixed(1)}`).join(" ");
+  return (
+    <svg className={c.spark} viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden>
+      <path d={`${line} L100 30 L0 30 Z`} className={c.sparkArea} />
+      <path d={line} className={c.sparkLine} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** The four headline numbers of the chosen view and period, each with its change and a daily sparkline. */
+export function Kpis({ data, period, keyId, view }: { data: ViewData | null; period: number; keyId: string | null; view: View }) {
+  if (!data) return <div className={c.kpis}>{[0, 1, 2, 3].map((i) => <div key={i} className={c.kpi} data-loading />)}</div>;
+  const { current: now, previous: before, trend } = data;
+  const share = (p: { pos: number; neu: number; neg: number }, k: "pos" | "neg") => pct(p[k], p.pos + p.neu + p.neg);
+  const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
+  const type: MediaType = view === "online" ? "online" : "social";
+  const tiles = [
+    { key: "vol", label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
+      sub: `sebelumnya ${formatNumber(before.total)}`, spark: trend.map((p) => p.total), href: view === "all" ? null : mediaHref(type, keyId, { from }) },
+    { key: "neg", label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
+      sub: `sebelumnya ${fmtPct(pct(before.neg, before.labelled))}`, spark: trend.map((p) => share(p, "neg")), href: null },
+    { key: "pos", label: "Porsi positif", value: fmtPct(pct(now.pos, now.labelled)), delta: <Delta now={pct(now.pos, now.labelled)} before={pct(before.pos, before.labelled)} points goodWhenUp />,
+      sub: `sebelumnya ${fmtPct(pct(before.pos, before.labelled))}`, spark: trend.map((p) => share(p, "pos")), href: null },
+    { key: "ai", label: "Teranalisis AI", value: fmtPct(pct(now.labelled, now.total)), delta: null,
+      sub: `${formatNumber(now.labelled)} item`, spark: trend.map((p) => pct(p.pos + p.neu + p.neg, p.total)), href: null },
   ];
   return (
-    <div className={c.compare}>
-      {rows.map((r) => (
-        <div key={r.label}>
-          <small>{r.label}</small>
-          <b>{r.value}{r.delta}</b>
-          <span>{r.sub}</span>
-        </div>
-      ))}
-      <p className={c.note}>{period} hari terakhir dibanding {period} hari sebelumnya.</p>
+    <div className={c.kpis}>
+      {tiles.map((t, i) => {
+        const body = (
+          <>
+            <span className={c.kpiLabel}>{t.label}</span>
+            <b className={c.kpiValue}>{t.value}{t.delta}</b>
+            <span className={c.kpiSub}>{t.sub}</span>
+            <Spark values={t.spark} />
+          </>
+        );
+        return t.href
+          ? <Link key={t.key} href={t.href} className={c.kpi} data-kpi={t.key} style={{ animationDelay: `${i * 60}ms` }}>{body}</Link>
+          : <div key={t.key} className={c.kpi} data-kpi={t.key} style={{ animationDelay: `${i * 60}ms` }}>{body}</div>;
+      })}
     </div>
   );
 }
 
-function RankedList({ items, label, href, showNeg }: { items: Row[]; label: (v: string) => string; href: (row: Row) => string; showNeg?: boolean }) {
+/** Media and period switches; `glass` styles them for the dark hero and the sticky bar. */
+export function FilterControls({ view, onView, period, onPeriod, both }: {
+  view: View; onView: (v: View) => void; period: InsightPeriod; onPeriod: (p: InsightPeriod) => void; both: boolean;
+}) {
+  return (
+    <div className={c.controls}>
+      {both && (
+        <SegmentedControl classNames={segClasses} value={view} onChange={(v) => onView(v as View)} aria-label="Jenis media"
+          data={(["all", "social", "online"] as const).map((v) => {
+            const Icon = VIEW_ICON[v];
+            return { value: v, label: <span className={c.segLabel}><Icon size={15} />{v === "all" ? "Semua" : MEDIA_TYPE_LABEL[v]}</span> };
+          })} />
+      )}
+      <SegmentedControl classNames={segClasses} value={String(period)} onChange={(v) => onPeriod(Number(v) as InsightPeriod)} aria-label="Periode"
+        data={INSIGHT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
+    </div>
+  );
+}
+
+function RankedList({ items, label, href, showNeg, relative, noDelta, cols }: {
+  items: Row[]; label: (v: string) => string; href: (row: Row) => string; showNeg?: boolean; relative?: boolean; noDelta?: boolean; cols?: 2;
+}) {
   if (!items.length) return <p className={c.empty}>Belum ada data pada periode ini.</p>;
   const max = Math.max(1, ...items.map((i) => i.n));
+  const floor = relative ? Math.min(...items.map((i) => i.n)) * RELATIVE_FLOOR : 0;
   return (
-    <ol className={c.ranked}>
+    <ol className={c.ranked} data-cols={cols}>
       {items.map((item, i) => (
         <li key={item.value} style={{ animationDelay: `${i * 40}ms` }}>
           <Link href={href(item)}>
             <span className={c.rankLabel}>{label(item.value)}</span>
-            <span className={c.rankValue}>{formatNumber(item.n)}<Delta now={item.n} before={item.prev} /></span>
-            <span className={c.rankBar}><i style={{ width: `${(item.n / max) * 100}%` }} /></span>
+            <span className={c.rankValue}>{formatNumber(item.n)}{!noDelta && <Delta now={item.n} before={item.prev} />}</span>
+            <span className={c.rankBar}><i style={{ width: `${((item.n - floor) / Math.max(1, max - floor)) * 100}%` }} /></span>
             {showNeg && item.neg !== undefined && <span className={c.rankNeg}>{fmtPct(pct(item.neg, item.n))} negatif</span>}
           </Link>
         </li>
@@ -326,101 +382,68 @@ const METRICS: { key: keyof EngagementMetrics; label: string; icon: typeof IconH
 
 /** One fixed colour per platform, so a platform keeps its colour in every bar and card. */
 const PLATFORM_COLOR: Record<string, string> = {
-  instagram: "#d6249f", tiktok: "#0891b2", threads: "#7c3aed", facebook: "#1877f2", twitter: "#334155", youtube: "#e11d48",
+  instagram: "#d6249f", tiktok: "#0891b2", threads: "#7c3aed", facebook: "#1877f2", twitter: "#64748b", youtube: "#e11d48",
 };
 const platformColor = (source: string) => PLATFORM_COLOR[source] ?? "#94a3b8";
 const compact = new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 });
 const short = (n: number) => (n < 10_000 ? formatNumber(n) : compact.format(n));
 const interactions = (m: EngagementMetrics) => (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0);
 
-/** Each metric's total and change, with a bar showing which platforms it comes from; then one card per platform with
- *  its interactions per post, the fair way to compare platforms of very different sizes. */
+/** One row per platform: posts, interactions per post (the fair way to compare platforms of very different sizes) and
+ *  each metric; the footer holds the totals and their change from the previous period. */
 function Engagement({ rows, href }: { rows: PlatformEngagement[]; href: (source: string) => string }) {
   if (!rows.length) return <p className={c.empty}>Belum ada post media sosial pada periode ini.</p>;
+  const recorded = (r: PlatformEngagement) => METRICS.some((m) => r.current[m.key] !== null);
+  const perPost = (r: PlatformEngagement) => (recorded(r) ? interactions(r.current) / Math.max(1, r.posts) : null);
+  const sorted = [...rows].sort((a, b) => interactions(b.current) - interactions(a.current) || (b.current.views ?? 0) - (a.current.views ?? 0));
+  const best = Math.max(1, ...sorted.map((r) => perPost(r) ?? 0));
   const total = (key: keyof EngagementMetrics, side: "current" | "previous") => rows.reduce((t, r) => t + (r[side][key] ?? 0), 0);
-  const cards = [...rows].sort((a, b) => interactions(b.current) - interactions(a.current));
-  const best = Math.max(1, ...cards.map((r) => interactions(r.current) / Math.max(1, r.posts)));
+  const cell = (v: number | null, source: string, label: string) =>
+    v === null ? <span className={c.engOff} title={`${sourceLabel(source)} tidak mencatat ${label.toLowerCase()}`}>—</span> : <span title={formatNumber(v)}>{short(v)}</span>;
 
   return (
     <div className={c.engagement}>
-      <div className={c.engTotals}>
-        {METRICS.map((m) => {
-          const now = total(m.key, "current");
-          const parts = cards.filter((r) => (r.current[m.key] ?? 0) > 0);
-          return (
-            <div key={m.key} className={c.engTotal} data-metric={m.key}>
-              <span className={c.engTotalHead}><i><m.icon size={16} /></i>{m.label}</span>
-              <b>{formatNumber(now)}</b>
-              <span className={c.engTotalSub}><Delta now={now} before={total(m.key, "previous")} /> dari {formatNumber(total(m.key, "previous"))}</span>
-              <div className={c.engMix} aria-label={`Komposisi ${m.label.toLowerCase()} per platform`}>
-                {parts.map((r) => (
-                  <i key={r.source} style={{ flexGrow: r.current[m.key]!, background: platformColor(r.source) }}
-                    title={`${sourceLabel(r.source)}: ${formatNumber(r.current[m.key]!)} (${fmtPct(pct(r.current[m.key]!, now))})`} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+      <div className={c.engScroll}>
+        <table className={c.engTable}>
+          <thead>
+            <tr>
+              <th>Platform</th><th>Post</th><th>Interaksi per post</th>
+              {METRICS.map((m) => <th key={m.key}><m.icon size={13} />{m.label}</th>)}
+              <th><IconEye size={13} />Penayangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => {
+              const per = perPost(r);
+              return (
+                <tr key={r.source} style={{ ["--p" as string]: platformColor(r.source) }}>
+                  <td><Link href={href(r.source)} className={c.engName}><span className={c.engMark}><PlatformMark source={r.source} size={15} /></span>{sourceLabel(r.source)}</Link></td>
+                  <td>{formatNumber(r.posts)}</td>
+                  <td>
+                    <span className={c.engPer}>
+                      <b title={per === null ? undefined : formatNumber(per)}>{per === null ? "—" : short(Math.round(per))}</b>
+                      <i>{per !== null && <s style={{ width: `${(per / best) * 100}%` }} />}</i>
+                    </span>
+                  </td>
+                  {METRICS.map((m) => <td key={m.key}>{cell(r.current[m.key], r.source, m.label)}</td>)}
+                  <td>{cell(r.current.views, r.source, "penayangan")}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              <td>{formatNumber(rows.reduce((t, r) => t + r.posts, 0))}</td>
+              <td />
+              {[...METRICS.map((m) => m.key), "views" as const].map((k) => (
+                <td key={k}><b>{short(total(k, "current"))}</b><Delta now={total(k, "current")} before={total(k, "previous")} /></td>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
       </div>
-
-      <div className={c.engLegend}>
-        {cards.map((r) => <span key={r.source}><i style={{ background: platformColor(r.source) }} />{sourceLabel(r.source)}</span>)}
-      </div>
-
-      <div className={c.engCards}>
-        {cards.map((r) => {
-          const sum = interactions(r.current);
-          const perPost = sum / Math.max(1, r.posts);
-          const recorded = METRICS.some((m) => r.current[m.key] !== null);
-          return (
-            <Link key={r.source} href={href(r.source)} className={c.engCard} style={{ ["--p" as string]: platformColor(r.source) }}>
-              <header>
-                <span className={c.engMark}><PlatformMark source={r.source} size={16} /></span>
-                <span><b>{sourceLabel(r.source)}</b><small>{formatNumber(r.posts)} post</small></span>
-              </header>
-              {recorded ? <>
-                <div className={c.engPer}>
-                  <b title={formatNumber(perPost)}>{short(Math.round(perPost))}</b>
-                  <span>interaksi per post</span>
-                </div>
-                <i className={c.engPerBar}><s style={{ width: `${(perPost / best) * 100}%` }} /></i>
-                <dl className={c.engStats}>
-                  {METRICS.map((m) => {
-                    const v = r.current[m.key];
-                    return (
-                      <div key={m.key} data-off={v === null || undefined}>
-                        <dt><m.icon size={13} />{m.label}</dt>
-                        <dd title={v === null ? `${sourceLabel(r.source)} tidak mencatat ${m.label.toLowerCase()}` : formatNumber(v)}>{v === null ? "tidak dicatat" : short(v)}</dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-                <small className={c.engSum}>
-                  Total {formatNumber(sum)} interaksi{r.current.views !== null && <> · <IconEye size={12} /> {short(r.current.views)} penayangan</>}
-                </small>
-              </> : r.current.views !== null ? <>
-                {/* Platforms that only count views (YouTube): show reach instead of interactions. */}
-                <div className={c.engPer}>
-                  <b title={formatNumber(r.current.views / Math.max(1, r.posts))}>{short(Math.round(r.current.views / Math.max(1, r.posts)))}</b>
-                  <span>penayangan per post</span>
-                </div>
-                <i className={c.engPerBar} data-views><s style={{ width: "100%" }} /></i>
-                <dl className={c.engStats} data-single>
-                  <div>
-                    <dt><IconEye size={13} />Total penayangan</dt>
-                    <dd title={formatNumber(r.current.views)}>
-                      {formatNumber(r.current.views)}
-                      <Delta now={r.current.views} before={r.previous.views ?? 0} />
-                    </dd>
-                  </div>
-                </dl>
-                <small className={c.engSum}>{sourceLabel(r.source)} hanya mencatat penayangan, tanpa like, komentar, atau share.</small>
-              </> : <p className={c.engNone}>Platform ini belum mencatat interaksi maupun penayangan.</p>}
-            </Link>
-          );
-        })}
-      </div>
-      <p className={c.note}>Angka dicatat saat post diambil, jadi menggambarkan engagement awal, bukan total akhir. Interaksi = like + komentar + share yang dicatat platform.</p>
+      <p className={c.note}>Angka dicatat saat post diambil, jadi menggambarkan engagement awal, bukan total akhir. Interaksi = like + komentar + share; “—” berarti platform tidak mencatatnya. Perubahan di baris total dibanding periode sebelumnya.</p>
     </div>
   );
 }
@@ -616,56 +639,31 @@ function OtherProject({ project, types, period, open, onToggle, keywordHref }: {
 
 // ── Section ─────────────────────────────────────────────────────────────────────
 
-export function Insights({ keyId, social: hasSocial, online: hasOnline, projects = [] }: {
-  keyId: string | null; social: boolean; online: boolean; projects?: ProjectSummary[];
-}) {
-  const both = hasSocial && hasOnline;
-  const project = keyId ? projects.find((p) => p.id === keyId) ?? null : null;
-  const [view, setView] = useState<View>(both ? "all" : hasSocial ? "social" : "online");
-  const [period, setPeriod] = useState<InsightPeriod>(7);
+/** Insights of the chosen view and period. Both types are always fetched (the 7-day ones are kept warm on the server),
+ *  so switching the view is instant. `hasSocial`/`hasOnline` are false until the scope is known. */
+export function useInsights(keyId: string | null, hasSocial: boolean, hasOnline: boolean, view: View, period: InsightPeriod) {
   const url = (t: MediaType) => `/api/admin/stats/insights?type=${t}&days=${period}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`;
-  // Both types are always fetched (the 7-day ones are kept warm on the server), so switching the view is instant.
   const social = useApi<Response>(hasSocial ? url("social") : null);
   const online = useApi<Response>(hasOnline ? url("online") : null);
-
   const wanted: MediaType[] = view === "all" ? (["social", "online"] as const).filter((t) => (t === "social" ? hasSocial : hasOnline)) : [view];
   const sources = { social, online };
-  const ready = wanted.every((t) => !sources[t].loading && sources[t].data);
+  const ready = wanted.length > 0 && wanted.every((t) => !sources[t].loading && sources[t].data);
   const data = ready
     ? viewData(wanted.flatMap((t) => { const d = sources[t].data?.insights; return d?.pulse ? [[t, d] as [MediaType, InsightsData]] : []; }))
     : null;
-  const error = wanted.map((t) => sources[t].error).find(Boolean);
+  return { data, error: wanted.map((t) => sources[t].error).find(Boolean), wanted };
+}
+
+export function Insights({ keyId, view, period, data, error, wanted, projects = [] }: {
+  keyId: string | null; view: View; period: InsightPeriod; data: ViewData | null; error?: string | null; wanted: MediaType[]; projects?: ProjectSummary[];
+}) {
+  const project = keyId ? projects.find((p) => p.id === keyId) ?? null : null;
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const href = (row: Row, params: Record<string, string>) => mediaHref(row.t, keyId, { from, ...params });
   const title = view === "all" ? "semua media" : MEDIA_TYPE_LABEL[view];
+  const showTags = !!data?.hashtags || (!data && view !== "online");
   return (
     <section className={c.section}>
-      <header className={c.head}>
-        <span className={c.headIcon}><IconChartHistogram size={22} /></span>
-        <div className={c.headText}>
-          <h2>Analisis periode</h2>
-          <p>Peringatan dini, tren opini, dan topik dibanding {period} hari sebelumnya{data && <> · diperbarui {dayjs(data.at).format("HH:mm")}</>}</p>
-        </div>
-        <div className={c.controls}>
-          {both && (
-            <div className={c.control}>
-              <span>Media</span>
-              <SegmentedControl classNames={segClasses} value={view} onChange={(v) => setView(v as View)} aria-label="Jenis media"
-                data={(["all", "social", "online"] as const).map((v) => {
-                  const Icon = VIEW_ICON[v];
-                  return { value: v, label: <span className={c.segLabel}><Icon size={16} />{v === "all" ? "Semua" : MEDIA_TYPE_LABEL[v]}</span> };
-                })} />
-            </div>
-          )}
-          <div className={c.control}>
-            <span>Periode</span>
-            <SegmentedControl classNames={segClasses} value={String(period)} onChange={(v) => setPeriod(Number(v) as InsightPeriod)} aria-label="Periode"
-              data={INSIGHT_PERIODS.map((p) => ({ value: String(p), label: `${p} hari` }))} />
-          </div>
-        </div>
-      </header>
-
-
       {error && <MantineAlert color="red">{error}</MantineAlert>}
 
       <EarlyWarning data={data} view={view} keyId={keyId} />
@@ -674,13 +672,13 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
         <Panel icon={IconTrendingUp} title={`Tren opini ${title}`} text={`Negatif, netral, dan positif per hari, ${period} hari terakhir`}>
           {data ? <Trend data={data} /> : <Skeleton h={220} radius="md" />}
         </Panel>
-        <Panel icon={IconArrowUpRight} title="Dibanding periode sebelumnya" text={`${period} hari terakhir vs ${period} hari sebelumnya`}>
-          {data ? <Compare current={data.current} previous={data.previous} period={period} /> : <Skeleton h={220} radius="md" />}
+        <Panel icon={IconTag} title="Topik teratas" text={`Kategori terbanyak, dibanding ${period} hari sebelumnya`}>
+          {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}
         </Panel>
       </div>
 
       {view !== "online" && (
-        <Panel icon={IconHeart} title="Engagement per platform" text={`Like, komentar, dan share media sosial, ${period} hari terakhir dibanding ${period} hari sebelumnya`}>
+        <Panel icon={IconHeart} title="Engagement per platform" text={`Like, komentar, share, dan penayangan media sosial, ${period} hari terakhir`}>
           {data ? (data.engagement ? <Engagement rows={data.engagement} href={(source) => mediaHref("social", keyId, { source, from })} /> : <p className={c.empty}>Tidak ada data media sosial dalam cakupan ini.</p>)
             : <Skeleton h={260} radius="md" />}
         </Panel>
@@ -706,19 +704,19 @@ export function Insights({ keyId, social: hasSocial, online: hasOnline, projects
         )}
       </div>
 
-      <div className={c.grid} data-cols={1 + Number(!!project) + Number(!!data?.hashtags || (!data && view !== "online"))}>
-        {project && (
-          <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data} types={wanted} period={period} from={from} />
-        )}
-        <Panel icon={IconTag} title="Topik teratas" text={view === "all" ? "Kategori terbanyak dari media sosial dan online" : "Kategori terbanyak, dengan perubahan dari periode sebelumnya"}>
-          {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}
-        </Panel>
-        {(data?.hashtags || (!data && view !== "online")) && (
-          <Panel icon={IconHash} title="Tagar teratas" text="Media sosial · dari ±4.000 post terbaru tiap periode">
-            {data?.hashtags ? <RankedList items={data.hashtags} label={(v) => `#${v}`} href={(r) => href(r, { q: r.value })} /> : <Skeleton h={260} radius="md" />}
-          </Panel>
-        )}
-      </div>
+      {(project || showTags) && (
+        <div className={c.grid} data-cols={project && showTags ? 2 : 1}>
+          {project && (
+            <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data} types={wanted} period={period} from={from} />
+          )}
+          {showTags && (
+            <Panel icon={IconHash} title="Tagar teratas" text="Media sosial · dari ±4.000 post terbaru tiap periode">
+              {data?.hashtags ? <RankedList items={data.hashtags} label={(v) => `#${v}`} href={(r) => href(r, { q: r.value })} relative noDelta cols={project ? undefined : 2} />
+                : <Skeleton h={260} radius="md" />}
+            </Panel>
+          )}
+        </div>
+      )}
     </section>
   );
 }

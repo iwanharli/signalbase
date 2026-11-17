@@ -1,149 +1,53 @@
 "use client";
 import type { Role } from "@/lib/session";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, Skeleton } from "@mantine/core";
-import { IconArrowDownRight, IconArrowRight, IconArrowUpRight, IconBook2, IconEdit, IconKey, IconMessages, IconPlugConnected, IconSearch, IconWorldWww } from "@tabler/icons-react";
+import { IconArrowRight, IconBook2, IconEdit, IconKey, IconMessages, IconPlugConnected, IconSearch, IconWorldWww } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { formatNumber, MEDIA_TYPE_LABEL, MOOD_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
-import { moodColorVar, moodInfo } from "@/lib/media/mood";
-import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
+import type { InsightPeriod } from "@/lib/media/insights";
+import { sourceLabel } from "@/lib/media/labels";
+import { moodInfo } from "@/lib/media/mood";
+import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
 import { AiSummary } from "./overview/AiSummary";
-import { Insights } from "./overview/Insights";
-import { Tip } from "./ui/Tip";
+import { FilterControls, Insights, Kpis, useInsights, VIEW_LABEL, type View } from "./overview/Insights";
 
 dayjs.extend(relativeTime);
 
-type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
+type TypeStats = { latest: MediaItem[] };
 type ApiKeySummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
 /** A type is null when the viewed key's scope leaves it out. noKey: a user account without any key yet. */
 type OverviewStats = { social: TypeStats | null; online: TypeStats | null; key: { id: string; name: string; keywords: string[] } | null; keys: ApiKeySummary[]; at: string; noKey?: boolean };
 
-const CHART_DAYS = 14;
-const LEGEND_SIZE = 6;
-const RECENTLY_USED_MS = 60 * 60_000;
-const COUNT_UP_MS = 1100;
+/** The sticky filter bar shows once the hero's filters scroll under the floating nav (60px bar + 14px gap + margin). */
+const NAV_CLEARANCE = 90;
 
-const TYPE_STYLE = {
-  social: { icon: IconMessages, from: "#7c3aed", to: "#c084fc" },
-  online: { icon: IconWorldWww, from: "#0891b2", to: "#22d3ee" },
+const TYPE_ICON = { social: IconMessages, online: IconWorldWww } as const;
+
+const FEED = {
+  social: { title: "Sinyal Terbaru Sosial Media", what: "Post", empty: "Belum ada post yang menyebut keyword ini." },
+  online: { title: "Sinyal Terbaru Media Online", what: "Berita", empty: "Belum ada berita yang menyebut keyword ini." },
 } as const;
-const KEYS_STYLE = { from: "#059669", to: "#34d399" };
 
-const gradientVars = (style: { from: string; to: string }) => ({ ["--c1" as string]: style.from, ["--c2" as string]: style.to });
-const sum = (counts: { n: number }[]) => counts.reduce((total, c) => total + c.n, 0);
-
-/** The last CHART_DAYS days, oldest first, with missing days filled with 0. */
-function fillDays(daily: DailyCount[]): DailyCount[] {
-  const byDay = new Map(daily.map((d) => [d.day, d.n]));
-  return Array.from({ length: CHART_DAYS }, (_, i) => {
-    const day = dayjs().subtract(CHART_DAYS - 1 - i, "day").format("YYYY-MM-DD");
-    return { day, n: byDay.get(day) ?? 0 };
-  });
-}
-
-/** Number that counts up from 0 with an ease-out curve. */
-function CountUp({ value }: { value: number }) {
-  const [current, setCurrent] = useState(0);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setCurrent(value); return; }
-    let frame = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
-      setCurrent(value * (1 - Math.pow(1 - progress, 4)));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value]);
-  return <>{formatNumber(current)}</>;
-}
-
-/** Hero tile: this week's volume and the change from the week before. */
-function VolumeTile({ type, stats, keyQuery }: { type: MediaType; stats?: TypeStats | null; keyQuery: string }) {
-  const style = TYPE_STYLE[type];
-  const days = stats ? fillDays(stats.daily) : [];
-  const thisWeek = sum(days.slice(7));
-  const lastWeek = sum(days.slice(0, 7));
-  const change = lastWeek ? ((thisWeek - lastWeek) / lastWeek) * 100 : 0;
-  return (
-    <Link href={`/media/${type}${keyQuery}`} className={classes.tile} style={gradientVars(style)} data-off={stats === null || undefined}>
-      <span className={classes.tileIcon}><style.icon size={20} /></span>
-      <span className={classes.tileLabel}>{MEDIA_TYPE_LABEL[type]} · 7 hari</span>
-      <b className={classes.tileValue}>{stats ? <CountUp value={thisWeek} /> : "—"}</b>
-      {stats === null && <span className={classes.delta}>Tidak termasuk cakupan proyek</span>}
-      {stats && lastWeek > 0 && (
-        <span className={classes.delta} data-down={change < 0 || undefined}>
-          {change < 0 ? <IconArrowDownRight size={14} /> : <IconArrowUpRight size={14} />}{Math.abs(change).toFixed(1)}% vs 7 hari sebelumnya
-        </span>
-      )}
-    </Link>
-  );
-}
-
-/** Daily volume bars plus the week's mood breakdown for one media type. */
-function TypePanel({ type, stats, keyQuery }: { type: MediaType; stats?: TypeStats | null; keyQuery: string }) {
-  const days = stats ? fillDays(stats.daily) : [];
-  const peak = Math.max(1, ...days.map((d) => d.n));
-  const moodTotal = sum(stats?.moods ?? []);
-  return (
-    <section className={classes.panel} style={gradientVars(TYPE_STYLE[type])}>
-      <header className={classes.panelHead}>
-        <div><h3>{MEDIA_TYPE_LABEL[type]}</h3><p>Volume harian, 14 hari terakhir · hari ini belum lengkap</p></div>
-        {stats !== null && <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Jelajahi <IconArrowRight size={14} /></Link>}
-      </header>
-
-      {stats === null ? <p className={classes.empty}>Jenis media ini tidak termasuk cakupan proyek. Ubah cakupan di halaman Proyek untuk menampilkannya.</p> : !stats ? <Skeleton h={170} radius="md" /> : (
-        <div className={classes.chart}>
-          {days.map((d, i) => (
-            <div key={d.day} className={classes.col} tabIndex={0} aria-label={`${dayjs(d.day).locale("id").format("D MMMM YYYY")}: ${formatNumber(d.n)} item${i === CHART_DAYS - 1 ? ", hari ini belum lengkap" : ""}`} data-today={i === CHART_DAYS - 1 || undefined}>
-              <span className={classes.tip}>{dayjs(d.day).locale("id").format("D MMM")}<b>{formatNumber(d.n)}</b></span>
-              <i style={{ height: `${d.n === 0 ? 0 : Math.max(2, (d.n / peak) * 100)}%`, animationDelay: `${i * 35}ms` }} />
-              <small>{dayjs(d.day).format("D")}</small>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {stats !== null && <div className={classes.moodHead}>{MOOD_KIND_LABEL[type]} · 7 hari</div>}
-      {stats === null ? null : !stats ? <Skeleton h={40} radius="md" /> : moodTotal === 0 ? <p className={classes.empty}>Belum ada data teranalisis.</p> : (
-        <>
-          <div className={classes.spectrum}>
-            {stats.moods.map((m) => <Tip key={m.value} label={`${moodInfo(m.value).label}: ${formatNumber(m.n)}`}><i style={{ flexGrow: m.n, background: moodColorVar(m.value) }} /></Tip>)}
-          </div>
-          <div className={classes.legend}>
-            {stats.moods.slice(0, LEGEND_SIZE).map((m) => (
-              <Link key={m.value} href={`/media/${type}${keyQuery ? `${keyQuery}&` : "?"}mood=${encodeURIComponent(m.value)}`}>
-                <i style={{ background: moodColorVar(m.value) }} />{moodInfo(m.value).label}<b>{Math.round((m.n / moodTotal) * 100)}%</b>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-
-/** Newest items of both types, merged by time. */
-function LatestFeed({ stats, keyQuery, scoped }: { stats: OverviewStats | null; keyQuery: string; scoped: boolean }) {
-  const items = stats
-    ? [...(stats.social?.latest ?? []).map((item) => ({ item, type: "social" as const })), ...(stats.online?.latest ?? []).map((item) => ({ item, type: "online" as const }))]
-      .sort((a, b) => b.item.publishedAt.localeCompare(a.item.publishedAt))
-    : [];
+/** Newest items of one media type. */
+function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items: MediaItem[] | null; keyQuery: string; scoped: boolean }) {
+  const f = FEED[type];
+  const Icon = TYPE_ICON[type];
   return (
     <section className={classes.panel}>
-      <header className={classes.panelHead}><div><h3>Sinyal terbaru</h3><p>{scoped ? "Post dan berita terbaru yang menyebut keyword proyek ini" : "Data paling baru yang masuk ke bank"}</p></div></header>
+      <header className={classes.panelHead}>
+        <div><h3>{f.title}</h3><p>{scoped ? `${f.what} terbaru yang menyebut keyword proyek ini` : `${f.what} paling baru yang masuk ke bank`}</p></div>
+        <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Lihat semua <IconArrowRight size={14} /></Link>
+      </header>
       <div className={classes.feed}>
-        {!stats && Array.from({ length: 5 }, (_, i) => <Skeleton key={i} h={58} radius="md" />)}
-        {items.map(({ item, type }, i) => {
+        {!items && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} h={58} radius="md" />)}
+        {items?.map((item, i) => {
           const mood = item.mood ? moodInfo(item.mood) : null;
-          const Icon = TYPE_STYLE[type].icon;
           return (
             <Link key={item.code} href={`/media/${type}${keyQuery}`} className={classes.feedItem} style={{ animationDelay: `${i * 60}ms` }}>
               <span className={classes.feedIcon} data-t={type}><Icon size={16} /></span>
@@ -157,35 +61,7 @@ function LatestFeed({ stats, keyQuery, scoped }: { stats: OverviewStats | null; 
             </Link>
           );
         })}
-        {stats && !items.length && <p className={classes.empty}>Belum ada post atau berita yang menyebut keyword ini.</p>}
-      </div>
-    </section>
-  );
-}
-
-function ConnectedApps({ keys, own, activeId }: { keys: ApiKeySummary[] | null; own: boolean; activeId?: string }) {
-  return (
-    <section className={classes.panel}>
-      <header className={classes.panelHead}>
-        <div><h3>{own ? "Proyek Anda" : "Aplikasi terhubung"}</h3><p>{own ? "Pilih proyek untuk melihat datanya di beranda" : "Proyek aktif dan cakupannya"}</p></div>
-        <Link href="/api-keys" className={classes.more}>Kelola <IconArrowRight size={14} /></Link>
-      </header>
-      <div className={classes.keys}>
-        {!keys && <Skeleton h={120} radius="md" />}
-        {keys?.map((key) => {
-          const recentlyUsed = !!key.lastUsedAt && Date.now() - new Date(key.lastUsedAt).getTime() < RECENTLY_USED_MS;
-          return (
-            <Link key={key.id} href={`/dashboard?key=${key.id}`} className={classes.key} data-active={key.id === activeId || undefined}>
-              <span className={classes.keyIcon} data-fresh={recentlyUsed || undefined}><IconPlugConnected size={17} /></span>
-              <div>
-                <b>{key.name}</b>
-                <small>{key.lastUsedAt ? `Terakhir dipakai ${dayjs(key.lastUsedAt).locale("id").fromNow()}` : "Belum pernah dipakai"}</small>
-                <div className={classes.kw}>{key.keywords.length ? key.keywords.map((w) => <span key={w}>{w}</span>) : <span>semua data</span>}</div>
-              </div>
-            </Link>
-          );
-        })}
-        {keys && !keys.length && <p className={classes.empty}>Belum ada proyek aktif.</p>}
+        {items && !items.length && <p className={classes.empty}>{f.empty}</p>}
       </div>
     </section>
   );
@@ -215,55 +91,70 @@ function Onboarding({ name }: { name: string }) {
 export function Overview({ name, role }: { name: string; role: Role }) {
   const keyId = useSearchParams().get("key");
   const { data, error } = useApi<OverviewStats>(`/api/admin/stats${keyId ? `?key=${encodeURIComponent(keyId)}` : ""}`);
-  if (data?.noKey) return <div className={classes.page}><Onboarding name={name} /></div>;
+  const [chosenView, setView] = useState<View>("all");
+  const [period, setPeriod] = useState<InsightPeriod>(7);
+  const hasSocial = !!data && data.social !== null, hasOnline = !!data && data.online !== null;
+  const both = hasSocial && hasOnline;
+  const view: View = both ? chosenView : hasOnline && !hasSocial ? "online" : "social";
   const key = data?.key ?? null;
+  const insights = useInsights(key?.id ?? null, hasSocial, hasOnline, view, period);
+
+  // Show the compact filter bar while the hero's own filters are scrolled out of sight.
+  const heroRef = useRef<HTMLElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < 0), { rootMargin: `-${NAV_CLEARANCE}px 0px 0px 0px` });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [data?.noKey]);
+
+  if (data?.noKey) return <div className={classes.page}><Onboarding name={name} /></div>;
   const keyQuery = key ? `?key=${key.id}` : "";
   const own = role === "user";
+  const filters = <FilterControls view={view} onView={setView} period={period} onPeriod={setPeriod} both={both} />;
+  const at = insights.data?.at ?? data?.at;
+  const scope = `${period} hari terakhir · ${VIEW_LABEL[view].toLowerCase()}${at ? ` · diperbarui ${dayjs(at).format("HH:mm")}` : ""}`;
+
   return (
     <div className={classes.page}>
-      <section className={classes.hero}>
+      <section className={classes.hero} ref={heroRef}>
         <div className={classes.heroGrid} aria-hidden />
-        <div className={classes.heroText}>
-          {key ? <>
-            <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
-            <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
-            <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
-              <Link href={`/api-keys/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
-            {data && <p>Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</p>}
-          </> : <>
-            <span className={classes.live}>Ringkasan bank data</span>
-            <h1>Pusat <em>Sinyal</em> Media</h1>
-            <p>Arus post media sosial dan berita online yang dibuka untuk aplikasi lain lewat kunci API.{data && <> Diperbarui {dayjs(data.at).locale("id").format("HH:mm")}.</>}</p>
-          </>}
+        <div className={classes.heroTop}>
+          <div className={classes.heroText}>
+            {key ? <>
+              <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
+              <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
+              <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
+                <Link href={`/api-keys/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
+            </> : <>
+              {/* The date waits for the client data, so a server in another time zone can't render a different day. */}
+              <span className={classes.live}><i />{data ? dayjs().locale("id").format("dddd, D MMMM YYYY") : "Ringkasan"}</span>
+              <h1>Ringkasan <em>bank data</em></h1>
+            </>}
+            <p>{scope}</p>
+          </div>
+          {data ? filters : <Skeleton h={40} w={320} radius="md" opacity={0.15} />}
         </div>
-        <div className={classes.tiles}>
-          <VolumeTile type="social" stats={data ? data.social : undefined} keyQuery={keyQuery} />
-          <VolumeTile type="online" stats={data ? data.online : undefined} keyQuery={keyQuery} />
-          <Link href="/api-keys" className={classes.tile} style={gradientVars(KEYS_STYLE)}>
-            <span className={classes.tileIcon}><IconKey size={20} /></span>
-            <span className={classes.tileLabel}>{own ? "Proyek Anda" : "Proyek aktif"}</span>
-            <b className={classes.tileValue}>{data ? <CountUp value={data.keys.length} /> : "—"}</b>
-            <span className={classes.delta}>{own ? "Kelola proyek & keyword" : "Aplikasi terhubung"}</span>
-          </Link>
-        </div>
+        <Kpis data={insights.data} period={period} keyId={key?.id ?? null} view={view} />
       </section>
+
+      <div className={classes.sticky} data-show={stuck || undefined} aria-hidden={!stuck}>
+        <span>{scope}</span>
+        {data && filters}
+      </div>
 
       {error && <Alert color="red" mb="lg">{error}</Alert>}
 
       {data && <AiSummary keyId={key?.id ?? null} admin={role === "admin"} />}
 
-      {data && <Insights keyId={key?.id ?? null} social={data.social !== null} online={data.online !== null} projects={data.keys} />}
+      {data && <Insights keyId={key?.id ?? null} view={view} period={period} data={insights.data} error={insights.error} wanted={insights.wanted} projects={data.keys} />}
 
-      <div className={classes.two}>
-        <TypePanel type="social" stats={data ? data.social : undefined} keyQuery={keyQuery} />
-        <TypePanel type="online" stats={data ? data.online : undefined} keyQuery={keyQuery} />
-      </div>
-
-      {/* Viewing a project: its keywords and the other projects sit in the "Proyek & keyword" card above. */}
-      {key ? <LatestFeed stats={data ?? null} keyQuery={keyQuery} scoped /> : (
-        <div className={classes.two} data-wide-left>
-          <LatestFeed stats={data ?? null} keyQuery={keyQuery} scoped={false} />
-          <ConnectedApps keys={data?.keys ?? null} own={own} activeId={undefined} />
+      {data && (hasSocial || hasOnline) && (
+        <div className={classes.two} data-single={!both || undefined}>
+          {hasSocial && <LatestFeed type="social" items={data.social!.latest} keyQuery={keyQuery} scoped={!!key} />}
+          {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} />}
         </div>
       )}
     </div>

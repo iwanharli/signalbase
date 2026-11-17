@@ -132,3 +132,61 @@
 .drivers b { padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); }
 .vsMedia { color: var(--mantine-color-dimmed); }
 .vsMedia span { margin-right: 6px; }
+
+/* Brief (default): top highlights as one-liners, and the toggle to the full analysis. */
+.brief { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.brief li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); box-shadow: inset 3px 0 0 var(--impact);
+  animation: rise 450ms cubic-bezier(.2,.8,.2,1) both; }
+.brief b { min-width: 0; font-size: 14.5px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overview[data-clamp] { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--mantine-color-dimmed); }
+.expand { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: 0; border-radius: 99px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-light); transition: background .15s; }
+.expand:hover { background: var(--mantine-color-violet-light-hover); }
+.expand svg { transition: transform 160ms; }
+.expand[aria-expanded="true"] svg { transform: rotate(180deg); }
+.foot { align-items: center; }
+@media (max-width: 600px) {
+  .brief li { grid-template-columns: 24px minmax(0, 1fr); }
+  .brief b { white-space: normal; }
+  .brief .tags { grid-column: 2; }
+  .expand { margin-left: 0; }
+}
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .eyebrow {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .trend[data-trend="baru"] {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .trend[data-trend="naik"] {
+    color: var(--mantine-color-red-4)
+}
+:global([data-mantine-color-scheme="dark"]) .trend[data-trend="turun"] {
+    color: var(--mantine-color-teal-4)
+}
+:global([data-mantine-color-scheme="dark"]) .toggle {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .toggle:hover {
+    color: var(--mantine-color-violet-2)
+}
+:global([data-mantine-color-scheme="dark"]) .state[data-error] {
+    color: var(--mantine-color-red-3)
+}
+:global([data-mantine-color-scheme="dark"]) .state a {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .public h4 {
+    color: var(--mantine-color-cyan-3)
+}
+:global([data-mantine-color-scheme="dark"]) .chip[data-confidence="rendah"] {
+    color: var(--mantine-color-orange-3)
+}
+:global([data-mantine-color-scheme="dark"]) .sources a {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .expand {
+    color: var(--mantine-color-violet-2)
+}

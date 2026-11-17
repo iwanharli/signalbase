@@ -25,8 +25,12 @@ const TREND: Record<Trend, { label: string; icon: typeof IconTrendingUp }> = {
 const longDay = (day: string) => dayjs(day).locale("id").format("dddd, D MMMM YYYY");
 const shortDay = (day: string) => dayjs(day).locale("id").format("D MMM");
 
+const BRIEF_HIGHLIGHTS = 3;
+const BRIEF_WATCH = 3;
+
 export function AiSummary({ keyId, admin }: { keyId: string | null; admin: boolean }) {
   const [day, setDay] = useState<string | null>(null);
+  const [full, setFull] = useState(false);
   const qs = new URLSearchParams({ ...(keyId ? { key: keyId } : {}), ...(day ? { day } : {}) }).toString();
   const { data, error } = useApi<SummaryResponse>(`/api/admin/stats/ai-summary${qs ? `?${qs}` : ""}`);
 
@@ -96,37 +100,55 @@ export function AiSummary({ keyId, admin }: { keyId: string | null; admin: boole
           </div>
         </div>
 
-        <div className={c.layout}>
-          <div className={c.main}>
-            <p className={c.overview}>{content.overview}</p>
-            {content.publicConversation && <PublicConversation p={content.publicConversation} sources={content.sources} />}
-            <h4 className={c.section}>Sorotan</h4>
-            <ol className={c.highlights}>
-              {content.highlights.map((h, i) => <Highlight key={`${s!.day}-${i}`} h={h} index={i} sources={content.sources} />)}
-            </ol>
-          </div>
+        {full ? (
+          <div className={c.layout}>
+            <div className={c.main}>
+              <p className={c.overview}>{content.overview}</p>
+              {content.publicConversation && <PublicConversation p={content.publicConversation} sources={content.sources} />}
+              <h4 className={c.section}>Sorotan</h4>
+              <ol className={c.highlights}>
+                {content.highlights.map((h, i) => <Highlight key={`${s!.day}-${i}`} h={h} index={i} sources={content.sources} />)}
+              </ol>
+            </div>
 
-          {(content.watch.length > 0 || content.actions.length > 0) && (
-            <aside className={c.side}>
-              {content.watch.length > 0 && (
-                <div className={c.box} data-kind="watch">
-                  <h4><IconAlertTriangle size={15} />Perlu diwaspadai hari ini</h4>
-                  <ul>{content.watch.map((w, i) => <li key={i}>{w.text}</li>)}</ul>
-                </div>
-              )}
-              {content.actions.length > 0 && (
-                <div className={c.box} data-kind="actions">
-                  <h4><IconTargetArrow size={15} />Rekomendasi</h4>
-                  <ol>{content.actions.map((x, i) => <li key={i}><b>{x.action}</b>{x.reason && <small>{x.reason}</small>}</li>)}</ol>
-                </div>
-              )}
-            </aside>
-          )}
-        </div>
+            {(content.watch.length > 0 || content.actions.length > 0) && (
+              <aside className={c.side}>
+                {content.watch.length > 0 && <WatchBox items={content.watch} />}
+                {content.actions.length > 0 && (
+                  <div className={c.box} data-kind="actions">
+                    <h4><IconTargetArrow size={15} />Rekomendasi</h4>
+                    <ol>{content.actions.map((x, i) => <li key={i}><b>{x.action}</b>{x.reason && <small>{x.reason}</small>}</li>)}</ol>
+                  </div>
+                )}
+              </aside>
+            )}
+          </div>
+        ) : (
+          // Brief: the top highlights as one-liners beside what to watch; the full analysis opens on demand.
+          <div className={c.layout}>
+            <div className={c.main}>
+              <p className={c.overview} data-clamp>{content.overview}</p>
+              <ol className={c.brief}>
+                {content.highlights.slice(0, BRIEF_HIGHLIGHTS).map((h, i) => (
+                  <li key={`${s!.day}-${i}`} data-impact={h.impact ?? "sedang"} style={{ animationDelay: `${i * 60}ms` }}>
+                    <span className={c.num}>{i + 1}</span>
+                    <b>{h.title}</b>
+                    <HighlightTags h={h} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {content.watch.length > 0 && <aside className={c.side}><WatchBox items={content.watch.slice(0, BRIEF_WATCH)} /></aside>}
+          </div>
+        )}
 
         <footer className={c.foot}>
           <span>Ditulis AI {dayjs(s!.updatedAt).locale("id").format("dddd HH.mm")}. Periksa kembali sebelum dijadikan dasar keputusan.</span>
           {pending && <span><IconClockHour4 size={13} />Ringkasan data {longDay(data!.latest)} ditulis pukul {hour} WIB.</span>}
+          <button type="button" className={c.expand} onClick={() => setFull((f) => !f)} aria-expanded={full}>
+            {full ? "Ringkas" : `Baca analisis lengkap · ${content.highlights.length} sorotan${content.actions.length ? " & rekomendasi" : ""}`}
+            <IconChevronDown size={14} />
+          </button>
         </footer>
       </>}
     </section>
@@ -163,11 +185,31 @@ function PublicConversation({ p, sources }: { p: NonNullable<SummaryContent["pub
 
 type HighlightItem = SummaryContent["highlights"][number];
 
+function WatchBox({ items }: { items: SummaryContent["watch"] }) {
+  return (
+    <div className={c.box} data-kind="watch">
+      <h4><IconAlertTriangle size={15} />Perlu diwaspadai hari ini</h4>
+      <ul>{items.map((w, i) => <li key={i}>{w.text}</li>)}</ul>
+    </div>
+  );
+}
+
+/** Impact, trend and sentiment of a highlight. */
+function HighlightTags({ h }: { h: HighlightItem }) {
+  const sentiment = h.sentiment ?? h.tone ?? "netral";
+  const trend = h.trend ? TREND[h.trend] : null;
+  return (
+    <span className={c.tags}>
+      {h.impact && <span className={c.impact}>Dampak {h.impact}</span>}
+      {trend && <span className={c.trend} data-trend={h.trend}><trend.icon size={12} />{trend.label}</span>}
+      <span className={c.mood} data-tone={sentiment}>{TONE_LABEL[sentiment]}</span>
+    </span>
+  );
+}
+
 /** One numbered highlight. The fact is always shown; the assessment and sources open on demand (the first one starts open). */
 function Highlight({ h, index, sources }: { h: HighlightItem; index: number; sources: SummaryContent["sources"] }) {
   const [open, setOpen] = useState(index === 0);
-  const sentiment = h.sentiment ?? h.tone ?? "netral";
-  const trend = h.trend ? TREND[h.trend] : null;
   const refs = h.evidence.flatMap((code) => (sources[code] ? [{ code, ...sources[code] }] : []));
   const more = !!h.implication || refs.length > 0;
   return (
@@ -176,11 +218,7 @@ function Highlight({ h, index, sources }: { h: HighlightItem; index: number; sou
       <div className={c.itemBody}>
         <div className={c.itemHead}>
           <b>{h.title}</b>
-          <span className={c.tags}>
-            {h.impact && <span className={c.impact}>Dampak {h.impact}</span>}
-            {trend && <span className={c.trend} data-trend={h.trend}><trend.icon size={12} />{trend.label}</span>}
-            <span className={c.mood} data-tone={sentiment}>{TONE_LABEL[sentiment]}</span>
-          </span>
+          <HighlightTags h={h} />
         </div>
         <p className={c.detail}>{h.detail}</p>
         {open && more && (
