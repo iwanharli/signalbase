@@ -110,6 +110,9 @@
 .group[data-client] { position: relative; }
 .group[data-client]:has(.row[data-sub]) { background: color-mix(in srgb, var(--mantine-color-cyan-5) 3%, transparent); }
 .group[data-client]:has(.row[data-sub])::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(#7c3aed, #22d3ee); }
+.group[data-internal] { border-bottom: 1px solid var(--mantine-color-default-border); }
+.groupLabel { display: flex; align-items: center; gap: 8px; padding: 10px 18px 2px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--mantine-color-dimmed); }
+.groupLabel span { padding: 0 7px; border-radius: 99px; font-size: 10.5px; background: var(--mantine-color-default-hover); }
 .addMember { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px 64px; padding: 4px 10px; border: 1px dashed var(--mantine-color-default-border); border-radius: 8px;
   font: inherit; font-size: 12px; font-weight: 700; color: var(--mantine-color-dimmed); background: none; cursor: pointer; }
 .addMember:hover { color: var(--mantine-color-violet-5); border-color: var(--mantine-color-violet-4); }

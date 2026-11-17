@@ -220,9 +220,16 @@ export function UserList() {
   const mains = users.data?.filter((u) => isMain(u) && u.status !== "pending") ?? [];
   // Each client is one group: its main account, then its sub-accounts (whatever their own status). The tabs go by the main
   // account's status, so a group never splits across tabs; viewers and plain accounts are groups of one.
-  const groups = (users.data ?? []).filter((u) => !u.parentId).map((main) => ({ main, subs: users.data!.filter((u) => u.parentId === main.id) }));
-  const count = (s: Status) => groups.filter((g) => g.main.status === s).reduce((n, g) => n + 1 + g.subs.length, 0);
-  const shown = groups.filter((g) => g.main.status === tab);
+  // Admins and viewers form one "Tim internal" group, always under Aktif (a suspended viewer stays in it, marked).
+  type Group = { key: string; label?: string; status: Status; rows: UserRow[]; client?: UserRow };
+  const all = users.data ?? [];
+  const internal = all.filter((u) => u.role !== "user");
+  const groups: Group[] = [
+    ...(internal.length ? [{ key: "internal", label: "Tim internal", status: "active" as Status, rows: internal }] : []),
+    ...all.filter(isMain).map((main) => ({ key: main.id, status: main.status, rows: [main, ...all.filter((u) => u.parentId === main.id)], client: main })),
+  ];
+  const count = (s: Status) => groups.filter((g) => g.status === s).reduce((n, g) => n + g.rows.length, 0);
+  const shown = groups.filter((g) => g.status === tab);
 
   const act = async (user: UserRow, action: "approve" | "suspend" | "activate" | "reject") => {
     setBusy(user.id);
@@ -247,7 +254,7 @@ export function UserList() {
               <span className={classes.icon} data-kind={u.role === "user" ? (u.parentId ? "sub" : undefined) : u.role}>{u.name.charAt(0).toUpperCase()}</span>
               <span className={classes.name}>
                 <b>{u.name}{u.self && <span className={classes.muted}> (Anda)</span>}</b>
-                <code>@{u.username}{u.role !== "user" ? ` · ${u.role}` : u.parentId ? " · anggota" : subs ? ` · akun utama · ${subs} anggota` : ""}{u.parentId && u.status === "suspended" ? " · nonaktif" : ""}</code>
+                <code>@{u.username}{u.role !== "user" ? ` · ${u.role}` : u.parentId ? " · anggota" : subs ? ` · akun utama · ${subs} anggota` : ""}{(u.parentId || u.role === "viewer") && u.status === "suspended" ? " · nonaktif" : ""}</code>
               </span>
             </div>
             <div className={classes.cell} role="cell"><PlanCell user={u} /></div>
@@ -309,12 +316,12 @@ export function UserList() {
 
         {!users.data ? (
           Array.from({ length: 3 }, (_, i) => <div key={i} className={classes.skeletonRow}><Skeleton h={22} radius="md" /></div>)
-        ) : shown.length ? shown.map(({ main, subs }) => (
-          <div key={main.id} className={classes.group} data-client={main.role === "user" || undefined}>
-            {renderRow(main, subs.length)}
-            {subs.map((u) => renderRow(u))}
-            {isMain(main) && main.status === "active" && subs.length > 0 && (
-              <button type="button" className={classes.addMember} onClick={() => setCreating({ parentId: main.id })}><IconPlus size={13} />Tambah anggota {main.name}</button>
+        ) : shown.length ? shown.map(({ key, label, rows, client }) => (
+          <div key={key} className={classes.group} data-client={client ? true : undefined} data-internal={label ? true : undefined}>
+            {label && <div className={classes.groupLabel}>{label}<span>{rows.length}</span></div>}
+            {rows.map((u) => renderRow(u, u === client ? rows.length - 1 : 0))}
+            {client && client.status === "active" && rows.length > 1 && (
+              <button type="button" className={classes.addMember} onClick={() => setCreating({ parentId: client.id })}><IconPlus size={13} />Tambah anggota {client.name}</button>
             )}
           </div>
         )) : (
