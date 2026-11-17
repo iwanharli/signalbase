@@ -60,6 +60,15 @@
   color: #fff; background: #191729; border: 1px solid rgba(167,139,250,.3); box-shadow: 0 16px 40px -18px rgba(46,16,101,.8); }
 .savebar > span { flex: 1; font-size: 13px; font-weight: 600; }
 
+.warnTitle { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--mantine-color-red-6); }
+.confirm { display: flex; flex-direction: column; gap: 12px; }
+.confirm p { margin: 0; font-size: 14px; line-height: 1.6; }
+.confirmLabel { --label: var(--mantine-color-violet-6); align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; border-radius: 99px;
+  font-size: 13px; font-weight: 800; color: var(--label); background: color-mix(in srgb, var(--label) 12%, var(--mantine-color-body));
+  border: 1px solid color-mix(in srgb, var(--label) 45%, transparent); }
+.confirmLabel i { width: 8px; height: 8px; border-radius: 50%; background: var(--label); }
+.confirmActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
 :global([data-mantine-color-scheme="dark"]) .stats > div { background: var(--mantine-color-dark-6); }
 :global([data-mantine-color-scheme="dark"]) .row { background: color-mix(in srgb, var(--label) 7%, var(--mantine-color-dark-7)); }
 :global([data-mantine-color-scheme="dark"]) .previewBar { background: color-mix(in srgb, var(--label) 14%, var(--mantine-color-dark-7)); }

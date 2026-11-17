@@ -3,9 +3,9 @@
 // the scope draft). Separate from AI categorisation. Each row shows the label's colour and how many posts carry it;
 // renaming keeps those posts labelled, removing takes the label off them.
 import { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@mantine/core";
+import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconArrowBackUp, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowBackUp, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
@@ -23,10 +23,13 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  /** A used label waiting for the delete warning to be confirmed. */
+  const [confirming, setConfirming] = useState<Row | null>(null);
   useEffect(() => { if (settings.data) setRows(rowsFrom(settings.data.options)); }, [settings.data]);
 
+  const tidy = (name: string) => name.trim().replace(/\s+/g, " ");
   const kept = rows.filter((r) => !r.removed);
-  const names = kept.map((r) => r.name.trim().replace(/\s+/g, " "));
+  const names = kept.map((r) => tidy(r.name));
   const saved = settings.data?.options ?? [];
   const counts = settings.data?.counts ?? {};
   const problem = useMemo(() => {
@@ -69,14 +72,24 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
     [list[i], list[j]] = [list[j], list[i]];
     return list;
   });
-  const remove = (row: Row) => (row.original ? patch(row.id, { removed: true }) : setRows((rs) => rs.filter((r) => r.id !== row.id)));
+  // A label already on posts asks first (deleting it takes it off them, at once); an unused or new one just goes.
+  const remove = (row: Row) => {
+    if (row.original && (counts[row.original] ?? 0) > 0) setConfirming(row);
+    else if (row.original) patch(row.id, { removed: true });
+    else setRows((rs) => rs.filter((r) => r.id !== row.id));
+  };
 
-  const save = async () => {
+  /** Saves the given rows (the current draft by default). */
+  const save = async (list: Row[] = rows) => {
+    const keep = list.filter((r) => !r.removed);
+    const options = keep.map((r) => tidy(r.name));
+    const moves = keep.filter((r) => r.original && tidy(r.name) !== r.original).map((r) => ({ from: r.original!, to: tidy(r.name) }));
     setBusy(true);
     try {
-      const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(names), renames }, "PUT")) as { removed: number; renamed: number };
+      const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(options), renames: moves }, "PUT")) as { removed: number; renamed: number };
       const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} post dilepas dari label yang dihapus`].filter(Boolean);
       notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
+      setConfirming(null);
       settings.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -165,9 +178,29 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
             ].filter(Boolean).join(" · ") || "Urutan diubah")}
           </span>
           <Button size="sm" variant="subtle" onClick={() => setRows(rowsFrom(saved))} disabled={busy}>Batalkan</Button>
-          <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={save} loading={busy} disabled={!!problem}>Simpan label</Button>
+          <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={() => save()} loading={busy} disabled={!!problem}>Simpan label</Button>
         </div>
       )}
+
+      <Modal opened={!!confirming} onClose={() => !busy && setConfirming(null)} centered radius="lg" size="sm"
+        title={<span className={c.warnTitle}><IconAlertTriangle size={18} />Hapus label yang sedang dipakai?</span>}>
+        {confirming && (() => {
+          const used = counts[confirming.original!] ?? 0;
+          const others = dirty && rows.some((r) => r.id !== confirming.id && (r.removed || !r.original || tidy(r.name) !== r.original));
+          return (
+            <div className={c.confirm}>
+              <span className={c.confirmLabel} style={{ ["--label" as string]: colorVar(saved, confirming.original!) }}><i />{confirming.original}</span>
+              <p><b>{used.toLocaleString("id-ID")} post</b> yang diberi label ini akan <b>kehilangan labelnya</b>. Tindakan ini tidak dapat dibatalkan.</p>
+              <p className={c.note}>Untuk sekadar mengganti nama, batalkan lalu ubah namanya langsung di daftar: post tetap berlabel.{others ? " Perubahan lain yang belum disimpan ikut disimpan." : ""}</p>
+              <div className={c.confirmActions}>
+                <Button variant="subtle" onClick={() => setConfirming(null)} disabled={busy}>Batal</Button>
+                <Button variant="danger" icon={IconTrash} loading={busy}
+                  onClick={() => save(rows.map((r) => (r.id === confirming.id ? { ...r, removed: true } : r)))}>Hapus label</Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
