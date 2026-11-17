@@ -63,6 +63,8 @@ export type MediaItem = {
   author?: Author | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;
+  /** Manual label within the project being viewed (?key=); absent without a project. Not AI categorisation. */
+  manualLabel?: string | null;
   /** Extra metadata returned only by the admin social feed. */
   socialMetadata?: { sourceUrl?: string | null; language: string | null; matchedKeywords: string[]; keywordRestricted: boolean };
 };

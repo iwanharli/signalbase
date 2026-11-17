@@ -15,6 +15,8 @@ import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { ItemDetailModal } from "./ItemDetailModal";
 import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
+import { ManualLabelContext } from "./ManualLabel";
+import type { LabelSettings } from "@/lib/media/manualLabels";
 import { Masonry } from "./Masonry";
 import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
@@ -68,6 +70,9 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
     : null;
+  // Manual labels of the project (separate from AI categorisation): the dropdown on each card.
+  const labelSettings = useApi<LabelSettings>(keyId ? `/api/admin/keys/${keyId}/labels` : null);
+  const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel } : null;
   const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
@@ -104,6 +109,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
         options={options.data}
         projects={projects}
         aiCategories={aiCategories}
+        manualLabels={labelSettings.data?.options ?? null}
         activeCount={activeCount}
         advancedCount={advancedCount}
         total={total}
@@ -152,6 +158,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
 
         {/* First load: a full grid of card-shaped placeholders. Next pages: one placeholder under each column. */}
         {feed.loading && !feed.items.length ? <SkeletonGrid type={type} /> : (
+          <ManualLabelContext.Provider value={labelContext}>
           <Masonry>
             {[
               ...feed.items.map((item, i) => {
@@ -161,10 +168,11 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
               ...(feed.loading ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={feed.items.length + i} type={type} />) : []),
             ]}
           </Masonry>
+          </ManualLabelContext.Provider>
         )}
 
         {feed.loaded && !feed.items.length && !feed.loading && (
-          <div className={classes.emptyState}><b>Tidak ada hasil yang cocok</b><p>Coba kata pencarian lain atau hapus sebagian filter di atas.</p><Button variant="light" onClick={reset}>Kembalikan filter awal</Button><Button variant="subtle" onClick={() => update({ analyzed: "", relevance: "", search: "", from: "", to: "", mood: null, source: null, province: null, category: null, language: "", postType: "", minLevel: "", withImage: false, aiCategory: null })}>Lihat semua dalam cakupan ini</Button></div>
+          <div className={classes.emptyState}><b>Tidak ada hasil yang cocok</b><p>Coba kata pencarian lain atau hapus sebagian filter di atas.</p><Button variant="light" onClick={reset}>Kembalikan filter awal</Button><Button variant="subtle" onClick={() => update({ analyzed: "", relevance: "", search: "", from: "", to: "", mood: null, source: null, province: null, category: null, language: "", postType: "", minLevel: "", withImage: false, aiCategory: null, manualLabel: null })}>Lihat semua dalam cakupan ini</Button></div>
         )}
         <div ref={sentinel} />
         {feed.loaded && !feed.hasMore && feed.items.length > 0 && <Text ta="center" fz={12.5} c="dimmed" py="xl">Semua data sudah ditampilkan.</Text>}

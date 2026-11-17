@@ -54,6 +54,12 @@ export const PARAM_GROUPS: { title: string; params: Param[] }[] = [
       { name: "aiCategory", values: "kode, mis. QW3", description: "Item dalam satu kategori AI. Hanya from, to, sort, page, size yang berlaku bersama parameter ini." },
     ],
   },
+  {
+    title: "Label manual (kunci dengan pilihan label)",
+    params: [
+      { name: "label", values: "nama label, mis. Hoaks; __any", description: "Item yang diberi label itu oleh tim Anda di panel (__any = semua yang sudah diberi label). Bisa digabung dengan filter lain, aiCategory, dan view=summary. Pilihan label ada di view=options (manualLabels)." },
+    ],
+  },
 ];
 
 export const FIELDS: [string, string, string][] = [
@@ -73,11 +79,12 @@ export const FIELDS: [string, string, string][] = [
   ["analysis", "objek | null", "summary, target, score, signals, topics, factors, relevance"],
   ["matchedKeywords", "string[]", "Keyword kunci Anda yang disebut item ini"],
   ["classification", "objek | null", "Hanya untuk kunci dengan kategorisasi AI: category, label, confidence, reason"],
+  ["manualLabel", "string | null", "Hanya untuk kunci dengan pilihan label manual: label yang diberikan tim Anda di panel (terpisah dari kategorisasi AI)"],
 ];
 
 export const ERRORS: [number, string, string][] = [
   [200, "OK", "Berhasil"],
-  [400, "Bad Request", "Parameter khusus AI dipakai pada kunci tanpa kategorisasi AI"],
+  [400, "Bad Request", "Parameter khusus AI dipakai pada kunci tanpa kategorisasi AI, atau label dipakai pada kunci tanpa label manual"],
   [401, "Unauthorized", "Kunci tidak ada, salah, atau sudah dicabut"],
   [403, "Forbidden", "Kunci tidak punya akses ke jenis media ini, atau akun pemilik kunci tidak aktif"],
   [404, "Not Found", "Jenis bukan social / online"],

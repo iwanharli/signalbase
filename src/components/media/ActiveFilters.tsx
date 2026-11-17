@@ -1,4 +1,5 @@
 "use client";
+import { ANY_LABEL } from "@/lib/media/manualLabels";
 import { IconX } from "@tabler/icons-react";
 import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { humanize, POST_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
@@ -27,6 +28,7 @@ export function ActiveFilters({ filters: f, options, projects, onChange }: {
   if (f.minLevel) add("level", `Intensitas ≥ ${f.minLevel}`, { minLevel: "" });
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
   if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
+  if (f.manualLabel) add("manualLabel", f.manualLabel === ANY_LABEL ? "Sudah diberi label" : `Label: ${f.manualLabel}`, { manualLabel: null });
   const visible = chips;
   if (!visible.length) return null;
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">

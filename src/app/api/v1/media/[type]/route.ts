@@ -8,6 +8,7 @@ import { clampHistory } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
+import { labelPage, manualLabelsFor, projectLabels } from "@/lib/server/manualLabels";
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 100;
@@ -20,6 +21,8 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?view=summary&…   total + split by mood (+ AI categories)
 //   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 //   GET /api/v1/media/{social|online}?view=trend&interval=week|day&from=&to=   labelled items per period and AI category
+//   GET /api/v1/media/{social|online}?label=Hoaks&…    items with one manual label (label=__any: every labelled item);
+//       works with the other filters, aiCategory and view=summary. Items carry `manualLabel` when the key has label choices.
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
 /** CORS preflight for browser calls from sites the key allows. */
 export const OPTIONS = (req: Request) => apiPreflight(req);
@@ -32,7 +35,10 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
   const query = clampHistory(new URL(req.url).searchParams, historyDays);
 
   try {
-    const categories = await keyCategories(keyId, type);
+    const [categories, labelChoices] = await Promise.all([keyCategories(keyId, type), projectLabels(keyId)]);
+    // Manual labels (set by people in the panel; separate from AI categorisation).
+    const manualLabel = query.get("label");
+    if (manualLabel && !labelChoices) return NextResponse.json({ error: "Kunci ini tidak memakai label manual" }, { status: 400 });
 
     if (query.get("view") === "trend") {
       if (!categories) return NextResponse.json({ error: "Kunci ini tidak memakai kategorisasi AI" }, { status: 400 });
@@ -41,10 +47,15 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
 
     if (query.get("view") === "options") {
       const { sources, moods, provinces, postTypes } = await filterOptions(type);
-      return NextResponse.json({ sources, moods, provinces, postTypes });
+      return NextResponse.json({ sources, moods, provinces, postTypes, manualLabels: labelChoices ?? [] });
     }
 
     if (query.get("view") === "summary") {
+      if (manualLabel) {
+        const aiFilter = categories ? await effectiveCategoryFilter(keyId, query.get("aiCategory")) : null;
+        const { total, all } = await labelPage(keyId, type, manualLabel, query, scope, { limit: 0, offset: 0 }, aiFilter);
+        return NextResponse.json({ total, capped: false, moods: await moodsForCodes(type, all.slice(0, 10_000)) });
+      }
       // A key that serves labelled items only, or an AI category filter: count and split those items.
       const labelledFilter = categories ? await effectiveCategoryFilter(keyId, query.get("aiCategory")) : null;
       if (labelledFilter) {
@@ -68,7 +79,11 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
     const aiCategory = categories ? await effectiveCategoryFilter(keyId, query.get("aiCategory")) : query.get("aiCategory");
 
     let total: number, capped = false, items: MediaItem[];
-    if (aiCategory) {
+    if (manualLabel) {
+      const result = await labelPage(keyId, type, manualLabel, query, scope, { limit: size, offset: (requestedPage - 1) * size }, categories ? aiCategory : null);
+      total = result.total;
+      items = await fetchItemsByCode(type, result.codes);
+    } else if (aiCategory) {
       // Category pages come from the stored labels, combined with any other filters in the source database.
       if (!categories) return NextResponse.json({ error: "Kunci ini tidak memakai kategorisasi AI" }, { status: 400 });
       const result = await categoryPage(keyId, type, aiCategory, query, scope, { limit: size, offset: (requestedPage - 1) * size });
@@ -83,17 +98,19 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
     const pages = Math.max(1, Math.ceil(total / size));
     const page = Math.min(requestedPage, pages);
     const codes = items.map((i) => i.code);
-    const [labels, matches] = await Promise.all([
+    const [labels, matches, manual] = await Promise.all([
       categories ? classificationsFor(keyId, type, codes, categories) : null,
       matchedKeywords(type, codes, scope.keywords),
+      labelChoices ? manualLabelsFor(keyId, type, codes) : null,
     ]);
-    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic(analysisForPlan({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, analysis), type, labels)) });
+    return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic(analysisForPlan({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, analysis), type, labels, manual)) });
   } catch (e) {
     return sourceErrorResponse(e, `v1/${type}`);
   }
 });
 
-/** API shape of an item; `classification` is present (possibly null) only for keys with AI categorisation. */
-function toPublic({ code, ...item }: MediaItem, type: MediaType, labels: Awaited<ReturnType<typeof classificationsFor>> | null) {
-  return { id: code, type, ...item, ...(labels ? { classification: labels.get(code) ?? null } : {}) };
+/** API shape of an item; `classification` is present (possibly null) only for keys with AI categorisation, `manualLabel`
+ *  only for keys with manual label choices. */
+function toPublic({ code, ...item }: MediaItem, type: MediaType, labels: Awaited<ReturnType<typeof classificationsFor>> | null, manual: Map<string, string> | null) {
+  return { id: code, type, ...item, ...(labels ? { classification: labels.get(code) ?? null } : {}), ...(manual ? { manualLabel: manual.get(code) ?? null } : {}) };
 }

@@ -1,0 +1,8 @@
+.root { display: flex; flex-direction: column; gap: 14px; }
+.note { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--mantine-color-dimmed); }
+.warn { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: 12.5px; color: var(--mantine-color-orange-8); background: var(--mantine-color-orange-0); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { padding: 3px 10px; border-radius: 99px; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-8); background: var(--mantine-color-violet-0); }
+
+:global([data-mantine-color-scheme="dark"]) .warn { color: var(--mantine-color-orange-3); background: color-mix(in srgb, var(--mantine-color-orange-5) 12%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .chips span { color: var(--mantine-color-violet-2); background: color-mix(in srgb, var(--mantine-color-violet-5) 16%, transparent); }

@@ -1,0 +1,11 @@
+/* Manual label dropdown on a card: quiet until set, then tinted so labelled posts stand out in the grid. */
+.wrap { position: relative; z-index: 2; }
+.input { height: 30px; min-height: 30px; border-radius: 9px; font-size: 12.5px; font-weight: 700;
+  border: 1px dashed var(--mantine-color-default-border); background: transparent; }
+.input:disabled { opacity: 1; cursor: default; color: var(--mantine-color-dimmed); }
+.wrap[data-set] .input { border-style: solid; border-color: var(--mantine-color-violet-3); background: var(--mantine-color-violet-0); color: var(--mantine-color-violet-8); }
+
+:global([data-mantine-color-scheme="dark"]) .wrap[data-set] .input {
+  border-color: color-mix(in srgb, var(--mantine-color-violet-5) 55%, transparent);
+  background: color-mix(in srgb, var(--mantine-color-violet-5) 14%, transparent); color: var(--mantine-color-violet-2);
+}

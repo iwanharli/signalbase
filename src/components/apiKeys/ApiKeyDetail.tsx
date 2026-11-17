@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CopyButton, Modal, Skeleton, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
-  IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconArrowRight, IconCalendar, IconCheck, IconClock, IconCopy, IconDeviceFloppy, IconEye, IconRefresh, IconId, IconLayoutDashboard, IconPlugConnected,
-  IconRobot, IconShieldLock, IconShieldOff, IconTag,
+  IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconArrowRight, IconCalendar, IconCheck, IconClock, IconCopy, IconDeviceFloppy, IconEye, IconId, IconLayoutDashboard, IconPlugConnected, IconRefresh, IconRobot, IconShieldLock, IconShieldOff, IconTag, IconTags,
 } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
 import { keyScopeSchema, labelImpact, type KeyScope } from "@/lib/media/keyScope";
@@ -17,6 +16,7 @@ import { BalanceCard } from "../ai/BalanceCard";
 import { KeyAccess, type KeyAccessRules } from "./KeyAccess";
 import { CopyKeyButton } from "./CopyKeyButton";
 import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
+import { ManualLabelSettings } from "./ManualLabelSettings";
 import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
@@ -28,7 +28,7 @@ type KeyDetail = {
   id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
   classifier: { enabled: boolean; labelledOnly: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
 };
-type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "security";
+type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "labels" | "security";
 
 const sameScope = (a: KeyScope, b: KeyScope) => JSON.stringify(a) === JSON.stringify(b);
 const sameKeywords = (a: string[], b: string[]) => JSON.stringify(a) === JSON.stringify(b);
@@ -87,7 +87,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const provinceName = useProvinceNames();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const tabs: Tab[] = ["overview", "identity", "keywords", "scope", "ai", "security"];
+  const tabs: Tab[] = ["overview", "identity", "keywords", "scope", "ai", "labels", "security"];
   const tab = tabs.includes(requestedTab as Tab) ? requestedTab as Tab : "overview";
   const setTab = (next: Tab) => {
     const url = new URL(window.location.href);
@@ -264,6 +264,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Tidak dibatasi kata kunci", badge: keywordsChanged ? "diubah" : undefined },
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", badge: paramsChanged ? "diubah" : undefined },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiStatus(data.classifier).text },
+    { id: "labels", label: "Label manual", icon: IconTags, summary: "Pilihan label untuk tiap post" },
     { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Proyek sudah dicabut" : "Salin, buat ulang, atau cabut" },
   ] : [];
 
@@ -356,6 +357,12 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "ai" && (
             <SectionPanel icon={IconRobot} title="Kategorisasi AI" description="Ringkasan kategorisasi dan saldo penyedia. Prompt dan kategori diatur di halaman pengaturan AI.">
               <AiOverview detail={data} />
+            </SectionPanel>
+          )}
+
+          {tab === "labels" && (
+            <SectionPanel icon={IconTags} title="Label manual" description="Pilihan label yang diberikan orang pada tiap post atau berita proyek ini. Terpisah dari kategorisasi AI.">
+              <ManualLabelSettings keyId={data.id} />
             </SectionPanel>
           )}
 

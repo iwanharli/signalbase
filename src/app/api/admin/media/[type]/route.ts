@@ -3,6 +3,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
+import { labelPage, manualLabelsFor } from "@/lib/server/manualLabels";
 import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
@@ -19,7 +20,8 @@ type Context = { params: Promise<{ type: string }> };
 //   ?view=options → filter choices
 //   ?view=count   → exact total (slow, cached; fetched separately so the list isn't blocked)
 //   otherwise     → one page of items, plus the mood breakdown on page 1
-// With a key that has AI categorisation, items carry `classification` and ?aiCategory= filters by it.
+// With a key that has AI categorisation, items carry `classification` and ?aiCategory= filters by it. With a key, items
+// also carry `manualLabel` (the project's manual label, or null).
 export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { type } = await params;
   if (!isMediaType(type)) return NextResponse.json({ error: "Jenis tidak dikenal" }, { status: 404 });
@@ -55,8 +57,11 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     const categories = keyId ? await keyCategories(keyId, type) : null;
     const aiCategory = categories ? await effectiveCategoryFilter(keyId!, query.get("aiCategory")) : null;
     const page = Math.max(1, Math.floor(Number(query.get("page"))) || 1);
+    // Manual label filter (?label=, only through a project); combined with the AI category when both are set.
+    const manualLabel = keyId ? query.get("label") : null;
 
     if (query.get("view") === "count") {
+      if (manualLabel) return NextResponse.json({ total: (await labelPage(keyId!, type, manualLabel, query, scope, { limit: 0, offset: 0 }, aiCategory)).total });
       if (aiCategory) return NextResponse.json({ total: (await categoryPage(keyId!, type, aiCategory, query, scope, { limit: 0, offset: 0 })).total });
       return NextResponse.json({ total: await countExact(type, query, scope) });
     }
@@ -67,7 +72,11 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     const moods = page === 1 ? moodBreakdown(type, withoutMood, scope) : Promise.resolve(null);
 
     let items, hasMore;
-    if (aiCategory) {
+    if (manualLabel) {
+      const { total, codes } = await labelPage(keyId!, type, manualLabel, query, scope, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, aiCategory);
+      items = await fetchItemsByCode(type, codes);
+      hasMore = page * PAGE_SIZE < total;
+    } else if (aiCategory) {
       // Category pages come from the stored labels, combined with any other filters in the source database.
       const { total, codes } = await categoryPage(keyId!, type, aiCategory, query, scope, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
       items = await fetchItemsByCode(type, codes);
@@ -80,15 +89,18 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     }
 
     const codes = items.map((item) => item.code);
-    const [labels, metadata] = await Promise.all([
+    const [labels, metadata, manual] = await Promise.all([
       categories ? classificationsFor(keyId!, type, codes, categories, type === "social") : null,
       type === "social" ? socialMetadata(codes, keyId ? scope.keywords : []) : null,
+      // Manual labels of the project (separate from AI categorisation).
+      keyId ? manualLabelsFor(keyId, type, codes) : null,
     ]);
     return NextResponse.json({
       page, hasMore, moods: await moods,
       items: items.map((item) => ({
         ...analysisForPlan(item, analysisLevel),
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
+        ...(manual ? { manualLabel: manual.get(item.code) ?? null } : {}),
         ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),
       })),
     });

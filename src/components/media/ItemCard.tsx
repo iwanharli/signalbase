@@ -8,6 +8,7 @@ import { humanize, sourceLabel } from "@/lib/media/labels";
 import { uniqueTags } from "@/lib/media/presentation";
 import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
 import { AiCategoryBadge, MetricList, MoodBadges, moodTone, Tags } from "./itemParts";
+import { ManualLabelPicker } from "./ManualLabel";
 import { PostText } from "./PostText";
 import { PlatformIcon } from "./PlatformIcon";
 import { PostTypeBadge } from "./PostTypeBadge";
@@ -81,6 +82,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
         <AiCategoryBadge item={item} />
+        <ManualLabelPicker item={item} />
         {item.analysis && <AnalysisPreview analysis={item.analysis} />}
         {type === "social" && hasMetrics && <div className={classes.socialMetrics} role="group" aria-label="Interaksi post"><MetricList metrics={item.metrics} compact /></div>}
         <div className={classes.footer}>

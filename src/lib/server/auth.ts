@@ -43,7 +43,8 @@ export async function canSeeKey(user: PanelUser, keyId: string) {
 
 // Wraps panel route handlers; middleware already guards sign-in, this is defence in depth.
 // For "user" accounts it also checks the account is still active, blocks admin-only APIs, and blocks any
-// /api/admin/keys/<id>/… on a key they don't own (a project shared with a sub-account: reading only, never its secret),
+// /api/admin/keys/<id>/… on a key they don't own (a project shared with a sub-account: reading and labelling posts only,
+// never its secret),
 // so every per-key route is covered in one place.
 export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, user: PanelUser) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -63,7 +64,9 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       if (keyId) {
         const access = await keyAccess(user, decodeURIComponent(keyId));
         if (!access) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
-        if (access === "read" && ((req.method !== "GET" && req.method !== "HEAD") || isSecretPath(path))) {
+        // Sub-accounts read a shared project; the one thing they may write is labels on its posts.
+        const labelling = /^\/api\/admin\/keys\/[^/]+\/item-labels$/.test(path);
+        if (access === "read" && !labelling && ((req.method !== "GET" && req.method !== "HEAD") || isSecretPath(path))) {
           return NextResponse.json({ error: "Proyek ini dibagikan untuk dilihat saja" }, { status: 403 });
         }
       }

@@ -24,11 +24,13 @@ export type MediaFilters = {
   aiCategory: string | null;
   /** API key id of a project: only items mentioning any of its keywords (the server resolves them). */
   project: string | null;
+  /** Manual label of the project being viewed (?key=), or ANY_LABEL for every labelled item. Not AI categorisation. */
+  manualLabel: string | null;
 };
 
 export const defaultFilters = (type: MediaType): MediaFilters => ({
   search: "", from: "", to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
-  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, project: null,
+  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, project: null, manualLabel: null,
 });
 
 /** Query-string parameters for the API. `search` must already be debounced/trimmed by the caller. */
@@ -50,6 +52,7 @@ export function toSearchParams(f: MediaFilters) {
   set("image", f.withImage && "yes");
   set("aiCategory", f.aiCategory);
   set("project", f.project);
+  set("label", f.manualLabel);
   return p;
 }
 
@@ -85,7 +88,7 @@ export function countAdvanced(f: MediaFilters, type: MediaType) {
   const d = defaultFilters(type);
   const customRange = !activePreset(f) && (f.from || f.to);
   return [customRange, f.source, f.mood, f.language, f.analyzed !== d.analyzed, f.province, f.category,
-    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance, f.aiCategory, f.project].filter(Boolean).length;
+    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance, f.aiCategory, f.project, f.manualLabel].filter(Boolean).length;
 }
 
 /** All filters that differ from their defaults, including the quick ones. */
@@ -110,7 +113,7 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
     sort: pick("sort", ["newest", "oldest"], d.sort), source: p.get("source") || null,
     mood: p.get("mood") || null, analyzed: pick("analyzed", ["", "yes", "no"], d.analyzed),
     language: pick("lang", ["", "id", "other"], d.language), province: p.get("province") || null,
-    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, project: p.get("project") || null,
+    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, project: p.get("project") || null, manualLabel: p.get("label") || null,
     relevance: type === "social" ? pick("relevance", ["", "relevant", "include", "watchlist", "exclude"], d.relevance) : "",
     postType: type === "social" ? pick("postType", ["", "post", "reply", "quote", "repost"], "") : "",
     minLevel: type === "social" ? pick("level", ["", "1", "2", "3", "4", "5"], "") : "",

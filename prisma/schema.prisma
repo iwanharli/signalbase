@@ -56,6 +56,9 @@ model ApiKey {
   balances        BalanceSnapshot[]
   tokenUsage      TokenUsage[]
   members         ProjectMember[]
+  /// Manual label choices of this project (in order), set by its owner or an admin; people label posts with one of them.
+  manualLabels    String[]          @default([])
+  itemLabels      ItemLabel[]
 }
 
 // AI categorisation settings and progress for one API key.
@@ -305,4 +308,18 @@ model ProjectMember {
 
   @@id([apiKeyId, accountId])
   @@index([accountId])
+}
+
+/// The manual label a person gave one post or article within one project (one label per item per project).
+model ItemLabel {
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  type      String // "social" | "online"
+  code      String
+  label     String
+  setBy     String // username
+  updatedAt DateTime @updatedAt
+
+  @@id([apiKeyId, type, code])
+  @@index([apiKeyId, label])
 }

@@ -29,7 +29,7 @@ export function useMediaFilters(type: MediaType) {
     const url = new URL(window.location.href);
     const params = browserFilterParams(next);
     // Preserve the key context and unrelated URL settings.
-    for (const key of ["q", "from", "to", "sort", "source", "mood", "analyzed", "lang", "province", "category", "relevance", "postType", "level", "image", "aiCategory", "project"]) url.searchParams.delete(key);
+    for (const key of ["q", "from", "to", "sort", "source", "mood", "analyzed", "lang", "province", "category", "relevance", "postType", "level", "image", "aiCategory", "project", "label"]) url.searchParams.delete(key);
     params.forEach((value, key) => url.searchParams.set(key, value));
     if (replace) window.history.replaceState(null, "", url);
     else window.history.pushState(null, "", url);

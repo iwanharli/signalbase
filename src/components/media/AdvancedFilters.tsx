@@ -1,8 +1,9 @@
 "use client";
 import { useEffect } from "react";
-import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconTags, IconX } from "@tabler/icons-react";
 import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import type { MediaFilters } from "@/lib/media/filters";
+import { ANY_LABEL } from "@/lib/media/manualLabels";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
@@ -43,7 +44,7 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 }
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, projects, aiCategories, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, onChange, onReset, options, projects, aiCategories, manualLabels, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
@@ -59,6 +60,8 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
   total: number | null;
   /** Categories of the API key being browsed through, when it uses AI categorisation. */
   aiCategories?: Category[] | null;
+  /** Manual label choices of the project being viewed (separate from AI categorisation); none = no section. */
+  manualLabels?: string[] | null;
 }) {
   useEscape(open && escapeEnabled, onClose);
   const social = type === "social";
@@ -77,6 +80,15 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters, o
           </header>
 
           <div className={classes.panelBody}>
+            {!!manualLabels?.length && (
+              <Section icon={IconTags} title="Label manual">
+                <Field label="Label" wide>
+                  <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
+                    data={[{ value: ANY_LABEL, label: "Semua yang sudah diberi label" }, ...manualLabels.map((l) => ({ value: l, label: l }))]}
+                    onChange={(manualLabel) => onChange({ manualLabel })} />
+                </Field>
+              </Section>
+            )}
             {aiCategories && (
               <Section icon={IconRobot} title="Kategorisasi AI">
                 <Field label="Kategori AI" wide>
