@@ -58,6 +58,14 @@ export function ErrorScreen({ kind, digest, onRetry, inline, home = { href: "/",
     return () => window.removeEventListener("online", back);
   }, [kind, onRetry]);
 
+  // The address that wasn't found, read after mount so server and client render the same HTML.
+  const [path, setPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (kind !== "notFound") return;
+    const raw = window.location.pathname + window.location.search;
+    try { setPath(decodeURI(raw)); } catch { setPath(raw); } // malformed %-escapes
+  }, [kind]);
+
   const retry = () => (onRetry && kind !== "update" ? onRetry() : window.location.reload());
   const busy = kind === "update" && !reloadFailed;
 
@@ -72,11 +80,12 @@ export function ErrorScreen({ kind, digest, onRetry, inline, home = { href: "/",
             <path className={c.wave} d="M0 30 H70 L82 30 L90 12 L100 48 L110 22 L118 30 H240" />
             <path className={c.flat} d="M0 30 H240" />
           </svg>
-          <b>{copy.code}</b>
+          <span className={c.code}><b>{copy.code}</b></span>
         </div>
 
         <h1>{copy.title}</h1>
         <p>{copy.text}</p>
+        {path && <code className={c.path} title={path}>{path}</code>}
 
         <div className={c.actions}>
           {kind === "notFound" ? (
