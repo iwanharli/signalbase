@@ -39,6 +39,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
 
 ### Diperbaiki
+- Angka berat untuk proyek berkata kunci luas tidak lagi membuat pengguna menunggu: total cocok, total API publik (`view=summary`), dan opsi filter memakai cache stale-while-revalidate (angka lama langsung tampil, diperbarui di latar belakang); Ringkasan 14/30 hari di-cache 30 menit sehingga warmer jauh lebih ringan dan pool analitik tidak antre (total cocok SLOG POLRI sempat ±57 dtk).
 - **Media Sosial/Online lemot untuk proyek berkata kunci luas** (mis. SLOG POLRI setelah ditambah "polri, polisi": sebaran emosi ±13 dtk, feed ikut gagal 503 saat database sumber sibuk): daftar post tidak lagi menunggu bar emosi; bar emosi dimuat lewat `view=moods` tersendiri di pool analitik (timeout 60 dtk, cache 10 menit), jadi tidak lagi memakai koneksi daftar post.
 - Warmer cache (`warmOverview`) hanya berjalan di produksi (atau dengan `WARM_CACHES=1`): `npm run dev` pengembang membaca database sumber yang sama dan ikut menambah beban.
 - `deploy.sh` menolak host yang tidak punya `/var/www/signalbase` (mis. server lama) dengan pesan yang jelas.

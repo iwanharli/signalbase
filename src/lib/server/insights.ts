@@ -30,6 +30,9 @@ const INTENSE_LEVEL = 5;
 const INTENSE_SHOWN = 3;
 
 const cache = sharedCache<Insights>("insights", { ttlMs: 5 * 60_000, maxEntries: 120, staleWhileRevalidate: true });
+// 14 and 30 days barely move within half an hour; refreshing them every 5 minutes (bank + every project, 20–30 s each on
+// broad keywords) kept the analytics pool busy and made panel counts queue behind the warmer.
+const longCache = sharedCache<Insights>("insights.long", { ttlMs: 30 * 60_000, maxEntries: 120, staleWhileRevalidate: true });
 
 type Row = { b: number; m: string | null; cat: string | null; hot: boolean; n: number };
 
@@ -327,5 +330,5 @@ export function typeInsights(type: MediaType, period: number, scope?: KeyScope, 
   if (scope && !allowsType(scope, type)) return null;
   const s = scope ?? OPEN_SCOPE;
   const end = day ? shiftDay(day, 1) : undefined;
-  return cache(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : ""}`, () => compute(type, s, !!scope, period, end));
+  return (period > 7 ? longCache : cache)(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : ""}`, () => compute(type, s, !!scope, period, end));
 }

@@ -1,9 +1,10 @@
-// Choices for the filter dropdowns. Slow to compute and barely changing, so cached for an hour.
+// Choices for the filter dropdowns. Slow to compute (~13 s for social) and barely changing: cached for an hour and served
+// stale while it refreshes, so only the very first look after a restart waits.
 import type { FilterOptions, MediaType } from "@/lib/media/types";
-import { createCache } from "./cache";
+import { sharedCache } from "./cache";
 import { bankPool } from "./pool";
 
-const cache = createCache<FilterOptions>({ ttlMs: 60 * 60_000, maxEntries: 4 });
+const cache = sharedCache<FilterOptions>("bank.options", { ttlMs: 60 * 60_000, maxEntries: 4, staleWhileRevalidate: true });
 
 const SENTIMENTS = ["positive", "neutral", "negative"];
 const POST_TYPES = ["post", "reply", "quote", "repost"];

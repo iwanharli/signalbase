@@ -2,15 +2,18 @@
 import type { KeyScope } from "@/lib/media/keyScope";
 import { MOOD_SAMPLE_LIMIT } from "@/lib/media/types";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
-import { createCache, sharedCache } from "./cache";
+import { sharedCache } from "./cache";
 import { analyticsPool, bankPool, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 
 /** Upper bound for the fast (capped) count and for the rows sampled by the mood breakdown. */
 export const COUNT_CAP = MOOD_SAMPLE_LIMIT;
 
-const exactCountCache = createCache<number>({ ttlMs: 10 * 60_000 });
-const cappedCountCache = createCache<{ total: number; capped: boolean }>({ ttlMs: 2 * 60_000, maxEntries: 100 });
+// Both counts are served stale while they refresh: a broad scope (e.g. "polri") takes 7–15 s (up to a minute when the
+// analytics pool is busy), so after the first time nobody waits for a count again. The capped count answers the public
+// API (KIPERMAS) on every list request.
+const exactCountCache = sharedCache<number>("bank.exactCount", { ttlMs: 15 * 60_000, maxEntries: 300, staleWhileRevalidate: true });
+const cappedCountCache = sharedCache<{ total: number; capped: boolean }>("bank.cappedCount", { ttlMs: 5 * 60_000, maxEntries: 300, staleWhileRevalidate: true });
 // Kept 10 minutes and refreshed in the background: a broad scope (e.g. "polri") takes ~13 s, so only the first look waits.
 const moodCache = sharedCache<MoodCount[]>("bank.mood", { ttlMs: 10 * 60_000, maxEntries: 200, staleWhileRevalidate: true });
 
