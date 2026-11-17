@@ -41,6 +41,9 @@ export function keywordQuery(keywords: string[]) {
     .join(" | ");
 }
 
+/** The search box split on the word OR (or "|"): "polisi or polri" finds either. Words inside one part must all match. */
+export const searchTerms = (q: string) => q.split(/(?:^|\s+)or(?:\s+|$)|\s*\|\s*/i).map((t) => t.trim()).filter(Boolean).slice(0, 8);
+
 /** Stable cache key for a filter set. */
 export const filterKey = (type: MediaType, params: URLSearchParams, scope: KeyScope) =>
   [type, JSON.stringify(scope), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
@@ -84,7 +87,8 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   if (projectTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(projectTs)})`);
 
   const search = get("q")?.trim();
-  if (search) where.push(`${c.search} @@ plainto_tsquery('indonesian', ${bind(search.slice(0, 200))})`);
+  const terms = search ? searchTerms(search.slice(0, 200)) : [];
+  if (terms.length) where.push(`${c.search} @@ (${terms.map((t) => `plainto_tsquery('indonesian', ${bind(t)})`).join(" || ")})`);
 
   const from = get("from"), to = get("to");
   if (isDate(from)) where.push(`${c.timestamp} >= ${bind(from)}::date`);

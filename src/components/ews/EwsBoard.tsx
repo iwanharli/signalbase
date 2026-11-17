@@ -5,6 +5,7 @@ import { CalendarClock, MessagesSquare, Radar, ShieldAlert, Smile, Target, Users
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Skeleton } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft, IconArrowRight, IconBellRinging, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconMessages, IconRadar2, IconSearch, IconSparkles, IconTrophy, IconX } from "@tabler/icons-react";
+import { isHiddenEwsProject } from "@/lib/issues";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { DEFAULT_ONT_DAYS, formatWindow, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntIssue } from "@/lib/ontologi";
@@ -123,7 +124,7 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
   }, [params, pathname, router]);
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
+  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && !isHiddenEwsProject(k.name) && allowsType(k.scope, "social"));
   const list = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontologi?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => list.data?.issues ?? [], [list.data]);
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);

@@ -5,6 +5,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## [Belum dirilis]
 
 ### Ditambahkan
+- **Pencarian dengan OR** di Media Sosial/Online: `polisi or polri` (atau `polisi | polri`) menampilkan konten yang mengandung salah satunya; kata dalam satu alternatif tetap harus muncul semua, maksimal 8 alternatif. Tetap full-text bahasa Indonesia dengan stemming (`searchTerms` di `lib/server/bank/query.ts`).
+- **Filter Proyek / Isu** di filter lanjutan Media Sosial/Online (bagian Sumber & konten): proyek aktif ber-kata kunci; hasil = konten yang menyebut salah satu kata kunci proyek (OR). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
+- Filter proyek di `/isu/ews` menyembunyikan proyek yang namanya mengandung "slog" (hardcode sementara, `isHiddenEwsProject` di `src/lib/issues.ts`; `/isu` tidak terpengaruh).
 - **Tema gelap**: situs publik (beranda, harga, integrasi, kontak, legal) selalu gelap. Panel punya mode gelap dengan tombol bulan/matahari di bar atas; bawaan mengikuti sistem (`defaultColorScheme="auto"`), pilihan disimpan di browser. Laporan dan brief cetak (A4) tetap terang.
 - **Halaman Ringkasan didesain ulang**: hero memuat filter (Semua / Media Sosial / Media Online, 7/14/30 hari) dan deretan KPI dengan sparkline; filter ikut menempel di atas saat halaman digulir. Engagement jadi tabel per platform dengan baris total; tren memakai garis rata-rata. Kartu Ringkasan AI tampil ringkas (3 sorotan + yang perlu diwaspadai) dengan tombol "Baca analisis lengkap".
 - Halaman Ringkasan: "Sinyal terbaru" dipecah jadi **Sinyal Terbaru Sosial Media** dan **Sinyal Terbaru Media Online**; kartu "Aplikasi terhubung" dihapus.
