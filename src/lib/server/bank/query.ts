@@ -18,7 +18,7 @@ export const COLUMNS = {
 } as const;
 
 // Every parameter that changes the result set; used to build cache keys.
-const FILTER_PARAMS = ["q", "from", "to", "since", "source", "mood", "lang", "analyzed", "province", "category", "postType", "level", "image", "relevance"];
+const FILTER_PARAMS = ["q", "from", "to", "since", "source", "mood", "lang", "analyzed", "province", "category", "postType", "level", "image", "relevance", "pkw"];
 
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -78,6 +78,10 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   where.push(`${c.timestamp} >= '2010-01-01'`, `${c.timestamp} <= now()`);
 
   where.push(...scopeConditions(type, scope, bind));
+
+  // pkw: the keywords of the project chosen in the panel filter (set by the route, never by the client); any of them matches.
+  const projectTs = keywordQuery(get("pkw")?.split("\n").slice(0, 30) ?? []);
+  if (projectTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(projectTs)})`);
 
   const search = get("q")?.trim();
   if (search) where.push(`${c.search} @@ plainto_tsquery('indonesian', ${bind(search.slice(0, 200))})`);

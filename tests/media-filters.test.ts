@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { browserFilterParams, defaultFilters, filtersFromSearchParams, toSearchParams } from "../src/lib/media/filters";
+import { browserFilterParams, countAdvanced, defaultFilters, filtersFromSearchParams, toSearchParams } from "../src/lib/media/filters";
 
 test("default views and overview mood links keep their intended restrictions", () => {
   for (const type of ["social", "online"] as const) {
@@ -35,4 +35,11 @@ test("malformed URL values cannot create invalid controls or cross-media filters
 test("online image restriction survives a shared URL", () => {
   const filters = { ...defaultFilters("online"), withImage: true, source: "news-kompas", analyzed: "" as const };
   assert.deepEqual(filtersFromSearchParams(browserFilterParams(filters), "online"), filters);
+});
+
+test("the Proyek filter survives a shared URL and counts as an advanced filter", () => {
+  const filters = { ...defaultFilters("social"), project: "k1" };
+  assert.deepEqual(filtersFromSearchParams(browserFilterParams(filters), "social"), filters);
+  assert.equal(toSearchParams(filters).get("project"), "k1");
+  assert.equal(countAdvanced(filters, "social"), 1);
 });

@@ -4,16 +4,18 @@ import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { humanize, POST_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions } from "@/lib/media/types";
+import type { ProjectOption } from "./AdvancedFilters";
 import classes from "./filters.module.css";
 
 type Chip = { key: string; label: string; clear: Partial<MediaFilters> };
-export function ActiveFilters({ filters: f, options, onChange }: {
-  filters: MediaFilters; options: FilterOptions | null; onChange: (patch: Partial<MediaFilters>) => void;
+export function ActiveFilters({ filters: f, options, projects, onChange }: {
+  filters: MediaFilters; options: FilterOptions | null; projects: ProjectOption[]; onChange: (patch: Partial<MediaFilters>) => void;
 }) {
   const chips: Chip[] = [];
   const add = (key: string, label: string, clear: Partial<MediaFilters>) => chips.push({ key, label, clear });
   if (f.search) add("search", `Pencarian: ${f.search}`, { search: "" });
   if (f.from || f.to) add("date", rangeLabel(f), { from: "", to: "" });
+  if (f.project) add("project", `Proyek: ${projects.find((p) => p.value === f.project)?.label ?? "tidak aktif"}`, { project: null });
   if (f.source) add("source", sourceLabel(f.source), { source: null });
   if (f.mood) add("mood", moodInfo(f.mood).label, { mood: null });
   if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Sudah dianalisis sumber" : "Belum dianalisis sumber", { analyzed: "" });

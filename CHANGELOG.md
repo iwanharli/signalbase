@@ -5,6 +5,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## [Belum dirilis]
 
 ### Ditambahkan
+- **Filter Proyek** di filter lanjutan halaman media sosial/online (bagian Sumber & konten): memilih proyek aktif menampilkan konten yang menyebut salah satu kata kunci proyek (OR, full-text bahasa Indonesia seperti kunci API). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
 - **Biaya AI proyek** di tab AI halaman detail proyek (admin dan viewer; tidak untuk akun klien): biaya yang dibayar key DeepSeek milik Signalbase (`SIGNALBASE_AI_API_KEY`) untuk kategorisasi dan Ringkasan AI proyek itu; bulan ini, perkiraan sebulan, rata-rata per hari, porsi IndoBERT, grafik harian bertumpuk per modul, padanan Rupiah (kurs live). Key milik klien (mis. KIPERMAS) tidak dihitung. `TokenUsage.keyHint` mencatat 4 huruf terakhir key yang membayar (sejak 16 Nov 2026); harga per model di `src/lib/ai/pricing.ts`.
 - Biaya AI (Pengaturan AI dan pemakaian key per proyek) kini juga tampil dalam Rupiah dengan kurs USD→IDR live dari open.er-api.com (`src/lib/server/kurs.ts`, disimpan 6 jam). Harga bawaan Pengaturan AI disamakan dengan harga resmi `deepseek-flash` rata-rata (±20% jam sibuk): 0,18 / 0,0036 / 0,72 USD per 1 juta token.
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.

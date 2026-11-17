@@ -14,6 +14,15 @@ export async function resolveScope(keyId: string | null, user: PanelUser): Promi
   return { scope: parseKeyScope(key.scope, key.keywords), keyId: key.id };
 }
 
+/** Keywords of the active project chosen in the media filter (users: only their own); null when it is not available to them. */
+export async function projectKeywords(projectId: string, user: PanelUser): Promise<string[] | null> {
+  const key = await prisma.apiKey.findFirst({
+    where: { id: projectId, revokedAt: null, ...(user.role === "user" ? { ownerId: user.id } : {}) },
+    select: { keywords: true },
+  });
+  return key?.keywords.length ? key.keywords : null;
+}
+
 /** Who may read issues and through which keywords: users only via their own project and within their plan; admins see all. */
 export async function issueView(query: URLSearchParams, user: PanelUser): Promise<{ keywords: string[]; historyDays: number | null } | { response: NextResponse }> {
   const fail = (error: string, status: number, extra?: object) => ({ response: NextResponse.json({ error, ...extra }, { status }) });

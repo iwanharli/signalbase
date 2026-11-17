@@ -9,7 +9,7 @@ import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import type { PlanLimits } from "@/lib/plans";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
-import { resolveScope } from "@/lib/server/panelScope";
+import { projectKeywords, resolveScope } from "@/lib/server/panelScope";
 
 const PAGE_SIZE = 24;
 
@@ -41,6 +41,16 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     const { scope, keyId } = resolved;
     if (!allowsType(scope, type)) return NextResponse.json({ error: `Proyek ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
+
+    // The Proyek filter: its keywords go to the query as `pkw`; a client-sent `pkw` is never trusted.
+    query = new URLSearchParams(query);
+    query.delete("pkw");
+    const project = query.get("project");
+    if (project) {
+      const keywords = await projectKeywords(project, user);
+      if (!keywords) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+      query.set("pkw", keywords.join("\n"));
+    }
 
     const categories = keyId ? await keyCategories(keyId, type) : null;
     const aiCategory = categories ? await effectiveCategoryFilter(keyId!, query.get("aiCategory")) : null;
