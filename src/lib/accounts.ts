@@ -22,7 +22,9 @@ export const newAccountSchema = z.object({
   plan: z.enum(PLAN_IDS).nullable().default(null),
   /** YYYY-MM-DD, end of that day in Jakarta; null = no end date. */
   expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  /** Demo account: billing hidden (main accounts only; sub-accounts follow their main account). */
+  demo: z.boolean().default(false),
 }).refine((a) => a.role === "user" || !a.parentId, { message: "Akun viewer tidak bisa menjadi anggota klien", path: ["parentId"] })
-  .transform((a) => a.role === "user" && !a.parentId ? a : { ...a, plan: null, expiresAt: null }); // only a main account holds a plan
+  .transform((a) => a.role === "user" && !a.parentId ? a : { ...a, plan: null, expiresAt: null, demo: false }); // only a main account holds a plan
 
 export type NewAccount = z.infer<typeof newAccountSchema>;

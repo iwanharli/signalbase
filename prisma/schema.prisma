@@ -24,6 +24,9 @@ model Admin {
   requestedPlan  String?
   /// Sub-account of a client: set for extra logins of one client. It follows the parent's plan, period and status, owns no
   /// projects and only sees the parent's projects an admin shared with it (ProjectMember). null = a main account.
+  /// Demo account (e.g. a pilot for a prospective client): no "Paket & tagihan" menu, plan chip or plan banners.
+  /// Sub-accounts follow their main account's flag.
+  demo           Boolean         @default(false)
   parentId       String?
   parent         Admin?          @relation("SubAccounts", fields: [parentId], references: [id], onDelete: Cascade)
   subAccounts    Admin[]         @relation("SubAccounts")

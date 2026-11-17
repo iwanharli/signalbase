@@ -46,14 +46,17 @@ const isActiveTopic = (href: string, path: string, topic: string | null, exact =
   return (exact ? path === base : path.startsWith(base)) && (new URLSearchParams(query).get("topik") ?? DEFAULT_ISSUE_TOPIC) === (topic ?? DEFAULT_ISSUE_TOPIC);
 };
 
-export function Shell({ name, username, role, plan, banner, children }: {
+export function Shell({ name, username, role, plan, banner, hideBilling, children }: {
   name: string; username: string; role: Role; plan?: PlanChip | null; banner?: React.ReactNode; children: React.ReactNode;
+  /** Demo accounts: no "Paket & tagihan". */
+  hideBilling?: boolean;
 }) {
   const path = usePathname();
   const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
   const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
-  const tools = TOOLS.filter((t) => (role === "admin" ? !("userOnly" in t) : role === "user" ? !("adminOnly" in t) : !("adminOnly" in t) && !("userOnly" in t)));
+  const tools = TOOLS.filter((t) => (role === "admin" ? !("userOnly" in t) : role === "user" ? !("adminOnly" in t) : !("adminOnly" in t) && !("userOnly" in t)))
+    .filter((t) => !(hideBilling && t.href === "/billing")); // everywhere: bar, user menu and the mobile menu
   const barTools = tools.filter((t) => t.href !== "/billing");
   const menuTools = tools.filter((t) => t.href === "/billing");
   const [open, setOpen] = useState(false);

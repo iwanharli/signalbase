@@ -11,7 +11,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const accounts = await prisma.admin.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      id: true, name: true, username: true, role: true, status: true, plan: true, planExpiresAt: true, requestedPlan: true, createdAt: true, parentId: true,
+      id: true, name: true, username: true, role: true, status: true, plan: true, planExpiresAt: true, requestedPlan: true, createdAt: true, parentId: true, demo: true,
       _count: { select: { sharedProjects: { where: { apiKey: { revokedAt: null } } } } },
     },
   });
@@ -24,7 +24,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     return {
       ...a, self: a.id === user.id,
       keys: a.parentId ? _count.sharedProjects : ownedBy.get(a.id) ?? 0,
-      parent: parent ? { id: parent.id, name: parent.name, plan: parent.plan, planExpiresAt: parent.planExpiresAt, status: parent.status } : null,
+      parent: parent ? { id: parent.id, name: parent.name, plan: parent.plan, planExpiresAt: parent.planExpiresAt, status: parent.status, demo: parent.demo } : null,
     };
   });
   // Main accounts by status, then each one's sub-accounts directly below it.
@@ -37,7 +37,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
 export const POST = adminRoute(async (req: Request) => {
   const parsed = newAccountSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Data tidak valid" }, { status: 400 });
-  const { name, username, password, role, parentId, plan, expiresAt } = parsed.data;
+  const { name, username, password, role, parentId, plan, expiresAt, demo } = parsed.data;
   if (await prisma.admin.findUnique({ where: { username }, select: { id: true } })) {
     return NextResponse.json({ error: "Username sudah dipakai" }, { status: 409 });
   }
@@ -48,7 +48,7 @@ export const POST = adminRoute(async (req: Request) => {
   }
   const account = await prisma.admin.create({
     data: {
-      name, username, role, parentId, plan, status: "active",
+      name, username, role, parentId, plan, demo, status: "active",
       planExpiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59+07:00`) : null,
       passwordHash: await bcrypt.hash(password, 10),
     },

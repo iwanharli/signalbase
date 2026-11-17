@@ -16,13 +16,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const plan = role === "user" ? await accountPlan(session.sub) : null;
   const aiLimit = plan ? await aiQuota(session.sub, plan.limits.aiPostsPerMonth) : null;
   const aiUsed = aiLimit ? await platformPostsThisMonth(session.sub) : 0;
-  const banner = plan && <>
+  // Demo accounts see nothing about plans or billing.
+  const banner = plan && !plan.demo && <>
     <PlanBanner plan={plan.plan} expiresAt={plan.expiresAt?.toISOString() ?? null} />
     <AiQuotaBanner used={aiUsed} limit={aiLimit} />
   </>;
   return (
-    <Shell name={session.name} username={session.username} role={role} banner={banner}
-      plan={plan?.plan && isPlanId(plan.plan) ? { label: PLAN_LABEL[plan.plan], daysLeft: daysLeft(plan.expiresAt) } : null}>
+    <Shell name={session.name} username={session.username} role={role} banner={banner} hideBilling={!!plan?.demo}
+      plan={plan?.plan && !plan.demo && isPlanId(plan.plan) ? { label: PLAN_LABEL[plan.plan], daysLeft: daysLeft(plan.expiresAt) } : null}>
       {children}
     </Shell>
   );

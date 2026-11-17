@@ -9,7 +9,7 @@ type Context = { params: Promise<{ id: string }> };
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.enum(["approve", "suspend", "activate"]) }),
   /** expiresAt: YYYY-MM-DD (end of that day, Jakarta) or null for no end date. */
-  z.object({ action: z.literal("setPlan"), plan: z.enum(PLAN_IDS).nullable(), expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }),
+  z.object({ action: z.literal("setPlan"), plan: z.enum(PLAN_IDS).nullable(), expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), demo: z.boolean().optional() }),
 ]);
 const NEXT_STATUS = { approve: "active", activate: "active", suspend: "suspended" } as const;
 
@@ -26,7 +26,7 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
   if (body.action === "setPlan") {
     if (account.role !== "user" || account.parentId) return NextResponse.json({ error: "Paket diatur di akun utama klien" }, { status: 409 });
     const planExpiresAt = body.expiresAt ? new Date(`${body.expiresAt}T23:59:59+07:00`) : null;
-    await prisma.admin.update({ where: { id }, data: { plan: body.plan, planExpiresAt } });
+    await prisma.admin.update({ where: { id }, data: { plan: body.plan, planExpiresAt, ...(body.demo !== undefined ? { demo: body.demo } : {}) } });
     return NextResponse.json({ ok: true });
   }
   // Approving an account that has no plan yet starts its trial.

@@ -2,7 +2,7 @@
 // Admin page for user accounts: create accounts (a client's main account, a sub-account that follows its plan, or a
 // viewer), approve or reject sign-ups, suspend or re-activate accounts, set plans and choose each account's projects.
 import { useEffect, useState } from "react";
-import { Checkbox, Modal, PasswordInput, SegmentedControl, Select, Skeleton, Stack, TextInput } from "@mantine/core";
+import { Checkbox, Modal, PasswordInput, SegmentedControl, Select, Skeleton, Stack, Switch, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconArrowRight, IconCheck, IconClockHour4, IconCreditCard, IconFolders, IconPlayerPause, IconPlayerPlay, IconPlus, IconUserPlus, IconUsers, IconX } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
@@ -18,8 +18,10 @@ type Status = "pending" | "active" | "suspended";
 type UserRow = {
   id: string; name: string; username: string; role: "admin" | "user" | "viewer"; status: Status; self: boolean; plan: PlanId | null; planExpiresAt: string | null;
   requestedPlan: PlanId | null; createdAt: string; keys: number;
+  /** Demo account: billing hidden from it (sub-accounts follow their main account). */
+  demo: boolean;
   /** Set for a sub-account: the client's main account, whose plan and status it follows. */
-  parentId: string | null; parent: { id: string; name: string; plan: PlanId | null; planExpiresAt: string | null; status: Status } | null;
+  parentId: string | null; parent: { id: string; name: string; plan: PlanId | null; planExpiresAt: string | null; status: Status; demo: boolean } | null;
 };
 const isMain = (u: UserRow) => u.role === "user" && !u.parentId;
 
@@ -29,7 +31,10 @@ function PlanCell({ user }: { user: UserRow }) {
   if (user.role === "viewer") return <span className={classes.muted}>Viewer · lihat semua data</span>;
   if (user.parent) {
     const p = user.parent;
-    return <span className={classes.aiCell}><StatusPill tone="neutral">{p.plan ? PLAN_LABEL[p.plan] : "Tanpa paket"}</StatusPill><small>ikut paket {p.name}</small></span>;
+    return <span className={classes.aiCell}><span className={classes.pills}><StatusPill tone="neutral">{p.plan ? PLAN_LABEL[p.plan] : "Tanpa paket"}</StatusPill>{p.demo && <StatusPill tone="warning">Demo</StatusPill>}</span><small>ikut paket {p.name}</small></span>;
+  }
+  if (user.demo) {
+    return <span className={classes.aiCell}><span className={classes.pills}>{user.plan && <StatusPill tone="info">{PLAN_LABEL[user.plan]}</StatusPill>}<StatusPill tone="warning">Demo</StatusPill></span><small>menu paket & tagihan disembunyikan</small></span>;
   }
   if (user.status === "pending") {
     return user.requestedPlan && user.requestedPlan !== "trial"
@@ -47,10 +52,12 @@ function PlanCell({ user }: { user: UserRow }) {
 function PlanModal({ user, onClose, onSaved }: { user: UserRow | null; onClose: () => void; onSaved: () => void }) {
   const [plan, setPlan] = useState<string | null>(null);
   const [until, setUntil] = useState("");
+  const [demo, setDemo] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!user) return;
     setPlan(user.plan);
+    setDemo(!!user.demo);
     setUntil(user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) : "");
   }, [user]);
   const pick = (value: string | null) => {
@@ -62,7 +69,7 @@ function PlanModal({ user, onClose, onSaved }: { user: UserRow | null; onClose: 
     if (!user) return;
     setBusy(true);
     try {
-      await post(`/api/admin/users/${user.id}`, { action: "setPlan", plan, expiresAt: until || null }, "PATCH");
+      await post(`/api/admin/users/${user.id}`, { action: "setPlan", plan, expiresAt: until || null, demo }, "PATCH");
       notifications.show({ color: "teal", message: `Paket ${user.name} disimpan` });
       onSaved();
       onClose();
@@ -79,6 +86,7 @@ function PlanModal({ user, onClose, onSaved }: { user: UserRow | null; onClose: 
           data={PLAN_IDS.map((id) => ({ value: id, label: `${PLAN_LABEL[id]} · ${describeLimits(id)}` }))} />
         <TextInput label="Berlaku sampai" type="date" value={until} onChange={(e) => setUntil(e.currentTarget.value)}
           description="Kosongkan bila tanpa batas waktu. Setelah tanggal ini kunci API pengguna berhenti bekerja." />
+        <Switch label="Akun demo" description="Sembunyikan menu Paket & tagihan, chip paket, dan banner paket dari akun ini dan anggotanya." checked={demo} onChange={(e) => setDemo(e.currentTarget.checked)} />
         <Button variant="primary" onClick={save} loading={busy}>Simpan paket</Button>
       </Stack>
     </Modal>
@@ -97,9 +105,9 @@ const KIND_HELP: Record<Kind, string> = {
 /** parentId: open as "Anggota klien" of that main account (the group's "Tambah anggota"). */
 function CreateAccountModal({ opened, parentId, mains, onClose, onSaved }: { opened: boolean; parentId: string | null; mains: UserRow[]; onClose: () => void; onSaved: (account: UserRow, kind: Kind) => void }) {
   const [kind, setKind] = useState<Kind>("main");
-  const [form, setForm] = useState({ name: "", username: "", password: "", parentId: null as string | null, plan: "trial" as string | null, until: today(TRIAL_DAYS) });
+  const [form, setForm] = useState({ name: "", username: "", password: "", parentId: null as string | null, plan: "trial" as string | null, until: today(TRIAL_DAYS), demo: false });
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (opened) { setKind(parentId ? "sub" : "main"); setForm({ name: "", username: "", password: "", parentId, plan: "trial", until: today(TRIAL_DAYS) }); } }, [opened, parentId]);
+  useEffect(() => { if (opened) { setKind(parentId ? "sub" : "main"); setForm({ name: "", username: "", password: "", parentId, plan: "trial", until: today(TRIAL_DAYS), demo: false }); } }, [opened, parentId]);
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const save = async () => {
     setBusy(true);
@@ -110,6 +118,7 @@ function CreateAccountModal({ opened, parentId, mains, onClose, onSaved }: { ope
         parentId: kind === "sub" ? form.parentId : null,
         plan: kind === "main" ? form.plan : null,
         expiresAt: kind === "main" && form.until ? form.until : null,
+        demo: kind === "main" && form.demo,
       })) as { id: string };
       notifications.show({ color: "teal", message: `Akun ${form.name} dibuat` });
       const parent = kind === "sub" ? mains.find((m) => m.id === form.parentId) : undefined;
@@ -144,6 +153,7 @@ function CreateAccountModal({ opened, parentId, mains, onClose, onSaved }: { ope
             data={PLAN_IDS.map((id) => ({ value: id, label: `${PLAN_LABEL[id]} · ${describeLimits(id)}` }))} />
           <TextInput label="Berlaku sampai" type="date" value={form.until} onChange={(e) => set({ until: e.currentTarget.value })}
             description="Kosongkan bila tanpa batas waktu." />
+          <Switch label="Akun demo" description="Menu Paket & tagihan disembunyikan dari klien ini dan anggotanya." checked={form.demo} onChange={(e) => set({ demo: e.currentTarget.checked })} />
         </>}
         <Button variant="primary" onClick={save} loading={busy} disabled={!ready}>Buat akun</Button>
       </Stack>

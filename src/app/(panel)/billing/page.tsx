@@ -10,6 +10,7 @@ export default async function Page() {
   if (!session) redirect("/login");
   if (roleOf(session) !== "user") redirect("/users#tagihan");
   const plan = await accountPlan(session.sub);
+  if (plan.demo) redirect("/dashboard"); // demo accounts have no billing
   const canTopup = !!plan.plan && !!plan.limits.aiPostsPerMonth && plan.limits.ownAiKey && !plan.expired;
   return <BillingPage plan={plan.plan} expiresAt={plan.expiresAt?.toISOString() ?? null} canTopup={canTopup} />;
 }
