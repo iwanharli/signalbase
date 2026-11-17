@@ -30,3 +30,45 @@
   .actions, .hint { display: none !important; }
   .paper { border: 0; box-shadow: none; padding: 0; }
 }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .paper {
+    background: hsl(230 22% 14%);
+    color: hsl(245 33% 90%);
+    border: 1px solid hsl(230 20% 24%)
+}
+:global([data-mantine-color-scheme="dark"]) .brand small {
+    color: hsl(251 11% 59%)
+}
+:global([data-mantine-color-scheme="dark"]) .meta small {
+    color: hsl(253 13% 69%)
+}
+:global([data-mantine-color-scheme="dark"]) .meta span {
+    color: hsl(251 11% 59%)
+}
+:global([data-mantine-color-scheme="dark"]) .table th {
+    color: hsl(251 11% 59%);
+    border-bottom: 1px solid hsl(230 20% 24%)
+}
+:global([data-mantine-color-scheme="dark"]) .table td {
+    border-bottom: 1px solid hsl(257 45% 30%)
+}
+:global([data-mantine-color-scheme="dark"]) .table td small {
+    color: hsl(251 11% 59%)
+}
+:global([data-mantine-color-scheme="dark"]) .table tfoot td {
+    color: hsl(250 15% 75%)
+}
+:global([data-mantine-color-scheme="dark"]) .total td {
+    color: hsl(245 33% 90%) !important
+}
+:global([data-mantine-color-scheme="dark"]) .pay {
+    background: hsl(256 40% 18%);
+    border: 1px solid hsl(257 45% 30%)
+}
+:global([data-mantine-color-scheme="dark"]) .foot {
+    color: hsl(253 13% 69%)
+}
+:global([data-mantine-color-scheme="dark"]) .hint a {
+    color: var(--mantine-color-violet-3)
+}

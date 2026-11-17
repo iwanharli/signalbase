@@ -27,3 +27,8 @@
 .compact em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--dim); }
 .compactSkeleton { display: block; width: 80px; height: 18px; border-radius: 6px; background: linear-gradient(90deg, rgba(127,127,160,.12), rgba(127,127,160,.25), rgba(127,127,160,.12)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 @media (max-width: 760px) { .compact { border-left: 0; padding-left: 0; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .link {
+    color: var(--mantine-color-violet-4)
+}

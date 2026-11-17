@@ -20,3 +20,20 @@
 .list p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
 .warn { margin-right: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--mantine-color-orange-7); }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .links a, :global([data-mantine-color-scheme="dark"]) .links button {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .links a:hover, :global([data-mantine-color-scheme="dark"]) .links button:hover {
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .links button[data-warn] b {
+    color: var(--mantine-color-orange-3)
+}
+:global([data-mantine-color-scheme="dark"]) .list li {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .warn {
+    color: var(--mantine-color-orange-3)
+}

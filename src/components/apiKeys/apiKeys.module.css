@@ -299,3 +299,99 @@ button.tile:disabled { cursor: default; }
   color: var(--mantine-color-teal-9); background: var(--mantine-color-teal-0); border: 1px solid var(--mantine-color-teal-2); }
 .aiImpact[data-tone="warning"] { color: var(--mantine-color-orange-9); background: var(--mantine-color-orange-0); border-color: var(--mantine-color-orange-3); }
 .aiImpact b { font-size: 13.5px; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .secondary {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .secondary:hover {
+    background: var(--mantine-color-dark-5)
+}
+:global([data-mantine-color-scheme="dark"]) .heading span {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .card:hover {
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .status[data-state="live"] {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .status[data-state="idle"] {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .status[data-state="revoked"] {
+    color: var(--mantine-color-dark-1);
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .chip[data-all] {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light)
+}
+:global([data-mantine-color-scheme="dark"]) .meta {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .warning {
+    color: var(--mantine-color-orange-2);
+    background: var(--mantine-color-orange-light);
+    border: 1px solid color-mix(in srgb, var(--mantine-color-orange-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .back {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .back:hover {
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .preview {
+    border: 1px dashed hsl(255 45% 30% / 0.3)
+}
+:global([data-mantine-color-scheme="dark"]) .tip > span {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .card .chip[data-kind="filter"] {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light);
+    border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .saveBar {
+    border: 1px solid hsl(255 45% 30% / 0.3)
+}
+:global([data-mantine-color-scheme="dark"]) .detailHero {
+    border: 1px solid hsl(255 45% 30% / 0.18) !important
+}
+:global([data-mantine-color-scheme="dark"]) button.tile:hover:not(:disabled) {
+    border-color: hsl(255 45% 30% / 0.45)
+}
+:global([data-mantine-color-scheme="dark"]) .restartList {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .dataToggle[data-on] {
+    border-color: hsl(255 45% 30% / 0.45)
+}
+:global([data-mantine-color-scheme="dark"]) .changeList li {
+    background: var(--mantine-color-dark-6);
+    border: 1px solid var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .changeList li > span {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .changeList s {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .changeList b {
+    color: var(--mantine-color-dark-0)
+}
+:global([data-mantine-color-scheme="dark"]) .aiImpact {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light);
+    border: 1px solid color-mix(in srgb, var(--mantine-color-teal-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .aiImpact[data-tone="warning"] {
+    color: var(--mantine-color-orange-2);
+    background: var(--mantine-color-orange-light);
+    border-color: color-mix(in srgb, var(--mantine-color-orange-5) 35%, transparent)
+}

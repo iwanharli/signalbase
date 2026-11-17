@@ -119,3 +119,55 @@
 .barValue { text-align: right; }
 .barPct { text-align: right; font-size: 11.5px; color: var(--mantine-color-dimmed); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .facts { grid-template-columns: 1fr 1fr; } .bar { grid-template-columns: 36px minmax(0, 1fr) 56px 36px 30px !important; gap: 6px !important; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .back {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .title h1 em {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .title code {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .state {
+    color: var(--mantine-color-dark-1);
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .state[data-on] {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .editorCard {
+    border: 1px solid hsl(255 45% 30% / 0.18)
+}
+:global([data-mantine-color-scheme="dark"]) .stats > div {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .error {
+    color: var(--mantine-color-red-2);
+    background: var(--mantine-color-red-light);
+    border: 1px solid color-mix(in srgb, var(--mantine-color-red-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .typeBlock header span {
+    color: var(--mantine-color-orange-2);
+    background: var(--mantine-color-orange-light)
+}
+:global([data-mantine-color-scheme="dark"]) .typeBlock header span[data-done] {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .barTrack {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .skeletonLight i {
+    background-image: linear-gradient(90deg, var(--mantine-color-dark-6) 20%, var(--mantine-color-dark-6) 50%, var(--mantine-color-dark-6) 80%)
+}
+:global([data-mantine-color-scheme="dark"]) .meter[data-thin] {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .bar:hover {
+    background: var(--mantine-color-dark-6)
+}

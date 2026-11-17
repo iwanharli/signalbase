@@ -154,3 +154,20 @@
 .stripBars a:hover i { opacity: 1; box-shadow: 0 0 0 2px color-mix(in srgb, var(--heat) 35%, transparent); }
 .stripBars small { position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%); font-size: 10px; color: var(--mantine-color-dimmed); white-space: nowrap; }
 @media (max-width: 800px) { .featured .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .stripBars small { display: none; } .stripBars { padding-bottom: 0; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .stats dd small {
+    color: var(--mantine-color-red-4)
+}
+:global([data-mantine-color-scheme="dark"]) .caption span {
+    color: var(--mantine-color-teal-3)
+}
+:global([data-mantine-color-scheme="dark"]) .caption span[data-down] {
+    color: var(--mantine-color-red-4)
+}
+:global([data-mantine-color-scheme="dark"]) .notice svg {
+    color: var(--mantine-color-orange-4)
+}
+:global([data-mantine-color-scheme="dark"]) .newest {
+    color: var(--mantine-color-violet-3)
+}

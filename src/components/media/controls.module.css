@@ -55,3 +55,17 @@
 .selectField { color: #fff !important; }
 .selectField::placeholder { color: rgba(255,255,255,.5) !important; }
 :global(.mantine-MultiSelect-input).selectInput { height: auto !important; min-height: var(--control-height, 44px) !important; padding-top: 5px; padding-bottom: 5px; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .selectInput:focus {
+    border-color: hsl(255 45% 30% / 0.8) !important
+}
+:global([data-mantine-color-scheme="dark"]) .selectDropdown {
+    border: 1px solid hsl(255 45% 30% / 0.25) !important
+}
+:global([data-mantine-color-scheme="dark"]) .date:focus-within {
+    border-color: hsl(255 45% 30% / 0.8)
+}
+:global([data-mantine-color-scheme="dark"]) .dateDropdown {
+    border: 1px solid hsl(255 45% 30% / 0.25) !important
+}

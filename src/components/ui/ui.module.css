@@ -75,3 +75,55 @@
 .pill[data-tone="danger"] { color: var(--mantine-color-red-8); background: var(--mantine-color-red-0); }
 
 @media (prefers-reduced-motion: reduce) { .button, .button svg { transition: none; } .button[data-loading] svg { animation: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .button:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent), 0 0 0 1px var(--mantine-color-violet-5) inset
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="secondary"] {
+    border-color: var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="secondary"]:hover:not(:disabled) {
+    color: var(--mantine-color-violet-2);
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="secondary"][data-on-dark]:hover:not(:disabled) {
+    border-color: hsl(255 45% 30% / 0.45)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="subtle"] {
+    color: var(--mantine-color-dark-1)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="subtle"]:hover:not(:disabled) {
+    color: var(--mantine-color-dark-0);
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="dangerOutline"] {
+    border-color: var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .pill {
+    color: var(--mantine-color-dark-1);
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .pill[data-tone="success"] {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .pill[data-tone="info"] {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .pill[data-tone="warning"] {
+    color: var(--mantine-color-orange-2);
+    background: var(--mantine-color-orange-light)
+}
+:global([data-mantine-color-scheme="dark"]) .pill[data-tone="danger"] {
+    color: var(--mantine-color-red-2);
+    background: var(--mantine-color-red-light)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="secondary"] {
+    color: var(--mantine-color-dark-0)
+}
+:global([data-mantine-color-scheme="dark"]) .button[data-variant="dangerOutline"] {
+    color: var(--mantine-color-red-3)
+}

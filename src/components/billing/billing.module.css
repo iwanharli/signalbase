@@ -59,3 +59,30 @@
 .benefits svg { flex-shrink: 0; margin-top: 2px; color: var(--mantine-color-teal-6); }
 .contractActions { display: flex; }
 @media (max-width: 700px) { .benefits { grid-template-columns: 1fr; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .toggle button[data-active] {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .toggle em {
+    color: hsl(163 85% 82%);
+    background: hsl(149 40% 21%)
+}
+:global([data-mantine-color-scheme="dark"]) .note a {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .list a:hover b {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .quota[data-state="full"] small {
+    color: hsl(0 74% 69%)
+}
+:global([data-mantine-color-scheme="dark"]) .meter i {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .contract {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .benefits svg {
+    color: var(--mantine-color-teal-4)
+}

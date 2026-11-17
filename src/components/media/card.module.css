@@ -84,3 +84,78 @@ button.detailHint:focus-visible { outline: 2px solid var(--mantine-color-violet-
 
 .platformName { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .authorName { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .card:focus-within {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .media {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .analysis {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--mantine-color-violet-light) 70%, transparent), color-mix(in srgb, var(--mantine-color-cyan-light) 70%, transparent));
+    border: 1px solid color-mix(in srgb, color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent) 45%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .footer {
+    border-top: 1px solid var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .footerMeta {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .footerCategory {
+    background: var(--mantine-color-dark-6);
+    color: var(--mantine-color-dark-1)
+}
+:global([data-mantine-color-scheme="dark"]) .detailHint {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .card:hover .detailHint, :global([data-mantine-color-scheme="dark"]) .card:focus-within .detailHint {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .publisher small {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .publisherMark {
+    border: 1px solid color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent);
+    background: var(--mantine-color-violet-light);
+    color: var(--mantine-color-violet-2)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-editorial] {
+    background: linear-gradient(155deg, var(--mantine-color-violet-light), var(--mantine-color-body) 46%)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-editorial] .sourceRow {
+    border-bottom: 1px solid var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-editorial] .headline {
+    color: var(--mantine-color-dark-0)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-editorial] .content {
+    color: var(--mantine-color-dark-1)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-editorial] .analysis {
+    background: hsl(230 22% 14% / 0.65)
+}
+:global([data-mantine-color-scheme="dark"]) .sourceName {
+    color: var(--mantine-color-cyan-2)
+}
+:global([data-mantine-color-scheme="dark"]) .publisherMark {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light);
+    border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .postCategory {
+    background: var(--mantine-color-violet-light);
+    color: var(--mantine-color-violet-2)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-type="social"] .content {
+    color: var(--mantine-color-dark-0)
+}
+:global([data-mantine-color-scheme="dark"]) .card[data-type="social"] .analysis {
+    background: var(--mantine-color-violet-light);
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .socialMetrics > span {
+    color: var(--mantine-color-dark-1)
+}

@@ -126,17 +126,50 @@
 .planChip span { color: rgba(255,255,255,.6); }
 .planChip:hover { background: rgba(167,139,250,.2); }
 .planChip[data-warn] { color: #fed7aa; background: rgba(249,115,22,.14); border-color: rgba(249,115,22,.35); }
-.iconLink { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; color: rgba(255,255,255,.65); transition: background .15s, color .15s; }
-.iconLink:hover, .iconLink[data-active] { color: #fff; background: rgba(255,255,255,.08); }
+.iconLink, .themeToggle { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; color: rgba(255,255,255,.65); transition: background .15s, color .15s; }
+.iconLink:hover, .iconLink[data-active], .themeToggle:hover { color: #fff; background: rgba(255,255,255,.08); }
 .user { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px 0 4px; border-radius: 99px; border: 1px solid rgba(255,255,255,.1); transition: background .15s, border-color .15s; }
 .userName { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: #fff; }
 .userChevron { color: rgba(255,255,255,.55); }
 .menuHead { display: flex; align-items: center; gap: 10px; padding: 8px 10px 6px; }
 .menuHead b { display: block; font-size: 14px; }
 .menuHead small { display: block; font-size: 12px; color: var(--mantine-color-dimmed); }
-.iconLink:focus-visible, .planChip:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+.iconLink:focus-visible, .themeToggle:focus-visible, .planChip:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
 @media (max-width: 1200px) { .userName { display: none; } .user { padding-right: 8px; } }
 @media (max-width: 1000px) { .iconLink, .planChip { display: none; } }
 
 /* Pages without the top bar (Command Center). */
 .main[data-bare] { padding-top: 12px; padding-bottom: 12px; }
+
+.sun { display: none; }
+:global([data-mantine-color-scheme="dark"]) .sun { display: block; }
+:global([data-mantine-color-scheme="dark"]) .moon { display: none; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .root {
+    background: var(--mantine-color-body)
+}
+:global([data-mantine-color-scheme="dark"]) .backdrop {
+    background: radial-gradient(ellipse 70% 52% at 0% 0%, rgba(124,58,237,.16), transparent 72%),
+    radial-gradient(ellipse 58% 60% at 100% 8%, rgba(34,211,238,.08), transparent 72%),
+    radial-gradient(ellipse 58% 46% at 100% 100%, rgba(139,92,246,.07), transparent 75%)
+}
+:global([data-mantine-color-scheme="dark"]) .backdrop::before {
+    background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px)
+}
+:global([data-mantine-color-scheme="dark"]) .user:hover {
+    border-color: hsl(255 45% 30% / 0.5)
+}
+:global([data-mantine-color-scheme="dark"]) .planBanner {
+    color: hsl(263 69% 68%);
+    background: linear-gradient(120deg, hsl(256 40% 18%), hsl(189 40% 19%));
+    border: 1px solid hsl(257 45% 30%)
+}
+:global([data-mantine-color-scheme="dark"]) .planBanner[data-expired] {
+    color: hsl(15 79% 75%);
+    background: hsl(33 40% 18%);
+    border-color: hsl(32 45% 30%)
+}
+:global([data-mantine-color-scheme="dark"]) .planChip {
+    border: 1px solid hsl(255 45% 30% / 0.28)
+}

@@ -51,3 +51,30 @@
 .panelHead p { color: rgba(255,255,255,.75); }
 .navItem:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
 @media (max-width: 960px) { .nav { scrollbar-width: thin; } .nav::-webkit-scrollbar { display: block; height: 5px; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .navItem:hover {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .navItem[data-active] {
+    background: linear-gradient(90deg, var(--mantine-color-violet-light), transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .navIcon {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .navIcon[data-done] {
+    color: var(--mantine-color-teal-3);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .navItem[data-tone="danger"] .navIcon {
+    color: var(--mantine-color-red-3);
+    background: var(--mantine-color-red-light)
+}
+:global([data-mantine-color-scheme="dark"]) .navText em {
+    color: hsl(15 79% 75%);
+    background: hsl(34 40% 20%)
+}
+:global([data-mantine-color-scheme="dark"]) .panel {
+    border: 1px solid hsl(255 45% 30% / 0.18)
+}

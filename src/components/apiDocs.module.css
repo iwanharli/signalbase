@@ -116,3 +116,72 @@
 }
 @media (max-width: 520px) { .statuses { grid-template-columns: 1fr; } .table { font-size: 12.5px; } }
 @media (prefers-reduced-motion: reduce) { .hero, .section { animation: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .toc a:hover {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .toc a[data-active] {
+    color: var(--mantine-color-violet-2);
+    background: linear-gradient(90deg, var(--mantine-color-violet-light), transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .section code:not(.param) {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .steps li {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .code {
+    border: 1px solid hsl(255 45% 30% / 0.18)
+}
+:global([data-mantine-color-scheme="dark"]) .endpoint {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .endpoint header code b {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .callout {
+    color: var(--mantine-color-violet-2);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--mantine-color-violet-light) 70%, transparent), color-mix(in srgb, var(--mantine-color-cyan-light) 70%, transparent));
+    border: 1px solid color-mix(in srgb, color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent) 50%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .callout svg {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .table th {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .table tbody tr:hover {
+    background: color-mix(in srgb, var(--mantine-color-violet-light) 60%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .values {
+    color: var(--mantine-color-cyan-2)
+}
+:global([data-mantine-color-scheme="dark"]) .scope {
+    color: var(--mantine-color-dark-1);
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .scope[data-scope="social"] {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .scope[data-scope="online"] {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light)
+}
+:global([data-mantine-color-scheme="dark"]) .status {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .status b {
+    color: var(--mantine-color-red-4)
+}
+:global([data-mantine-color-scheme="dark"]) .status[data-ok] b {
+    color: var(--mantine-color-teal-4)
+}
+:global([data-mantine-color-scheme="dark"]) .facts li {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .facts svg {
+    color: var(--mantine-color-violet-4)
+}

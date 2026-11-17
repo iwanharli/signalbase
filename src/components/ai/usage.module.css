@@ -41,3 +41,8 @@
 @keyframes shimmer { 0% { background-position: 110% 0; } 100% { background-position: -110% 0; } }
 @media (max-width: 760px) { .stats > div { padding: 7px 9px; } .stats b { font-size: 13px; } .stats span { display: none; } .ranges { width: 100%; } .ranges button { flex: 1; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .tooltip {
+    border: 1px solid hsl(255 45% 30% / 0.3)
+}

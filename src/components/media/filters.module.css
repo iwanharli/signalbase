@@ -139,3 +139,25 @@
 
 .filterGroup { margin: 0; padding: 0; min-width: 0; border: 0; display: flex; flex-direction: column; gap: 14px; }
 .filterGroup:disabled { opacity: .55; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .toggle {
+    border: 1px solid hsl(255 45% 30% / 0.35)
+}
+:global([data-mantine-color-scheme="dark"]) .quick .viewSegmented button:focus-visible {
+    outline: 2px solid hsl(186 45% 30%)
+}
+:global([data-mantine-color-scheme="dark"]) .panel {
+    border: 1px solid hsl(255 45% 30% / 0.18)
+}
+:global([data-mantine-color-scheme="dark"]) .activeFilters > span {
+    color: var(--mantine-color-dark-1)
+}
+:global([data-mantine-color-scheme="dark"]) .activeFilters button {
+    border: 1px solid color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent);
+    background: var(--mantine-color-violet-light);
+    color: var(--mantine-color-violet-2)
+}
+:global([data-mantine-color-scheme="dark"]) .activeFilters button:hover {
+    background: var(--mantine-color-violet-light)
+}

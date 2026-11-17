@@ -96,3 +96,14 @@
   .tableWrap { margin: 0 -16px -16px; }
 }
 @media (prefers-reduced-motion: reduce) { .hero, .card { animation: none !important; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .headIcon {
+    color: var(--mantine-color-violet-4)
+}
+:global([data-mantine-color-scheme="dark"]) .test {
+    color: var(--mantine-color-red-3)
+}
+:global([data-mantine-color-scheme="dark"]) .test[data-ok] {
+    color: var(--mantine-color-teal-3)
+}

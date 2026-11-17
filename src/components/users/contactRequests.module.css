@@ -18,3 +18,11 @@
 .head a { color: inherit; text-decoration: none; }
 .head a:hover b { color: var(--mantine-color-violet-7); }
 @media (max-width: 62em) { .form { grid-template-columns: 1fr; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .foot a {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .head a:hover b {
+    color: var(--mantine-color-violet-3)
+}

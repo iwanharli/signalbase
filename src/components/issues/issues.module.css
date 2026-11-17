@@ -138,3 +138,50 @@ a.newsTitle:hover { color: var(--mantine-color-violet-7); }
   .stepper { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .hero, .toolbar, .issue, .detail, .news { animation: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .toggle {
+    border: 1px solid hsl(255 45% 30% / 0.35)
+}
+:global([data-mantine-color-scheme="dark"]) .alert {
+    color: var(--mantine-color-red-2);
+    background: var(--mantine-color-red-light);
+    border: 1px solid color-mix(in srgb, var(--mantine-color-red-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .issue::before {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--heat) 55%, hsl(230 22% 14%)), var(--heat))
+}
+:global([data-mantine-color-scheme="dark"]) .bar {
+    background: color-mix(in srgb, var(--heat) 14%, var(--mantine-color-dark-5))
+}
+:global([data-mantine-color-scheme="dark"]) .bar i {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--heat) 50%, hsl(230 22% 14%)), var(--heat))
+}
+:global([data-mantine-color-scheme="dark"]) .issueBody small em {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .issueBody small em[data-live] {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light)
+}
+:global([data-mantine-color-scheme="dark"]) .scoreRing {
+    background: conic-gradient(var(--heat) var(--pct), var(--mantine-color-dark-5) 0)
+}
+:global([data-mantine-color-scheme="dark"]) .newBadge {
+    color: var(--mantine-color-violet-3);
+    background: var(--mantine-color-violet-light)
+}
+:global([data-mantine-color-scheme="dark"]) .sources button:hover {
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent);
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .newsImage {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .newsMeta b {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) a.newsTitle:hover {
+    color: var(--mantine-color-violet-3)
+}

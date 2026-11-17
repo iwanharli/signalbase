@@ -3,3 +3,21 @@
 .badge { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #b45309; background: #fef3c7; }
 .box h1 { margin: 0; font-size: 26px; color: #1f1b3a; }
 .box p { margin: 0; color: #6b6591; line-height: 1.6; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .box {
+    background: hsl(230 22% 14%)
+}
+:global([data-mantine-color-scheme="dark"]) .icon {
+    background: linear-gradient(135deg, hsl(251 40% 19%), hsl(185 40% 21%))
+}
+:global([data-mantine-color-scheme="dark"]) .badge {
+    color: hsl(26 85% 72%);
+    background: hsl(48 40% 21%)
+}
+:global([data-mantine-color-scheme="dark"]) .box h1 {
+    color: hsl(248 36% 88%)
+}
+:global([data-mantine-color-scheme="dark"]) .box p {
+    color: hsl(248 18% 60%)
+}

@@ -5,3 +5,16 @@
 .link[data-on-dark]:hover { color: #a5f3fc; background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.1); }
 .link[data-on-dark]:focus-visible { outline-color: #a5f3fc; }
 @media (prefers-reduced-motion: reduce) { .link { transition: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .link {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .link:hover {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light);
+    border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .link[data-on-dark]:focus-visible {
+    outline-color: hsl(186 45% 30%)
+}

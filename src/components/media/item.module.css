@@ -40,3 +40,46 @@
 
 @media (max-width: 380px) { .factors { grid-template-columns: minmax(0, 1fr); } }
 .aiCategory[data-pending] { color: var(--mantine-color-dimmed) !important; background: transparent !important; border: 1px dashed var(--mantine-color-default-border) !important; font-weight: 600; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .tag {
+    color: var(--mantine-color-violet-3);
+    background: hsl(230 22% 14% / 0.7)
+}
+:global([data-mantine-color-scheme="dark"]) .scoreTrack {
+    background: linear-gradient(90deg, var(--mantine-color-red-4), var(--mantine-color-dark-4) 50%, var(--mantine-color-teal-4))
+}
+:global([data-mantine-color-scheme="dark"]) .scoreTrack i {
+    background: hsl(230 22% 14%)
+}
+:global([data-mantine-color-scheme="dark"]) .score b {
+    color: var(--mantine-color-dark-1)
+}
+:global([data-mantine-color-scheme="dark"]) .score b[data-tone="negative"] {
+    color: var(--mantine-color-red-3)
+}
+:global([data-mantine-color-scheme="dark"]) .score b[data-tone="positive"] {
+    color: var(--mantine-color-teal-3)
+}
+:global([data-mantine-color-scheme="dark"]) .dots i {
+    background: var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .aiCategory {
+    color: var(--mantine-color-teal-2);
+    background: var(--mantine-color-teal-light);
+    border: 1px solid color-mix(in srgb, var(--mantine-color-teal-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .aiCategory em {
+    color: var(--mantine-color-teal-3)
+}
+:global([data-mantine-color-scheme="dark"]) .aiCategory[data-none] {
+    color: var(--mantine-color-dark-1);
+    background: var(--mantine-color-dark-6);
+    border-color: var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .relevance {
+    color: var(--mantine-color-dark-2)
+}
+:global([data-mantine-color-scheme="dark"]) .relevance[data-watchlist] {
+    color: var(--mantine-color-yellow-2)
+}

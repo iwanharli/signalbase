@@ -2,8 +2,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Avatar, Menu, Tooltip, UnstyledButton } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { Avatar, Menu, Tooltip, UnstyledButton, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
+import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -130,6 +130,7 @@ export function Shell({ name, username, role, plan, banner, children }: {
                 <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
               </Tooltip>
             ))}
+            <ThemeToggle />
             <Menu position="bottom-end" width={240} offset={12} transitionProps={{ transition: "pop-top-right", duration: 160 }}>
               <Menu.Target>
                 <UnstyledButton className={classes.user} aria-label={`Menu akun ${name}`}>
@@ -169,5 +170,20 @@ export function Shell({ name, username, role, plan, banner, children }: {
 
       <main key={path} className={classes.main} data-bare={bare || undefined}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
     </div>
+  );
+}
+
+/** Light/dark switch in the top bar; Mantine stores the choice in localStorage. The server can't know that choice, so
+ *  the markup is the same for both schemes and CSS shows the right icon from the attribute Mantine sets on <html>. */
+function ThemeToggle() {
+  const { setColorScheme } = useMantineColorScheme();
+  const scheme = useComputedColorScheme("light", { getInitialValueInEffect: true });
+  return (
+    <Tooltip label="Ganti mode terang / gelap" withArrow openDelay={250}>
+      <UnstyledButton className={classes.themeToggle} aria-label="Ganti mode terang / gelap" onClick={() => setColorScheme(scheme === "dark" ? "light" : "dark")}>
+        <IconMoon size={18} stroke={1.8} className={classes.moon} />
+        <IconSun size={18} stroke={1.8} className={classes.sun} />
+      </UnstyledButton>
+    </Tooltip>
   );
 }

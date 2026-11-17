@@ -3,3 +3,15 @@
 .link:hover { color: var(--mantine-color-cyan-9); text-decoration-color: currentColor; }
 .link:focus-visible { outline: 2px solid var(--mantine-color-cyan-6); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .link { transition: none; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .mention {
+    color: var(--mantine-color-blue-3)
+}
+:global([data-mantine-color-scheme="dark"]) .link {
+    color: var(--mantine-color-cyan-2);
+    text-decoration-color: color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .link:hover {
+    color: var(--mantine-color-cyan-2)
+}

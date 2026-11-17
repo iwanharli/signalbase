@@ -45,3 +45,28 @@ button.chip:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -8px cur
 .emotion { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; text-transform: capitalize; }
 .emotion i { width: 11px; height: 11px; border-radius: 50%; }
 @media (max-width: 640px) { .facts > div { grid-template-columns: 1fr; gap: 6px; } }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .chip[data-kind="actor"] {
+    color: var(--mantine-color-violet-2);
+    background: var(--mantine-color-violet-light);
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .chip[data-kind="target"] {
+    color: var(--mantine-color-cyan-2);
+    background: var(--mantine-color-cyan-light);
+    border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent)
+}
+:global([data-mantine-color-scheme="dark"]) .chip[data-kind="signal"] {
+    background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .card::before {
+    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 35%, hsl(230 22% 14%)))
+}
+:global([data-mantine-color-scheme="dark"]) .tile {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 70%, hsl(230 22% 14%)), var(--accent))
+}
+:global([data-mantine-color-scheme="dark"]) .facts dt svg {
+    color: var(--mantine-color-violet-4);
+    background: var(--mantine-color-violet-light)
+}

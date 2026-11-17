@@ -12,3 +12,11 @@
 .shell { background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); border-radius: 18px; padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 10px; }
 .foot { display: flex; justify-content: space-between; border-top: 1px solid var(--mantine-color-default-border); padding-top: 8px; }
 .foot button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: var(--mantine-color-violet-7); cursor: pointer; }
+
+/* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
+:global([data-mantine-color-scheme="dark"]) .foot button {
+    color: var(--mantine-color-violet-3)
+}
+:global([data-mantine-color-scheme="dark"]) .chip {
+    color: var(--mantine-color-violet-3)
+}

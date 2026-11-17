@@ -6,7 +6,7 @@ import { ChunkRecovery } from "./errors/ChunkRecovery";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider theme={theme} defaultColorScheme="auto">
       <Notifications position="top-right" />
       <ChunkRecovery />
       {children}
