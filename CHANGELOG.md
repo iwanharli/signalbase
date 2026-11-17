@@ -2,40 +2,76 @@
 
 Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/); belum memakai nomor versi, jadi dikelompokkan per tanggal. Terbaru di atas.
 
-## [Belum dirilis]
+## Ringkasan per tanggal
+
+| Tanggal | Yang ditambahkan |
+|---|---|
+| [2026-11-18](#2026-11-18) | Tema gelap, Ringkasan didesain ulang, pencarian OR dan jeda pencarian |
+| [2026-11-17](#2026-11-17) | Filter Proyek / Isu di halaman media |
+| [2026-11-16](#2026-11-16) | Biaya AI, API usage, model QW lokal |
+| [2026-11-13](#2026-11-13) | Laporan eksekutif, Quick/Original View, tampilan post X |
+| [2026-11-12](#2026-11-12) | Halaman Isu, Isu EWS, SNA, Ontologi, Command Center |
+| [2026-11-09](#2026-11-09) | Slot deploy tanpa jeda, simpan Proyek dengan konfirmasi, backfill AI |
+| [2026-11-08](#2026-11-08) | Paket dan tagihan, Signalbase AI, pembatasan IP/domain, situs publik |
+| [2026-11-07](#2026-11-07) | Kategorisasi AI per kunci, cakupan kunci, tampilan post asli |
+| [2026-11-06](#2026-11-06) | Rilis awal |
+
+## 2026-11-18
 
 ### Ditambahkan
+- Pencarian Media Sosial/Online menunggu 2 dtk selama teks yang diketik kurang dari 4 karakter (selain itu 1 dtk), supaya tidak mencari kata yang belum selesai diketik.
 - **Pencarian dengan OR** di Media Sosial/Online: `polisi or polri` (atau `polisi | polri`) menampilkan konten yang mengandung salah satunya; kata dalam satu alternatif tetap harus muncul semua, maksimal 8 alternatif. Tetap full-text bahasa Indonesia dengan stemming (`searchTerms` di `lib/server/bank/query.ts`).
-- **Filter Proyek / Isu** di filter lanjutan Media Sosial/Online (bagian Sumber & konten): proyek aktif ber-kata kunci; hasil = konten yang menyebut salah satu kata kunci proyek (OR). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
 - Filter proyek di `/isu/ews` menyembunyikan proyek yang namanya mengandung "slog" (hardcode sementara, `isHiddenEwsProject` di `src/lib/issues.ts`; `/isu` tidak terpengaruh).
 - **Tema gelap**: situs publik (beranda, harga, integrasi, kontak, legal) selalu gelap. Panel punya mode gelap dengan tombol bulan/matahari di bar atas; bawaan mengikuti sistem (`defaultColorScheme="auto"`), pilihan disimpan di browser. Laporan dan brief cetak (A4) tetap terang.
 - **Halaman Ringkasan didesain ulang**: hero memuat filter (Semua / Media Sosial / Media Online, 7/14/30 hari) dan deretan KPI dengan sparkline; filter ikut menempel di atas saat halaman digulir. Engagement jadi tabel per platform dengan baris total; tren memakai garis rata-rata. Kartu Ringkasan AI tampil ringkas (3 sorotan + yang perlu diwaspadai) dengan tombol "Baca analisis lengkap".
 - Halaman Ringkasan: "Sinyal terbaru" dipecah jadi **Sinyal Terbaru Sosial Media** dan **Sinyal Terbaru Media Online**; kartu "Aplikasi terhubung" dihapus.
 - Media Sosial/Online: grid **maksimal 4 kolom**; skeleton berbentuk kartu (bukan blok polos) saat memuat, dan `loading.tsx` menampilkan kerangka halaman saat berpindah ke halaman media.
 - Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
-- **Filter Proyek** di filter lanjutan halaman media sosial/online (bagian Sumber & konten): memilih proyek aktif menampilkan konten yang menyebut salah satu kata kunci proyek (OR, full-text bahasa Indonesia seperti kunci API). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
+
+### Diperbaiki
+- Kotak cari Media Sosial/Online: kursor tidak lagi melompat ke akhir saat menghapus huruf di tengah teks (input memegang teksnya sendiri, nilai dari URL hanya dipakai bila berubah dari luar).
+- Ringkasan: pilihan **14 dan 30 hari** tidak lagi menunggu ±25 dtk saat pertama dibuka; warmer (`warmOverview`) kini juga menyiapkan periode 30 dan 14 hari (setelah semua periode 7 hari), untuk seluruh bank dan tiap proyek. Bagian terberat: engagement per platform (±19 dtk untuk 60 hari data).
+- Video X di Original View tidak lagi menampilkan scrollbar kecil di sisi kanan (video inline menyisakan celah baseline di dalam iframe).
+- Hydration error di panel: tombol tema kini merender markup yang sama di server dan browser (ikon dipilih lewat CSS).
+
+## 2026-11-17
+
+### Ditambahkan
+- **Filter Proyek / Isu** di filter lanjutan Media Sosial/Online (bagian Sumber & konten): proyek aktif ber-kata kunci; hasil = konten yang menyebut salah satu kata kunci proyek (OR). Akun user hanya melihat proyek miliknya; berlaku juga bersama `?key=` (irisan). Param `project`, diterjemahkan server ke `pkw`.
+
+## 2026-11-16
+
+### Ditambahkan
 - Alat model QW lokal: `scripts/indobert/relabel-latih.ts` (label ulang data latih, opsi tanpa alasan), `emas-media.ts` dan `uji_emas_media.py` (data uji emas berlabel manual).
 - **Biaya AI proyek** di tab AI halaman detail proyek (admin dan viewer; tidak untuk akun klien): biaya yang dibayar key DeepSeek milik Signalbase (`SIGNALBASE_AI_API_KEY`) untuk kategorisasi dan Ringkasan AI proyek itu; bulan ini, perkiraan sebulan, rata-rata per hari, porsi IndoBERT, grafik harian bertumpuk per modul, padanan Rupiah (kurs live). Key milik klien (mis. KIPERMAS) tidak dihitung. `TokenUsage.keyHint` mencatat 4 huruf terakhir key yang membayar (sejak 16 Nov 2026); harga per model di `src/lib/ai/pricing.ts`.
 - Biaya AI (Pengaturan AI dan pemakaian key per proyek) kini juga tampil dalam Rupiah dengan kurs USD→IDR live dari open.er-api.com (`src/lib/server/kurs.ts`, disimpan 6 jam). Harga bawaan Pengaturan AI disamakan dengan harga resmi `deepseek-flash` rata-rata (±20% jam sibuk): 0,18 / 0,0036 / 0,72 USD per 1 juta token.
 - API publik `GET /api/v1/usage?days=` (1–90): token AI kategorisasi untuk kunci pemanggil, per hari (WIB) dan model, supaya pemilik kunci bisa menghitung biayanya sendiri.
 
 ### Diperbaiki
-- Ringkasan: pilihan **14 dan 30 hari** tidak lagi menunggu ±25 dtk saat pertama dibuka; warmer (`warmOverview`) kini juga menyiapkan periode 30 dan 14 hari (setelah semua periode 7 hari), untuk seluruh bank dan tiap proyek. Bagian terberat: engagement per platform (±19 dtk untuk 60 hari data).
-- Video X di Original View tidak lagi menampilkan scrollbar kecil di sisi kanan (video inline menyisakan celah baseline di dalam iframe).
-- Hydration error di panel: tombol tema kini merender markup yang sama di server dan browser (ikon dipilih lewat CSS).
 - Kategorisasi QW: `LOCAL_QW_MIN=0` kini berarti semua post dilabel model lokal (sebelumnya terbaca 0,8). Layanan model lokal menerapkan aturan kata kunci QW3/QW8/QW5; prompt preset Quick Win memakai aturan pembeda yang sama dengan pbm. Ringkasan AI: batas token keluaran 16.000, percobaan ulang setelah 3 menit.
 - `GET /api/v1/usage` dan grafik "Penggunaan saldo" per proyek kini hanya memakai token dan saldo dari key penyedia yang sedang dipakai (`classifierKeyHint`, `keySince` di `src/lib/server/ai/platform.ts`). Sebelumnya token dan saldo key KIPERMAS dari masa key dipakai bersama ikut terhitung, sehingga biaya Signalbase di pbm terhitung dua kali dan grafik menampilkan saldo 1,03 lalu "isi ulang" palsu ke 6,01.
-- Infinite scroll Media Sosial/Online memuat halaman berikutnya lebih awal: pemicu 2000 px di bawah layar (sebelumnya 800 px), sehingga data baru sudah siap sebelum sampai dasar daftar.
-- Video di post X (Original View) tidak bisa diputar: `video.twimg.com` membalas 403 bila permintaan membawa Referer dari domain lain (bukan karena `?tag=`, yang tidak berpengaruh). Video kini dimuat di iframe `srcdoc` dengan `referrer=no-referrer` (`xVideoFrame` di `src/lib/media/xPost.ts`).
+
+## 2026-11-13
 
 ### Ditambahkan
 - Tampilan **post X** di panel (modal dan Original View) digambar mirip aslinya: avatar 42 px, nama tebal, teks 15 px, media bersudut membulat berbingkai, logo X (tautan ke post), jam di bawah isi. Tetap dari kode kita (`OriginalXPost.tsx`, `originalXPost.module.css`), data dari `react-tweet`/FxTwitter.
 - Di Media Sosial ada pilihan **Quick View | Original View**: kartu Quick tampil langsung, post asli (X, TikTok/YouTube, Threads) dimuat diam-diam di belakang lalu menggantikan kartu dengan transisi; gagal/tidak tersedia = tetap Quick dengan chip. Instagram/Facebook tetap Quick dengan tombol "Lihat tampilan asli" (tidak bisa dideteksi bila post privat/dihapus). Embed dimuat hanya untuk kartu dekat layar, maksimal 4 serentak; Original View adalah default; pilihan disimpan di URL (`?tampilan=quick|asli`) dan `localStorage`.
 - **Laporan eksekutif** di Ringkasan (kartu Analisis periode): tombol membuka dialog (periode 1/3/7 hari, default 1) untuk penerima ("Untuk") dan sifat (default RAHASIA / TERBATAS), lalu membuka halaman cetak `/laporan?days=1|3|7&key=&untuk=&sifat=` di tab baru yang otomatis memanggil dialog cetak browser (Simpan sebagai PDF, tanpa Chromium di server). Isi A4: sampul, ringkasan eksekutif (suhu isu, volume, isu teratas), halaman media sosial dan media online (angka kunci, volume harian, emosi, kategori, akun/platform atau media/kata kunci), matriks prioritas isu EWS, kartu isu prioritas ("Implikasi" = `risk_assessment`; kolom "Tindakan & tenggat" disembunyikan), penutup metodologi. Halaman laporan per proyek/semua data: sampul, ringkasan, media sosial, engagement & hashtag (like/komentar/share/views per platform), media online, peringatan dini (24 jam vs rata-rata 7 hari: post intens, porsi negatif, lonjakan topik, kutipan post negatif paling intens), isu media online (tidak ikut di mode "Semua proyek" user), matriks isu EWS + metodologi, aktor/target/wilayah dari isu EWS, kartu isu prioritas. Tidak ada: SNA, wilayah berita online. Halaman terakhir berupa penutup bergaya sampul ("Terima kasih") dengan narasi semi-dinamis (cakupan, volume, suhu isu, isu teratas). Nama berkas PDF yang diusulkan browser: `Laporan Eksekutif - <Semua Data|Semua Proyek|nama proyek> - <N> hari - <YYYYMMDD-HHmmss>` (dari judul halaman). Halaman `/laporan` punya tombol **Download PDF** (html-to-image + jspdf, dibuat di browser; teks di PDF berupa gambar) dan tombol Cetak; dialog cetak tidak lagi terbuka otomatis. Tombol di Ringkasan bernama **Laporan eksekutif**; dialognya punya pilihan **Sumber data**: admin boleh "Semua data" atau satu proyek; user boleh satu proyek atau "Semua proyek saya" (bila punya lebih dari satu; satu dokumen berisi halaman perbandingan proyek lalu blok halaman per proyek, maksimal 5 proyek). API `GET /api/admin/report?days=1|3|7&key=<id>|all`, tetap divalidasi lewat `overviewView`/`ownsKey`.
+
+### Diperbaiki
+- Infinite scroll Media Sosial/Online memuat halaman berikutnya lebih awal: pemicu 2000 px di bawah layar (sebelumnya 800 px), sehingga data baru sudah siap sebelum sampai dasar daftar.
+- Video di post X (Original View) tidak bisa diputar: `video.twimg.com` membalas 403 bila permintaan membawa Referer dari domain lain (bukan karena `?tag=`, yang tidak berpengaruh). Video kini dimuat di iframe `srcdoc` dengan `referrer=no-referrer` (`xVideoFrame` di `src/lib/media/xPost.ts`).
+
+### Diubah
+- Penjelajah media: pilihan tampilan hasil **Kartu / Daftar ringkas** dihapus; semua hasil selalu berupa kartu (parameter `?layout=` tidak dipakai lagi).
+
+## 2026-11-12
+
+### Ditambahkan
 - Submenu **Isu** diganti menjadi **Isu Media Online** (`/isu`, halaman isu berita yang sudah ada) dan **Isu EWS Sosmed** (`/isu/ews`). Topik Polisi tidak lagi punya menu, tetapi `/isu?topik=polisi` masih berfungsi.
 - Halaman **Isu EWS Sosmed** (`/isu/ews`): alert peringatan dini dari tabel `alerts`, tampilan selaras Isu Media Online (hero, toolbar, daftar peringkat kiri, detail kanan). Toolbar: periode 1/3/7/14 hari dan 1 bulan (default 7), proyek (aktor/target mengandung kata kunci), toggle level Critical/High, pencarian judul/aktor/lokasi, dan filter entitas (klik chip aktor/target). Detail: ringkasan kejadian, reaksi publik, penilaian risiko, aktor, target, sinyal, post representatif. Memakai `GET /api/admin/ontologi`.
 - Halaman **Ontologi** (`/analisis/ontologi`): graf d3 keterkaitan isu (alert EWS dari tabel `alerts`) dengan aktor dan target yang disebut di `alert_data`; tampilan sama dengan SNA (hero, toolbar, legenda lipat, kunci graf, layar penuh, panel geser). Isu = lingkaran putih dengan border level (Critical/High, toggle di legenda), aktor ungu, target biru muda; satu isu per klaster (alert terbaru). Rentang 1/3/7/14 hari dan 1 bulan (default 7). Filter proyek: isu dipertahankan bila aktor atau targetnya mengandung kata kunci proyek. API `GET /api/admin/ontologi?days=[&key=]`.
-- Halaman **SNA** (`/analisis/sna`): graf jaringan d3 — 25 akun dengan post terbanyak (yang menyebut akun lain) jadi simpul utama, akun yang mereka sebut jadi simpul anak (maks. 15 per simpul utama). Garis merah = marah/menolak/kecewa/sarkasme, biru = netral, hijau = mendukung/puas, abu = tanpa emosi (warna dominan bila campur; tooltip merinci); tebal garis mengikuti jumlah mention. Rentang 1/3/7 hari (default 1), filter proyek (Nasional untuk admin), seret/zoom, klik simpul untuk menyorot, tautan ke post akun di Media Sosial. API `GET /api/admin/sna?days=1|3|7[&key=]` (cache 60 detik, mengikuti cakupan kunci). Klik node membuka panel geser dari kanan (tab Ringkasan, Postingan, Mention) lewat `GET /api/admin/sna/account?username=&role=hub|child&days=[&key=]`; hover hanya menampilkan tooltip singkat. Filter "Maks. 25/50/100/200 akun top poster" (`?limit=`), tombol kunci graf (default terkunci) dan layar penuh, legenda yang bisa dilipat. 
+- Halaman **SNA** (`/analisis/sna`): graf jaringan d3 — 25 akun dengan post terbanyak (yang menyebut akun lain) jadi simpul utama, akun yang mereka sebut jadi simpul anak (maks. 15 per simpul utama). Garis merah = marah/menolak/kecewa/sarkasme, biru = netral, hijau = mendukung/puas, abu = tanpa emosi (warna dominan bila campur; tooltip merinci); tebal garis mengikuti jumlah mention. Rentang 1/3/7 hari (default 1), filter proyek (Nasional untuk admin), seret/zoom, klik simpul untuk menyorot, tautan ke post akun di Media Sosial. API `GET /api/admin/sna?days=1|3|7[&key=]` (cache 60 detik, mengikuti cakupan kunci). Klik node membuka panel geser dari kanan (tab Ringkasan, Postingan, Mention) lewat `GET /api/admin/sna/account?username=&role=hub|child&days=[&key=]`; hover hanya menampilkan tooltip singkat. Filter "Maks. 25/50/100/200 akun top poster" (`?limit=`), tombol kunci graf (default terkunci) dan layar penuh, legenda yang bisa dilipat.
 - Menu **Analisis** (di antara Isu dan Proyek) dengan submenu **SNA** (`/analisis/sna`) dan **Ontologi** (`/analisis/ontologi`); `/analisis` mengarah ke SNA. Ontologi masih berupa penanda "Sedang dalam pengembangan".
 - Command Center bergaya "pusat komando": latar bola dunia **Mapbox** yang berfokus ke Indonesia (bergoyang pelan, tanpa label atau titik data), kartu kaca gelap yang memenuhi layar, logo Signalbase di header, kartu baru **Tren sentimen harian**, **Top akun sosial**, dan **Top media online**. Perlu `MAPBOX_TOKEN` (token publik `pk.`, dibaca di server lalu diberikan ke halaman); tanpa token atau tanpa WebGL latar tetap gelap polos. Bilah menu atas disembunyikan di halaman ini; tautannya berupa ikon di bilah kanan atas halaman lain, dan logo di header membawa kembali ke Ringkasan.
 - Halaman **Command Center** (`/command-center`, di sebelah Ringkasan): rangkuman Ringkasan dalam satu layar tanpa scroll, berisi grafik sederhana yang semuanya memakai Chart.js lewat `react-chartjs-2`: donat emosi/sentimen, grafik area volume harian, tiga cincin perbandingan dengan periode sebelumnya (total, bernada negatif, bernada positif), batang kata kunci dan isu teratas, serta pita peringatan. Semua grafik mengikuti filter periode 7/14/30 hari (`GET /api/admin/stats` menerima `?days=`; tanpa itu tetap 14 hari volume dan 7 hari emosi untuk Ringkasan),  pilihan proyek, layar penuh, segar otomatis tiap 60 detik. Di layar kecil tampil bertumpuk dan bisa di-scroll. Memakai API Ringkasan dan Isu yang sudah ada; aturan akses sama.
@@ -48,7 +84,6 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - `CHANGELOG.md`.
 
 ### Diubah
-- Penjelajah media: pilihan tampilan hasil **Kartu / Daftar ringkas** dihapus; semua hasil selalu berupa kartu (parameter `?layout=` tidak dipakai lagi).
 - `resolveScope` dipindah dari rute media ke `src/lib/server/panelScope.ts` agar dipakai bersama halaman Isu.
 - `NoKeyYet` menerima label opsional.
 - README: fitur Isu, perintah npm baru, struktur kode, dan keterangan batas paket yang sudah ditegakkan.

@@ -47,7 +47,7 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - kartu *masonry* dengan *infinite scroll* (halaman berikutnya dimuat saat dasar daftar tinggal ±2000 px dari layar), gambar berita, metrik interaksi, ringkasan AI;
   - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, relevansi), kategori, lokasi, tautan sumber;
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
-  - **filter cepat**: pencarian (tekan `/`; `polisi or polri` atau `polisi | polri` = salah satu kata, kata dalam satu alternatif harus muncul semua), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
+  - **filter cepat**: pencarian (tekan `/`; `polisi or polri` atau `polisi | polri` = salah satu kata, kata dalam satu alternatif harus muncul semua; query dikirim 1 detik setelah berhenti mengetik, 2 detik bila teks masih kurang dari 4 karakter), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
   - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi.
 - **SNA** (`/analisis/sna`) — graf jaringan d3: akun top poster (pilih maks. 25/50/100/200) ↔ akun yang mereka sebut, garis dan ikon berwarna menurut emosi post; rentang 1/3/7 hari; klik node membuka panel (ringkasan, postingan, mention); legenda dengan toggle emosi, kunci graf, layar penuh.
 - **Ontologi** (`/analisis/ontologi`) — graf d3 isu EWS (tabel `alerts`) ↔ aktor/target, tampilan sama dengan SNA; filter proyek berdasarkan kata kunci di aktor/target.
