@@ -5,6 +5,7 @@ import { IconBrandX, IconChevronDown, IconCornerUpLeft, IconDatabase, IconExtern
 import { api } from "@/lib/api-client";
 import { formatWibDate } from "@/lib/media/presentation";
 import { xVideoFrame, type XPostPreview } from "@/lib/media/xPost";
+import { Lightbox } from "./Lightbox";
 import { PostText } from "./PostText";
 import { StoredPostFallback } from "./StoredPostFallback";
 import { PostContent } from "./PostContent";
@@ -38,6 +39,10 @@ function ReplyContext({ reply }: { reply: NonNullable<XPostPreview["replyTo"]> }
 
 function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?: boolean }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
+  // The post's images open in a lightbox (videos play in place).
+  // The generic fallback alt ("Media dari post X") is not shown as a caption; real alt text written by the poster is.
+  const images = post.media.filter((m) => m.kind !== "video").map((m) => ({ src: m.url, alt: /^Media dari post/i.test(m.alt) ? undefined : m.alt }));
+  const [viewing, setViewing] = useState<number | null>(null);
   const author = <div className={classes.author}>
     {post.author.avatar && !avatarFailed
       // eslint-disable-next-line @next/next/no-img-element -- allowlisted X-hosted media
@@ -53,13 +58,15 @@ function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?:
     <PostContent text={post.text} header={author} textClassName={quoted ? undefined : classes.xText} metrics={{ likes: post.likes, comments: post.replies, shares: null, views: null }}>
     {post.isTruncated && <p className={classes.note}>Post panjang mungkin terpotong. <a href={post.url} target="_blank" rel="noopener noreferrer">Baca selengkapnya di X</a>.</p>}
     {!!post.media.length && <div className={classes.media}>
-      {post.media.map((media) => media.kind === "video"
-        ? <iframe key={media.url} {...xVideoFrame(media.url, media.poster)} title={media.alt} sandbox="" allow="fullscreen" allowFullScreen className={classes.xVideo} />
-        : <a key={media.url} href={media.url} target="_blank" rel="noopener noreferrer" aria-label="Buka gambar (tab baru)">
+      {post.media.map((media, position) => media.kind === "video"
+        ? <iframe key={`${position}-${media.url}`} {...xVideoFrame(media.url, media.poster)} title={media.alt} sandbox="" allow="fullscreen" allowFullScreen className={classes.xVideo} />
+        : <button key={`${position}-${media.url}`} type="button" className={classes.mediaButton} aria-label={`Lihat gambar ${images.findIndex((i) => i.src === media.url) + 1} dari ${images.length}`}
+            onClick={(e) => { e.stopPropagation(); setViewing(images.findIndex((i) => i.src === media.url)); }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- allowlisted X-hosted media */}
           <img src={media.url} alt={media.alt} loading="lazy" referrerPolicy="no-referrer" />
-        </a>)}
+        </button>)}
     </div>}
+    <Lightbox images={images} index={viewing} onClose={() => setViewing(null)} />
     {post.quoted && <PreviewContent post={post.quoted} quoted />}
     {quoted ? <time className={classes.quoteTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time> : <time className={classes.xTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time>}
     </PostContent>
@@ -90,7 +97,7 @@ export function OriginalXPost({ id, fallback, onStatus }: { id: string; fallback
       <Tabs.Tab value="stored" className={classes.tab} leftSection={<IconDatabase size={13} aria-hidden />}>Data tersimpan</Tabs.Tab>
     </Tabs.List>
     <Tabs.Panel value="original" className={classes.panel}>
-      <PreviewContent post={post} /><p className={classes.note}>{post.provider === "fxtwitter" ? "Dari FxTwitter" : "Dari X"} · dimuat {formatWibDate(post.fetchedAt)}. Analisis memakai data tersimpan.</p>
+      <PreviewContent post={post} />
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>
       {fallback}

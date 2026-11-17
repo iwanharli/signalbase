@@ -11,12 +11,14 @@ import { labelColor as colorOf } from "@/lib/media/manualLabels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import classes from "./manualLabel.module.css";
 
-export type ManualLabelContextValue = { keyId: string; type: MediaType; options: string[]; canLabel: boolean };
+/** onLabelled: lets the page re-render, so a label set in the detail modal shows on its card at once (and vice versa). */
+export type ManualLabelContextValue = { keyId: string; type: MediaType; options: string[]; canLabel: boolean; onLabelled?: (code: string, label: string | null) => void };
 export const ManualLabelContext = createContext<ManualLabelContextValue | null>(null);
 
 
-/** bleed: inside a padded box (the Original View shell), pulled out to its edges like the strip on a Quick card. */
-export function ManualLabelPicker({ item, bleed }: { item: MediaItem; bleed?: boolean }) {
+/** bleed: inside a padded box (the Original View shell), pulled out to its edges like the strip on a Quick card.
+ *  panel: a rounded box of its own (the detail modal's side panel). */
+export function ManualLabelPicker({ item, bleed, panel }: { item: MediaItem; bleed?: boolean; panel?: boolean }) {
   const ctx = useContext(ManualLabelContext);
   const [value, setValue] = useState<string | null>(item.manualLabel ?? null);
   const [busy, setBusy] = useState(false);
@@ -31,6 +33,7 @@ export function ManualLabelPicker({ item, bleed }: { item: MediaItem; bleed?: bo
     try {
       await post(`/api/admin/keys/${ctx.keyId}/item-labels`, { type: ctx.type, code: item.code, label: next }, "PUT");
       item.manualLabel = next; // the feed shares this object, so the label survives re-renders
+      ctx.onLabelled?.(item.code, next);
     } catch (err) {
       setValue(before);
       notifications.show({ color: "red", message: `Label tidak tersimpan: ${(err as Error).message}` });
@@ -51,7 +54,7 @@ export function ManualLabelPicker({ item, bleed }: { item: MediaItem; bleed?: bo
 
   // Clicks inside (the menu is portalled, but React events still bubble here) must not open the detail modal.
   return (
-    <div className={classes.bar} data-set={value ? true : undefined} data-bleed={bleed || undefined} style={color ? { ["--label" as string]: `var(--mantine-color-${color}-6)` } : undefined}
+    <div className={classes.bar} data-set={value ? true : undefined} data-bleed={bleed || undefined} data-panel={panel || undefined} style={color ? { ["--label" as string]: `var(--mantine-color-${color}-6)` } : undefined}
       onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <span className={classes.caption}>Label</span>
       {ctx.canLabel ? (

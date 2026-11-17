@@ -62,7 +62,6 @@ export function OriginalPublicVideo({ video, fallback, storedText, onStatus }: {
               }
             }} />
           </PostContent>
-          <p className={classes.note}>Pratinjau dari {label}. Analisis memakai data tersimpan. Jika pemutar tidak tersedia, buka tab Data tersimpan atau tautan asli di atas.</p>
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>{fallback}</Tabs.Panel>
   </Tabs>;

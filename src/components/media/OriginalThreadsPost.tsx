@@ -44,7 +44,6 @@ export function OriginalThreadsPost({ post, fallback, onStatus }: { post: Thread
     <Tabs.Panel value="original" className={classes.panel}>
           {!rendered && <div className={classes.loading} role="status"><Loader size={12} color="cyan" />Menyiapkan pratinjau Threads…</div>}
           <iframe key={attempt} ref={frame} src={threadsEmbedUrl(post)} title="Post asli Threads" className={classes.threadsPlayer} style={{ height }} allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onError={() => setState('failed')} />
-          <p className={classes.note}>Pratinjau resmi Threads. Analisis memakai data tersimpan. Jika post tidak tersedia di pemutar, buka tab Data tersimpan.</p>
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>{fallback}</Tabs.Panel>
   </Tabs>;

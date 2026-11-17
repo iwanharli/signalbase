@@ -1,12 +1,12 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { CopyButton, Modal, Select, Tabs, Tooltip } from "@mantine/core";
+import { CopyButton, Modal, Select, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { post } from "@/lib/api-client";
 import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconCheck, IconClock, IconCopy, IconDatabase, IconInfoCircle, IconMessage, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
+import { IconCheck, IconClock, IconCopy, IconDatabase, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
 import { humanize, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { metaPost } from "@/lib/media/metaPost";
 import { threadsPost } from "@/lib/media/threadsPost";
@@ -16,6 +16,8 @@ import { formatWibDate, languageLabel, uniqueTags } from "@/lib/media/presentati
 import type { Analysis, ItemClassification, MediaItem, MediaType } from "@/lib/media/types";
 import { AiCategoryBadge, FactorGrid, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
 import { Button } from "../ui/Button";
+import { Lightbox } from "./Lightbox";
+import { ManualLabelPicker } from "./ManualLabel";
 import { PostContent } from "./PostContent";
 import { PlatformIcon } from "./PlatformIcon";
 import { PostTypeBadge } from "./PostTypeBadge";
@@ -143,69 +145,77 @@ function CorrectionField({ item, type, correction }: { item: MediaItem; type: Me
   );
 }
 
-/** Keyed by item so opening another post starts at the top with fresh image state. */
+/** Keyed by item so opening another post starts at the top with fresh image state.
+ *  Wide screens: the post on the left, everything about it (label, AI category, analysis, context) on the right, each
+ *  scrolling on its own; narrow screens: one column. */
 function DetailContent({ item, type, keyName, onClose, correction }: { item: MediaItem; type: MediaType; keyName?: string; onClose: () => void; correction?: Correction }) {
   const [hasImage, setHasImage] = useState(true);
+  const [zoom, setZoom] = useState<number | null>(null);
   const originalId = type === "social" ? xPostId(item.socialMetadata?.sourceUrl) : null;
   const video = type === "social" ? publicVideo(item.socialMetadata?.sourceUrl) : null;
   const thread = type === "social" ? threadsPost(item.socialMetadata?.sourceUrl) : null;
   const meta = type === "social" ? metaPost(item.socialMetadata?.sourceUrl) : null;
   const storedContent = <PostContent text={item.content} title={item.title} metrics={item.metrics} />;
+  const publisher = sourceLabel(item.source);
+  const author = item.author?.name || (item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null);
+  const handle = item.author?.name && item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
+  // Social: the account is the headline; news: the outlet, with the writer (when given) underneath.
+  const title = type === "social" ? author ?? publisher : publisher;
+  const subtitle = (type === "social" ? [handle, publisher] : [author && author !== publisher ? author : null]).filter(Boolean);
+  const hasSide = item.manualLabel !== undefined || item.classification !== undefined || !!item.analysis || type === "social" || !!(item.category || item.province || item.location);
   return (
-    <div className={classes.scroll}>
+    <div className={classes.shell}>
       <header className={classes.header}>
+        <span className={classes.avatar} aria-hidden>{type === "social" ? <PlatformIcon source={item.source} onDark /> : publisher.charAt(0)}</span>
         <div className={classes.heading}>
-          <h2 className={classes.source}>{type === "social" && <PlatformIcon source={item.source} onDark />}{sourceLabel(item.source)}{item.postType && <PostTypeBadge value={item.postType} onDark />}</h2>
-          {(item.author?.name || item.author?.username) && <p className={classes.author}>
-            {item.author.profileUrl ? <a href={item.author.profileUrl} target="_blank" rel="noopener noreferrer nofollow">{item.author.name || `@${item.author.username}`}</a> : <b>{item.author.name || `@${item.author.username}`}</b>}
-            {item.author.name && item.author.username && <span>@{item.author.username.replace(/^@/, "")}</span>}
-            {item.author.followers != null && <span>{item.author.followers.toLocaleString("id-ID")} pengikut</span>}
-          </p>}
-          <div className={classes.headerMeta}>
-            <time className={classes.time} dateTime={item.publishedAt}><IconClock size={13} aria-hidden /><span>{formatWibDate(item.publishedAt)}</span></time>
-            <MoodBadges item={item} type={type} onDark />
-          </div>
+          <h2 className={classes.title}>
+            {item.author?.profileUrl && type === "social" ? <a href={item.author.profileUrl} target="_blank" rel="noopener noreferrer nofollow">{title}</a> : title}
+            {item.postType && <PostTypeBadge value={item.postType} onDark />}
+          </h2>
+          <p className={classes.subtitle}>
+            {subtitle.map((s) => <span key={s}>{s}</span>)}
+            {item.author?.followers != null && <span>{item.author.followers.toLocaleString("id-ID")} pengikut</span>}
+            <time dateTime={item.publishedAt}><IconClock size={12} aria-hidden />{formatWibDate(item.publishedAt)}</time>
+          </p>
         </div>
         <div className={classes.headerActions}>
+          <MoodBadges item={item} type={type} onDark />
           <SourceLink item={item} type={type} onDark />
           <button type="button" data-autofocus className={classes.close} onClick={onClose} aria-label="Tutup detail"><IconX size={18} aria-hidden /></button>
         </div>
       </header>
-      <Tabs defaultValue="post" keepMounted={false} className={classes.detailTabs}>
-        <Tabs.List grow className={classes.detailTabList} aria-label="Bagian detail media">
-          <Tabs.Tab value="post" className={classes.detailTab} leftSection={<IconMessage size={15} aria-hidden />}>{type === "social" ? "Postingan" : "Berita"}</Tabs.Tab>
-          <Tabs.Tab value="analysis" className={classes.detailTab} leftSection={<IconSparkles size={15} aria-hidden />}>Analisis</Tabs.Tab>
-          <Tabs.Tab value="info" className={classes.detailTab} leftSection={<IconInfoCircle size={15} aria-hidden />}>Informasi</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="post" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
-      {item.image && hasImage && <div className={classes.media}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- source-hosted artwork */}
-        <img src={item.image} alt="" referrerPolicy="no-referrer" onError={() => setHasImage(false)} />
-      </div>}
-        <section className={classes.postSection} aria-label={type === "social" ? "Isi post" : "Cuplikan berita"}>
-          {originalId ? <OriginalXPost key={originalId} id={originalId} fallback={storedContent} /> : video ? <OriginalPublicVideo key={video.url} video={video} storedText={item.content} fallback={storedContent} /> : thread ? <OriginalThreadsPost key={thread.id} post={thread} fallback={storedContent} /> : meta ? <OriginalMetaPost key={meta.url} post={meta} fallback={storedContent} /> : <>
-            {type === "social" && <span className={classes.contentSource}><IconDatabase size={12} aria-hidden />Data tersimpan</span>}
-            {storedContent}
-          </>}
+
+      <div className={classes.columns} data-single={!hasSide || undefined}>
+        <section className={classes.mainCol} aria-label={type === "social" ? "Isi post" : "Isi berita"}>
+          {item.image && hasImage && <button type="button" className={classes.media} onClick={() => setZoom(0)} aria-label="Perbesar gambar">
+            {/* eslint-disable-next-line @next/next/no-img-element -- source-hosted artwork */}
+            <img src={item.image} alt="" referrerPolicy="no-referrer" onError={() => setHasImage(false)} />
+          </button>}
+          {item.image && <Lightbox images={[{ src: item.image, alt: item.title ?? undefined }]} index={zoom} onClose={() => setZoom(null)} />}
+          <div className={classes.postSection}>
+            {originalId ? <OriginalXPost key={originalId} id={originalId} fallback={storedContent} /> : video ? <OriginalPublicVideo key={video.url} video={video} storedText={item.content} fallback={storedContent} /> : thread ? <OriginalThreadsPost key={thread.id} post={thread} fallback={storedContent} /> : meta ? <OriginalMetaPost key={meta.url} post={meta} fallback={storedContent} /> : <>
+              {type === "social" && <span className={classes.contentSource}><IconDatabase size={12} aria-hidden />Data tersimpan</span>}
+              {storedContent}
+            </>}
+          </div>
         </section>
-        </Tabs.Panel>
-        <Tabs.Panel value="analysis" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
-        {!item.analysis && !item.classification && <p className={classes.sectionNote}>Belum ada rincian analisis yang tersedia.</p>}
-        {item.analysis && <AnalysisSection analysis={item.analysis} type={type} />}
-        <KeyAnalysis item={item} type={type} keyName={keyName} correction={correction} />
-        </Tabs.Panel>
-        <Tabs.Panel value="info" className={`${classes.body} ${classes.tabPanel}`} tabIndex={0}>
-        <KeyAnalysis item={item} type={type} keyName={keyName} correction={correction} />
-        <ContextSection item={item} type={type} keyName={keyName} />
-        {type !== "social" && !item.category && !item.province && !item.location && <p className={classes.sectionNote}>Belum ada informasi tambahan yang tersedia.</p>}
-        {type === "social" && <section className={classes.technical} aria-label="Informasi teknis">
-          <h3>Informasi teknis</h3>
-          <dl className={classes.rows}><Row label="Kode post"><div className={classes.codeRow}><code>{item.code}</code>
-            <CopyButton value={item.code}>{({ copied, copy }) => <Button size="sm" variant="subtle" icon={copied ? IconCheck : IconCopy} onClick={copy}>{copied ? "Tersalin" : "Salin"}</Button>}</CopyButton>
-          </div></Row></dl>
-        </section>}
-        </Tabs.Panel>
-      </Tabs>
+
+        {hasSide && (
+          <aside className={classes.sideCol} aria-label="Tentang item ini">
+            <ManualLabelPicker item={item} panel />
+            <KeyAnalysis item={item} type={type} keyName={keyName} correction={correction} />
+            {item.analysis ? <AnalysisSection analysis={item.analysis} type={type} />
+              : <section className={classes.analysis}><div className={classes.sectionHead}><IconSparkles size={16} aria-hidden /><h3>Analisis sumber</h3></div><p className={classes.sectionNote}>Belum ada rincian analisis dari sumber.</p></section>}
+            <ContextSection item={item} type={type} keyName={keyName} />
+            <section className={classes.technical} aria-label="Informasi teknis">
+              <h3>Kode {type === "social" ? "post" : "berita"}</h3>
+              <div className={classes.codeRow}><code>{item.code}</code>
+                <CopyButton value={item.code}>{({ copied, copy }) => <Button size="sm" variant="subtle" icon={copied ? IconCheck : IconCopy} onClick={copy}>{copied ? "Tersalin" : "Salin"}</Button>}</CopyButton>
+              </div>
+            </section>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
@@ -217,7 +227,7 @@ export function ItemDetailModal({ item, type, onClose, keyName, correction }: { 
   const shown = item ?? lastItem;
   const label = shown ? `Detail ${type === "social" ? "post" : "berita"} ${sourceLabel(shown.source)}: ${(shown.title || shown.content || shown.code).slice(0, 100)}` : "Detail media";
   return (
-    <Modal.Root opened={!!item} onClose={onClose} size={700} radius={18} padding={0} centered yOffset={16} xOffset={12}
+    <Modal.Root opened={!!item} onClose={onClose} size={1100} radius={20} padding={0} centered yOffset={16} xOffset={12}
       transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
       <Modal.Overlay backgroundOpacity={0.48} blur={3} />
       <Modal.Content className={classes.content} aria-label={label} style={{ ["--tone" as string]: shown ? moodTone(shown) : undefined }}>

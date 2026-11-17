@@ -1,0 +1,41 @@
+/* Full-screen image preview. Always dark, whatever the colour scheme. */
+.root { position: fixed; inset: 0; z-index: 1000; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+  color: #fff; background: rgba(6, 6, 14, .95); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  animation: fade 180ms ease both; }
+.bar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; align-self: stretch; padding: 14px 18px; }
+.counter { padding: 5px 12px; border-radius: 99px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); }
+.tools { display: flex; gap: 8px; }
+.tools a, .tools button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+  color: rgba(255,255,255,.85); background: rgba(255,255,255,.07); cursor: pointer; transition: background 140ms, color 140ms; }
+.tools a:hover, .tools button:hover { color: #fff; background: rgba(255,255,255,.16); }
+
+.stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; align-self: stretch; padding: 0 84px; }
+.image { max-width: 100%; max-height: calc(100dvh - 120px); object-fit: contain; border-radius: 10px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.8);
+  opacity: 0; transform: scale(.97); transition: opacity 220ms ease, transform 260ms cubic-bezier(.2,.8,.2,1); cursor: default; user-select: none; }
+.image[data-ready] { opacity: 1; transform: none; }
+.root[data-many] .image { max-height: calc(100dvh - 210px); } /* room for the thumbnails */
+.loader { position: absolute; }
+.caption { max-width: min(760px, 90vw); margin: 10px 16px 0; font-size: 13px; line-height: 1.5; text-align: center; color: rgba(255,255,255,.7); }
+
+.nav { position: absolute; top: 50%; z-index: 2; display: grid; place-items: center; width: 52px; height: 52px; margin-top: -26px; border-radius: 50%; cursor: pointer;
+  color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); transition: background 140ms, transform 140ms; }
+.nav:hover { background: rgba(255,255,255,.18); transform: scale(1.06); }
+.nav[data-side="prev"] { left: 18px; }
+.nav[data-side="next"] { right: 18px; }
+
+.thumbs { display: flex; gap: 8px; max-width: calc(100vw - 32px); padding: 14px 16px 18px; overflow-x: auto; scrollbar-width: none; }
+.thumbs::-webkit-scrollbar { display: none; }
+.thumbs button { flex-shrink: 0; width: 64px; height: 48px; padding: 0; border-radius: 8px; overflow: hidden; cursor: pointer;
+  border: 2px solid transparent; background: rgba(255,255,255,.06); opacity: .5; transition: opacity 140ms, border-color 140ms; }
+.thumbs button:hover { opacity: .85; }
+.thumbs button[data-active] { opacity: 1; border-color: #a78bfa; }
+.thumbs img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+@keyframes fade { from { opacity: 0; } }
+@media (max-width: 640px) {
+  .stage { padding: 0 8px; }
+  .nav { width: 42px; height: 42px; margin-top: -21px; background: rgba(0,0,0,.45); }
+  .nav[data-side="prev"] { left: 8px; }
+  .nav[data-side="next"] { right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .root, .image { animation: none; transition: none; } }

@@ -48,7 +48,6 @@ export function OriginalMetaPost({ post, fallback }: { post: MetaPost; fallback:
     </Tabs.List>
     <Tabs.Panel value="original" className={classes.panel}>
       <iframe ref={frame} key={attempt} src={metaEmbedUrl(post, parentOrigin)} scrolling={post.platform === 'instagram' ? 'no' : undefined} className={classes.metaPlayer} style={{ height }} title={`Post asli ${label}`} allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onError={() => setState('failed')} />
-      <p className={classes.note}>Pratinjau resmi {label}. Analisis memakai data tersimpan.</p>
       <button type="button" className={classes.useStored} onClick={() => setState('failed')}>Pratinjau tidak tampil? Gunakan data Bankomen</button>
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>{fallback}</Tabs.Panel>
