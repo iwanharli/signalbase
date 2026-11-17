@@ -2,7 +2,7 @@
 import { categoriesForType } from "@/lib/ai/classifier";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Alert, Button, Group, Loader, Skeleton, Text } from "@mantine/core";
+import { Alert, Button, Text } from "@mantine/core";
 import { IconArrowUp } from "@tabler/icons-react";
 import type { Category } from "@/lib/ai/classifier";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
@@ -10,6 +10,7 @@ import type { FilterOptions, MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { ActiveFilters } from "./ActiveFilters";
 import { AdvancedFilters } from "./AdvancedFilters";
+import { CardSkeleton, MAX_COLUMNS, SkeletonGrid } from "./CardSkeleton";
 import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { ItemDetailModal } from "./ItemDetailModal";
@@ -24,7 +25,6 @@ import keyViewClasses from "./keyView.module.css";
 
 type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classifier: { enabled: boolean; categories: Category[]; onlineCategories: Category[] | null } | null };
 
-const SKELETON_HEIGHTS = [260, 180, 320, 220];
 const CARD_STAGGER_MS = 30;
 const PAGE_SIZE = 24;
 const SOURCE_KEY = "signalbase.media.tampilan";
@@ -150,23 +150,23 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           </Alert>
         )}
 
-        <Masonry>
-          {[
-            ...feed.items.map((item, i) => {
-              const Card = originalView ? OriginalCard : ItemCard;
-              return <Card key={item.code} item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />;
-            }),
-            ...(feed.loading
-              ? Array.from({ length: feed.items.length ? 4 : 12 }, (_, i) => <Skeleton key={`skeleton-${i}`} h={SKELETON_HEIGHTS[i % SKELETON_HEIGHTS.length]} radius={18} />)
-              : []),
-          ]}
-        </Masonry>
+        {/* First load: a full grid of card-shaped placeholders. Next pages: one placeholder under each column. */}
+        {feed.loading && !feed.items.length ? <SkeletonGrid type={type} /> : (
+          <Masonry>
+            {[
+              ...feed.items.map((item, i) => {
+                const Card = originalView ? OriginalCard : ItemCard;
+                return <Card key={item.code} item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />;
+              }),
+              ...(feed.loading ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={feed.items.length + i} type={type} />) : []),
+            ]}
+          </Masonry>
+        )}
 
         {feed.loaded && !feed.items.length && !feed.loading && (
           <div className={classes.emptyState}><b>Tidak ada hasil yang cocok</b><p>Coba kata pencarian lain atau hapus sebagian filter di atas.</p><Button variant="light" onClick={reset}>Kembalikan filter awal</Button><Button variant="subtle" onClick={() => update({ analyzed: "", relevance: "", search: "", from: "", to: "", mood: null, source: null, province: null, category: null, language: "", postType: "", minLevel: "", withImage: false, aiCategory: null })}>Lihat semua dalam cakupan ini</Button></div>
         )}
         <div ref={sentinel} />
-        {feed.loading && feed.items.length > 0 && <Group justify="center" py="lg"><Loader type="dots" color="violet" /></Group>}
         {feed.loaded && !feed.hasMore && feed.items.length > 0 && <Text ta="center" fz={12.5} c="dimmed" py="xl">Semua data sudah ditampilkan.</Text>}
 
         </>)}

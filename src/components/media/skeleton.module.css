@@ -1,0 +1,44 @@
+/* Card-shaped loading placeholders with a soft light sweep. Same widths as Masonry (300px columns, 16px gap, at most 4). */
+.grid { container-type: inline-size; display: flex; gap: 16px; align-items: flex-start; }
+.column { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+@container (max-width: 1247px) { .column:nth-child(4) { display: none; } }
+@container (max-width: 931px) { .column:nth-child(3) { display: none; } }
+@container (max-width: 615px) { .column:nth-child(2) { display: none; } }
+
+.card { --sk: var(--mantine-color-gray-1); --sk-hi: var(--mantine-color-gray-0);
+  overflow: hidden; border-radius: 18px; background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border);
+  animation: fade 420ms ease both; }
+.body { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.head { display: flex; align-items: center; gap: 10px; }
+.who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.lines { display: flex; flex-direction: column; gap: 9px; }
+.foot { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--mantine-color-default-border); }
+
+.sk { display: block; height: 11px; border-radius: 6px;
+  background: linear-gradient(100deg, var(--sk) 30%, var(--sk-hi) 50%, var(--sk) 70%) 0 0 / 300% 100%;
+  animation: sweep 1.6s ease-in-out infinite; }
+.sk[data-thin] { height: 8px; }
+.image { height: 168px; border-radius: 0; }
+.image[data-short] { height: 128px; }
+.avatar { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; }
+.avatar[data-square] { border-radius: 10px; }
+.pill { flex-shrink: 0; width: 58px; height: 20px; border-radius: 99px; }
+.title { height: 16px; width: 85%; }
+
+@keyframes sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .sk, .card { animation: none; } }
+
+:global([data-mantine-color-scheme="dark"]) .card { --sk: var(--mantine-color-dark-6); --sk-hi: var(--mantine-color-dark-4); }
+
+/* Route loading: the stats and filter bars (always dark, like the real ones) above the grid. */
+.bars { --sk: rgba(255,255,255,.06); --sk-hi: rgba(255,255,255,.13); }
+.stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; align-items: center; margin: -6px 0 16px; padding: 20px; min-height: 116px;
+  border-radius: 18px; background: #191729; border: 1px solid rgba(167,139,250,.18); }
+.stats > div { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.quick { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 12px; border-radius: 18px; border: 1px solid rgba(167,139,250,.14);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(124,58,237,.28), transparent 55%), radial-gradient(100% 120% at 100% 100%, rgba(34,211,238,.18), transparent 55%), #0d0b1f; }
+.quick .sk, .stats .sk { flex-shrink: 0; }
+.quick .control { height: 38px; border-radius: 12px; }
+@media (max-width: 900px) { .stats { grid-template-columns: 1fr; } .quick { flex-wrap: wrap; } }

@@ -84,7 +84,7 @@ export function StatsBar({ type, filters, total, totalError, shown, moods, busy,
               : totalError ? <b className={classes.total}>—</b>
               : <span className={classes.counting}><Loader size={12} color="cyan" />Menghitung…</span>}
           </Stat>
-          <Stat label="Ditampilkan"><b>{formatNumber(shown)}</b></Stat>
+          <Stat label="Ditampilkan"><b>{busy && !shown ? "—" : formatNumber(shown)}</b></Stat>
         </div>
         <div className={classes.context}>
           <span><small>Rentang</small>{rangeLabel(filters)}</span>
