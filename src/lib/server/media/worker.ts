@@ -28,6 +28,8 @@ const X_GAP_MS = 400;
 /** Images analysed per tick (the service does one at a time). */
 const ANALYZE_BATCH = Number(process.env.MEDIA_ANALYZE_BATCH ?? 120);
 const MAX_ATTEMPTS = 3;
+/** Images sent to the service at once; match its MEDIA_PARALLEL (one engine each). */
+const PARALLEL = Math.max(1, Number(process.env.MEDIA_PARALLEL ?? 2));
 
 /** `context`: the item's caption or headline, so OCR text that only repeats it is left out of the key text. */
 type Found = { type: "social" | "online"; code: string; source: string; publishedAt: Date; kind: string; urls: string[]; context: string | null };
@@ -152,8 +154,13 @@ async function analyzePending() {
     return { attempts: a.attempts + 1, nextAttemptAt: wait === null ? null : new Date(Date.now() + wait) };
   };
   let done = 0;
+  let stop = false;
   serviceOk = true;
-  for (const a of pending) {
+  // Analyses run PARALLEL at a time; storing a result runs one at a time (twin groups are matched in this process's memory).
+  let storing = Promise.resolve();
+  const serial = <T>(fn: () => Promise<T>) => { const p = storing.then(fn); storing = p.then(() => {}, () => {}); return p; };
+  const queue = [...pending];
+  const analyzeOne = async (a: (typeof pending)[number]) => {
     try {
       const res = await fetch(`${SERVICE()}/analyze`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: a.url }), signal: AbortSignal.timeout(90_000),
@@ -161,33 +168,42 @@ async function analyzePending() {
       const body = await res.json() as Analysis & { error?: string; gone?: boolean };
       if (!res.ok) {
         await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: body.gone ? "gone" : "failed", error: body.error?.slice(0, 300) ?? `HTTP ${res.status}`, ...failed(a) } });
-        continue;
+        return;
       }
-      const key = computeKeyText(body.ocrLines ?? [], a.context);
-      await prisma.mediaAsset.update({
-        where: { id: a.id },
-        data: {
-          ocrLines: body.ocrLines ?? [], unreadText: body.unreadText ?? false, keyText: key.text, keyWords: key.words,
-          status: "done", error: null, attempts: a.attempts + 1, nextAttemptAt: null, width: body.width, height: body.height, dhash: body.dhash,
-          ocrText: body.ocrText.slice(0, 5000), ocrWords: body.ocrWords, tags: body.tags, tagList: body.tags.map((t) => t.tag),
-          sensitive: body.sensitive, model: body.model, analyzedAt: new Date(), twinGroup: body.dhash ? await twinGroupFor(a.id, body.dhash) : null,
-        },
-      });
-      // Calls to action, narrative, numeric claims, and the projects whose keywords appear in the image.
-      await applyTextSignals(a.id, key.text).catch((e) => console.warn(`[media] sinyal teks gagal: ${(e as Error).message}`));
+      await serial(() => saveAnalysis(a, body));
       done++;
     } catch (e) {
       // The service itself is down or slow: stop this tick, nothing is marked failed.
       if (e instanceof TypeError || (e as Error).name === "TimeoutError") {
+        stop = true;
         serviceOk = false;
         lastError = `Layanan analisis tidak menjawab: ${(e as Error).message}`;
         console.warn(`[media] ${lastError}`);
-        break;
+        return;
       }
       await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: "failed", error: String(e).slice(0, 300), ...failed(a) } });
     }
-  }
+  };
+  const lane = async () => {
+    for (let a = queue.shift(); a && !stop; a = queue.shift()) await analyzeOne(a);
+  };
+  await Promise.all(Array.from({ length: PARALLEL }, lane));
   return done;
+}
+
+async function saveAnalysis(a: { id: string; attempts: number; context: string | null }, body: Analysis) {
+  const key = computeKeyText(body.ocrLines ?? [], a.context);
+  await prisma.mediaAsset.update({
+    where: { id: a.id },
+    data: {
+      ocrLines: body.ocrLines ?? [], unreadText: body.unreadText ?? false, keyText: key.text, keyWords: key.words,
+      status: "done", error: null, attempts: a.attempts + 1, nextAttemptAt: null, width: body.width, height: body.height, dhash: body.dhash,
+      ocrText: body.ocrText.slice(0, 5000), ocrWords: body.ocrWords, tags: body.tags, tagList: body.tags.map((t) => t.tag),
+      sensitive: body.sensitive, model: body.model, analyzedAt: new Date(), twinGroup: body.dhash ? await twinGroupFor(a.id, body.dhash) : null,
+    },
+  });
+  // Calls to action, narrative, numeric claims, and the projects whose keywords appear in the image.
+  await applyTextSignals(a.id, key.text).catch((e) => console.warn(`[media] sinyal teks gagal: ${(e as Error).message}`));
 }
 
 let serviceOk = true;

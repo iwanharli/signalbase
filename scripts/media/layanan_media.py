@@ -3,13 +3,14 @@
     POST /analyze {"url": "https://..."}  →  {"model", "width", "height", "dhash", "tags", "sensitive", "ocrText", "ocrWords"}
     GET  /health
 
-Hanya 127.0.0.1. Satu gambar dianalisis sekaligus (CPU dan memori tetap terkendali). Gambar diunduh ke memori lalu dibuang;
+Hanya 127.0.0.1. Paling banyak MEDIA_PARALLEL gambar (bawaan 2) dianalisis sekaligus, masing-masing dengan mesinnya sendiri
+(±700 MB per mesin; uji 19 Nov 2026: 1 mesin ±1 gambar/detik di server, beban 1 dari 8 core). Gambar diunduh ke memori lalu dibuang;
 tidak ada yang disimpan di disk. Port: MEDIA_PORT (bawaan 3726). Model: MEDIA_CLIP_DIR (lihat analisis_media.py).
 """
 import json
+import queue
 import os
 import sys
-import threading
 import time
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,8 +20,12 @@ import analisis_media as A  # noqa: E402
 
 PORT = int(os.environ.get("MEDIA_PORT", "3726"))
 NAME = "media-clip-b32-v2+rapidocr-en-u"  # v2: fp32 CLIP, ambang dari 254 label (19 Nov 2026)
-ANALYZER = A.Analyzer()
-LOCK = threading.Lock()
+PARALLEL = max(1, int(os.environ.get("MEDIA_PARALLEL", "2")))
+# Satu mesin per analisis yang berjalan: RapidOCR tidak dijamin aman dipakai bersamaan oleh beberapa thread.
+ANALYZERS: "queue.Queue[A.Analyzer]" = queue.Queue()
+for _ in range(PARALLEL):
+    ANALYZERS.put(A.Analyzer())
+VARIANT = ANALYZERS.queue[0].variant
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -33,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self._send(200, {"ok": True, "model": NAME}) if self.path == "/health" else self._send(404, {"error": "not found"})
+        self._send(200, {"ok": True, "model": NAME, "parallel": PARALLEL}) if self.path == "/health" else self._send(404, {"error": "not found"})
 
     def do_POST(self):
         if self.path != "/analyze":
@@ -45,9 +50,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "url wajib"})
             start = time.time()
             data = A.fetch(url)
-            with LOCK:
-                res = ANALYZER.analyze(data)
-            res["model"] = f"{NAME}-{ANALYZER.variant}"
+            analyzer = ANALYZERS.get()
+            try:
+                res = analyzer.analyze(data)
+            finally:
+                ANALYZERS.put(analyzer)
+            res["model"] = f"{NAME}-{VARIANT}"
             res["ms"] = round((time.time() - start) * 1000)
             self._send(200, res)
         except urllib.error.HTTPError as e:
@@ -63,5 +71,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"layanan media {NAME} di 127.0.0.1:{PORT}", flush=True)
+    print(f"layanan media {NAME} di 127.0.0.1:{PORT}, {PARALLEL} mesin", flush=True)
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
