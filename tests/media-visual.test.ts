@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  workerProblem,
   formatVisualCursor, hashDistance, KIND_PRIORITY, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
 } from "../src/lib/mediaVisual";
 
@@ -128,4 +129,13 @@ test("words OCR ran together are split into common words, real words and names k
   assert.equal(splitJoinedText("CONTINUED US FUEL DELIVERIES", words, total), "CONTINUED US FUEL DELIVERIES"); // English stays whole
   words.set("viral", 4000); words.set("presiden", 30000);
   assert.equal(splitJoinedText("VIRALPRESIDENRIPRABOWO", words, total), "VIRAL PRESIDEN RI PRABOWO");
+});
+
+test("workerProblem: berhenti bila tanpa detak 15 menit, mati bila layanan tidak menjawab", () => {
+  const now = Date.parse("2026-11-19T10:00:00Z");
+  const w = (min: number, serviceOk = true) => ({ heartbeatAt: new Date(now - min * 60_000).toISOString(), serviceOk, lastError: null, lastTick: null });
+  assert.equal(workerProblem(null, now), null);
+  assert.equal(workerProblem(w(4), now), null);
+  assert.match(workerProblem(w(16), now)!, /berhenti/);
+  assert.match(workerProblem(w(2, false), now)!, /tidak menjawab/);
 });

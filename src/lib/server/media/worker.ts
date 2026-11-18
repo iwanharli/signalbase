@@ -21,6 +21,9 @@ const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
 const LOOKBACK_HOURS = Number(process.env.MEDIA_LOOKBACK_HOURS ?? 24);
 /** Items read per feed per tick. */
 const COLLECT_BATCH = 300;
+/** Backlog read per tick for feeds without outside calls (news, YouTube): ±1 hour of news is 300 items, so a day of
+ *  backlog would take a day of ticks at COLLECT_BATCH. X stays at COLLECT_BATCH (FxTwitter pace). */
+const BACK_BATCH = Number(process.env.MEDIA_BACK_BATCH ?? 1500);
 /** X: ask FxTwitter only for posts linking t.co (68% of media posts in a sample, a quarter of the requests); MEDIA_X_ALL=1 asks for every post. */
 const X_ALL = process.env.MEDIA_X_ALL === "1";
 /** Pause between FxTwitter requests, to stay well below its rate limits. */
@@ -58,16 +61,16 @@ const saveCursor = (name: string, at?: Row) => async () => {
  *  Head (`<feed>:head`): items after the head, oldest first (all new posts; the first run starts at the newest batch).
  *  Back (`<feed>:back`): the gap between the feed's old cursor (`<feed>`, where collecting started) and the head, read
  *  newest first, so a backlog fills from today backwards; it stops once it reaches the old cursor. */
-async function newer(name: string, sql: (cond: string, order: string) => string): Promise<Feed[]> {
+async function newer(name: string, sql: (cond: string, order: string, limit: number) => string, backLimit = COLLECT_BATCH): Promise<Feed[]> {
   const [head, back] = await Promise.all([prisma.mediaCursor.findUnique({ where: { name: `${name}:head` } }), prisma.mediaCursor.findUnique({ where: { name: `${name}:back` } })]);
   if (!head) {
-    const { rows } = await bankPool().query<Row>(sql("true", "at DESC, code DESC"));
+    const { rows } = await bankPool().query<Row>(sql("true", "at DESC, code DESC", COLLECT_BATCH));
     return [{ rows, save: saveCursor(`${name}:head`, rows[0]) }];
   }
-  const h = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code"), [head.ts, head.code]);
+  const h = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code", COLLECT_BATCH), [head.ts, head.code]);
   const floor = await cursorOf(name);
   const top = back ?? head;
-  const b = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) < ($3::timestamp, $4)`, "at DESC, code DESC"), [floor.ts, floor.code, top.ts, top.code]);
+  const b = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) < ($3::timestamp, $4)`, "at DESC, code DESC", backLimit), [floor.ts, floor.code, top.ts, top.code]);
   return [
     { rows: h.rows, save: saveCursor(`${name}:head`, h.rows.at(-1)) },
     // Nothing left between the old cursor and the back cursor: the backlog is done and this read returns nothing.
@@ -78,23 +81,23 @@ async function newer(name: string, sql: (cond: string, order: string) => string)
 const TS = (col: string) => `to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
 
 async function collectNews(): Promise<Collected[]> {
-  const feeds = await newer("news", (cond, order) => `SELECT * FROM (
+  const feeds = await newer("news", (cond, order, limit) => `SELECT * FROM (
       SELECT n.news_code code, n.news_source source, ${TS("n.news_timestamp")} ts, n.news_timestamp at, n.news_image image,
              left(concat_ws(' ', n.news_title, n.news_preview), 1000) title
       FROM news_main n WHERE n.news_timestamp <= now() AND n.news_image ~ '^https?://'
-    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${COLLECT_BATCH}`);
+    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${limit}`, BACK_BATCH);
   return feeds.map(({ rows, save }) => ({ save, found: rows.map((r): Found => ({ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls: [r.image!], context: r.title ?? null })) }));
 }
 
-async function collectSocial(name: "x" | "youtube", source: string) {
-  return newer(name, (cond, order) => `SELECT * FROM (
+async function collectSocial(name: "x" | "youtube", source: string, backLimit?: number) {
+  return newer(name, (cond, order, limit) => `SELECT * FROM (
       SELECT p.post_code code, p.post_source source, ${TS("p.post_timestamps")} ts, p.post_timestamps at, p.post_url url, left(p.post_content, 2000) content
       FROM post_main p WHERE p.post_source = '${source}' AND p.post_timestamps <= now()
-    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${COLLECT_BATCH}`);
+    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${limit}`, backLimit);
 }
 
 async function collectYoutube(): Promise<Collected[]> {
-  return (await collectSocial("youtube", "youtube")).map(({ rows, save }) => ({
+  return (await collectSocial("youtube", "youtube", BACK_BATCH)).map(({ rows, save }) => ({
     save,
     found: rows.flatMap((r): Found[] => {
       const thumb = youtubeThumbnail(r.url);

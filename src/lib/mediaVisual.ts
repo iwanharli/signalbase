@@ -46,6 +46,13 @@ export type VisualStats = {
 /** Health of the media worker, for admins: a heartbeat older than WORKER_STALE_MS means it has stopped. */
 export type VisualWorker = { heartbeatAt: string; serviceOk: boolean; lastError: string | null; lastTick: { analyzed: number; ms: number } | null } | null;
 export const WORKER_STALE_MS = 15 * 60_000;
+/** What's wrong with the worker, for the top-bar alert; null while it works (or when it never ran on this server). */
+export function workerProblem(w: VisualWorker, now = Date.now()): string | null {
+  if (!w) return null;
+  if (now - new Date(w.heartbeatAt).getTime() > WORKER_STALE_MS) return "Worker media visual berhenti (tidak ada detak lebih dari 15 menit)";
+  if (!w.serviceOk) return "Layanan analisis media tidak menjawab";
+  return null;
+}
 /** Keyset cursor: the last image of a page (its newest use, as text, and its id). */
 export type VisualCursor = { ts: string; id: string };
 export function parseVisualCursor(v: string | null): VisualCursor | null {

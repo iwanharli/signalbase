@@ -7,6 +7,7 @@ import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChar
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
+import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
 import classes from "./shell.module.css";
 
@@ -132,6 +133,7 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
                 <b>{plan.label}</b>{plan.daysLeft !== null && <span>{plan.daysLeft <= 0 ? "berakhir" : `${plan.daysLeft} hari`}</span>}
               </Link>
             )}
+            {role === "admin" && <MediaWorkerAlert />}
             {barTools.map((t) => (
               <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
                 <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
