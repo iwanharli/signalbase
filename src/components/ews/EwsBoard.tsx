@@ -183,10 +183,18 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
             comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null })}
             data={[...(keyLocked ? [] : [{ value: "", label: "Semua isu" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
         )}
-        {TOGGLE_LEVELS.map((l) => {
-          const on = !off.includes(l);
-          return <button key={l} type="button" className={classes.toggle} data-active={on || undefined} aria-pressed={on} onClick={() => setOff(on ? [...off, l] : off.filter((x) => x !== l))}><IconBellRinging size={14} />{l}</button>;
-        })}
+        <div className={ews.levels} role="group" aria-label="Level alert">
+          <span className={ews.levelsLabel}><IconBellRinging size={14} />Level</span>
+          {TOGGLE_LEVELS.map((l) => {
+            const on = !off.includes(l);
+            return (
+              <button key={l} type="button" data-level={l.toLowerCase()} data-active={on || undefined} aria-pressed={on} title={on ? `Sembunyikan ${l}` : `Tampilkan ${l}`}
+                onClick={() => setOff(on ? [...off, l] : off.filter((x) => x !== l))}>
+                <i />{l}<b>{list.data ? issues.filter((i) => i.level === l).length : "–"}</b>
+              </button>
+            );
+          })}
+        </div>
         {entity && <button type="button" className={ews.filterChip} onClick={() => setEntity(null)}>{entity}<IconX size={14} /></button>}
         <label className={classes.search}>
           <IconSearch size={15} />
@@ -200,6 +208,7 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
       <div className={classes.layout}>
         <nav className={classes.list} aria-label="Daftar alert">
           <div className={classes.listHead}><IconTrophy size={16} />Peringkat alert<small>↑ ↓ untuk pindah</small></div>
+          <div className={classes.listScroll}>
           {!list.data && !list.error && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={96} radius={18} />)}
           {visible.map((issue, n) => {
             const rank = rankOf.get(issue.id)!, active = issue.id === selected?.id;
@@ -232,6 +241,7 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
               {!issues.length && days < 30 && <Button size="sm" variant="secondary" onClick={() => go({ days: String(ONT_PERIODS.find((p) => p.days > days)!.days) })}>Lihat periode lebih panjang</Button>}
             </div>
           )}
+          </div>
         </nav>
 
         <div ref={detailRef} className={classes.detailWrap}>

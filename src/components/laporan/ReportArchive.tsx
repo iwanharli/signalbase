@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { Modal, SegmentedControl, Select, Skeleton, TagsInput, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAdjustmentsHorizontal, IconArrowUpRight, IconCalendarEvent, IconCalendarMonth, IconCalendarWeek, IconClockHour4, IconFileDescription, IconFileDownload, IconUserCircle } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconArrowUpRight, IconCalendarEvent, IconCalendarMonth, IconCalendarWeek, IconChecklist, IconClockHour4, IconFileDescription, IconFileDownload, IconUserCircle } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import type { ArchiveResponse } from "@/app/api/admin/reports/route";
@@ -99,8 +99,15 @@ export function ReportArchive() {
             )}
             {data?.latest && data.latest.decisions.length > 0 && (
               <div className={c.decisions}>
-                <small>Keputusan yang dibutuhkan</small>
-                <ol>{data.latest.decisions.slice(0, 4).map((x, i) => <li key={i}><span>{x.judul}</span><em>{x.tenggat}</em></li>)}</ol>
+                <div className={c.decisionsHead}><IconChecklist size={15} />Keputusan yang dibutuhkan<b>{Math.min(4, data.latest.decisions.length)}</b></div>
+                <ol>{data.latest.decisions.slice(0, 4).map((x, i) => (
+                  <li key={i}>
+                    <span className={c.decisionNo}>{i + 1}</span>
+                    <span className={c.decisionText}>{x.judul}</span>
+                    {/* "SEGERA" is urgent (red); any other deadline is amber. */}
+                    {x.tenggat && <em data-urgent={/segera/i.test(x.tenggat) || undefined}><IconClockHour4 size={12} />{x.tenggat.toLowerCase()}</em>}
+                  </li>
+                ))}</ol>
               </div>
             )}
             <dl className={c.stats}>
