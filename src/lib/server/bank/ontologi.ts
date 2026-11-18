@@ -2,7 +2,7 @@ import { allowsType, OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
 import { decodeTextEntities } from "@/lib/media/text";
 import { matchesKeywords, type OntDays, type OntIssue, type OntPost } from "@/lib/ontologi";
 import { sharedCache } from "./cache";
-import { analyticsPool } from "./pool";
+import { bankPool } from "./pool";
 
 const cache = sharedCache<OntIssue[]>("ontologi", { ttlMs: 60_000, maxEntries: 50, staleWhileRevalidate: true });
 type Row = { id: string; cluster_id: string; level_ews: string; skor_ews: number; post_count: number; sent_at: Date; alert_data: Record<string, unknown> | null };
@@ -30,7 +30,9 @@ export function ontologiIssues(days: OntDays, scope?: KeyScope) {
   const s = scope ?? OPEN_SCOPE;
   return cache(`${days}|${s.keywords.join("\u0001")}`, async () => {
     if (!allowsType(s, "social")) return [];
-    const { rows } = await analyticsPool().query<Row>(
+    // The alerts table is small (a few thousand rows, ~5 ms), so it runs on the main pool: on the analytics pool it
+    // queued behind the Ringkasan warmer and slow counts, and the EWS page waited up to minutes.
+    const { rows } = await bankPool().query<Row>(
       `SELECT DISTINCT ON (a.cluster_id) a.id::text id, a.cluster_id::text cluster_id, a.level_ews, a.skor_ews, a.post_count, a.sent_at, a.alert_data
        FROM alerts a WHERE a.sent_at >= CURRENT_DATE - ($1::int * INTERVAL '1 day') ORDER BY a.cluster_id, a.created_at DESC`, [days]);
     return rows.map(toIssue).filter((i) => matchesKeywords(i, s.keywords)).sort((a, b) => b.score - a.score);
