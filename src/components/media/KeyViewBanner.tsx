@@ -6,7 +6,6 @@ import type { KeyScope } from "@/lib/media/keyScope";
 import { allowsType } from "@/lib/media/keyScope";
 import { MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
-import { keywordText, scopeRestrictions, useProvinceNames } from "../apiKeys/shared";
 import { Button } from "../ui/Button";
 import classes from "./keyView.module.css";
 import { Tip } from "../ui/Tip";
@@ -17,16 +16,12 @@ const TYPE_ICON = { social: IconMessages, online: IconWorldWww } as const;
 
 /** canLeave: false for user accounts, who only ever browse through their own keys. */
 export function KeyViewBanner({ view, type, canLeave = true }: { view: KeyView; type: MediaType; canLeave?: boolean }) {
-  const provinceName = useProvinceNames();
-  const restrictions = scopeRestrictions(view.scope, provinceName);
-
   return (
     <section className={classes.banner}>
       <span className={classes.icon}><IconEye size={18} /></span>
       <div className={classes.body}>
         <span className={classes.eyebrow}><IconKey size={12} />Dilihat sebagai proyek</span>
         <b>{view.name}</b>
-        <small>{keywordText(view.scope.keywords)}{restrictions.length ? ` · ${restrictions.join(" · ")}` : ""}{view.aiEnabled ? " · kategorisasi AI aktif" : ""}</small>
       </div>
       <nav className={classes.types} aria-label="Jenis media">
         {MEDIA_TYPES.map((t) => {
