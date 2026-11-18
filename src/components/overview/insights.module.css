@@ -51,9 +51,14 @@ a.kpi:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(
 .overall[data-warn] i { animation: pulse 1.6s ease-in-out infinite; }
 
 .indicators { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.indicator { --state: var(--mantine-color-teal-6); display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 16px;
+.indicator { --state: var(--mantine-color-gray-6); display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 16px;
   text-decoration: none; color: inherit; background: var(--mantine-color-gray-0); border: 1px solid transparent; transition: border-color .15s, transform .15s; }
-.indicator[data-state="warn"] { --state: var(--mantine-color-orange-6); background: color-mix(in srgb, var(--mantine-color-orange-5) 7%, var(--mantine-color-body)); }
+/* Colour only when something needs attention: Normal stays neutral, Naik is yellow, Waspada orange (tinted fill + edge). */
+.indicator[data-state="warn"] { --state: var(--mantine-color-orange-6); }
+.indicator[data-state="watch"] { --state: var(--mantine-color-yellow-6); }
+.indicator[data-state="warn"], .indicator[data-state="watch"] { position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--state) 9%, var(--mantine-color-body)); border-color: color-mix(in srgb, var(--state) 35%, transparent); }
+.indicator[data-state="warn"]::before, .indicator[data-state="watch"]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--state); }
 .indicator[data-state="na"] { --state: var(--mantine-color-gray-5); opacity: .75; }
 a.indicator:hover { border-color: color-mix(in srgb, var(--state) 40%, transparent); transform: translateY(-1px); }
 .indTop { display: flex; align-items: center; gap: 8px; }
@@ -263,6 +268,10 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 }
 :global([data-mantine-color-scheme="dark"]) .indicator {
     background: var(--mantine-color-dark-6)
+}
+:global([data-mantine-color-scheme="dark"]) .indicator[data-state="warn"],
+:global([data-mantine-color-scheme="dark"]) .indicator[data-state="watch"] {
+    background: color-mix(in srgb, var(--state) 12%, var(--mantine-color-dark-6))
 }
 :global([data-mantine-color-scheme="dark"]) .inlineDelta[data-tone="bad"] {
     color: var(--mantine-color-red-3)

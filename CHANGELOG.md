@@ -19,6 +19,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## 2026-11-18
 
 ### Ditambahkan
+- **Penjelasan di setiap kartu Ringkasan**: ikon ⓘ di samping judul membuka penjelasan singkat dan "Cara membaca" (perbandingan, warna, ambang). Teks di `src/components/overview/CardHelp.tsx`.
+- Panel memakai **tema gelap sebagai bawaan** (sebelumnya mengikuti sistem); pilihan yang tersimpan di browser tetap dipakai.
+- **Kartu Media Online didesain ulang**: media + penulis di header, satu baris chip (kategori lalu topik AI, tanpa "#" agar tidak dikira tagar), footer satu baris. Kartu dibedakan per sentimen: garis atas, tepi, dan latar merah (negatif) / hijau (positif) / biru (netral), badge sentimen solid dengan ikon.
 - **Akun demo** (`Admin.demo`): tidak melihat menu "Paket & tagihan", chip paket, maupun banner paket/kuota; `/billing` dialihkan ke Beranda. Anggota mengikuti akun utamanya. Diatur admin lewat sakelar "Akun demo" di modal Paket dan saat membuat akun utama klien; badge "Demo" di daftar Pengguna.
 - **Lightbox gambar**: gambar post asli X dan gambar di modal detail dibuka layar penuh; panah, keyboard (←/→/Esc), geser di layar sentuh, penghitung dan thumbnail bila lebih dari satu gambar.
 - **Modal detail post baru**: dua kolom (isi post di kiri; label manual, kategorisasi AI, analisis sumber, konteks, dan kode di kanan) tanpa tab, tinggi mengikuti isi; header berisi akun/media, pengikut, waktu, dan emosi. Label manual bisa diberi langsung dari modal.
@@ -39,6 +42,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
 
 ### Diperbaiki
+- Halaman EWS (dan Ontologi) tidak lagi lambat saat Ringkasan sedang dihitung: query alert (±5 ms) pindah dari pool analytics ke pool utama, sebelumnya bisa antre hingga beberapa menit.
+- Kartu Peringatan dini: status "Naik" (kuning) untuk kenaikan di bawah ambang Waspada; Normal kini abu-abu netral (bukan hijau); warna status juga tampil di mode gelap.
+- Daftar Peringkat isu: hanya kartu yang bergulir (judul tetap), scrollbar tipis, kartu tidak lagi menempel ke scrollbar. Label, angka, dan filter "Berlangsung" disembunyikan.
 - Angka berat untuk proyek berkata kunci luas tidak lagi membuat pengguna menunggu: total cocok, total API publik (`view=summary`), dan opsi filter memakai cache stale-while-revalidate (angka lama langsung tampil, diperbarui di latar belakang); Ringkasan 14/30 hari di-cache 30 menit sehingga warmer jauh lebih ringan dan pool analitik tidak antre (total cocok SLOG POLRI sempat ±57 dtk).
 - **Media Sosial/Online lemot untuk proyek berkata kunci luas** (mis. SLOG POLRI setelah ditambah "polri, polisi": sebaran emosi ±13 dtk, feed ikut gagal 503 saat database sumber sibuk): daftar post tidak lagi menunggu bar emosi; bar emosi dimuat lewat `view=moods` tersendiri di pool analitik (timeout 60 dtk, cache 10 menit), jadi tidak lagi memakai koneksi daftar post.
 - Warmer cache (`warmOverview`) hanya berjalan di produksi (atau dengan `WARM_CACHES=1`): `npm run dev` pengembang membaca database sumber yang sama dan ikut menambah beban.

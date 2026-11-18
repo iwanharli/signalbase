@@ -25,11 +25,6 @@
 /* Toolbar: the same dark panel as the quick filter bar on the media pages */
 .toolbar { --segment-height: 30px; --control-height: 40px; position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 18px; color: #fff;
   background: #151326; box-shadow: 0 4px 18px -16px rgba(46,16,101,.4), inset 0 1px 0 rgba(255,255,255,.08); animation: rise 600ms 80ms cubic-bezier(.2,.8,.2,1) both; }
-.toggle { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 14px; cursor: pointer; flex-shrink: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: #fff;
-  background: rgba(255,255,255,.06); border: 1px solid rgba(167,139,250,.35); transition: background 220ms, box-shadow 220ms, border-color 220ms; }
-.toggle:hover { background: rgba(124,58,237,.22); box-shadow: 0 0 22px -4px rgba(124,58,237,.7); }
-.toggle[data-active] { border-color: transparent; background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,211,238,.75)); box-shadow: 0 0 24px rgba(124,58,237,.55); }
-.toggle:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 3px; }
 .search { margin-left: auto; flex: 1 1 220px; max-width: 360px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-radius: 14px; cursor: text;
   color: rgba(255,255,255,.55); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); transition: border-color 200ms, box-shadow 200ms, background 200ms; }
 .search:focus-within { border-color: rgba(34,211,238,.7); background: rgba(255,255,255,.08); color: #67e8f9; box-shadow: 0 0 0 4px rgba(34,211,238,.12), 0 0 28px -6px rgba(34,211,238,.55); }
@@ -42,20 +37,29 @@
 
 /* Two panes: ranked issues on the left, the selected issue on the right */
 .layout { display: grid; grid-template-columns: minmax(300px, 390px) minmax(0, 1fr); gap: 16px; align-items: start; }
-.list { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 110px); overflow-y: auto; padding: 0 6px 4px 2px; position: sticky; top: 76px; scrollbar-width: thin; }
+.list { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 110px); position: sticky; top: 76px; min-height: 0; }
+/* Only the cards scroll; the heading stays above them. Room for the active card's ring and a gap before the thin scrollbar. */
+.listScroll { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 10px 18px 4px; margin: -4px 0 0 -4px; scrollbar-gutter: stable; scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--mantine-color-gray-5) 45%, transparent) transparent;
+  mask-image: linear-gradient(180deg, transparent, #000 10px, #000 calc(100% - 28px), transparent); }
+.listScroll::-webkit-scrollbar { width: 6px; }
+.listScroll::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+.listScroll::-webkit-scrollbar-thumb { border-radius: 99px; background: color-mix(in srgb, var(--mantine-color-gray-5) 40%, transparent); }
+.listScroll::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--mantine-color-gray-5) 70%, transparent); }
 .detailWrap { min-width: 0; scroll-margin-top: 80px; }
-.listHead { flex-shrink: 0; position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; font-size: 13px; font-weight: 800; letter-spacing: .3px; color: #fff;
+.listHead { flex-shrink: 0; position: relative; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; font-size: 13px; font-weight: 800; letter-spacing: .3px; color: #fff;
   background: radial-gradient(120% 200% at 0% 0%, rgba(244,63,94,.35), transparent 60%), #151326; box-shadow: 0 8px 18px -14px rgba(46,16,101,.7), inset 0 1px 0 rgba(255,255,255,.08); }
 .listHead svg { color: #fdba74; }
 .listHead span { padding: 1px 9px; border-radius: 99px; font-size: 11.5px; background: rgba(255,255,255,.14); }
 .listHead small { margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5); }
 
-.issue { flex-shrink: 0; position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; align-items: center; text-align: left; width: 100%; padding: 14px 14px 14px 12px; border-radius: 18px; cursor: pointer; font: inherit; color: inherit;
+.issue { flex-shrink: 0; position: relative; scroll-margin: 12px 0 24px; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; align-items: center; text-align: left; width: 100%; padding: 14px 14px 14px 12px; border-radius: 18px; cursor: pointer; font: inherit; color: inherit;
   background: linear-gradient(100deg, color-mix(in srgb, var(--heat) 9%, var(--mantine-color-body)), var(--mantine-color-body) 62%); border: 1px solid color-mix(in srgb, var(--heat) 16%, var(--mantine-color-default-border));
   box-shadow: 0 1px 2px rgba(15,10,40,.04); transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, border-color .22s; animation: rise 420ms cubic-bezier(.2,.8,.2,1) both; }
 .issue::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, color-mix(in srgb, var(--heat) 55%, #fff), var(--heat)); }
-.issue:hover { transform: translateX(4px); border-color: color-mix(in srgb, var(--heat) 55%, var(--mantine-color-default-border)); box-shadow: 0 14px 28px -20px var(--heat); }
-.issue[data-active] { transform: translateX(4px); border-color: var(--heat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--heat) 20%, transparent), 0 18px 36px -20px var(--heat);
+.issue:hover { border-color: color-mix(in srgb, var(--heat) 55%, var(--mantine-color-default-border)); box-shadow: 0 14px 28px -20px var(--heat); }
+.issue[data-active] { border-color: var(--heat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--heat) 20%, transparent), 0 18px 36px -20px var(--heat);
   background: linear-gradient(100deg, color-mix(in srgb, var(--heat) 17%, var(--mantine-color-body)), var(--mantine-color-body) 70%); }
 .issue:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
 .rank { grid-row: span 2; display: grid; place-items: center; align-content: center; gap: 1px; width: 40px; height: 46px; border-radius: 13px; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums;
@@ -69,7 +73,6 @@
 .issueBody small span, .issueBody small em { display: inline-flex; align-items: center; gap: 4px; }
 .issueBody small span svg { color: var(--heat); }
 .issueBody small em { font-style: normal; font-weight: 700; padding: 1px 8px; border-radius: 99px; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
-.issueBody small em[data-live] { color: var(--mantine-color-teal-8); background: var(--mantine-color-teal-0); }
 .score { grid-column: 3; grid-row: 1; align-self: start; display: grid; justify-items: end; line-height: 1; }
 .score b { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--heat); }
 .score small { margin-top: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--mantine-color-dimmed); }
@@ -140,9 +143,6 @@ a.newsTitle:hover { color: var(--mantine-color-violet-7); }
 @media (prefers-reduced-motion: reduce) { .hero, .toolbar, .issue, .detail, .news { animation: none; } }
 
 /* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
-:global([data-mantine-color-scheme="dark"]) .toggle {
-    border: 1px solid hsl(255 45% 30% / 0.35)
-}
 :global([data-mantine-color-scheme="dark"]) .alert {
     color: var(--mantine-color-red-2);
     background: var(--mantine-color-red-light);
@@ -160,10 +160,6 @@ a.newsTitle:hover { color: var(--mantine-color-violet-7); }
 :global([data-mantine-color-scheme="dark"]) .issueBody small em {
     color: var(--mantine-color-violet-3);
     background: var(--mantine-color-violet-light)
-}
-:global([data-mantine-color-scheme="dark"]) .issueBody small em[data-live] {
-    color: var(--mantine-color-teal-2);
-    background: var(--mantine-color-teal-light)
 }
 :global([data-mantine-color-scheme="dark"]) .scoreRing {
     background: conic-gradient(var(--heat) var(--pct), var(--mantine-color-dark-5) 0)

@@ -15,7 +15,7 @@ import { useApi } from "@/lib/useApi";
 import { formatDate, fromNow } from "../apiKeys/shared";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
-import { Button, StatusPill } from "../ui/Button";
+import { Button } from "../ui/Button";
 import classes from "./issues.module.css";
 
 type ListResponse = { days: number; issues: IssueSummary[] };
@@ -118,7 +118,6 @@ function IssueDetail({ issue, rank, max, keyId, topic, nav }: {
             <span className={classes.rankBadge}>#{rank}</span>
             {rank <= 3 && <span className={classes.hotBadge}><IconFlame size={13} />Panas</span>}
             {isNew(issue) && <span className={classes.newBadge}><IconSparkles size={13} />Baru</span>}
-            <StatusPill tone={issue.active ? "success" : "neutral"}>{issue.active ? "Berlangsung" : "Selesai"}</StatusPill>
           </div>
           <h2>{issue.title}</h2>
           {headline && <p className={classes.headline}>{headline}</p>}
@@ -174,7 +173,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
   const topicLabel = ISSUE_TOPICS.find((t) => t.id === topic)!.label;
   const issueParam = params.get("issue");
   const [search, setSearch] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -192,7 +190,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
 
   const term = search.trim().toLowerCase();
-  const visible = useMemo(() => issues.filter((i) => (!onlyActive || i.active) && (!term || i.title.toLowerCase().includes(term) || i.label?.toLowerCase().includes(term))), [issues, onlyActive, term]);
+  const visible = useMemo(() => issues.filter((i) => (!term || i.title.toLowerCase().includes(term) || i.label?.toLowerCase().includes(term))), [issues, term]);
   const index = Math.max(0, visible.findIndex((i) => i.id === issueParam));
   const selected = visible[index] ?? null;
 
@@ -222,7 +220,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
   const stats = [
     { icon: IconFlame, value: Math.round(issues[0]?.score ?? 0), label: "skor tertinggi" },
     { icon: IconNews, value: issues.reduce((t, i) => t + i.newsCount, 0), label: "berita terkait" },
-    { icon: IconTrendingUp, value: issues.filter((i) => i.active).length, label: "masih berlangsung" },
   ];
 
   return (
@@ -249,7 +246,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
             comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null })}
             data={[...(keyLocked ? [] : [{ value: "", label: "Semua isu" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
         )}
-        <button type="button" className={classes.toggle} data-active={onlyActive || undefined} aria-pressed={onlyActive} onClick={() => setOnlyActive(!onlyActive)}><IconTrendingUp size={14} />Masih berlangsung</button>
         <label className={classes.search}>
           <IconSearch size={15} />
           <input ref={searchRef} value={search} onChange={(e) => setSearch(e.currentTarget.value)} placeholder="Cari isu  ( / )" />
@@ -262,6 +258,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
       <div className={classes.layout}>
         <nav className={classes.list} aria-label="Daftar isu">
           <div className={classes.listHead}><IconTrophy size={16} />Peringkat isu<small>↑ ↓ untuk pindah</small></div>
+          <div className={classes.listScroll}>
           {!list.data && !list.error && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={96} radius={18} />)}
           {visible.map((issue, n) => {
             const rank = rankOf.get(issue.id)!;
@@ -278,7 +275,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
                     <span><IconNews size={12} />{formatNumber(issue.newsCount)} berita</span>
                     <span><IconClock size={12} />{fromNow(issue.lastSeenAt)}</span>
                     {isNew(issue) && <em><IconSparkles size={11} />Baru</em>}
-                    {issue.active && <em data-live>Berlangsung</em>}
                   </small>
                 </span>
                 <span className={classes.score}><b>{formatNumber(issue.score)}</b><small>skor</small></span>
@@ -293,6 +289,7 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
               {!issues.length && days < 30 && <Button size="sm" variant="secondary" onClick={() => go({ days: String(ISSUE_PERIODS.find((p) => p.days > days)!.days) })}>Lihat periode lebih panjang</Button>}
             </div>
           )}
+          </div>
         </nav>
 
         <div ref={detailRef} className={classes.detailWrap}>

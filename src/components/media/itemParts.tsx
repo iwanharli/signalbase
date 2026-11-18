@@ -1,10 +1,10 @@
 "use client";
 // Small presentational pieces shared by the item card and the detail modal.
 import { Badge } from "@mantine/core";
-import { IconEye, IconHeart, IconMessageCircle, IconRepeat, IconRobot, IconTarget } from "@tabler/icons-react";
+import { IconEye, IconHeart, IconMessageCircle, IconMoodEmpty, IconMoodSad, IconMoodSmile, IconRepeat, IconRobot, IconTarget } from "@tabler/icons-react";
 import { FACTOR_LABEL, formatNumber, humanize } from "@/lib/media/labels";
 import { analysisState, formatMetricCount, uniqueTags } from "@/lib/media/presentation";
-import { moodInfo } from "@/lib/media/mood";
+import { moodInfo, moodPolarity } from "@/lib/media/mood";
 import type { MediaItem, MediaType, Metrics } from "@/lib/media/types";
 import classes from "./item.module.css";
 import { Tip } from "../ui/Tip";
@@ -30,14 +30,21 @@ export function AiCategoryBadge({ item, detailed }: { item: MediaItem; detailed?
   );
 }
 
+const POLARITY_ICON = { pos: IconMoodSmile, neu: IconMoodEmpty, neg: IconMoodSad } as const;
+/** News sentiments (not social emotions) get a solid badge, so positive/neutral/negative read at a glance. */
+const SENTIMENT_VALUES = new Set(["positive", "neutral", "negative"]);
+
 export function MoodBadges({ item, type, onDark = false }: { item: MediaItem; type: MediaType; onDark?: boolean }) {
   const mood = item.mood?.trim() ? moodInfo(item.mood) : null;
+  const sentiment = !onDark && !!item.mood && SENTIMENT_VALUES.has(item.mood);
+  const PolarityIcon = item.mood ? POLARITY_ICON[moodPolarity(item.mood)] : null;
   const relevance = item.analysis?.relevance;
   const state = analysisState(item);
   return (
     <div className={classes.moodBadges}>
       {mood
-        ? <Badge size="sm" radius="sm" variant="light" color={mood.color} styles={onDark ? { root: { color: `var(--mantine-color-${mood.color}-3)`, background: `color-mix(in srgb, var(--mantine-color-${mood.color}-5) 16%, transparent)` } } : undefined}>{mood.label}{item.moodLevel ? ` · ${item.moodLevel}/5` : ""}</Badge>
+        ? <Badge size="sm" radius="sm" variant={sentiment ? "filled" : "light"} color={mood.color}
+            leftSection={sentiment && PolarityIcon ? <PolarityIcon size={12} stroke={2.2} /> : undefined} styles={onDark ? { root: { color: `var(--mantine-color-${mood.color}-3)`, background: `color-mix(in srgb, var(--mantine-color-${mood.color}-5) 16%, transparent)` } } : undefined}>{mood.label}{item.moodLevel ? ` · ${item.moodLevel}/5` : ""}</Badge>
         : <Tip label={state === "unlabelled" ? "Analisis sumber sudah tersedia, tetapi belum memiliki label emosi atau sentimen." : "Belum ada analisis sumber untuk item ini."}>
             <Badge size="sm" radius="sm" variant="default" c={onDark ? "#d9d6e7" : "dimmed"} styles={onDark ? { root: { background: "rgba(255,255,255,.07)", borderColor: "rgba(255,255,255,.15)" } } : undefined}>{state === "unlabelled" ? `Tanpa label ${type === "social" ? "emosi" : "sentimen"}` : "Belum dianalisis"}</Badge>
           </Tip>}
@@ -73,7 +80,7 @@ export function TargetTag({ target }: { target: string }) {
   return <span className={classes.target}><IconTarget size={12} />{target}</span>;
 }
 
-/** Hashtag-style chips; shows `limit` and a "+n" chip for the rest. */
+/** Chips for AI topics/signals (not hashtags, so no "#"); shows `limit` and a "+n" chip for the rest. */
 export function Tags({ values, limit, children }: { values: string[]; limit?: number; children?: React.ReactNode }) {
   const unique = uniqueTags(values);
   const shown = limit ? unique.slice(0, limit) : unique;
@@ -81,7 +88,7 @@ export function Tags({ values, limit, children }: { values: string[]; limit?: nu
   return (
     <div className={classes.tags}>
       {children}
-      {shown.map((v) => <span key={v} className={classes.tag}>#{humanize(v)}</span>)}
+      {shown.map((v) => <span key={v} className={classes.tag}>{humanize(v)}</span>)}
       {hidden > 0 && <span className={classes.tag}>+{hidden}</span>}
     </div>
   );

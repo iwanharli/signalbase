@@ -15,6 +15,7 @@ import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
 import { AiSummary } from "./overview/AiSummary";
+import { CardHelp } from "./overview/CardHelp";
 import { FilterControls, Insights, Kpis, useInsights, VIEW_LABEL, type View } from "./overview/Insights";
 
 dayjs.extend(relativeTime);
@@ -41,7 +42,7 @@ function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items:
   return (
     <section className={classes.panel}>
       <header className={classes.panelHead}>
-        <div><h3>{f.title}</h3><p>{scoped ? `${f.what} terbaru yang menyebut keyword proyek ini` : `${f.what} paling baru yang masuk ke bank`}</p></div>
+        <div><h3>{f.title}<CardHelp id={type === "social" ? "latestSocial" : "latestOnline"} /></h3><p>{scoped ? `${f.what} terbaru yang menyebut keyword proyek ini` : `${f.what} paling baru yang masuk ke bank`}</p></div>
         <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Lihat semua <IconArrowRight size={14} /></Link>
       </header>
       <div className={classes.feed}>

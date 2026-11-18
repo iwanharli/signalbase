@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" className={inter.variable} {...mantineHtmlProps}>
-      <head><ColorSchemeScript defaultColorScheme="auto" /></head>
+      <head><ColorSchemeScript defaultColorScheme="dark" /></head>
       <body><Providers>{children}</Providers></body>
     </html>
   );

@@ -22,6 +22,7 @@ import { capitalize, formatNumber, humanize, MEDIA_TYPE_LABEL, sourceLabel } fro
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { PlatformMark } from "../media/PlatformIcon";
+import { CardHelp, type CardHelpId } from "./CardHelp";
 import c from "./insights.module.css";
 
 dayjs.extend(relativeTime);
@@ -59,6 +60,9 @@ const NEGATIVE_SHIFT_POINTS = 8;
 const NEGATIVE_MIN_LABELLED = 30;
 const INTENSE_RATIO = 1.5;
 const INTENSE_MIN = 10;
+/** Below the warning thresholds but clearly rising: shown as "Naik" (yellow) instead of a green "Normal". */
+const NEGATIVE_WATCH_POINTS = 2;
+const INTENSE_WATCH_RATIO = 1.2;
 
 const pct = (n: number, d: number) => (d ? (n / d) * 100 : 0);
 const fmtPct = (v: number) => `${v.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
@@ -123,21 +127,21 @@ function viewData(parts: [MediaType, InsightsData][]): ViewData | null {
 
 // ── Early warning ───────────────────────────────────────────────────────────────
 
-function Indicator({ icon: Icon, label, value, detail, warn, na, href }: {
-  icon: typeof IconFlame; label: string; value: string; detail: React.ReactNode; warn: boolean; na?: boolean; href?: string;
+function Indicator({ icon: Icon, label, value, detail, warn, watch, na, href }: {
+  icon: typeof IconFlame; label: string; value: string; detail: React.ReactNode; warn: boolean; watch?: boolean; na?: boolean; href?: string;
 }) {
   const body = (
     <>
       <div className={c.indTop}>
         <span className={c.indIcon}><Icon size={17} /></span>
         <span className={c.indLabel}>{label}</span>
-        <span className={c.indStatus}>{na ? "Tidak berlaku" : warn ? "Waspada" : "Normal"}</span>
+        <span className={c.indStatus}>{na ? "Tidak berlaku" : warn ? "Waspada" : watch ? "Naik" : "Normal"}</span>
       </div>
       <b className={c.indValue}>{value}</b>
       <span className={c.indDetail}>{detail}</span>
     </>
   );
-  const state = na ? "na" : warn ? "warn" : "ok";
+  const state = na ? "na" : warn ? "warn" : watch ? "watch" : "ok";
   return href && !na
     ? <Link href={href} className={c.indicator} data-state={state}>{body}</Link>
     : <div className={c.indicator} data-state={state}>{body}</div>;
@@ -156,6 +160,8 @@ function EarlyWarning({ data, view, keyId }: { data: ViewData | null; view: View
   const share = pct(now.neg, now.labelled), avgShare = pct(avg.neg, avg.labelled);
   const negWarn = now.labelled >= NEGATIVE_MIN_LABELLED && share - avgShare >= NEGATIVE_SHIFT_POINTS;
   const hotWarn = now.hot >= INTENSE_MIN && now.hot >= avg.hot * INTENSE_RATIO;
+  const negWatch = now.labelled >= NEGATIVE_MIN_LABELLED && share - avgShare >= NEGATIVE_WATCH_POINTS;
+  const hotWatch = now.hot >= INTENSE_MIN && now.hot >= avg.hot * INTENSE_WATCH_RATIO;
   const anyWarn = negWarn || hotWarn || spikes.length > 0;
   const typeForLinks: MediaType = view === "online" ? "online" : "social";
   const ratio = (s: Spike) => s.n / Math.max(1, s.avg);
@@ -163,16 +169,16 @@ function EarlyWarning({ data, view, keyId }: { data: ViewData | null; view: View
   return (
     <section className={c.warning} data-warn={anyWarn || undefined}>
       <header className={c.warningHead}>
-        <div><h3>Peringatan dini</h3><p>24 jam terakhir dibanding rata-rata harian 7 hari sebelumnya · {VIEW_LABEL[view]}</p></div>
+        <div><h3>Peringatan dini<CardHelp id="earlyWarning" /></h3><p>24 jam terakhir dibanding rata-rata harian 7 hari sebelumnya · {VIEW_LABEL[view]}</p></div>
         <span className={c.overall} data-warn={anyWarn || undefined}><i />{anyWarn ? "Perlu perhatian" : "Situasi normal"}</span>
       </header>
 
       <div className={c.indicators}>
-        <Indicator icon={IconFlame} label="Intensitas sangat tinggi" na={!data.hasSocial} warn={hotWarn}
+        <Indicator icon={IconFlame} label="Intensitas sangat tinggi" na={!data.hasSocial} warn={hotWarn} watch={hotWatch}
           href={mediaHref("social", keyId, { level: "5", from: yesterday() })}
           value={data.hasSocial ? formatNumber(now.hot) : "—"}
           detail={data.hasSocial ? <>post negatif level 5 · biasanya {formatNumber(avg.hot)}/hari</> : "Hanya untuk media sosial"} />
-        <Indicator icon={IconMoodSad} label="Porsi negatif" warn={negWarn}
+        <Indicator icon={IconMoodSad} label="Porsi negatif" warn={negWarn} watch={negWatch}
           href={mediaHref(typeForLinks, keyId, { from: yesterday() })}
           value={now.labelled ? fmtPct(share) : "—"}
           detail={<>rata-rata {fmtPct(avgShare)} · <DeltaInline now={share} before={avgShare} /></>} />
@@ -305,13 +311,13 @@ export function Kpis({ data, period, keyId, view }: { data: ViewData | null; per
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const type: MediaType = view === "online" ? "online" : "social";
   const tiles = [
-    { key: "vol", label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
+    { key: "vol", help: "volume" as CardHelpId, label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
       sub: `sebelumnya ${formatNumber(before.total)}`, spark: trend.map((p) => p.total), href: view === "all" ? null : mediaHref(type, keyId, { from }) },
-    { key: "neg", label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
+    { key: "neg", help: "negShare" as CardHelpId, label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
       sub: `sebelumnya ${fmtPct(pct(before.neg, before.labelled))}`, spark: trend.map((p) => share(p, "neg")), href: null },
-    { key: "pos", label: "Porsi positif", value: fmtPct(pct(now.pos, now.labelled)), delta: <Delta now={pct(now.pos, now.labelled)} before={pct(before.pos, before.labelled)} points goodWhenUp />,
+    { key: "pos", help: "posShare" as CardHelpId, label: "Porsi positif", value: fmtPct(pct(now.pos, now.labelled)), delta: <Delta now={pct(now.pos, now.labelled)} before={pct(before.pos, before.labelled)} points goodWhenUp />,
       sub: `sebelumnya ${fmtPct(pct(before.pos, before.labelled))}`, spark: trend.map((p) => share(p, "pos")), href: null },
-    { key: "ai", label: "Teranalisis AI", value: fmtPct(pct(now.labelled, now.total)), delta: null,
+    { key: "ai", help: "analysed" as CardHelpId, label: "Teranalisis AI", value: fmtPct(pct(now.labelled, now.total)), delta: null,
       sub: `${formatNumber(now.labelled)} item`, spark: trend.map((p) => pct(p.pos + p.neu + p.neg, p.total)), href: null },
   ];
   return (
@@ -319,7 +325,7 @@ export function Kpis({ data, period, keyId, view }: { data: ViewData | null; per
       {tiles.map((t, i) => {
         const body = (
           <>
-            <span className={c.kpiLabel}>{t.label}</span>
+            <span className={c.kpiLabel}>{t.label}<CardHelp id={t.help} /></span>
             <b className={c.kpiValue}>{t.value}{t.delta}</b>
             <span className={c.kpiSub}>{t.sub}</span>
             <Spark values={t.spark} />
@@ -498,10 +504,10 @@ function TopList<T extends { n: number; prev: number; labelled: number; neg: num
 }
 
 /** `action` sits at the right of the header (e.g. tabs). */
-function Panel({ icon: Icon, title, text, action, children }: { icon: typeof IconTag; title: string; text: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Panel({ icon: Icon, title, text, help, action, children }: { icon: typeof IconTag; title: string; text: string; help: CardHelpId; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className={c.panel}>
-      <header><span><Icon size={16} /></span><div><h3>{title}</h3><p>{text}</p></div>{action && <div className={c.panelAction}>{action}</div>}</header>
+      <header><span><Icon size={16} /></span><div><h3>{title}<CardHelp id={help} /></h3><p>{text}</p></div>{action && <div className={c.panelAction}>{action}</div>}</header>
       {children}
     </section>
   );
@@ -534,7 +540,7 @@ function TopAccounts({ accounts, period }: { accounts: TopAccount[] | null; peri
   );
 
   return (
-    <Panel icon={IconUsers} title="10 akun teratas" action={tabs}
+    <Panel icon={IconUsers} title="10 akun teratas" help="accounts" action={tabs}
       text={`${active === ALL_PLATFORMS ? "Akun media sosial" : `Akun ${sourceLabel(active)}`} dengan post terbanyak, ${period} hari terakhir`}>
       {accounts ? (
         <TopList rows={rows} empty="Belum ada akun pada periode ini."
@@ -614,7 +620,7 @@ function ProjectCard({ project, others, data, types, period, from }: {
     <section className={c.panel}>
       <header className={c.projectHead}>
         <span><IconPlugConnected size={16} /></span>
-        <div><h3>Keyword per proyek</h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
+        <div><h3>Keyword per proyek<CardHelp id="projectKeywords" /></h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
         <Link href="/api-keys" className={c.projectEdit}>Kelola</Link>
       </header>
       <div className={c.groups}>
@@ -669,16 +675,16 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
       <EarlyWarning data={data} view={view} keyId={keyId} />
 
       <div className={c.grid} data-wide-left>
-        <Panel icon={IconTrendingUp} title={`Tren opini ${title}`} text={`Negatif, netral, dan positif per hari, ${period} hari terakhir`}>
+        <Panel icon={IconTrendingUp} title={`Tren opini ${title}`} help="trend" text={`Negatif, netral, dan positif per hari, ${period} hari terakhir`}>
           {data ? <Trend data={data} /> : <Skeleton h={220} radius="md" />}
         </Panel>
-        <Panel icon={IconTag} title="Topik teratas" text={`Kategori terbanyak, dibanding ${period} hari sebelumnya`}>
+        <Panel icon={IconTag} title="Topik teratas" help="topics" text={`Kategori terbanyak, dibanding ${period} hari sebelumnya`}>
           {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}
         </Panel>
       </div>
 
       {view !== "online" && (
-        <Panel icon={IconHeart} title="Engagement per platform" text={`Like, komentar, share, dan penayangan media sosial, ${period} hari terakhir`}>
+        <Panel icon={IconHeart} title="Engagement per platform" help="engagement" text={`Like, komentar, share, dan penayangan media sosial, ${period} hari terakhir`}>
           {data ? (data.engagement ? <Engagement rows={data.engagement} href={(source) => mediaHref("social", keyId, { source, from })} /> : <p className={c.empty}>Tidak ada data media sosial dalam cakupan ini.</p>)
             : <Skeleton h={260} radius="md" />}
         </Panel>
@@ -689,7 +695,7 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
           <TopAccounts accounts={data ? data.accounts ?? [] : null} period={period} />
         )}
         {view !== "social" && (
-          <Panel icon={IconNews} title="10 media teratas" text={`Media online dengan berita terbanyak, ${period} hari terakhir`}>
+          <Panel icon={IconNews} title="10 media teratas" help="outlets" text={`Media online dengan berita terbanyak, ${period} hari terakhir`}>
             {data ? (
               <TopList rows={data.media ?? []} empty="Belum ada berita pada periode ini."
                 render={(m) => ({
@@ -710,7 +716,7 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
             <ProjectCard project={project} others={projects.filter((p) => p.id !== project.id)} data={data} types={wanted} period={period} from={from} />
           )}
           {showTags && (
-            <Panel icon={IconHash} title="Tagar teratas" text="Media sosial · dari ±4.000 post terbaru tiap periode">
+            <Panel icon={IconHash} title="Tagar teratas" help="hashtags" text="Media sosial · dari ±4.000 post terbaru tiap periode">
               {data?.hashtags ? <RankedList items={data.hashtags} label={(v) => `#${v}`} href={(r) => href(r, { q: r.value })} relative noDelta cols={project ? undefined : 2} />
                 : <Skeleton h={260} radius="md" />}
             </Panel>

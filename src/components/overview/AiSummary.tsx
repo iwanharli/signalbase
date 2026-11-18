@@ -13,6 +13,7 @@ import "dayjs/locale/id";
 import type { SummaryContent, SummaryResponse, Tone, Trend } from "@/lib/ai/summary";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
+import { CardHelp } from "./CardHelp";
 import c from "./aiSummary.module.css";
 
 const TONE_LABEL: Record<Tone, string> = { positif: "Positif", netral: "Netral", negatif: "Negatif", waspada: "Waspada" };
@@ -53,7 +54,7 @@ export function AiSummary({ keyId, admin }: { keyId: string | null; admin: boole
       <header className={c.head}>
         <span className={c.icon}><IconSparkles size={18} /></span>
         <div className={c.title}>
-          <span className={c.eyebrow}>Ringkasan AI · data satu hari penuh</span>
+          <span className={c.eyebrow}>Ringkasan AI · data satu hari penuh<CardHelp id="aiSummary" /></span>
           <h3>{s ? longDay(s.day) : data ? "Belum ada ringkasan" : <Skeleton h={18} w={220} mt={4} />}</h3>
         </div>
         <div className={c.tools}>

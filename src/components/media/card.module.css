@@ -6,6 +6,10 @@
 .card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--tone) 45%, var(--mantine-color-default-border));
   box-shadow: 0 22px 44px -24px color-mix(in srgb, var(--tone) 60%, rgba(46,16,101,.6)); }
 .card:focus-within { border-color: var(--mantine-color-violet-5); box-shadow: 0 0 0 3px var(--mantine-color-violet-2); }
+/* Sentiment at a glance: a solid top bar in the mood colour; negative and positive cards also get a tinted edge and fill. */
+.card[data-polarity]::before { height: 4px; opacity: 1; background: var(--tone); }
+.card[data-polarity="neg"], .card[data-polarity="pos"] { border-color: color-mix(in srgb, var(--tone) 38%, var(--mantine-color-default-border));
+  background: color-mix(in srgb, var(--tone) 5%, var(--mantine-color-body)); }
 @keyframes enter { from { opacity: 0; transform: translateY(16px) scale(.98); } }
 
 .media { overflow: hidden; background: var(--mantine-color-gray-1); }
@@ -28,7 +32,6 @@
 .footerPlace { max-width: 140px; }
 .footerPlace > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .footerBottom { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; min-width: 0; }
-.footerCategory { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 7px; border-radius: 5px; background: var(--mantine-color-gray-0); color: var(--mantine-color-gray-7); font-size: 10.5px; font-weight: 600; text-transform: capitalize; }
 .footerMetrics { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .footerMetrics > span { font-size: 11px; }
 .detailHint { display: inline-flex; align-items: center; gap: 4px; padding: 4px 7px; border-radius: 7px; font-size: 11px; font-weight: 700; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); white-space: nowrap; transition: background 160ms, color 160ms; }
@@ -44,10 +47,10 @@
 .sourceRow > * { min-width: 0; }
 .publisher { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 100px; }
 .publisher > div { min-width: 0; }
-.publisher small { display: block; margin-bottom: 2px; color: var(--mantine-color-gray-6); font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+.publisher small { display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mantine-color-gray-6); font-size: 11px; font-weight: 500; }
 .publisherMark { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border: 1px solid var(--mantine-color-violet-2); border-radius: 10px; background: var(--mantine-color-violet-0); color: var(--mantine-color-violet-8); font-size: 17px; font-weight: 800; }
 .headline { overflow-wrap: anywhere; font-size: 15px; font-weight: 700; line-height: 1.35; }
-.card[data-editorial] { background: linear-gradient(155deg, var(--mantine-color-violet-0), var(--mantine-color-body) 46%); }
+.card[data-editorial] { background: linear-gradient(155deg, color-mix(in srgb, var(--tone) 9%, var(--mantine-color-body)), var(--mantine-color-body) 46%); }
 .card[data-editorial]::before { height: 4px; }
 .card[data-editorial] .body { padding: 20px; gap: 13px; }
 .card[data-editorial] .sourceRow { padding-bottom: 13px; border-bottom: 1px solid var(--mantine-color-gray-2); }
@@ -60,8 +63,23 @@
 /* Compact news previews: the full article and analysis stay in the detail modal. */
 .card[data-type="online"] .media { aspect-ratio: 16 / 9; max-height: 180px; }
 .card[data-type="online"] .media img { width: 100%; height: 100%; object-fit: cover; }
-.card[data-type="online"] .body { padding: 13px 14px; gap: 9px; }
+.card[data-type="online"] .body { padding: 14px 16px 12px; gap: 10px; }
+.card[data-type="online"] .sourceRow { flex-wrap: nowrap; }
+.card[data-type="online"] .publisherMark { width: 32px; height: 32px; border-radius: 9px; font-size: 15px; }
+.card[data-type="online"] .headline { font-size: 15.5px; font-weight: 750; line-height: 1.38; letter-spacing: -.15px; }
+.card[data-type="online"] .footer { grid-template-columns: minmax(0, 1fr) auto; }
+.card[data-type="online"] .footerMeta { flex-wrap: nowrap; overflow: hidden; }
+.card[data-type="online"] .footerPlace { max-width: none; min-width: 0; }
+
+/* News chip row: the outlet's category (neutral) then the AI topics (violet). */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 22px; padding: 0 8px; border-radius: 99px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 11px; font-weight: 650; text-transform: capitalize; border: 1px solid transparent; }
+.chip svg { flex-shrink: 0; opacity: .8; }
+.chip[data-kind="category"] { color: var(--mantine-color-gray-7); background: var(--mantine-color-gray-1); border-color: var(--mantine-color-gray-3); }
+.chip[data-kind="topic"] { color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); border-color: var(--mantine-color-violet-1); }
 .analysis[data-tags-only] { padding: 0; border: 0; border-radius: 0; background: none; }
+.topicLabel { display: inline-flex; align-items: center; gap: 3px; padding: 1px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; color: var(--mantine-color-dimmed); }
 .card[data-editorial] .analysis[data-tags-only] { background: none; }
 .card[data-editorial] .sourceRow { padding-bottom: 9px; }
 .card[data-editorial] .headline { font-size: 19px; line-height: 1.35; }
@@ -102,10 +120,6 @@ button.detailHint:focus-visible { outline: 2px solid var(--mantine-color-violet-
 :global([data-mantine-color-scheme="dark"]) .footerMeta {
     color: var(--mantine-color-dark-2)
 }
-:global([data-mantine-color-scheme="dark"]) .footerCategory {
-    background: var(--mantine-color-dark-6);
-    color: var(--mantine-color-dark-1)
-}
 :global([data-mantine-color-scheme="dark"]) .detailHint {
     color: var(--mantine-color-violet-3);
     background: var(--mantine-color-violet-light)
@@ -123,7 +137,7 @@ button.detailHint:focus-visible { outline: 2px solid var(--mantine-color-violet-
     color: var(--mantine-color-violet-2)
 }
 :global([data-mantine-color-scheme="dark"]) .card[data-editorial] {
-    background: linear-gradient(155deg, var(--mantine-color-violet-light), var(--mantine-color-body) 46%)
+    background: linear-gradient(155deg, color-mix(in srgb, var(--tone) 12%, var(--mantine-color-body)), var(--mantine-color-body) 46%)
 }
 :global([data-mantine-color-scheme="dark"]) .card[data-editorial] .sourceRow {
     border-bottom: 1px solid var(--mantine-color-dark-4)
@@ -158,4 +172,15 @@ button.detailHint:focus-visible { outline: 2px solid var(--mantine-color-violet-
 }
 :global([data-mantine-color-scheme="dark"]) .socialMetrics > span {
     color: var(--mantine-color-dark-1)
+}
+
+:global([data-mantine-color-scheme="dark"]) .chip[data-kind="category"] {
+    color: var(--mantine-color-dark-0);
+    background: var(--mantine-color-dark-5);
+    border-color: var(--mantine-color-dark-4)
+}
+:global([data-mantine-color-scheme="dark"]) .chip[data-kind="topic"] {
+    color: var(--mantine-color-violet-2);
+    background: color-mix(in srgb, var(--mantine-color-violet-5) 14%, transparent);
+    border-color: color-mix(in srgb, var(--mantine-color-violet-5) 28%, transparent)
 }
