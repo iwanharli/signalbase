@@ -1,0 +1,21 @@
+/* EWS: rallies announced in images. Dark panel like the EWS toolbar. */
+.panel { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 18px; color: #fff; background: #151326;
+  border: 1px solid rgba(248,113,113,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.panel header { display: flex; align-items: flex-start; gap: 10px; }
+.panel header > div { flex: 1; min-width: 0; }
+.panel h3 { margin: 0; font-size: 14.5px; font-weight: 800; }
+.panel h3 em { margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-style: normal; font-size: 10.5px; font-weight: 700; color: #fecaca; background: rgba(248,113,113,.18); }
+.panel header p { margin: 2px 0 0; font-size: 12.5px; color: rgba(255,255,255,.6); }
+.icon { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 10px; color: #fca5a5; background: rgba(248,113,113,.16); }
+.all { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: #fca5a5; text-decoration: none; }
+.all:hover { color: #fff; }
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.item { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 8px; border-radius: 14px; text-decoration: none; color: inherit;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); transition: border-color 140ms, transform 140ms; }
+.item:hover { border-color: rgba(248,113,113,.5); transform: translateY(-1px); }
+.item img { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 10px; background: rgba(255,255,255,.06); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px; }
+.facts span { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: #fecaca; background: rgba(248,113,113,.15); }
+.text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; line-height: 1.45; }
+.item small { font-size: 11px; color: rgba(255,255,255,.5); }
+.empty { margin: 0; font-size: 12.5px; color: rgba(255,255,255,.55); }

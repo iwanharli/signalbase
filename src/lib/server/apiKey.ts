@@ -6,6 +6,7 @@ import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { ipAllowed, originAllowed, requestHost } from "../keyAccess";
 import { prisma } from "./db";
 import { decryptSecret, encryptSecret } from "./secrets";
+import { withImageCodes } from "./media/textSignals";
 
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 
@@ -119,7 +120,7 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     // Touch at most once a minute.
     if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
       prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    const res = await handler(req, ctx, { keyId: row.id, scope: parseKeyScope(row.scope, row.keywords), historyDays: limits.historyDays, analysis: limits.analysis });
+    const res = await handler(req, ctx, { keyId: row.id, scope: await withImageCodes(row.id, parseKeyScope(row.scope, row.keywords)), historyDays: limits.historyDays, analysis: limits.analysis });
     if (remaining !== null) {
       res.headers.set("X-RateLimit-Limit", String(limits.callsPerDay));
       res.headers.set("X-RateLimit-Remaining", String(Math.max(0, remaining)));

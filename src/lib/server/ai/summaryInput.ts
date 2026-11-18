@@ -17,6 +17,7 @@ import { issueNews, listIssues } from "../bank/issues";
 import { ontologiIssues } from "../bank/ontologi";
 import { bankPool, withLongTimeout } from "../bank/pool";
 import { buildWhere, COLUMNS, keywordQuery } from "../bank/query";
+import { imageTextFor } from "../media/textSignals";
 
 /** Days before the data day used as the "normal" baseline. */
 const BASELINE_DAYS = 7;
@@ -284,13 +285,14 @@ export async function topEngaged(scope: KeyScope, from: string, to: string, limi
 
 export const engagementScore = (i: MediaItem) => (i.metrics.likes ?? 0) + 2 * (i.metrics.comments ?? 0) + 3 * (i.metrics.shares ?? 0);
 
-export function itemLine(id: string, item: MediaItem, kind?: AccountKind) {
+export function itemLine(id: string, item: MediaItem, kind?: AccountKind, imageText?: string) {
   const who = item.author?.username ? ` · @${item.author.username}${kind ? ` (${KIND_LABEL[kind]})` : ""}` : "";
   const m = item.metrics;
   const metrics = [m.likes && `${n(m.likes)} suka`, m.comments && `${n(m.comments)} komentar`, m.shares && `${n(m.shares)} bagikan`].filter(Boolean).join(", ");
   const mood = item.mood ? ` · ${item.mood}${item.moodLevel ? ` (level ${item.moodLevel})` : ""}` : "";
   const text = item.title ? `${clip(item.title, 160)} — ${clip(item.content, ITEM_CHARS - 160)}` : clip(item.content);
-  return `[${id}] ${sourceLabel(item.source)}${who}${mood}${metrics ? ` · ${metrics}` : ""}\n  ${text}`;
+  const image = imageText ? `\n  [Teks di gambar] ${clip(imageText.replace(/\s*\n\s*/g, " / "), 300)}` : "";
+  return `[${id}] ${sourceLabel(item.source)}${who}${mood}${metrics ? ` · ${metrics}` : ""}\n  ${text}${image}`;
 }
 
 export const itemLabel = (item: MediaItem) => item.title
@@ -321,8 +323,10 @@ async function socialSamples(scope: KeyScope, day: string, refs: Refs, known: re
     ["Akun publik bernada positif", take(byEngagement(recent), (i) => isPublic(i) && !!i.mood && moodPolarity(i.mood) === "pos", POSITIVE_SOCIAL)],
     ["Akun media/institusi dengan interaksi tertinggi (pembanding framing)", take(top, (i) => !isPublic(i), TOP_MEDIA_SOCIAL)],
   ];
+  // The text in their images (media worker): the message of memes and posters whose caption says little.
+  const images = await imageTextFor("social", groups.flatMap(([, items]) => items.map((i) => i.code)));
   return groups.flatMap(([title, items]) => items.length
-    ? [`## ${title}`, ...items.map((i) => itemLine(refs.add("S", itemLabel(i), i.url), i, kind(i)))]
+    ? [`## ${title}`, ...items.map((i) => itemLine(refs.add("S", itemLabel(i), i.url), i, kind(i), images.get(i.code)))]
     : []);
 }
 
@@ -330,7 +334,8 @@ async function socialSamples(scope: KeyScope, day: string, refs: Refs, known: re
 async function newsSamples(scope: KeyScope, day: string, refs: Refs, skip: Set<string>) {
   const items = (await listItems("online", new URLSearchParams({ from: day, to: day }), scope, { limit: LATEST_NEWS * 3, offset: 0 }))
     .filter((i) => !skip.has(i.code)).slice(0, LATEST_NEWS);
-  return items.length ? ["## Berita lain di luar klaster di atas", ...items.map((i) => itemLine(refs.add("B", itemLabel(i), i.url), i))] : [];
+  const images = await imageTextFor("online", items.map((i) => i.code));
+  return items.length ? ["## Berita lain di luar klaster di atas", ...items.map((i) => itemLine(refs.add("B", itemLabel(i), i.url), i, undefined, images.get(i.code)))] : [];
 }
 
 // ---------------------------------------------------------------- the whole message
@@ -377,7 +382,7 @@ Tulis briefing dari data SATU HARI PENUH (hari data, biasanya kemarin): statisti
 PRINSIP
 1. Bottom line up front. Headline = satu perkembangan paling berdampak pada hari data, sebagai kalimat lengkap dengan angka kunci. Bukan label topik.
 2. Setiap angka wajib jelas periodenya: angka hari data ditulis "pada [tanggal]" atau "kemarin"; pembanding ditulis "rata-rata 7 hari sebelumnya"; angka klaster isu ditulis sesuai periodenya. Jangan menggabungkan angka dari periode berbeda seolah satu periode. Jangan menulis "24 jam terakhir".
-3. Hanya fakta dari data. Jangan mengarang nama, angka, kutipan, atau peristiwa. Sampel adalah contoh, bukan seluruh data: simpulkan tema dari sampel, bukan volume.
+3. Hanya fakta dari data. Jangan mengarang nama, angka, kutipan, atau peristiwa. Sampel adalah contoh, bukan seluruh data: simpulkan tema dari sampel, bukan volume. Baris "[Teks di gambar]" adalah teks yang dibaca otomatis dari gambar post (poster, meme, tangkapan layar): bisa salah eja dan bukan kutipan resmi; pakai untuk memahami pesan post, jangan dikutip sebagai pernyataan pasti.
 4. Bedakan fakta dan penilaian. "detail" berisi fakta beserta angkanya. "implication" berisi penilaian Anda: mengapa penting, siapa terdampak, apa yang mungkin terjadi 24-72 jam ke depan.
 5. Prioritaskan yang berubah dan berisiko: lonjakan, pergeseran sentimen, isu peringatan dini level Critical/High, aktor yang menggerakkan narasi. Hal yang stabil cukup satu kalimat di overview.
 6. Bukti: setiap sorotan wajib mengutip 1-4 kode sumber di "evidence" (contoh ["E1","S4"]). Hanya kode yang ada di data. Jangan menulis kode di dalam teks kalimat.

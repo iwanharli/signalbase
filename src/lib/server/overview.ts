@@ -8,6 +8,7 @@ import { filterKey } from "./bank/query";
 import { prisma } from "./db";
 import { typeInsights } from "./insights";
 import { accountPlan, clampHistory } from "./plan";
+import { withImageCodes } from "./media/textSignals";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
@@ -43,8 +44,9 @@ export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Pro
 async function warmAll() {
   await Promise.all([typeStats("social"), typeStats("online")]);
   await Promise.all([typeInsights("social", 7), typeInsights("online", 7)]);
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { scope: true, keywords: true, ownerId: true } });
-  const scopes = keys.map((key) => parseKeyScope(key.scope, key.keywords));
+  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, scope: true, keywords: true, ownerId: true } });
+  // With the items each project matches by image text, so the warmed caches are the ones its pages ask for.
+  const scopes = await Promise.all(keys.map((key) => withImageCodes(key.id, parseKeyScope(key.scope, key.keywords))));
   for (const [i, scope] of scopes.entries()) {
     await Promise.all([typeStats("social", scope), typeStats("online", scope)]);
     await Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]);

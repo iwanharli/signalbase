@@ -15,6 +15,7 @@ import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
 import { classifyBatch, providerErrorMessage, type ProviderConfig, type TokenCount } from "./providers";
 import { localQw, localQwMin, usesLocalQw } from "./localQw";
+import { imageTextFor, withImageCodes } from "../media/textSignals";
 
 const BATCH_SIZE = 20;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
@@ -120,8 +121,11 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const fresh = items.filter((i) => !labelled.has(i.code));
   if (!fresh.length) return { labelled: 0, skipped: 0, sent: 0 };
   items = fresh;
-  const classifiable = items.filter((i) => itemText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
-  let toProvider = classifiable.map((i) => ({ id: i.code, text: itemText(i) }));
+  // The text read from the items' images (media worker) goes with them: a meme's caption is often empty or only emojis.
+  const images = await imageTextFor(type, items.map((i) => i.code));
+  const fullText = (i: MediaItem) => [itemText(i), images.has(i.code) ? `[Teks di gambar] ${images.get(i.code)}` : ""].filter(Boolean).join("\n");
+  const classifiable = items.filter((i) => fullText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
+  let toProvider = classifiable.map((i) => ({ id: i.code, text: fullText(i) }));
   // Model lokal (IndoBERT) dulu untuk key yang memakainya: yang yakin langsung disimpan, sisanya ke penyedia AI.
   const local: Labelled[] = [];
   if (usesLocalQw(job.apiKeyId)) {
@@ -176,6 +180,7 @@ export async function retryRejected(apiKeyId: string) {
   const row = await loadClassifier(apiKeyId);
   if (!row) throw new Error("Proyek ini belum memakai kategorisasi AI");
   const job = buildJob(row);
+  job.scope = await withImageCodes(row.apiKeyId, job.scope); // posts matching the keywords only in their image text too
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let labelled = 0;
   for (const type of MEDIA_TYPES) {
@@ -226,6 +231,7 @@ async function runClassifier(classifierId: string) {
   }
 
   const job = buildJob(row);
+  job.scope = await withImageCodes(row.apiKeyId, job.scope); // posts matching the keywords only in their image text too
   job.skipExcluded = limitedQuota;
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;

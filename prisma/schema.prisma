@@ -326,3 +326,109 @@ model ItemLabel {
   @@id([apiKeyId, type, code])
   @@index([apiKeyId, label])
 }
+
+/// One image analysed by the local media worker (npm run media): news images, X photos/video thumbnails and YouTube
+/// thumbnails. Only the URL and the results are kept; the file itself is downloaded, analysed and discarded. One image
+/// used by many posts (syndicated news photos) is analysed once (MediaLink holds where it appears).
+model MediaAsset {
+  id            String      @id @default(uuid())
+  urlHash       String      @unique // sha256 of url
+  url           String
+  kind          String // "news" | "x_photo" | "x_video" | "youtube"
+  status        String      @default("pending") // "pending" | "done" | "failed" (retried) | "gone" (404/expired, not retried)
+  error         String?
+  attempts      Int         @default(0)
+  /// After a failure, not retried before this (5 min, 30 min, 2 h), so a passing outage doesn't use up the attempts.
+  nextAttemptAt DateTime?
+  /// A news outlet's default picture (the same image on ≥5 of its articles): hidden from the media page.
+  placeholder   Boolean     @default(false)
+  /// Images whose dHash differs by ≤ NEAR_TWIN_BITS share a group (the id of its first image): the same picture
+  /// re-encoded, resized or with a small overlay, shared under different URLs. Set by the worker after analysis.
+  twinGroup     String?
+  width         Int?
+  height        Int?
+  dhash         String? // 64-bit difference hash (hex): the same picture re-encoded or resized gets the same or a close hash
+  ocrText       String? // text read from the image ("" = none), outlet watermarks removed
+  ocrWords      Int         @default(0)
+  /// OCR lines with size and position ([{ t, h, cy }], relative to the image height), for keyText.
+  ocrLines      Json?
+  /// "Teks penting": ocrText without app chrome (likes, "Lihat N balasan", times, handles), camera stamps, small background
+  /// text and lines already in the post's caption. Used by the cards, the "Ada teks" filter and the search.
+  keyText       String?
+  keyWords      Int         @default(0)
+  /// Derived from keyText (src/lib/mediaVisual.ts), recomputed when TEXT_RULES_VERSION changes:
+  /// a call to action (action word + date/time/place), the narrative key (same message on different pictures), and
+  /// lines with numeric claims to check.
+  actionCall    Json?
+  narrative     String?
+  claims        String[]
+  textRules     Int         @default(0)
+  /// Caption/title of the first item using the image (≤1000 chars), to drop OCR text that only repeats it.
+  context       String?
+  tags          Json? // [{ tag, score }] best visual tags (CLIP, zero-shot)
+  tagList       String[] // the tag codes, for filtering
+  sensitive     String[] // tags that mark possibly sensitive content (shown as "perlu ditinjau")
+  model         String?
+  analyzedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  links         MediaLink[]
+
+  @@index([status, createdAt])
+  @@index([dhash])
+  @@index([twinGroup])
+  @@index([narrative])
+  @@index([analyzedAt])
+}
+
+/// Where an analysed image appears: one row per (item, position). publishedAt/source copy the item's, so the media page
+/// can list and filter without the source database.
+model MediaLink {
+  type        String // "social" | "online"
+  code        String // post_code / news_code in the source database
+  position    Int
+  assetId     String
+  asset       MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  source      String // platform (twitter, youtube) or outlet
+  publishedAt DateTime
+  /// Projects (ApiKey ids) whose scope includes this item, set by the worker when the item is collected and
+  /// backfilled when a project is created or its scope changes (MediaProjectSync). The media page filters on it.
+  keys        String[]   @default([])
+  /// Projects that match this item only through the text in its image (not its caption). The source-database
+  /// queries of those projects include these items too (bank/query.ts scopeConditions, imageCodes).
+  imageKeys   String[]   @default([])
+
+  @@id([type, code, position])
+  @@index([assetId])
+  @@index([publishedAt])
+  @@index([keys], type: Gin)
+  @@index([imageKeys], type: Gin)
+}
+
+/// Backfill of MediaLink.keys per project: `signature` is a hash of the scope it was computed for; a different one
+/// (new project, keywords changed) restarts it. The cursor walks the links from newest to oldest.
+model MediaProjectSync {
+  keyId      String   @id
+  signature  String
+  cursorAt   String? // MediaLink."publishedAt" as text (to_char), compared as ::timestamp: a Date round-trip shifts it by the session time zone
+  cursorCode String?
+  done       Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Progress of the media worker per feed ("news", "x", "youtube"): the newest item already collected. `ts` is the source
+/// timestamp as text (WIB, no zone), exactly as compared in the source database.
+model MediaCursor {
+  name      String   @id
+  ts        String
+  code      String
+  updatedAt DateTime @updatedAt
+}
+
+/// Health of the media worker (one row, id "main"), written every tick and shown to admins on the media page.
+model MediaWorkerState {
+  id          String   @id
+  heartbeatAt DateTime
+  serviceOk   Boolean
+  lastError   String?
+  lastTick    Json? // { collected, backfilled, analyzed, ms }
+}

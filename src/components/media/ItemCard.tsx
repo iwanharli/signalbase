@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Text } from "@mantine/core";
-import { IconArrowRight, IconClock, IconCategory, IconMapPin, IconSparkles } from "@tabler/icons-react";
+import { IconArrowRight, IconClock, IconCategory, IconMapPin, IconPhotoScan, IconSparkles } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { humanize, sourceLabel } from "@/lib/media/labels";
@@ -91,6 +91,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
         {item.content && (
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
+        {item.matchedByImage && <span className={classes.imageMatch} title="Kata kunci proyek ada di teks gambar post ini, bukan di teks post-nya"><IconPhotoScan size={12} />Kata kunci di gambar</span>}
         <AiCategoryBadge item={item} />
         {!online && item.analysis && <AnalysisPreview analysis={item.analysis} />}
         {online && (item.category || topics.length > 0) && (

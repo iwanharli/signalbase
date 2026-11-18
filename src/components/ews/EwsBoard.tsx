@@ -17,6 +17,7 @@ import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import classes from "../issues/issues.module.css";
 import ews from "./ews.module.css";
+import { ActionCalls } from "./ActionCalls";
 
 type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
@@ -175,6 +176,8 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
           {stats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{list.data ? formatNumber(s.value) : "—"}</b><span>{s.label}</span></div>)}
         </div>
       </header>
+
+      <ActionCalls days={days} keyId={keyId} />
 
       <div className={classes.toolbar}>
         <Segmented label="Periode alert" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v, issue: null })} />

@@ -3,14 +3,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX, IconPhotoScan } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
 import { RoleProvider } from "./RoleContext";
 import classes from "./shell.module.css";
 
-type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[]; /** Active only on this exact path (a sibling lives below it). */ exact?: boolean };
+type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[]; /** Active only on this exact path (a sibling lives below it). */ exact?: boolean;
+  /** Shown to admins only (features still on trial). */ adminOnly?: boolean };
 
 /** Main workspace pages, in the centre of the bar. An item with `children` opens a submenu on hover. */
 const NAV: NavItem[] = [
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
   { href: "/analisis", label: "Analisis", icon: IconChartDots3, children: [
     { href: "/analisis/sna", label: "SNA", icon: IconChartDots3 },
     { href: "/analisis/ontologi", label: "Ontologi", icon: IconHierarchy2 },
+    { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan, adminOnly: true }, // uji coba: admin saja
   ] },
   { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
   { href: "/api-keys", label: "Proyek", icon: IconKey },
@@ -54,7 +56,9 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
   const path = usePathname();
   const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
-  const nav = role === "user" ? NAV.map((i) => (i.href === "/dashboard" ? { ...i, label: "Beranda" } : i)) : NAV;
+  const nav = NAV
+    .map((i) => (i.children ? { ...i, children: i.children.filter((c) => !c.adminOnly || role === "admin") } : i))
+    .map((i) => (role === "user" && i.href === "/dashboard" ? { ...i, label: "Beranda" } : i));
   const tools = TOOLS.filter((t) => (role === "admin" ? !("userOnly" in t) : role === "user" ? !("adminOnly" in t) : !("adminOnly" in t) && !("userOnly" in t)))
     .filter((t) => !(hideBilling && t.href === "/billing")); // everywhere: bar, user menu and the mobile menu
   const barTools = tools.filter((t) => t.href !== "/billing");

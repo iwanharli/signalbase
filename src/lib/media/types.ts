@@ -65,6 +65,8 @@ export type MediaItem = {
   classification?: ItemClassification | null;
   /** Manual label within the project being viewed (?key=); absent without a project. Not AI categorisation. */
   manualLabel?: string | null;
+  /** Shown through a project whose keywords appear only in the item's image text (media worker), not in its text. */
+  matchedByImage?: boolean;
   /** Extra metadata returned only by the admin social feed. */
   socialMetadata?: { sourceUrl?: string | null; language: string | null; matchedKeywords: string[]; keywordRestricted: boolean };
 };

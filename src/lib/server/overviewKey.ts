@@ -4,6 +4,7 @@ import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { canSeeKey, visibleKeys, type PanelUser } from "./auth";
 import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
+import { withImageCodes } from "./media/textSignals";
 
 type KeyRow = { id: string; name: string; keywords: string[]; scope: unknown; lastUsedAt: Date | null };
 export type OverviewView = { keys: KeyRow[]; key: KeyRow | null; scope: KeyScope | undefined; noKey: boolean };
@@ -27,5 +28,5 @@ export async function overviewView(req: Request, user: PanelUser): Promise<Overv
   } else if (isUser) {
     key = keys[0];
   }
-  return { keys, key: key ?? null, scope: key ? parseKeyScope(key.scope, key.keywords) : undefined, noKey: isUser && !key };
+  return { keys, key: key ?? null, scope: key ? await withImageCodes(key.id, parseKeyScope(key.scope, key.keywords)) : undefined, noKey: isUser && !key };
 }

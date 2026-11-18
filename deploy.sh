@@ -50,6 +50,10 @@ switch_to() {
   pm2 describe signalbase-classifier >/dev/null 2>&1 \
     && pm2 restart signalbase-classifier --update-env >/dev/null \
     || pm2 start npm --name signalbase-classifier --cwd "$APP_DIR" -- run classifier >/dev/null
+  # Media visual: worker and the local analysis service (set up once on the server, see docs teknis Deployment).
+  # Restarted without --update-env so the service keeps its model folder and port.
+  for p in signalbase-media signalbase-media-ai; do pm2 describe "$p" >/dev/null 2>&1 && pm2 restart "$p" >/dev/null; done
+  true
 }
 healthy() {
   for _ in 1 2 3 4 5 6 7 8 9 10; do

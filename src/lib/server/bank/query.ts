@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 // Builds the SQL filter for source-database queries from request parameters.
 // Every user-supplied value is passed as a bound parameter.
 import type { KeyScope } from "@/lib/media/keyScope";
@@ -44,9 +45,16 @@ export function keywordQuery(keywords: string[]) {
 /** The search box split on the word OR (or "|"): "polisi or polri" finds either. Words inside one part must all match. */
 export const searchTerms = (q: string) => q.split(/(?:^|\s+)or(?:\s+|$)|\s*\|\s*/i).map((t) => t.trim()).filter(Boolean).slice(0, 8);
 
+/** A scope for cache keys: its image codes (can be thousands) replaced by a short digest. */
+export function scopeKey(scope: KeyScope) {
+  const { imageCodes, imageSearch, ...rest } = scope;
+  const digest = (c: KeyScope["imageCodes"]) => createHash("sha1").update(JSON.stringify([c?.social ?? [], c?.online ?? []])).digest("hex").slice(0, 12);
+  return JSON.stringify(rest) + (imageCodes ? `#img:${digest(imageCodes)}` : "") + (imageSearch ? `#imgq:${digest(imageSearch)}` : "");
+}
+
 /** Stable cache key for a filter set. */
 export const filterKey = (type: MediaType, params: URLSearchParams, scope: KeyScope) =>
-  [type, JSON.stringify(scope), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
+  [type, scopeKey(scope), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
 
 /** Conditions from the API key's fixed scope. Added on top of the request filters, so they can only narrow. */
 function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown) => string) {
@@ -54,7 +62,11 @@ function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown
   const social = type === "social";
   const where: string[] = [];
   const keywordTs = keywordQuery(scope.keywords);
-  if (keywordTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`);
+  const imageCodes = scope.imageCodes?.[type];
+  // Items whose image text names a keyword (media worker) count too, even when their caption doesn't.
+  if (keywordTs) where.push(imageCodes?.length
+    ? `(${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)}) OR ${c.code} = ANY(${bind(imageCodes)}::text[]))`
+    : `${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`);
   if (scope.analyzedOnly) where.push(`${c.mood} IS NOT NULL AND ${c.mood} <> ''`);
   if (scope.language === "id") where.push(`${c.language} = 'id'`);
   else if (scope.language === "other") where.push(`${c.language} IS DISTINCT FROM 'id'`);
@@ -88,7 +100,12 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
 
   const search = get("q")?.trim();
   const terms = search ? searchTerms(search.slice(0, 200)) : [];
-  if (terms.length) where.push(`${c.search} @@ (${terms.map((t) => `plainto_tsquery('indonesian', ${bind(t)})`).join(" || ")})`);
+  if (terms.length) {
+    const text = `${c.search} @@ (${terms.map((t) => `plainto_tsquery('indonesian', ${bind(t)})`).join(" || ")})`;
+    // Items whose image text matches the search (found by the media route in the Signalbase database) count too.
+    const byImage = scope.imageSearch?.[type];
+    where.push(byImage?.length ? `(${text} OR ${c.code} = ANY(${bind(byImage)}::text[]))` : text);
+  }
 
   const from = get("from"), to = get("to");
   if (isDate(from)) where.push(`${c.timestamp} >= ${bind(from)}::date`);

@@ -19,6 +19,13 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## 2026-11-18
 
 ### Ditambahkan
+- **Media visual** (Analisis → Media visual, admin saja selama uji coba): gambar berita online, foto/video X, dan thumbnail YouTube dianalisis **lokal di server** (tanpa AI cloud; gambar diunduh, dianalisis, lalu dibuang). Worker `npm run media` (PM2 `signalbase-media`) + layanan Python `scripts/media/layanan_media.py` (PM2 `signalbase-media-ai`): teks di gambar (RapidOCR, model Inggris), tag visual dan penanda konten sensitif (CLIP ONNX), sidik jari gambar untuk gambar yang beredar ulang/mirip. Halaman per post (kolase, teks dan tag gabungan) atau per gambar, masonry 4 kolom, filter sumber/proyek/tag/ada teks/perlu ditinjau/ajakan aksi/klaim angka, infinite scroll, modal dengan teks penting di kanan, galeri, gambar mirip, dan status worker di header.
+- **Teks penting gambar**: teks OCR tanpa elemen tampilan aplikasi, stempel kamera, teks kecil, watermark media, dan pengulangan caption; dipakai kartu, filter, dan pencarian.
+- **Teks gambar ikut kata kunci proyek**: post yang kata kuncinya hanya ada di gambar (caption kosong/emoji) ikut masuk proyek di Media Sosial/Online, Ringkasan, laporan, klasifikasi AI, Ringkasan AI, dan API publik; kartu ditandai "Kata kunci di gambar". Pencarian (`?q=`) juga menemukan teks di gambar.
+- **Ajakan aksi dari gambar** (kata ajakan + tanggal/jam/tempat): panel "Rencana aksi dari gambar" di halaman EWS (admin), filter di Media visual.
+- **Narasi terkoordinasi**: tampilan "Narasi" mengelompokkan post dengan pesan gambar yang sama (≥3 post), termasuk gambar yang didesain ulang.
+- **Klaim angka untuk dicek** dari teks gambar (persen, rupiah, jumlah), dengan filter dan bagian di modal.
+- Klasifikasi AI per proyek dan sampel Ringkasan AI ikut membaca teks gambar (`[Teks di gambar]`).
 - **Penjelasan di setiap kartu Ringkasan**: ikon ⓘ di samping judul membuka penjelasan singkat dan "Cara membaca" (perbandingan, warna, ambang). Teks di `src/components/overview/CardHelp.tsx`.
 - Panel memakai **tema gelap sebagai bawaan** (sebelumnya mengikuti sistem); pilihan yang tersimpan di browser tetap dipakai.
 - **Kartu Media Online didesain ulang**: media + penulis di header, satu baris chip (kategori lalu topik AI, tanpa "#" agar tidak dikira tagar), footer satu baris. Kartu dibedakan per sentimen: garis atas, tepi, dan latar merah (negatif) / hijau (positif) / biru (netral), badge sentimen solid dengan ikon.

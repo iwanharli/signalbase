@@ -21,7 +21,13 @@ export const keyScopeSchema = z.object({
   minLevel: z.number().int().min(0).max(5).default(0),
 });
 
-export type KeyScope = z.infer<typeof keyScopeSchema>;
+export type KeyScope = z.infer<typeof keyScopeSchema> & {
+  /** Server only, never stored: items the project matches through the text in their images (media worker), which count
+   *  as matching its keywords. Attached by withImageCodes (server/media/textSignals.ts). */
+  imageCodes?: Partial<Record<MediaType, string[]>>;
+  /** Server only: items whose image text matches the request's search (?q=), which count as matching it. */
+  imageSearch?: Partial<Record<MediaType, string[]>>;
+};
 
 /** No restriction at all: used by the admin panel, which sees the whole bank. */
 export const OPEN_SCOPE: KeyScope = keyScopeSchema.parse({});

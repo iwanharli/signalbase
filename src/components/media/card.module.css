@@ -71,6 +71,11 @@
 .card[data-type="online"] .footerMeta { flex-wrap: nowrap; overflow: hidden; }
 .card[data-type="online"] .footerPlace { max-width: none; min-width: 0; }
 
+/* An item shown in a project only because its image text names a keyword. */
+.imageMatch { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 11px; font-weight: 700;
+  color: var(--mantine-color-cyan-7); background: color-mix(in srgb, var(--mantine-color-cyan-5) 12%, transparent); border: 1px solid color-mix(in srgb, var(--mantine-color-cyan-5) 35%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .imageMatch { color: var(--mantine-color-cyan-2); }
+
 /* News chip row: the outlet's category (neutral) then the AI topics (violet). */
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 22px; padding: 0 8px; border-radius: 99px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;

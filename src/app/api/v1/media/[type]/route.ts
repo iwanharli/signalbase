@@ -9,6 +9,7 @@ import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
 import { labelPage, manualLabelsFor, projectLabels } from "@/lib/server/manualLabels";
+import { withImageSearch } from "@/lib/server/media/textSignals";
 
 const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 100;
@@ -27,7 +28,10 @@ type Context = { params: Promise<{ type: string }> };
 /** CORS preflight for browser calls from sites the key allows. */
 export const OPTIONS = (req: Request) => apiPreflight(req);
 
-export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope, historyDays, analysis }: ApiCaller) => {
+export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, scope: keyScope, historyDays, analysis }: ApiCaller) => {
+  // ?q= also finds items whose image text matches it (media worker); the key's own scope already includes items that
+  // match its keywords only through their images (apiRoute → withImageCodes).
+  const scope = await withImageSearch(keyScope, new URL(req.url).searchParams.get("q"));
   const type = resolveMediaType((await params).type);
   if (!type) return NextResponse.json({ error: "Jenis tidak dikenal: pakai social atau online" }, { status: 404 });
   if (!allowsType(scope, type)) return NextResponse.json({ error: `Kunci ini tidak punya akses ke media ${type}` }, { status: 403 });

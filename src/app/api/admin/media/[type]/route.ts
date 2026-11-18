@@ -4,13 +4,14 @@ import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
 import { labelPage, manualLabelsFor } from "@/lib/server/manualLabels";
-import { countExact, fetchItemsByCode, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
+import { countExact, fetchItemsByCode, filterCodes, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import type { PlanLimits } from "@/lib/plans";
 import { socialMetadata } from "@/lib/server/bank/socialMetadata";
 import { projectKeywords, resolveScope } from "@/lib/server/panelScope";
+import { withImageSearch } from "@/lib/server/media/textSignals";
 
 const PAGE_SIZE = 24;
 
@@ -42,7 +43,9 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
 
     const resolved = await resolveScope(query.get("key"), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
-    const { scope, keyId } = resolved;
+    const { keyId } = resolved;
+    // A search also finds items whose image text matches it (media worker; nothing changes without ?q=).
+    const scope = await withImageSearch(resolved.scope, query.get("q"));
     if (!allowsType(scope, type)) return NextResponse.json({ error: `Proyek ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
 
     // The Proyek filter: its keywords go to the query as `pkw`; a client-sent `pkw` is never trusted.
@@ -98,9 +101,16 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       // Manual labels of the project (separate from AI categorisation).
       keyId ? manualLabelsFor(keyId, type, codes) : null,
     ]);
+    // "Kata kunci di gambar": on the page, items the project matches by image text whose own text doesn't match.
+    const viaImage = items.map((i) => i.code).filter((c) => scope.imageCodes?.[type]?.includes(c));
+    const captionMatched = viaImage.length
+      ? new Set(await filterCodes(type, new URLSearchParams(), { ...scope, imageCodes: undefined, imageSearch: undefined }, viaImage))
+      : new Set<string>();
+    const byImage = new Set(viaImage.filter((c) => !captionMatched.has(c)));
     return NextResponse.json({
       page, hasMore,
       items: items.map((item) => ({
+        ...(byImage.has(item.code) ? { matchedByImage: true } : {}),
         ...analysisForPlan(item, analysisLevel),
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
         ...(manual ? { manualLabel: manual.get(item.code) ?? null } : {}),
