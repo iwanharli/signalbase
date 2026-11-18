@@ -10,10 +10,10 @@ import { prisma } from "../db";
 import { bankPool } from "../bank/pool";
 import { originalXPost } from "../xPost";
 import { xPostId } from "@/lib/media/xPost";
-import { keyText, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, xPostImages, youtubeThumbnail, type OcrLine } from "@/lib/mediaVisual";
+import { PLACEHOLDER_MIN_ARTICLES, retryDelayMs, xPostImages, youtubeThumbnail, type OcrLine } from "@/lib/mediaVisual";
 import { backfillProjects, cleanupOldMedia, ensureMediaIndexes, tagItems } from "./projects";
 import { groupUngrouped, twinGroupFor } from "./twins";
-import { applyTextSignals, refreshTextSignals } from "./textSignals";
+import { applyTextSignals, computeKeyText, refreshTextSignals } from "./textSignals";
 
 const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
 /** First run: start this far back (images of older items have often expired). */
@@ -146,7 +146,7 @@ async function analyzePending() {
         await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: body.gone ? "gone" : "failed", error: body.error?.slice(0, 300) ?? `HTTP ${res.status}`, ...failed(a) } });
         continue;
       }
-      const key = keyText(body.ocrLines ?? [], a.context);
+      const key = computeKeyText(body.ocrLines ?? [], a.context);
       await prisma.mediaAsset.update({
         where: { id: a.id },
         data: {

@@ -49,6 +49,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 - Halaman error (404, 500, pembaruan, offline) didesain ulang, selalu gelap; 404 menampilkan alamat yang tidak ditemukan.
 
 ### Diperbaiki
+- Media visual: kata yang tergabung di hasil OCR dipisah lagi dengan kamus kata dari bank data (`src/lib/server/media/kata.txt`, ±47 ribu kata): "PENJAGAHUTANINDONESIA" → "PENJAGA HUTAN INDONESIA"; kata Inggris dan nama tetap utuh. Ajakan aksi kini butuh kata seruan (ayo, hadiri, bergabung, …) dan menolak teks laporan (tinjau, diamankan, ricuh, …); berita "Kapolri Tinjau Kericuhan Demo…" tidak lagi terbaca sebagai ajakan. Gambar yang sudah dianalisis diperbarui otomatis dari baris OCR tersimpan.
 - Banner proyek di Media Sosial/Online tidak lagi menampilkan baris keterangan keyword ("Menyebut …"), batasan, dan status kategorisasi AI.
 - Daftar post Media Sosial/Online tidak lagi 1–4 dtk per halaman untuk proyek berkata kunci luas: urutan kode per halaman di-cache 60 dtk (stale-while-revalidate; isi item, label manual, dan kategori AI tetap segar). Warmer kini juga menyiapkan halaman pertama, total cocok, dan bar emosi Media setiap proyek (sesuai batas riwayat paket pemiliknya), sehingga total cocok tidak lagi ±53 dtk setelah restart.
 - Halaman EWS: filter level jadi satu grup "Level" (titik warna dan jumlah alert per level); daftar alert kembali bisa digulir dengan judul tetap.

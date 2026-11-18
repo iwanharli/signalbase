@@ -197,8 +197,13 @@ export function reflowOcr(text: string): TextBlock[] {
 
 const DAYS = "senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu|ahad";
 const MONTHS = "januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|jan|feb|mar|apr|jun|jul|agu|agt|sep|okt|nov|des";
-/** Words that call people out (protest, rally, march, besiege…), not just reporting one. */
-const ACTION_WORDS = /\b(aksi|demo|demonstrasi|unjuk\s*rasa|turun\s*ke\s*jalan|turun\s*jalan|geruduk|kepung|long\s*march|mogok|boikot|bela|seruan|ayo|mari|serbu|rapatkan\s*barisan|konsolidasi|apel\s*akbar|aksi\s*damai|aksi\s*massa)\b/i;
+/** What the gathering is (protest, rally, march, strike…). */
+const ACTION_WORDS = /\b(aksi|demo|demonstrasi|unjuk\s*rasa|turun\s*ke\s*jalan|turun\s*jalan|geruduk|kepung|long\s*march|mogok|boikot|serbu|apel\s*akbar|aksi\s*damai|aksi\s*massa|aksi\s*bela|konsolidasi)\b/i;
+/** Words that call people to come: without one, an image about a rally is a report, not a call. */
+const CALL_WORDS = /\b(ayo|ayok|yuk|mari|serukan|seruan|hadiri|hadirilah|datang|datanglah|bergabung|gabung|ikuti|ikutilah|ikut|turun\s*ke\s*jalan|rapatkan\s*barisan|bersatu|lawan|kawal|kepung|geruduk|serbu|undangan|mengundang|wajib\s*hadir|dukung\s*aksi|catat\s*tanggalnya|akan\s*digelar)\b/i;
+/** Words of news about a rally that already happened (handled, investigated, clashed): never a call on their own.
+ *  Production, 19 Nov 2026: "Kapolri Tinjau Kericuhan Demo di Yogyakarta … jam 18.00 WIB … lapangan" was taken for a call. */
+const REPORT_WORDS = /\b(tinjau|meninjau|diamankan|mengamankan|amankan|dalami|mendalami|kericuhan|ricuh|ditangkap|tersangka|diperiksa|memeriksa|dibubarkan|membubarkan|bentrok|bentrokan|korban|usut|mengusut|pascakericuhan|pasca)\b/i;
 const DATE_RE = new RegExp(`\\b((${DAYS}),?\\s*)?(\\d{1,2}\\s*(${MONTHS})\\b|\\d{1,2}[/-]\\d{1,2}([/-]\\d{2,4})?)|\\b(${DAYS})\\b`, "i");
 const TIME_RE = /\b(pukul|jam|pkl\.?)\s*\d{1,2}([.:]\d{2})?\s*(wib|wita|wit)?\b|\b\d{1,2}[.:]\d{2}\s*(wib|wita|wit)\b/i;
 const PLACE_RE = /\b(titik\s*kumpul|lokasi|tempat|depan\s+(gedung|kantor|istana)|gedung|bundaran|lapangan|alun-alun|monas|istana|dprd?|mapolda|mapolres|polda|polres|kantor\s+\w+|jl\.?\s+\w+|jalan\s+\w+)\b/i;
@@ -210,11 +215,16 @@ export function detectActionCall(text: string): ActionCall | null {
   if (!text) return null;
   const word = text.match(new RegExp(ACTION_WORDS.source, "gi"));
   if (!word) return null;
+  const call = CALL_WORDS.test(text);
+  // A report about a rally (handled, clashed, investigated) is not a call, unless it plainly calls people to come.
+  if (!call && REPORT_WORDS.test(text)) return null;
   const date = text.match(DATE_RE)?.[0] ?? null, time = text.match(TIME_RE)?.[0] ?? null, place = text.match(PLACE_RE)?.[0] ?? null;
   if (!date && !time && !place) return null;
   // One weak hint (a weekday alone, or a place alone) needs a second one: "aksi" + "gedung" is too common in news photos.
   const strong = (date && !new RegExp(`^(${DAYS})$`, "i").test(date.trim())) || time;
   if (!strong && !(date && place)) return null;
+  // Without a call word, only a full announcement (date and time and place) counts.
+  if (!call && !(date && time && place)) return null;
   return { words: [...new Set(word.map((w) => w.toLowerCase().replace(/\s+/g, " ")))].slice(0, 5), date: date?.trim() ?? null, time: time?.trim() ?? null, place: place?.trim() ?? null };
 }
 
@@ -231,4 +241,45 @@ const CLAIM_RE = new RegExp(`(rp\\.?\\s*\\d[\\d.,]*\\s*(ribu|rb|juta|jt|miliar|t
 /** Lines of the key text that state a number with a unit (amounts, percentages, counts): claims worth checking. */
 export function numericClaims(text: string) {
   return text.split("\n").map((l) => l.trim()).filter((l) => l.length >= 6 && CLAIM_RE.test(l)).slice(0, 8);
+}
+
+// ── Words OCR ran together ────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Word → frequency (see server/media/kata.ts). */
+export type WordFreq = Map<string, number>;
+/** Only tokens at least this long that aren't words themselves are split. */
+const SPLIT_MIN = 8;
+/** Every part of a split must be at least this common, so a rare real word (a name) isn't cut into odd pieces. */
+const SPLIT_PART_MIN = 20;
+/** Parts are at least 3 letters, except these particles: otherwise English words fall apart ("CONTINUED" → "CON TI NU ED"). */
+const SHORT_PARTS = new Set(["di", "ke", "ya", "ri"]);
+const SPLIT_MAX_PARTS = 5;
+/** Cost added per part: of two splits, the one with fewer, longer words wins. */
+const SPLIT_PART_COST = 3;
+
+/** One token OCR ran together ("RESMIMUNDUR") back into words ("RESMI MUNDUR"), keeping its case; unchanged when no
+ *  split into common words exists. */
+export function splitJoined(token: string, words: WordFreq, total: number) {
+  const low = token.toLowerCase();
+  if (low.length < SPLIT_MIN || !/^[a-z]+$/.test(low) || words.has(low)) return token;
+  // best[i]: cheapest split of low[0..i) as [cost, cut positions].
+  const best: ([number, number[]] | null)[] = [[0, []], ...Array(low.length).fill(null)];
+  for (let i = 0; i < low.length; i++) {
+    if (!best[i]) continue;
+    for (let j = i + 2; j <= Math.min(low.length, i + 24); j++) {
+      const part = low.slice(i, j);
+      const f = words.get(part);
+      if (!f || f < SPLIT_PART_MIN || (part.length < 3 && !SHORT_PARTS.has(part))) continue;
+      const cost = best[i]![0] + Math.log(total / f) + SPLIT_PART_COST;
+      if (!best[j] || cost < best[j]![0]) best[j] = [cost, [...best[i]![1], j]];
+    }
+  }
+  const cuts = best[low.length]?.[1];
+  if (!cuts || cuts.length < 2 || cuts.length > SPLIT_MAX_PARTS) return token;
+  return cuts.map((end, k) => token.slice(k ? cuts[k - 1] : 0, end)).join(" ");
+}
+
+/** Every run-together token of a text split into words (punctuation and line breaks kept). */
+export function splitJoinedText(text: string, words: WordFreq, total: number) {
+  return text.replace(/\p{L}+/gu, (t) => splitJoined(t, words, total));
 }

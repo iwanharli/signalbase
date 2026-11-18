@@ -4,14 +4,15 @@
 // the source-database queries of a project include those codes (withImageCodes → bank/query.ts scopeConditions).
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
-import { detectActionCall, mergeKeyText, narrativeKey, numericClaims } from "@/lib/mediaVisual";
+import { detectActionCall, keyText, mergeKeyText, narrativeKey, numericClaims, splitJoinedText, type OcrLine } from "@/lib/mediaVisual";
+import { wordFreq } from "./kata";
 import { keywordQuery, searchTerms } from "../bank/query";
 import { sharedCache } from "../bank/cache";
 import { prisma } from "../db";
 import { RETENTION_DAYS } from "./projects";
 
 /** Bump when the rules in mediaVisual.ts change: analysed images are re-derived in the background. */
-export const TEXT_RULES_VERSION = 1;
+export const TEXT_RULES_VERSION = 2; // 2: words OCR ran together split (kata.txt); calls to action need a call word
 const DERIVE_BATCH = 1000;
 
 type Project = { id: string; query: string };
@@ -48,14 +49,30 @@ export async function applyTextSignals(assetId: string, keyText: string, project
   }
 }
 
-/** Analysed images derived with older rules (or before this existed): a batch per tick. Returns how many were done. */
+/** The key text of OCR lines (see keyText), with words OCR ran together split ("RESMIMUNDUR" → "RESMI MUNDUR"). */
+export function computeKeyText(lines: OcrLine[], context: string | null) {
+  const { words, total } = wordFreq();
+  return keyText(lines.map((l) => ({ ...l, t: splitJoinedText(l.t, words, total) })), context);
+}
+
+/** Analysed images derived with older rules (or before this existed): their key text is rebuilt from the stored OCR
+ *  lines and their signals derived again, a batch per tick. Returns how many were done. */
 export async function refreshTextSignals() {
   const rows = await prisma.mediaAsset.findMany({
-    where: { status: "done", textRules: { lt: TEXT_RULES_VERSION } }, select: { id: true, keyText: true }, orderBy: { analyzedAt: "desc" }, take: DERIVE_BATCH,
+    where: { status: "done", textRules: { lt: TEXT_RULES_VERSION } }, select: { id: true, keyText: true, ocrLines: true, context: true },
+    orderBy: { analyzedAt: "desc" }, take: DERIVE_BATCH,
   });
   if (!rows.length) return 0;
   const projects = await keywordProjects();
-  for (const r of rows) await applyTextSignals(r.id, r.keyText ?? "", projects);
+  for (const r of rows) {
+    let text = r.keyText ?? "";
+    if (Array.isArray(r.ocrLines)) {
+      const key = computeKeyText(r.ocrLines as OcrLine[], r.context);
+      text = key.text;
+      await prisma.mediaAsset.update({ where: { id: r.id }, data: { keyText: key.text, keyWords: key.words } });
+    }
+    await applyTextSignals(r.id, text, projects);
+  }
   return rows.length;
 }
 

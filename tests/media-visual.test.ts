@@ -107,3 +107,25 @@ test("numeric claims are lines with a number and a unit", async () => {
   assert.deepEqual(numericClaims("ANGKA PERUSAHAAN TERKAIT\n104 perusahaan diselidiki oleh kepolisian\nNaik 0,35% ke 5.323\nBantuan Rp 950.000 per keluarga\nKamis 20 November\nSejak 2019"),
     ["104 perusahaan diselidiki oleh kepolisian", "Naik 0,35% ke 5.323", "Bantuan Rp 950.000 per keluarga"]);
 });
+
+test("reports about a rally are not calls to action (production false positive)", async () => {
+  const { detectActionCall } = await import("../src/lib/mediaVisual");
+  assert.equal(detectActionCall("Kapolri Tinjau Kericuhan Demo / di Yogyakarta / Polri Dalami Motif Aksi Massa / jam 18.00 WIB di lapangan"), null);
+  assert.equal(detectActionCall("Demo buruh di depan gedung DPR pukul 10.00 berakhir ricuh, 12 orang diamankan"), null);
+  assert.ok(detectActionCall("AYO HADIRI AKSI BELA PETANI\nSabtu 22 November\nPukul 08.00 WIB"));
+  assert.ok(detectActionCall("Aksi akbar mahasiswa\nRabu, 26 November 2026 · pukul 13.00 WIB\nTitik kumpul Monas"));
+});
+
+test("words OCR ran together are split into common words, real words and names kept", async () => {
+  const { splitJoinedText } = await import("../src/lib/mediaVisual");
+  const words = new Map(Object.entries({ con: 300, ti: 400, nu: 300, ed: 200, de: 900, live: 800, ri: 3000, es: 500, resmi: 6007, mundur: 4237, dari: 90000, wapres: 6218, gibran: 20000, pks: 3000, membacakan: 19, hak: 2500,
+    menyatakan: 940, pendapat: 604, terhadap: 3807, sadap: 650, prabowo: 50000, pengangguran: 717, yogyakarta: 3000, di: 100000, dpr: 5000 }));
+  const total = [...words.values()].reduce((a, b) => a + b, 0);
+  assert.equal(splitJoinedText("GIBRAN RESMIMUNDUR DARIWAPRES", words, total), "GIBRAN RESMI MUNDUR DARI WAPRES");
+  assert.equal(splitJoinedText("Sadap Prabowo SadapPrabowo", words, total), "Sadap Prabowo Sadap Prabowo");
+  assert.equal(splitJoinedText("MENYATAKANPENDAPAT / TERHADAPGIBRANDIDPR", words, total), "MENYATAKAN PENDAPAT / TERHADAP GIBRAN DI DPR");
+  assert.equal(splitJoinedText("pengangguran Yogyakarta Sitanala", words, total), "pengangguran Yogyakarta Sitanala"); // words, or no common split
+  assert.equal(splitJoinedText("CONTINUED US FUEL DELIVERIES", words, total), "CONTINUED US FUEL DELIVERIES"); // English stays whole
+  words.set("viral", 4000); words.set("presiden", 30000);
+  assert.equal(splitJoinedText("VIRALPRESIDENRIPRABOWO", words, total), "VIRAL PRESIDEN RI PRABOWO");
+});
