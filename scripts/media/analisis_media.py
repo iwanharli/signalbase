@@ -31,7 +31,9 @@ MAX_BYTES = 8 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 40_000_000
 # Server media kadang mengirim gambar sebagai application/octet-stream (uji: 8 dari 11 kegagalan); isinya yang dicek PIL.
 _BINARY_TYPES = ("application/octet-stream", "binary/octet-stream", "application/x-binary", "")
-FETCH_TIMEOUT = 12
+# 12 dtk terlalu ketat untuk CDN berita yang lambat dari server (19 Nov 2026: ±190 dari 10 ribu gambar gagal karena
+# handshake/baca timeout di detik, kompas, RRI); 403/404 tidak terpengaruh dan tidak diakali.
+FETCH_TIMEOUT = 20
 # Satu sesi ONNX per proses dan satu thread: worker memproses satu gambar per waktu dan tidak boleh memakan semua core.
 THREADS = int(os.environ.get("MEDIA_THREADS", "1"))
 VARIANT = os.environ.get("MEDIA_CLIP_VARIANT", "fp32")  # fp32 (bawaan bila filenya ada) | q8
