@@ -1,7 +1,7 @@
 "use client";
 // What an image's text says, on the Media visual page: a call to action (rally date, time, place), numeric claims to
 // check, and shared narratives (the same message on several posts' images).
-import { IconCalendarEvent, IconChartBar, IconClock, IconMapPin, IconMessages, IconSpeakerphone } from "@tabler/icons-react";
+import { IconCalendarEvent, IconChartBar, IconClock, IconLanguage, IconMapPin, IconMessages, IconSpeakerphone } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -13,11 +13,12 @@ import c from "./mediaVisual.module.css";
 dayjs.extend(relativeTime);
 
 /** Badges on a card's image. */
-export function SignalBadges({ action, claims }: { action: ActionCall | null; claims: number }) {
+export function SignalBadges({ action, claims, unread }: { action: ActionCall | null; claims: number; unread?: boolean }) {
   return (
     <>
       {action && <span className={c.actionBadge} title="Teks gambar berisi ajakan aksi dengan tanggal, jam, atau tempat"><IconSpeakerphone size={11} />Ajakan aksi</span>}
       {claims > 0 && <span className={c.kind} title="Teks gambar memuat klaim angka"><IconChartBar size={11} />Klaim angka</span>}
+      {unread && <span className={c.kind} title="Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca"><IconLanguage size={11} />Aksara lain</span>}
     </>
   );
 }

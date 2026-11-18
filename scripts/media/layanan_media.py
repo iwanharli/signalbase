@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import analisis_media as A  # noqa: E402
 
 PORT = int(os.environ.get("MEDIA_PORT", "3726"))
-NAME = "media-clip-b32-v2+rapidocr-en"  # v2: fp32 CLIP, ambang dari 254 label (19 Nov 2026)
+NAME = "media-clip-b32-v2+rapidocr-en-u"  # v2: fp32 CLIP, ambang dari 254 label (19 Nov 2026)
 ANALYZER = A.Analyzer()
 LOCK = threading.Lock()
 

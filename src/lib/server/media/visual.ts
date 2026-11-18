@@ -16,6 +16,8 @@ export type VisualQuery = {
   view: VisualView; days: number; kind: VisualKind | null; tag: string | null; sensitive: boolean; text: boolean; q: string; after: VisualCursor | null;
   /** Calls to action only; numeric claims only; one shared narrative (its key). */
   action: boolean; claims: boolean; narrative: string | null;
+  /** Text in a script the OCR can't read (Arabic, Cyrillic, Chinese…). */
+  unread: boolean;
 };
 type Page = Omit<VisualResponse, "days" | "worker">;
 
@@ -56,6 +58,7 @@ function conditions(query: VisualQuery, keyId: string | null) {
   if (query.text) match.push(Prisma.sql`a."keyWords" > 0`);
   if (query.q) match.push(Prisma.sql`a."keyText" ILIKE ${`%${query.q.replace(/[%_\\]/g, "\\$&")}%`}`);
   if (query.action) match.push(Prisma.sql`a."actionCall" IS NOT NULL`);
+  if (query.unread) match.push(Prisma.sql`a."unreadText"`);
   if (query.claims) match.push(Prisma.sql`cardinality(a.claims) > 0`);
   if (query.narrative) match.push(Prisma.sql`a.narrative = ${query.narrative}`);
   return { link, shown, match };
@@ -83,12 +86,12 @@ async function load(query: VisualQuery, keyId: string | null): Promise<Page> {
 
 type AssetRow = { id: string; url: string; kind: VisualKind; width: number | null; height: number | null; tags: VisualAsset["tags"] | null;
   sensitive: string[]; ocrText: string | null; ocrWords: number; keyText: string | null; twinGroup: string | null; usedBy: number;
-  actionCall: VisualAsset["actionCall"]; narrative: string | null; claims: string[] };
+  actionCall: VisualAsset["actionCall"]; narrative: string | null; claims: string[]; unreadText: boolean };
 
 const toAsset = (r: AssetRow, twins: Map<string | null, number>): Omit<VisualAsset, "uses" | "lastSeen"> => ({
   id: r.id, url: r.url, kind: r.kind, width: r.width, height: r.height, tags: r.tags ?? [], sensitive: r.sensitive,
   ocrText: r.ocrText ?? "", ocrWords: r.ocrWords, keyText: r.keyText ?? "", usedBy: r.usedBy, twins: r.twinGroup ? twins.get(r.twinGroup) ?? 0 : 0,
-  actionCall: r.actionCall ?? null, narrative: r.narrative, claims: r.claims ?? [],
+  actionCall: r.actionCall ?? null, narrative: r.narrative, claims: r.claims ?? [], unreadText: r.unreadText,
 });
 
 /** Re-shared pictures: other images in the same near-duplicate group (twins.ts), anywhere in the store. */
@@ -112,7 +115,7 @@ async function imagePage(query: VisualQuery, cond: ReturnType<typeof conditions>
   // Keyset paging on (newest use, id): new images arriving while scrolling don't shift later pages.
   const after = query.after ? Prisma.sql`HAVING (max(l."publishedAt"), a.id) < (${query.after.ts}::timestamp, ${query.after.id})` : Prisma.empty;
   const rows = await prisma.$queryRaw<(AssetRow & { lastSeen: Date; lastSeenTs: string; uses: { type: MediaType; code: string; source: string; publishedAt: string }[] })[]>`
-    SELECT a.id, a.url, a.kind, a.width, a.height, a.tags, a.sensitive, a."ocrText", a."ocrWords", a."keyText", a."twinGroup", a."actionCall", a.narrative, a.claims,
+    SELECT a.id, a.url, a.kind, a.width, a.height, a.tags, a.sensitive, a."ocrText", a."ocrWords", a."keyText", a."twinGroup", a."actionCall", a.narrative, a.claims, a."unreadText",
            count(*)::int "usedBy", max(l."publishedAt") "lastSeen", to_char(max(l."publishedAt"), 'YYYY-MM-DD"T"HH24:MI:SS.US') "lastSeenTs",
            (array_agg(json_build_object('type', l.type, 'code', l.code, 'source', l.source, 'publishedAt', l."publishedAt") ORDER BY l."publishedAt" DESC))[1:${USES_SHOWN}] uses
     FROM "MediaAsset" a JOIN "MediaLink" l ON l."assetId" = a.id
@@ -148,7 +151,7 @@ async function postPage(query: VisualQuery, cond: ReturnType<typeof conditions>)
   const match = cond.match.length ? where(cond.match) : Prisma.sql`true`;
   const images = await prisma.$queryRaw<(AssetRow & { type: MediaType; code: string; position: number; matched: boolean })[]>`
     SELECT l.type, l.code, l.position, (${match}) matched,
-           a.id, a.url, a.kind, a.width, a.height, a.tags, a.sensitive, a."ocrText", a."ocrWords", a."keyText", a."twinGroup", a."actionCall", a.narrative, a.claims,
+           a.id, a.url, a.kind, a.width, a.height, a.tags, a.sensitive, a."ocrText", a."ocrWords", a."keyText", a."twinGroup", a."actionCall", a.narrative, a.claims, a."unreadText",
            (SELECT count(*)::int FROM "MediaLink" u WHERE u."assetId" = a.id) "usedBy"
     FROM "MediaLink" l JOIN "MediaAsset" a ON a.id = l."assetId"
     WHERE (l.type || ':' || l.code) = ANY(${keys}) AND ${where(cond.shown)}
@@ -169,7 +172,7 @@ async function postPage(query: VisualQuery, cond: ReturnType<typeof conditions>)
         item: items.get(p.k) ?? null, images: imgs,
         keyText: mergeKeyText(imgs.map((i) => i.keyText)), tags: mergeTags(imgs.map((i) => i.tags)),
         sensitive: [...new Set(imgs.flatMap((i) => i.sensitive))],
-        actionCall: imgs.find((i) => i.actionCall)?.actionCall ?? null, claims: [...new Set(imgs.flatMap((i) => i.claims))].slice(0, 8),
+        actionCall: imgs.find((i) => i.actionCall)?.actionCall ?? null, claims: [...new Set(imgs.flatMap((i) => i.claims))].slice(0, 8), unreadText: imgs.some((i) => i.unreadText),
         narratives: [...new Set(imgs.map((i) => i.narrative).filter((n): n is string => !!n))],
         twins: Math.max(0, ...imgs.map((i) => i.twins)), sharedElsewhere: Math.max(0, ...imgs.map((i) => i.usedBy - 1)),
       };

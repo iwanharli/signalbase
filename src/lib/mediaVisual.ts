@@ -31,6 +31,8 @@ export type VisualAsset = {
   keyText: string;
   /** From the key text: a call to action, the narrative key (same message on other pictures) and numeric claims. */
   actionCall: ActionCall | null; narrative: string | null; claims: string[];
+  /** Text was found but not read: usually a non-Latin script (Arabic, Cyrillic, Chinese). */
+  unreadText: boolean;
   /** Items using this image, and the newest few of them. */
   usedBy: number; uses: VisualUse[];
   /** Other images (different URLs) with the same fingerprint: a picture being re-shared. */
@@ -63,7 +65,7 @@ export type VisualPost = {
   key: string; type: MediaType; code: string; source: string; publishedAt: string; item: MediaItem | null;
   images: (VisualAsset & { position: number; matched: boolean })[];
   keyText: string; tags: { tag: string; score: number }[]; sensitive: string[];
-  actionCall: ActionCall | null; claims: string[]; narratives: string[];
+  actionCall: ActionCall | null; claims: string[]; narratives: string[]; unreadText: boolean;
   /** Largest number of other URLs/posts sharing one of its images. */
   twins: number; sharedElsewhere: number;
 };

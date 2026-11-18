@@ -121,7 +121,7 @@ async function store(found: Found[]) {
     GROUP BY "assetId", source HAVING count(DISTINCT code) >= ${PLACEHOLDER_MIN_ARTICLES})`;
 }
 
-type Analysis = { width: number; height: number; dhash: string; tags: { tag: string; score: number }[]; sensitive: string[]; ocrText: string; ocrWords: number; ocrLines?: OcrLine[]; model: string };
+type Analysis = { width: number; height: number; dhash: string; tags: { tag: string; score: number }[]; sensitive: string[]; ocrText: string; ocrWords: number; ocrLines?: OcrLine[]; unreadText?: boolean; model: string };
 
 /** Analyses waiting images: social media before news (richer in text), newest first; failed ones after their pause. */
 async function analyzePending() {
@@ -150,7 +150,7 @@ async function analyzePending() {
       await prisma.mediaAsset.update({
         where: { id: a.id },
         data: {
-          ocrLines: body.ocrLines ?? [], keyText: key.text, keyWords: key.words,
+          ocrLines: body.ocrLines ?? [], unreadText: body.unreadText ?? false, keyText: key.text, keyWords: key.words,
           status: "done", error: null, attempts: a.attempts + 1, nextAttemptAt: null, width: body.width, height: body.height, dhash: body.dhash,
           ocrText: body.ocrText.slice(0, 5000), ocrWords: body.ocrWords, tags: body.tags, tagList: body.tags.map((t) => t.tag),
           sensitive: body.sensitive, model: body.model, analyzedAt: new Date(), twinGroup: body.dhash ? await twinGroupFor(a.id, body.dhash) : null,

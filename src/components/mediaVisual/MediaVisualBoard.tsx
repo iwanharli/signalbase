@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Modal, Select, Skeleton } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLetterCase, IconPhoto, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconTags, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconTags, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -48,6 +48,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
   const text = params.get("text") === "1";
   const action = params.get("action") === "1";
   const claims = params.get("claims") === "1";
+  const unread = params.get("unread") === "1";
   const narrative = params.get("narrative") ?? "";
   const q = params.get("q") ?? "";
   const [search, setSearch] = useState(q);
@@ -76,10 +77,11 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
     for (const [k, v] of [["kind", kind], ["tag", tag], ["q", q], ["key", keyId ?? ""], ["narrative", narrative]] as const) if (v) s.set(k, v);
     if (action) s.set("action", "1");
     if (claims) s.set("claims", "1");
+    if (unread) s.set("unread", "1");
     if (sensitive) s.set("sensitive", "1");
     if (text) s.set("text", "1");
     return s.toString();
-  }, [days, view, kind, tag, q, keyId, sensitive, text, action, claims, narrative]);
+  }, [days, view, kind, tag, q, keyId, sensitive, text, action, claims, unread, narrative]);
   useEffect(() => { setCursor(null); setItems([]); setPosts([]); }, [filters]);
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
@@ -162,10 +164,11 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
             <button type="button" data-active={sensitive || undefined} data-tone="warn" aria-pressed={sensitive} onClick={() => go({ sensitive: sensitive ? null : "1" })}><IconAlertTriangle size={14} />Perlu ditinjau</button>
             <button type="button" data-active={action || undefined} data-tone="alert" aria-pressed={action} onClick={() => go({ action: action ? null : "1" })}><IconSpeakerphone size={14} />Ajakan aksi</button>
             <button type="button" data-active={claims || undefined} aria-pressed={claims} onClick={() => go({ claims: claims ? null : "1" })}><IconChartBar size={14} />Klaim angka</button>
+            <button type="button" data-active={unread || undefined} aria-pressed={unread} onClick={() => go({ unread: unread ? null : "1" })} title="Teks beraksara lain (Arab, Kirill, Mandarin…) yang belum bisa dibaca"><IconLanguage size={14} />Aksara lain</button>
           </div>
           {narrative && <span className={c.narrChip} title={narrative}><IconMessages size={13} />Pesan sama: “{narrative.split(" ").slice(0, 5).join(" ")}…”<button type="button" onClick={() => go({ narrative: null })} aria-label="Hapus filter narasi"><IconX size={12} /></button></span>}
-          {(kind || tag || text || sensitive || action || claims || narrative || q || keyId) && (
-            <button type="button" className={c.reset} onClick={() => { setSearch(""); go({ kind: null, tag: null, text: null, sensitive: null, action: null, claims: null, narrative: null, q: null, key: null }); }}><IconRefresh size={13} />Reset</button>
+          {(kind || tag || text || sensitive || action || claims || unread || narrative || q || keyId) && (
+            <button type="button" className={c.reset} onClick={() => { setSearch(""); go({ kind: null, tag: null, text: null, sensitive: null, action: null, claims: null, unread: null, narrative: null, q: null, key: null }); }}><IconRefresh size={13} />Reset</button>
           )}
         </div>
       </div>
@@ -247,7 +250,7 @@ function AssetCard({ asset, onOpen }: { asset: VisualAsset; onOpen: () => void }
         <span className={c.badges}>
           <span className={c.kind}>{VISUAL_KINDS[asset.kind]}</span>
           {asset.sensitive.length > 0 && <span className={c.warnBadge} title="Ditandai otomatis; periksa sendiri sebelum menyimpulkan"><IconAlertTriangle size={11} />Perlu ditinjau</span>}
-          <SignalBadges action={asset.actionCall} claims={asset.claims.length} />
+          <SignalBadges action={asset.actionCall} claims={asset.claims.length} unread={asset.unreadText && !asset.keyText} />
         </span>
         {asset.twins > 0 && <span className={c.twins} title="Gambar yang sama ditemukan di URL lain"><IconCopy size={11} />{asset.twins + 1}×</span>}
       </span>
@@ -323,7 +326,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
           <section className={m.contextSection}>
             <h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Teks penting di gambar</h3>
             <OcrText keyText={asset.keyText} ocrText={asset.ocrText} ocrWords={asset.ocrWords} highlight={highlight}
-              emptyNote={asset.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
+              emptyNote={asset.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : asset.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
           </section>
           <SignalSections action={asset.actionCall} claims={asset.claims} narratives={asset.narrative ? [asset.narrative] : []} onNarrative={onNarrative} />
           <section className={m.analysis}>

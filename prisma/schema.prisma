@@ -352,6 +352,8 @@ model MediaAsset {
   ocrWords      Int         @default(0)
   /// OCR lines with size and position ([{ t, h, cy }], relative to the image height), for keyText.
   ocrLines      Json?
+  /// Text was found but couldn't be read (mostly low-confidence lines): usually non-Latin script (Arabic, Cyrillic, Chinese).
+  unreadText    Boolean     @default(false)
   /// "Teks penting": ocrText without app chrome (likes, "Lihat N balasan", times, handles), camera stamps, small background
   /// text and lines already in the post's caption. Used by the cards, the "Ada teks" filter and the search.
   keyText       String?

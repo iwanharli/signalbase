@@ -59,7 +59,11 @@ TAGS = [
     ("kecelakaan", ["a photo of a traffic accident with a crashed vehicle", "a wrecked car after a collision"]),
     ("tangkapan_layar", ["a screenshot of a social media post", "a screenshot of a chat conversation on a phone"]),
     ("dokumen", ["a photo of an official document or letter", "a printed paper document with text"]),
-    ("poster", ["a poster or flyer with large text", "a news graphic with a headline"]),
+    # Uji 254 gambar berlabel (19 Nov 2026): dua kalimat awal hanya menangkap 15/48 poster; tiga kalimat tambahan → 26/48,
+    # tag utama tepat 59% → 64%, tag lain hanya rugi 2. Kalimat "wajah orang"/"kandidat" menaikkan poster lagi tapi menarik
+    # foto aparat, rapat, dan pidato.
+    ("poster", ["a poster or flyer with large text", "a news graphic with a headline", "a news thumbnail with a bold headline over a photo",
+                "a graphic design with text and a photo collage", "a banner announcement with text"]),
     ("meme", ["an internet meme with caption text", "a funny meme image"]),
     ("infografis", ["an infographic or chart", "a data visualization graphic"]),
     ("pidato", ["a photo of an official giving a speech at a podium", "a person speaking into a microphone"]),
@@ -150,9 +154,10 @@ class Analyzer:
             raise ValueError(f"bukan gambar yang bisa dibaca: {type(e).__name__}") from None
         img = img.convert("RGB")
         tags, sensitive = self.tags(img)
-        text, words, lines = ocr(self.ocr_engine, img)
+        text, words, lines, unreadable = ocr(self.ocr_engine, img)
         return {"width": img.width, "height": img.height, "dhash": dhash(img), "tags": tags, "sensitive": sensitive,
-                "ocrText": text if words >= OCR_MIN_WORDS else "", "ocrWords": words, "ocrLines": lines if words >= OCR_MIN_WORDS else []}
+                "ocrText": text if words >= OCR_MIN_WORDS else "", "ocrWords": words, "ocrLines": lines if words >= OCR_MIN_WORDS else [],
+                "unreadText": unreadable and words < OCR_MIN_WORDS * 3}
 
 
 def preprocess(img: Image.Image) -> np.ndarray:
@@ -198,14 +203,20 @@ def ocr(engine: RapidOCR, img: Image.Image):
         f = OCR_MAX_SIDE / max(img.size)
         img = img.resize((round(img.width * f), round(img.height * f)), Image.BICUBIC)
     res, _ = engine(np.asarray(img))
-    lines = []
+    lines, unread = [], 0
     for box, t, conf in res or []:
         t = t.strip()
+        if t and float(conf) < OCR_MIN_CONF:
+            unread += 1
         if float(conf) < OCR_MIN_CONF or not t or WATERMARK.match(t) or not _readable(t):
             continue
         ys = [p[1] for p in box]
         lines.append({"t": t, "h": round((max(ys) - min(ys)) / img.height, 4), "cy": round((max(ys) + min(ys)) / 2 / img.height, 4)})
-    return "\n".join(l["t"] for l in lines), sum(len(WORD.findall(l["t"])) for l in lines), lines
+    # Teks yang terdeteksi tapi tidak terbaca: banyak kotak teks, hampir semuanya di bawah ambang keyakinan. Biasanya aksara
+    # non-Latin (Arab, Kirill, Mandarin) yang dibaca model Inggris sebagai huruf acak.
+    total = len(res or [])
+    unreadable = unread >= 3 and unread / max(1, total) >= 0.6
+    return "\n".join(l["t"] for l in lines), sum(len(WORD.findall(l["t"])) for l in lines), lines, unreadable
 
 
 def dhash(img: Image.Image) -> str:

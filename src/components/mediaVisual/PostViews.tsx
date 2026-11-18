@@ -59,7 +59,7 @@ export function PostCard({ post, onOpen }: { post: VisualPost; onOpen: () => voi
           <span className={c.kind}>{post.images[0] ? VISUAL_KINDS[post.images[0].kind] : sourceLabel(post.source)}</span>
           {many && <span className={c.kind}><IconStack2 size={11} />{countLabel(post)}</span>}
           {hidden && <span className={c.warnBadge}><IconAlertTriangle size={11} />Perlu ditinjau</span>}
-          <SignalBadges action={post.actionCall} claims={post.claims.length} />
+          <SignalBadges action={post.actionCall} claims={post.claims.length} unread={post.unreadText && !post.keyText} />
         </span>
         {post.twins > 0 && <span className={c.twins} title="Gambar yang sama ditemukan di URL lain"><IconCopy size={11} />{post.twins + 1}×</span>}
         {hidden && <span className={c.veil}><IconEyeOff size={18} />Kemungkinan konten sensitif<small>Klik untuk melihat</small></span>}
@@ -152,7 +152,7 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
               <h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{post.images.length > 1 ? `Teks di gambar ${i + 1}` : "Teks penting di gambar"}</h3>
               {img.tags.length > 0 && <div className={c.tags}>{img.sensitive.length > 0 && <span data-tone="warn"><IconAlertTriangle size={11} />Perlu ditinjau</span>}{img.tags.map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}</div>}
               <OcrText keyText={img.keyText} ocrText={img.ocrText} ocrWords={img.ocrWords} highlight={highlight}
-                emptyNote={img.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
+                emptyNote={img.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : img.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
               {img.usedBy > 1 && <p className={m.sectionNote}>Gambar ini dipakai {formatNumber(img.usedBy)} post.</p>}
             </section>
           ))}

@@ -36,6 +36,18 @@ class Ocr(unittest.TestCase):
             self.assertFalse(A._readable(l), l)
 
 
+    def test_teks_tak_terbaca(self):
+        box = [[10, 10], [200, 10], [200, 40], [10, 40]]
+        def engine(rows):
+            return lambda _img: ([(box, t, c) for t, c in rows], None)
+        img = gambar()
+        acak = [("ala ilg", 0.6), ("wly mrq", 0.55), ("qsd lkh", 0.7), ("ALMAJD", 0.95)]
+        self.assertTrue(A.ocr(engine(acak), img)[3])
+        latin = [("TERBUKTI SADAP", 0.97), ("RESMI MUNDUR", 0.95), ("xx", 0.6)]
+        self.assertFalse(A.ocr(engine(latin), img)[3])
+        self.assertFalse(A.ocr(engine([]), img)[3])
+
+
 class Gambar(unittest.TestCase):
     def test_letterbox_persegi_tanpa_terpotong(self):
         img = gambar(300, 900)
