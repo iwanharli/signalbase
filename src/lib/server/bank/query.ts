@@ -45,11 +45,16 @@ export function keywordQuery(keywords: string[]) {
 /** The search box split on the word OR (or "|"): "polisi or polri" finds either. Words inside one part must all match. */
 export const searchTerms = (q: string) => q.split(/(?:^|\s+)or(?:\s+|$)|\s*\|\s*/i).map((t) => t.trim()).filter(Boolean).slice(0, 8);
 
-/** A scope for cache keys: its image codes (can be thousands) replaced by a short digest. */
+/**
+ * A scope for cache keys. The project's image codes are left out on purpose: they grow every few minutes as the media
+ * worker reads new images, and putting them in the key made every cached count, insight and page of that project miss
+ * (SLOG POLRI insights 0,6 → 13 s after the first deploy). A cached result simply includes the codes as of its refresh,
+ * like any other new post. The image codes of a search (imageSearch) belong to that search, so they stay (as a digest).
+ */
 export function scopeKey(scope: KeyScope) {
-  const { imageCodes, imageSearch, ...rest } = scope;
-  const digest = (c: KeyScope["imageCodes"]) => createHash("sha1").update(JSON.stringify([c?.social ?? [], c?.online ?? []])).digest("hex").slice(0, 12);
-  return JSON.stringify(rest) + (imageCodes ? `#img:${digest(imageCodes)}` : "") + (imageSearch ? `#imgq:${digest(imageSearch)}` : "");
+  const { imageCodes: _codes, imageSearch, ...rest } = scope;
+  const digest = (c: KeyScope["imageSearch"]) => createHash("sha1").update(JSON.stringify([c?.social ?? [], c?.online ?? []])).digest("hex").slice(0, 12);
+  return JSON.stringify({ ...rest, img: !!_codes }) + (imageSearch ? `#imgq:${digest(imageSearch)}` : "");
 }
 
 /** Stable cache key for a filter set. */
