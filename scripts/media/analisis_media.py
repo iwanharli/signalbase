@@ -90,6 +90,11 @@ TAG_MIN = 0.15         # peluang minimal agar tag disimpan
 # hanya punya 2 foto bencana, dan uji banjir sebelumnya memberi skor ≥ 0,74).
 TAG_MIN_BY = {"bencana": 0.9, "demo": 0.2, "kebakaran": 0.6, "kecelakaan": 0.35, "kerumunan": 0.6, "logo": 0.6, "meme": 0.35,
               "orang": 0.05, "pidato": 0.3, "poster": 0.1, "produk": 0.5, "rapat": 0.35, "tangkapan_layar": 0.3}
+# Model tag terlatih (scripts/media/latih_tag.py): menggantikan ambang zero-shot di atas untuk tag biasa. Uji set tetap
+# 286 gambar (19 Nov 2026): tag utama tepat 53,5% → 66,4%, termasuk tag mirip 69,6% → 77,6%. Tag sensitif tetap dari
+# zero-shot dengan SENSITIVE_MIN: contohnya terlalu sedikit untuk dilatih. Tanpa berkasnya, zero-shot dipakai seperti dulu.
+TAG_MODEL = os.environ.get("MEDIA_TAG_MODEL", os.path.join(os.path.dirname(__file__), "tag_model.npz"))
+MODEL_TAG_MIN = 0.25   # tag tambahan (selain tag utama) ditampilkan bila peluangnya setidaknya ini
 SENSITIVE_MIN = 0.65   # jauh lebih ketat: lebih baik terlewat daripada banyak alarm palsu (uji fp32: 2/2 benar)
 TEMPERATURE = 100.0    # skala logit CLIP
 # Baris OCR dengan keyakinan di bawah ini dibuang. Uji 18 Nov 2026: teks asli hampir semua ≥ 0,90; teks acak dari huruf
@@ -127,6 +132,7 @@ class Analyzer:
         e = np.array(embeds, dtype=np.float32)
         self.tag_embeds = e / np.linalg.norm(e, axis=1, keepdims=True)
         del text
+        self.tag_model = dict(np.load(TAG_MODEL)) if os.path.exists(TAG_MODEL) else None
         # Model pembaca bawaan RapidOCR (Mandarin) membuang spasi di teks Latin ("SadapPrabowo"); model Inggris tidak.
         rec = os.path.join(CLIP_DIR, "en_PP-OCRv3_rec_infer.onnx")
         self.ocr_engine = RapidOCR(intra_op_num_threads=THREADS, inter_op_num_threads=1, **({"rec_model_path": rec} if os.path.exists(rec) else {}))
@@ -146,6 +152,10 @@ class Analyzer:
         found = [{"tag": TAGS[i][0], "score": round(float(p[i]), 3)} for i in order
                  if p[i] >= (SENSITIVE_MIN if TAGS[i][0] in SENSITIVE else TAG_MIN_BY.get(TAGS[i][0], TAG_MIN)) and not TAGS[i][0].startswith("_")][:4]
         sensitive = [t["tag"] for t in found if t["tag"] in SENSITIVE and t["score"] >= SENSITIVE_MIN]
+        if self.tag_model is not None:
+            m = v.mean(axis=0)
+            found = [{"tag": t, "score": round(float(p[TAG_INDEX[t]]), 3)} for t in sensitive] + model_tags(m / np.linalg.norm(m), self.tag_model)
+            found = found[:4]
         return found, sensitive
 
     def analyze(self, data: bytes):
@@ -160,6 +170,24 @@ class Analyzer:
         return {"width": img.width, "height": img.height, "dhash": dhash(img), "tags": tags, "sensitive": sensitive,
                 "ocrText": text if words >= OCR_MIN_WORDS else "", "ocrWords": words, "ocrLines": lines if words >= OCR_MIN_WORDS else [],
                 "unreadText": unreadable and words < OCR_MIN_WORDS * 3}
+
+
+TAG_INDEX = {t: i for i, (t, _) in enumerate(TAGS)}
+
+
+def model_tags(emb: np.ndarray, model: dict) -> list:
+    """Tag biasa dari model terlatih untuk satu embedding gambar (rata-rata dua pandangan, ternormalisasi): tag utama
+    (kelas berpeluang tertinggi; "none" = tanpa tag) lalu tag lain dengan peluang ≥ MODEL_TAG_MIN. Tag sensitif tidak
+    pernah dari sini."""
+    lg = float(model["scale"]) * emb @ model["W"] + model["b"]
+    p = np.exp(lg - lg.max())
+    p /= p.sum()
+    classes = [str(c) for c in model["classes"]]
+    order = [i for i in np.argsort(-p) if classes[i] not in SENSITIVE]
+    if not order or classes[order[0]] == "none":
+        return []
+    return [{"tag": classes[i], "score": round(float(p[i]), 3)} for k, i in enumerate(order)
+            if classes[i] != "none" and (k == 0 or p[i] >= MODEL_TAG_MIN)][:4]
 
 
 def preprocess(img: Image.Image) -> np.ndarray:

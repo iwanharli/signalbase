@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import analisis_media as A  # noqa: E402
 
 PORT = int(os.environ.get("MEDIA_PORT", "3726"))
-NAME = "media-clip-b32-v2+rapidocr-en-u"  # v2: fp32 CLIP, ambang dari 254 label (19 Nov 2026)
+NAME = "media-clip-b32-v3+rapidocr-en-u"  # v3: model tag terlatih dari 1.150 label (19 Nov 2026); v2: fp32 CLIP, ambang dari 254 label
 PARALLEL = max(1, int(os.environ.get("MEDIA_PARALLEL", "2")))
 # Satu mesin per analisis yang berjalan: RapidOCR tidak dijamin aman dipakai bersamaan oleh beberapa thread.
 ANALYZERS: "queue.Queue[A.Analyzer]" = queue.Queue()

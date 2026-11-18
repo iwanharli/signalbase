@@ -48,6 +48,38 @@ class Ocr(unittest.TestCase):
         self.assertFalse(A.ocr(engine([]), img)[3])
 
 
+class ModelTag(unittest.TestCase):
+    """Set uji tetap (data/label_tag.npz, 286 gambar berlabel yang tidak dipakai melatih): menjaga akurasi model tag saat
+    aturan, kalimat CLIP, atau model diganti. Tanpa CLIP: embedding gambar sudah tersimpan."""
+    GRUP = {"grafis": {"poster", "meme", "infografis", "tangkapan_layar", "dokumen", "logo"}, "orang": {"orang", "pidato"},
+            "banyak": {"kelompok", "rapat", "kerumunan", "demo"}, "musibah": {"bencana", "kebakaran", "kecelakaan"}}
+
+    @classmethod
+    def setUpClass(cls):
+        import numpy as np
+        here = os.path.dirname(__file__)
+        d = np.load(os.path.join(here, "data", "label_tag.npz"))
+        cls.X, cls.y = d["X"][d["test"]].astype(np.float32), [str(t) for t in d["y"][d["test"]]]
+        cls.model = dict(np.load(os.path.join(here, "tag_model.npz")))
+
+    def utama(self, emb):
+        tags = A.model_tags(emb, self.model)
+        return tags[0]["tag"] if tags else "none"
+
+    def test_akurasi_set_uji(self):
+        pred = [self.utama(x) for x in self.X]
+        grup = lambda t: next((k for k, v in self.GRUP.items() if t in v), t)
+        tepat = sum(p == t for p, t in zip(pred, self.y)) / len(self.y)
+        longgar = sum(grup(p) == grup(t) for p, t in zip(pred, self.y)) / len(self.y)
+        # 19 Nov 2026: tepat 66,4%, longgar ±78%; zero-shot sebelumnya 53,5% / 69,6%.
+        self.assertGreaterEqual(tepat, 0.62, f"tepat {tepat:.1%}")
+        self.assertGreaterEqual(longgar, 0.74, f"longgar {longgar:.1%}")
+
+    def test_tanpa_tag_sensitif(self):
+        for x in self.X:
+            self.assertFalse({t["tag"] for t in A.model_tags(x, self.model)} & A.SENSITIVE)
+
+
 class Gambar(unittest.TestCase):
     def test_letterbox_persegi_tanpa_terpotong(self):
         img = gambar(300, 900)
