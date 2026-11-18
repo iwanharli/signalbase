@@ -25,8 +25,11 @@ const COLLECT_BATCH = 300;
 const X_ALL = process.env.MEDIA_X_ALL === "1";
 /** Pause between FxTwitter requests, to stay well below its rate limits. */
 const X_GAP_MS = 400;
-/** Images analysed per tick (the service does one at a time). */
+/** Images read from the queue at once; batches repeat until the tick's analysis time is used up. */
 const ANALYZE_BATCH = Number(process.env.MEDIA_ANALYZE_BATCH ?? 120);
+/** Analysis time per tick: long enough that collecting (±90 s, mostly X) is a small part, short enough that new posts are
+ *  collected every few minutes. */
+const ANALYZE_BUDGET_MS = Number(process.env.MEDIA_ANALYZE_BUDGET_MS ?? 180_000);
 const MAX_ATTEMPTS = 3;
 /** Images sent to the service at once; match its MEDIA_PARALLEL (one engine each). */
 const PARALLEL = Math.max(1, Number(process.env.MEDIA_PARALLEL ?? 2));
@@ -229,7 +232,12 @@ export async function runMediaTick() {
     }
   }
   const backfilled = await backfillProjects().catch((e) => { console.error("[media] backfill proyek gagal:", (e as Error).message); return 0; });
-  const analyzed = await analyzePending();
+  let analyzed = 0;
+  for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until;) {
+    const n = await analyzePending();
+    analyzed += n;
+    if (!n || !serviceOk) break;
+  }
   const rederived = await refreshTextSignals().catch((e) => { console.error("[media] sinyal teks lama gagal:", (e as Error).message); return 0; });
   if (rederived) console.log(`[media] ${rederived} gambar lama diperbarui sinyal teksnya`);
   const lastTick = { collected, backfilled, analyzed, ms: Date.now() - started };
