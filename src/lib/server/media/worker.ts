@@ -3,8 +3,8 @@
 // Feeds: news images (news_main.news_image), X photos and video thumbnails (through originalXPost), YouTube thumbnails.
 // Instagram, Facebook, Threads and TikTok are not collected: their files are not available to Signalbase.
 //
-// Each tick: collect per feed the newest items (head cursor) and the next older ones (tail cursor, catching up from the
-// first run), then analyse pending images, newest posts first. Nothing
+// Each tick: collect per feed the new items (head cursor) and, while a backlog remains, older ones from today backwards
+// (back cursor), then analyse pending images, newest posts first. Nothing
 // is stored but the URL and the results; one image used by many items is analysed once (MediaAsset.urlHash).
 import { createHash } from "node:crypto";
 import { prisma } from "../db";
@@ -54,20 +54,25 @@ const saveCursor = (name: string, at?: Row) => async () => {
   if (at) await prisma.mediaCursor.upsert({ where: { name }, create: { name, ts: at.ts, code: at.code }, update: { ts: at.ts, code: at.code } });
 };
 
-/** Two reads per feed. Head: the newest items since the last head (newest first), so new posts show up within a tick
- *  even while a backlog is being worked off. Tail: items after the feed's cursor (oldest first, the cursor only moves
- *  forward) up to the head, which fills what the head skipped when more than a batch arrived between ticks. */
+/** Two reads per feed, so the newest days fill first.
+ *  Head (`<feed>:head`): items after the head, oldest first (all new posts; the first run starts at the newest batch).
+ *  Back (`<feed>:back`): the gap between the feed's old cursor (`<feed>`, where collecting started) and the head, read
+ *  newest first, so a backlog fills from today backwards; it stops once it reaches the old cursor. */
 async function newer(name: string, sql: (cond: string, order: string) => string): Promise<Feed[]> {
-  const head = await prisma.mediaCursor.findUnique({ where: { name: `${name}:head` } });
-  const h = head
-    ? await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at DESC, code DESC"), [head.ts, head.code])
-    : await bankPool().query<Row>(sql("true", "at DESC, code DESC"));
-  const c = await cursorOf(name);
-  const top = head ?? (h.rows[0] ? { ts: h.rows[0].ts, code: h.rows[0].code } : null);
-  const t = top
-    ? await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) <= ($3::timestamp, $4)`, "at, code"), [c.ts, c.code, top.ts, top.code])
-    : await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code"), [c.ts, c.code]);
-  return [{ rows: h.rows, save: saveCursor(`${name}:head`, h.rows[0]) }, { rows: t.rows, save: saveCursor(name, t.rows.at(-1)) }];
+  const [head, back] = await Promise.all([prisma.mediaCursor.findUnique({ where: { name: `${name}:head` } }), prisma.mediaCursor.findUnique({ where: { name: `${name}:back` } })]);
+  if (!head) {
+    const { rows } = await bankPool().query<Row>(sql("true", "at DESC, code DESC"));
+    return [{ rows, save: saveCursor(`${name}:head`, rows[0]) }];
+  }
+  const h = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code"), [head.ts, head.code]);
+  const floor = await cursorOf(name);
+  const top = back ?? head;
+  const b = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) < ($3::timestamp, $4)`, "at DESC, code DESC"), [floor.ts, floor.code, top.ts, top.code]);
+  return [
+    { rows: h.rows, save: saveCursor(`${name}:head`, h.rows.at(-1)) },
+    // Nothing left between the old cursor and the back cursor: the backlog is done and this read returns nothing.
+    { rows: b.rows, save: saveCursor(`${name}:back`, b.rows.at(-1)) },
+  ];
 }
 
 const TS = (col: string) => `to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
