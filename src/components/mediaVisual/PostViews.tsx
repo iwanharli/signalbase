@@ -2,10 +2,10 @@
 // Media visual, per post: a card shows a post's images as a collage (1 full, 2 side by side, 3 one big + two, 4 as 2×2)
 // with their text and tags merged; the modal shows every image with its own text and tags. Images that match the
 // filters come first (the server sorts them).
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconAlertTriangle, IconCopy, IconExternalLink, IconEyeOff, IconFileText, IconPhoto, IconPhotoScan, IconStack2, IconTags, IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCopy, IconExternalLink, IconEyeOff, IconFileText, IconPhoto, IconPhotoScan, IconStack2, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -89,7 +89,7 @@ export function PostModal({ post, onClose, onZoom, onOpenItem, onOpenOther, onNa
   const p = post ?? last;
   const tone = p?.sensitive.length ? "var(--mantine-color-orange-6)" : "var(--mantine-color-violet-6)";
   return (
-    <Modal.Root opened={!!post} onClose={onClose} size={1100} radius={20} padding={0} centered yOffset={16} xOffset={12}
+    <Modal.Root opened={!!post} onClose={onClose} size={DETAIL_MODAL_SIZE} radius={20} padding={0} centered yOffset={16} xOffset={12}
       transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
       <Modal.Overlay backgroundOpacity={0.48} blur={3} />
       <Modal.Content className={m.content} aria-label="Detail media post" style={{ ["--tone" as string]: tone }}>
@@ -103,7 +103,7 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
   const [revealed, setRevealed] = useState(post.sensitive.length === 0);
   const text = post.item ? (post.item.title ?? post.item.content ?? "") : "";
   return (
-    <div className={m.shell}>
+    <div className={`${m.shell} ${c.detailShell}`}>
       <header className={m.header}>
         <span className={m.avatar} aria-hidden><IconPhotoScan size={20} /></span>
         <div className={m.heading}>
@@ -119,7 +119,7 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
         </div>
       </header>
 
-      <div className={m.columns}>
+      <div className={`${m.columns} ${c.detailColumns}`}>
         <section className={m.mainCol} aria-label="Gambar">
           <div className={c.gallery} data-n={Math.min(4, post.images.length)}>
             {post.images.map((img, i) => (
@@ -132,17 +132,19 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
             ))}
           </div>
 
+          {post.images.length === 1 && <MediaInfo img={post.images[0]} />}
           {post.images.map((img, i) => (
             <Twins key={img.id} assetId={img.id} count={img.twins} label={post.images.length > 1 ? `Gambar ${i + 1}` : undefined} onPost={onOpenOther} />
           ))}
         </section>
 
         <aside className={m.sideCol} aria-label="Post dan analisis">
+          <Summary tags={post.tags} sensitive={post.sensitive} action={!!post.actionCall} claims={post.claims.length} unread={post.unreadText && !post.keyText} />
           <section className={m.contextSection}>
             <h3>{post.type === "social" ? "Post" : "Berita"}</h3>
             {post.item ? (
               <>
-                <p className={c.postText}>{text.slice(0, 500)}{text.length > 500 ? "…" : ""}</p>
+                <PostText text={text} />
                 <button type="button" className={c.openPost} onClick={onOpenItem}><IconExternalLink size={14} />Buka detail {post.type === "social" ? "post" : "berita"}</button>
               </>
             ) : <p className={m.sectionNote}>Item tidak ditemukan di bank data.</p>}
@@ -150,22 +152,73 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
           {post.images.map((img, i) => (
             <section key={img.id} className={m.contextSection}>
               <h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{post.images.length > 1 ? `Teks di gambar ${i + 1}` : "Teks penting di gambar"}</h3>
-              {img.tags.length > 0 && <div className={c.tags}>{img.sensitive.length > 0 && <span data-tone="warn"><IconAlertTriangle size={11} />Perlu ditinjau</span>}{img.tags.map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}</div>}
+              {post.images.length > 1 && img.tags.length > 0 && <div className={c.tags}>{img.sensitive.length > 0 && <span data-tone="warn"><IconAlertTriangle size={11} />Perlu ditinjau</span>}{img.tags.map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}</div>}
               <OcrText keyText={img.keyText} ocrText={img.ocrText} ocrWords={img.ocrWords} highlight={highlight}
                 emptyNote={img.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : img.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
               {img.usedBy > 1 && <p className={m.sectionNote}>Gambar ini dipakai {formatNumber(img.usedBy)} post.</p>}
             </section>
           ))}
           <SignalSections action={post.actionCall} claims={post.claims} narratives={post.narratives} onNarrative={onNarrative} />
-          <section className={m.analysis}>
-            <div className={m.sectionHead}><IconTags size={15} /><h3>Tag visual gabungan</h3></div>
-            {post.tags.length ? <div className={c.tags}>{post.tags.map((t) => <span key={t.tag} data-tone={post.sensitive.includes(t.tag) ? "warn" : undefined}>{tagLabel(t.tag)}</span>)}</div>
-              : <p className={m.sectionNote}>Tidak ada tag yang cukup yakin.</p>}
-            {post.sensitive.length > 0 && <p className={c.warn}>Ditandai otomatis sebagai kemungkinan konten sensitif ({post.sensitive.map(tagLabel).join(", ")}). Penanda ini belum tentu benar; periksa gambarnya.</p>}
-            <p className={m.sectionNote}>Tag dan teks dibaca model lokal di server Signalbase, tanpa AI cloud. Gambarnya tidak disimpan.</p>
-          </section>
+          <AnalysisNote sensitive={post.sensitive} />
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Width of the two detail modals: wide enough for a tall screenshot beside its text. */
+export const DETAIL_MODAL_SIZE = "min(1440px, calc(100vw - 24px))";
+
+/** Top of the side column: the image's tags and signals at a glance (scores on hover). */
+export function Summary({ tags, sensitive, action, claims, unread }: { tags: { tag: string; score: number }[]; sensitive: string[]; action: boolean; claims: number; unread: boolean }) {
+  return (
+    <section className={`${c.summary} ${c.tags}`} aria-label="Ringkasan analisis">
+      {sensitive.length > 0 && <span data-tone="warn"><IconAlertTriangle size={12} />Perlu ditinjau</span>}
+      {action && <span data-tone="alert">Ajakan aksi</span>}
+      {claims > 0 && <span data-tone="info">{claims} klaim angka</span>}
+      {unread && <span data-tone="info">Aksara lain</span>}
+      {tags.filter((t) => !sensitive.includes(t.tag)).map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}
+      {!tags.length && !sensitive.length && !action && !claims && !unread && <em>Tidak ada tag yang cukup yakin</em>}
+    </section>
+  );
+}
+
+/** Bottom of the side column: what the sensitive flag means, and where the analysis ran. */
+export function AnalysisNote({ sensitive }: { sensitive: string[] }) {
+  return (
+    <div className={c.analysisNote}>
+      {sensitive.length > 0 && <p className={c.warn}>Ditandai otomatis sebagai kemungkinan konten sensitif ({sensitive.map(tagLabel).join(", ")}). Penanda ini belum tentu benar; periksa gambarnya.</p>}
+      <p className={m.sectionNote}>Tag dan teks dibaca model lokal di server Signalbase, tanpa AI cloud. Gambarnya tidak disimpan.</p>
+    </div>
+  );
+}
+
+/** One line under a single image: its size and how widely it is used. */
+export function MediaInfo({ img }: { img: { width: number | null; height: number | null; usedBy: number; twins: number } }) {
+  const parts = [img.width && img.height ? `${img.width}×${img.height}` : null, img.usedBy > 1 ? `dipakai ${formatNumber(img.usedBy)} post` : null,
+    img.twins > 0 ? `mirip ${formatNumber(img.twins)} gambar lain` : null].filter(Boolean);
+  return parts.length ? <p className={c.mediaInfo}>{parts.join(" · ")}</p> : null;
+}
+
+const URL_RE = /https?:\/\/[^\s]+/g;
+/** Post text: long posts folded to a few lines, links shortened to their host. */
+function PostText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 280;
+  const parts: ReactNode[] = [];
+  let at = 0;
+  for (const mt of text.matchAll(URL_RE)) {
+    parts.push(text.slice(at, mt.index));
+    let host = mt[0];
+    try { host = new URL(mt[0]).hostname.replace(/^www\./, ""); } catch { /* keep the raw text */ }
+    parts.push(<a key={mt.index} href={mt[0]} target="_blank" rel="noreferrer noopener" className={c.postLink}>{host}…</a>);
+    at = mt.index + mt[0].length;
+  }
+  parts.push(text.slice(at));
+  return (
+    <>
+      <p className={c.postText} data-folded={(long && !open) || undefined}>{parts}</p>
+      {long && <button type="button" className={c.moreText} onClick={() => setOpen((v) => !v)}>{open ? "Ringkas" : "Selengkapnya"}</button>}
+    </>
   );
 }

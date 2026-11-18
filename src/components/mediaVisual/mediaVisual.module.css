@@ -180,3 +180,23 @@
 .failTip b { margin-bottom: 2px; }
 .failTip span { display: flex; justify-content: space-between; gap: 12px; }
 .failTip em { font-style: normal; opacity: .8; }
+
+/* Detail modals (post and image): as tall as the screen, image filling its column, text and analysis beside it. */
+.detailShell { height: calc(100vh - 32px); height: calc(100dvh - 32px); }
+.detailColumns { grid-template-columns: minmax(0, 1.5fr) minmax(380px, 1fr); }
+.detailColumns .detailMedia, .detailColumns .gallery[data-n="1"] .galleryItem { display: grid; place-items: center; background: rgba(127,127,127,.08); }
+.detailColumns .detailMedia img, .detailColumns .gallery[data-n="1"] .galleryItem img { width: auto; max-width: 100%; max-height: calc(100dvh - 210px); object-fit: contain; background: none; }
+.detailColumns .gallery:not([data-n="1"]) .galleryItem img { height: clamp(220px, calc((100dvh - 320px) / 2), 380px); }
+.mediaInfo { margin: -6px 0 0; text-align: center; font-size: 12px; color: var(--mantine-color-dimmed); }
+.summary { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); }
+.summary em { font-size: 12.5px; font-style: normal; color: var(--mantine-color-dimmed); }
+.tags span[data-tone="alert"] { color: var(--mantine-color-red-7); background: var(--mantine-color-red-0); border-color: var(--mantine-color-red-2); }
+.tags span[data-tone="info"] { color: var(--mantine-color-cyan-8); background: var(--mantine-color-cyan-0); border-color: var(--mantine-color-cyan-2); }
+.postText[data-folded] { display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.postLink { color: var(--mantine-color-violet-6); font-weight: 600; text-decoration: none; }
+.postLink:hover { text-decoration: underline; }
+.moreText { align-self: flex-start; padding: 0; border: 0; background: none; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-6); }
+.analysisNote { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 4px 2px 0; }
+:global([data-mantine-color-scheme="dark"]) .tags span[data-tone="alert"] { color: var(--mantine-color-red-3); background: color-mix(in srgb, var(--mantine-color-red-5) 14%, transparent); border-color: color-mix(in srgb, var(--mantine-color-red-5) 30%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .tags span[data-tone="info"] { color: var(--mantine-color-cyan-3); background: color-mix(in srgb, var(--mantine-color-cyan-5) 14%, transparent); border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 30%, transparent); }
+:global([data-mantine-color-scheme="dark"]) .postLink, :global([data-mantine-color-scheme="dark"]) .moreText { color: var(--mantine-color-violet-3); }

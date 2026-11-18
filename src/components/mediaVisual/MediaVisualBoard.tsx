@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Modal, Select, Skeleton, Tooltip } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoOff, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconTags, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoOff, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -22,7 +22,7 @@ import { Masonry } from "../media/Masonry";
 import { OcrText } from "./OcrText";
 import { Twins } from "./Twins";
 import { NarrativeCard, SignalBadges, SignalSections } from "./Signals";
-import { collageRatio, PostCard, PostModal } from "./PostViews";
+import { AnalysisNote, collageRatio, DETAIL_MODAL_SIZE, PostCard, PostModal, Summary } from "./PostViews";
 import { Button } from "../ui/Button";
 import m from "../media/modal.module.css";
 import classes from "../issues/issues.module.css";
@@ -203,15 +203,6 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
   );
 }
 
-function Tags({ asset, limit }: { asset: VisualAsset; limit?: number }) {
-  return (
-    <div className={c.tags}>
-      {asset.sensitive.length > 0 && <span data-tone="warn" title="Ditandai otomatis; periksa sendiri sebelum menyimpulkan"><IconAlertTriangle size={11} />Perlu ditinjau</span>}
-      {asset.tags.slice(0, limit).map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}
-    </div>
-  );
-}
-
 /** Width/height of a card's photo, kept between 3:4 (portrait) and 2:1 so one extreme picture can't dominate a column. */
 const photoRatio = (a: VisualAsset) => (a.width && a.height ? Math.min(2, Math.max(0.75, a.width / a.height)) : 16 / 10);
 
@@ -279,7 +270,7 @@ function AssetModal({ asset, onClose, onZoom, onPost, onNarrative, highlight }: 
   const a = asset ?? last;
   const tone = a?.sensitive.length ? "var(--mantine-color-orange-6)" : "var(--mantine-color-violet-6)";
   return (
-    <Modal.Root opened={!!asset} onClose={onClose} size={1100} radius={20} padding={0} centered yOffset={16} xOffset={12}
+    <Modal.Root opened={!!asset} onClose={onClose} size={DETAIL_MODAL_SIZE} radius={20} padding={0} centered yOffset={16} xOffset={12}
       transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
       <Modal.Overlay backgroundOpacity={0.48} blur={3} />
       <Modal.Content className={m.content} aria-label="Detail gambar" style={{ ["--tone" as string]: tone }}>
@@ -294,7 +285,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
   const [shown, setShown] = useState(asset.sensitive.length === 0);
   const source = asset.uses[0] ? sourceLabel(asset.uses[0].source) : VISUAL_KINDS[asset.kind];
   return (
-    <div className={m.shell}>
+    <div className={`${m.shell} ${c.detailShell}`}>
       <header className={m.header}>
         <span className={m.avatar} aria-hidden><IconPhotoScan size={20} /></span>
         <div className={m.heading}>
@@ -311,7 +302,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
         </div>
       </header>
 
-      <div className={m.columns}>
+      <div className={`${m.columns} ${c.detailColumns}`}>
         <section className={m.mainCol} aria-label="Gambar">
           {broken ? <div className={c.detailBroken}><IconPhoto size={26} />Gambar sudah tidak tersedia di sumbernya</div> : (
             <button type="button" className={`${m.media} ${c.detailMedia}`} onClick={() => (shown ? onZoom() : setShown(true))} aria-label={shown ? "Perbesar gambar" : "Tampilkan gambar sensitif"}>
@@ -324,18 +315,13 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
         </section>
 
         <aside className={m.sideCol} aria-label="Teks dan analisis gambar">
+          <Summary tags={asset.tags} sensitive={asset.sensitive} action={!!asset.actionCall} claims={asset.claims.length} unread={asset.unreadText && !asset.keyText} />
           <section className={m.contextSection}>
             <h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Teks penting di gambar</h3>
             <OcrText keyText={asset.keyText} ocrText={asset.ocrText} ocrWords={asset.ocrWords} highlight={highlight}
               emptyNote={asset.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : asset.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
           </section>
           <SignalSections action={asset.actionCall} claims={asset.claims} narratives={asset.narrative ? [asset.narrative] : []} onNarrative={onNarrative} />
-          <section className={m.analysis}>
-            <div className={m.sectionHead}><IconTags size={15} /><h3>Tag visual</h3></div>
-            {asset.tags.length || asset.sensitive.length ? <Tags asset={asset} /> : <p className={m.sectionNote}>Tidak ada tag yang cukup yakin.</p>}
-            {asset.sensitive.length > 0 && <p className={c.warn}>Ditandai otomatis sebagai kemungkinan konten sensitif ({asset.sensitive.map(tagLabel).join(", ")}). Penanda ini belum tentu benar; periksa gambarnya.</p>}
-            <p className={m.sectionNote}>Tag dan teks dibaca model lokal di server Signalbase, tanpa AI cloud. Gambarnya tidak disimpan.</p>
-          </section>
 
           <section className={m.contextSection}>
             <h3><IconStack2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Dipakai di {formatNumber(asset.usedBy)} post</h3>
@@ -354,6 +340,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
             </ul>
             {asset.usedBy > asset.uses.length && <p className={m.sectionNote}>Menampilkan {asset.uses.length} post terbaru.</p>}
           </section>
+          <AnalysisNote sensitive={asset.sensitive} />
         </aside>
       </div>
     </div>
