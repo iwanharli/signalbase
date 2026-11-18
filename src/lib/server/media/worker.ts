@@ -3,7 +3,8 @@
 // Feeds: news images (news_main.news_image), X photos and video thumbnails (through originalXPost), YouTube thumbnails.
 // Instagram, Facebook, Threads and TikTok are not collected: their files are not available to Signalbase.
 //
-// Each tick: collect new items per feed (from a cursor, newest last), then analyse pending images, newest first. Nothing
+// Each tick: collect per feed the newest items (head cursor) and the next older ones (tail cursor, catching up from the
+// first run), then analyse pending images, newest posts first. Nothing
 // is stored but the URL and the results; one image used by many items is analysed once (MediaAsset.urlHash).
 import { createHash } from "node:crypto";
 import { prisma } from "../db";
@@ -30,6 +31,7 @@ const MAX_ATTEMPTS = 3;
 
 /** `context`: the item's caption or headline, so OCR text that only repeats it is left out of the key text. */
 type Found = { type: "social" | "online"; code: string; source: string; publishedAt: Date; kind: string; urls: string[]; context: string | null };
+type Collected = { found: Found[]; save: () => Promise<void> };
 type Row = { code: string; source: string; ts: string; at: Date; image?: string | null; url?: string | null; content?: string | null; title?: string | null };
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -42,53 +44,67 @@ async function cursorOf(name: string) {
   return { ts: rows[0].ts, code: "" };
 }
 
-/** Items newer than the feed's cursor, oldest first (so the cursor only moves forward). */
-async function newer(name: string, sql: (cond: string) => string): Promise<{ rows: Row[]; save: () => Promise<void> }> {
+type Feed = { rows: Row[]; save: () => Promise<void> };
+const saveCursor = (name: string, at?: Row) => async () => {
+  if (at) await prisma.mediaCursor.upsert({ where: { name }, create: { name, ts: at.ts, code: at.code }, update: { ts: at.ts, code: at.code } });
+};
+
+/** Two reads per feed. Head: the newest items since the last head (newest first), so new posts show up within a tick
+ *  even while a backlog is being worked off. Tail: items after the feed's cursor (oldest first, the cursor only moves
+ *  forward) up to the head, which fills what the head skipped when more than a batch arrived between ticks. */
+async function newer(name: string, sql: (cond: string, order: string) => string): Promise<Feed[]> {
+  const head = await prisma.mediaCursor.findUnique({ where: { name: `${name}:head` } });
+  const h = head
+    ? await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at DESC, code DESC"), [head.ts, head.code])
+    : await bankPool().query<Row>(sql("true", "at DESC, code DESC"));
   const c = await cursorOf(name);
-  const { rows } = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`), [c.ts, c.code]);
-  const last = rows.at(-1);
-  return {
-    rows,
-    save: async () => {
-      if (!last) return;
-      await prisma.mediaCursor.upsert({ where: { name }, create: { name, ts: last.ts, code: last.code }, update: { ts: last.ts, code: last.code } });
-    },
-  };
+  const top = head ?? (h.rows[0] ? { ts: h.rows[0].ts, code: h.rows[0].code } : null);
+  const t = top
+    ? await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) <= ($3::timestamp, $4)`, "at, code"), [c.ts, c.code, top.ts, top.code])
+    : await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code"), [c.ts, c.code]);
+  return [{ rows: h.rows, save: saveCursor(`${name}:head`, h.rows[0]) }, { rows: t.rows, save: saveCursor(name, t.rows.at(-1)) }];
 }
 
 const TS = (col: string) => `to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
 
-async function collectNews(): Promise<{ found: Found[]; save: () => Promise<void> }> {
-  const { rows, save } = await newer("news", (cond) => `SELECT * FROM (
+async function collectNews(): Promise<Collected[]> {
+  const feeds = await newer("news", (cond, order) => `SELECT * FROM (
       SELECT n.news_code code, n.news_source source, ${TS("n.news_timestamp")} ts, n.news_timestamp at, n.news_image image,
              left(concat_ws(' ', n.news_title, n.news_preview), 1000) title
       FROM news_main n WHERE n.news_timestamp <= now() AND n.news_image ~ '^https?://'
-    ) t WHERE ${cond} ORDER BY at, code LIMIT ${COLLECT_BATCH}`);
-  return { save, found: rows.map((r) => ({ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls: [r.image!], context: r.title ?? null })) };
+    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${COLLECT_BATCH}`);
+  return feeds.map(({ rows, save }) => ({ save, found: rows.map((r): Found => ({ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls: [r.image!], context: r.title ?? null })) }));
 }
 
 async function collectSocial(name: "x" | "youtube", source: string) {
-  return newer(name, (cond) => `SELECT * FROM (
+  return newer(name, (cond, order) => `SELECT * FROM (
       SELECT p.post_code code, p.post_source source, ${TS("p.post_timestamps")} ts, p.post_timestamps at, p.post_url url, left(p.post_content, 2000) content
       FROM post_main p WHERE p.post_source = '${source}' AND p.post_timestamps <= now()
-    ) t WHERE ${cond} ORDER BY at, code LIMIT ${COLLECT_BATCH}`);
+    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${COLLECT_BATCH}`);
 }
 
-async function collectYoutube() {
-  const { rows, save } = await collectSocial("youtube", "youtube");
-  const found: Found[] = [];
-  for (const r of rows) {
-    const thumb = youtubeThumbnail(r.url);
-    if (thumb) found.push({ type: "social", code: r.code, source: "youtube", publishedAt: r.at, kind: "youtube", urls: [thumb], context: r.content ?? null });
-  }
-  return { found, save };
+async function collectYoutube(): Promise<Collected[]> {
+  return (await collectSocial("youtube", "youtube")).map(({ rows, save }) => ({
+    save,
+    found: rows.flatMap((r): Found[] => {
+      const thumb = youtubeThumbnail(r.url);
+      return thumb ? [{ type: "social", code: r.code, source: "youtube", publishedAt: r.at, kind: "youtube", urls: [thumb], context: r.content ?? null }] : [];
+    }),
+  }));
 }
 
-async function collectX() {
-  const { rows, save } = await collectSocial("x", "twitter");
+async function collectX(): Promise<Collected[]> {
+  const out: Collected[] = [];
+  for (const { rows, save } of await collectSocial("x", "twitter")) out.push({ save, found: await xImages(rows) }); // one after the other: FxTwitter pace
+  return out;
+}
+
+/** X posts' images through FxTwitter; posts already collected (by the other cursor) are not asked again. */
+async function xImages(rows: Row[]) {
+  const known = new Set((await prisma.mediaLink.findMany({ where: { type: "social", code: { in: rows.map((r) => r.code) } }, select: { code: true } })).map((l) => l.code));
   const found: Found[] = [];
   for (const r of rows) {
-    if (!X_ALL && !r.content?.includes("t.co/")) continue;
+    if (known.has(r.code) || (!X_ALL && !r.content?.includes("t.co/"))) continue;
     const id = xPostId(r.url);
     if (!id) continue;
     try {
@@ -98,7 +114,7 @@ async function collectX() {
     } catch { /* FxTwitter/X unavailable: this post is skipped, the feed moves on */ }
     await sleep(X_GAP_MS);
   }
-  return { found, save };
+  return found;
 }
 
 async function store(found: Found[]) {
@@ -123,12 +139,13 @@ async function store(found: Found[]) {
 
 type Analysis = { width: number; height: number; dhash: string; tags: { tag: string; score: number }[]; sensitive: string[]; ocrText: string; ocrWords: number; ocrLines?: OcrLine[]; unreadText?: boolean; model: string };
 
-/** Analyses waiting images: social media before news (richer in text), newest first; failed ones after their pause. */
+/** Analyses waiting images: those of the newest posts first (per day), social media before news within a day (richer in
+ *  text); failed ones after their pause. */
 async function analyzePending() {
   const pending = await prisma.$queryRaw<{ id: string; url: string; attempts: number; context: string | null }[]>`
-    SELECT id, url, attempts, context FROM "MediaAsset"
+    SELECT id, url, attempts, context FROM "MediaAsset" a
     WHERE (status = 'pending' OR (status = 'failed' AND attempts < ${MAX_ATTEMPTS})) AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= now())
-    ORDER BY CASE kind WHEN 'x_photo' THEN 0 WHEN 'x_video' THEN 1 WHEN 'youtube' THEN 2 ELSE 3 END, "createdAt" DESC
+    ORDER BY date_trunc('day', (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id)) DESC NULLS LAST, CASE kind WHEN 'x_photo' THEN 0 WHEN 'x_video' THEN 1 WHEN 'youtube' THEN 2 ELSE 3 END, "createdAt" DESC
     LIMIT ${ANALYZE_BATCH}`;
   const failed = (a: { attempts: number }) => {
     const wait = retryDelayMs(a.attempts + 1);
@@ -183,11 +200,13 @@ export async function runMediaTick() {
   const collected: Record<string, number> = {};
   for (const [name, collect] of [["news", collectNews], ["x", collectX], ["youtube", collectYoutube]] as const) {
     try {
-      const { found, save } = await collect();
-      await store(found);
-      await tagItems(found.map((f) => ({ type: f.type, code: f.code })));
-      await save();
-      collected[name] = found.length;
+      collected[name] = 0;
+      for (const { found, save } of await collect()) {
+        await store(found);
+        await tagItems(found.map((f) => ({ type: f.type, code: f.code })));
+        await save();
+        collected[name] += found.length;
+      }
     } catch (e) {
       lastError = `${name}: ${(e as Error).message}`.slice(0, 300);
       console.error(`[media] ${name} gagal:`, (e as Error).message);
