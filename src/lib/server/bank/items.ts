@@ -2,6 +2,7 @@
 import { decodeTextEntities } from "@/lib/media/text";
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { Analysis, Author, MediaItem, MediaType, Relevance } from "@/lib/media/types";
+import { sharedCache } from "./cache";
 import { bankPool } from "./pool";
 import { buildWhere, COLUMNS } from "./query";
 import { cleanSummary } from "./summary";
@@ -125,15 +126,17 @@ export async function fetchItemsByCode(type: MediaType, codes: string[]): Promis
 }
 
 /** `limit` matching items starting at `offset`, newest first unless sort=oldest. */
+// Which codes fill a page: on broad keyword scopes (e.g. "polri | polisi") the ordered search takes 1–4 s under load, so it
+// is kept a minute and refreshed in the background. The items themselves are always read fresh.
+const pageCodesCache = sharedCache<string[]>("bank.pageCodes", { ttlMs: 60_000, maxEntries: 400, staleWhileRevalidate: true });
+
 export async function listItems(type: MediaType, params: URLSearchParams, scope: KeyScope, { limit, offset }: { limit: number; offset: number }) {
   const c = COLUMNS[type];
   const { where, values } = buildWhere(type, params, scope);
   const direction = params.get("sort") === "oldest" ? "ASC" : "DESC";
-  const { rows } = await bankPool().query<{ code: string }>(
-    `SELECT ${c.code} code FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} ${direction} LIMIT ${Math.floor(limit)} OFFSET ${Math.floor(offset)}`,
-    values,
-  );
-  return fetchItemsByCode(type, rows.map((r) => r.code));
+  const sql = `SELECT ${c.code} code FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} ${direction} LIMIT ${Math.floor(limit)} OFFSET ${Math.floor(offset)}`;
+  const codes = await pageCodesCache(`${type}|${sql}|${JSON.stringify(values)}`, async () => (await bankPool().query<{ code: string }>(sql, values)).rows.map((r) => r.code));
+  return fetchItemsByCode(type, codes);
 }
 
 /**

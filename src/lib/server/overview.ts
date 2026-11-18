@@ -2,15 +2,18 @@
 // Cached per scope and served stale while it refreshes; warmOverview() keeps the whole bank and every active key ready.
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
-import { dailyVolume, listItems, moodBreakdown } from "./bank";
+import { countExact, dailyVolume, listItems, moodBreakdown } from "./bank";
 import { sharedCache } from "./bank/cache";
 import { filterKey } from "./bank/query";
 import { prisma } from "./db";
 import { typeInsights } from "./insights";
+import { accountPlan, clampHistory } from "./plan";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
 const LATEST_PER_TYPE = 4;
+/** The media page's first request (one extra row tells whether a next page exists); must match the media route. */
+const MEDIA_FIRST_PAGE = 25;
 const WARM_EVERY_MS = 90_000;
 /** Only warm-ups slower than this are logged, so the log stays quiet. */
 const SLOW_WARM_MS = 20_000;
@@ -40,14 +43,26 @@ export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Pro
 async function warmAll() {
   await Promise.all([typeStats("social"), typeStats("online")]);
   await Promise.all([typeInsights("social", 7), typeInsights("online", 7)]);
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { scope: true, keywords: true } });
+  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { scope: true, keywords: true, ownerId: true } });
   const scopes = keys.map((key) => parseKeyScope(key.scope, key.keywords));
-  for (const scope of scopes) {
+  for (const [i, scope] of scopes.entries()) {
     await Promise.all([typeStats("social", scope), typeStats("online", scope)]);
     await Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]);
+    await warmMediaPages(scope, keys[i].ownerId);
   }
   for (const period of [30, 14]) {
     for (const scope of [undefined, ...scopes]) await Promise.all([typeInsights("social", period, scope), typeInsights("online", period, scope)]);
+  }
+}
+
+/** A project's Media Sosial/Online as its owner first opens them: the first page, the exact total and the mood bar. Broad
+ *  keywords make the total and the moods take 10–50 s cold; their caches refresh in the background, so this only waits
+ *  for real work when they are missing. The owner's plan may limit history, which changes the query, so it is applied. */
+async function warmMediaPages(scope: KeyScope, ownerId: string | null) {
+  const params = ownerId ? clampHistory(new URLSearchParams(), (await accountPlan(ownerId)).limits.historyDays) : new URLSearchParams();
+  for (const type of ["social", "online"] as const) {
+    if (!allowsType(scope, type)) continue;
+    await Promise.all([listItems(type, params, scope, { limit: MEDIA_FIRST_PAGE, offset: 0 }), countExact(type, params, scope), moodBreakdown(type, params, scope)]);
   }
 }
 
