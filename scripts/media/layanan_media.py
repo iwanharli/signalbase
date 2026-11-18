@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import analisis_media as A  # noqa: E402
 
 PORT = int(os.environ.get("MEDIA_PORT", "3726"))
-NAME = "media-clip-b32q+rapidocr-en-v1"
+NAME = "media-clip-b32-v2+rapidocr-en"  # v2: fp32 CLIP, ambang dari 254 label (19 Nov 2026)
 ANALYZER = A.Analyzer()
 LOCK = threading.Lock()
 
@@ -47,7 +47,7 @@ class Handler(BaseHTTPRequestHandler):
             data = A.fetch(url)
             with LOCK:
                 res = ANALYZER.analyze(data)
-            res["model"] = NAME
+            res["model"] = f"{NAME}-{ANALYZER.variant}"
             res["ms"] = round((time.time() - start) * 1000)
             self._send(200, res)
         except urllib.error.HTTPError as e:

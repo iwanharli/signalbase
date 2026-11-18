@@ -3,8 +3,8 @@ gambar (dHash 64-bit). Dipakai oleh layanan media (worker) dan untuk uji sampel:
 
     python analisis_media.py <file-url.txt>     # satu URL gambar per baris; hasil JSON per baris + ringkasan waktu
 
-Model dibaca dari MEDIA_CLIP_DIR: CLIP (Xenova/clip-vit-base-patch32, terkuantisasi) vision_model_quantized.onnx,
-text_model_quantized.onnx, tokenizer.json, dan pembaca teks Inggris en_PP-OCRv3_rec_infer.onnx (SWHL/RapidOCR, PP-OCRv3). Paket Python: scripts/media/requirements.txt.
+Model dibaca dari MEDIA_CLIP_DIR: CLIP (Xenova/clip-vit-base-patch32) vision_model.onnx dan text_model.onnx (fp32; cadangan
+*_quantized.onnx), tokenizer.json, dan pembaca teks Inggris en_PP-OCRv3_rec_infer.onnx (SWHL/RapidOCR, PP-OCRv3). Paket Python: scripts/media/requirements.txt.
 Tesseract dicoba lebih dulu (uji 18 Nov 2026) tapi gagal membaca teks bergaya di thumbnail ("TERBUKTI SADAP PRESIDEN
 PRABOWO" terbaca "A BY LS TAP 1"); RapidOCR membacanya utuh.
 """
@@ -34,6 +34,7 @@ _BINARY_TYPES = ("application/octet-stream", "binary/octet-stream", "application
 FETCH_TIMEOUT = 12
 # Satu sesi ONNX per proses dan satu thread: worker memproses satu gambar per waktu dan tidak boleh memakan semua core.
 THREADS = int(os.environ.get("MEDIA_THREADS", "1"))
+VARIANT = os.environ.get("MEDIA_CLIP_VARIANT", "fp32")  # fp32 (bawaan bila filenya ada) | q8
 
 # Tag visual: kode (disimpan) dan beberapa kalimat Inggris untuk CLIP (embedding-nya dirata-rata, lebih stabil daripada satu
 # kalimat). Kode yang diawali "_" adalah pembanding "biasa" (tidak disimpan): tanpanya softmax memaksa gambar netral masuk
@@ -67,7 +68,6 @@ TAGS = [
     ("orang", ["a portrait photo of a person", "a close-up of a face"]),
     ("_kamera", ["a photo of a camera or electronic device", "a product photo of a gadget"]),
     ("_jalan", ["a person walking on the street", "a street scene with a road"]),
-    ("_tinjau", ["officials inspecting a site outdoors", "government employees in batik uniform"]),
     ("makanan", ["a photo of food", "a dish of food on a plate"]),
     ("pemandangan", ["a photo of a landscape or city view", "a scenic view of nature"]),
     ("olahraga", ["a photo of a sports match", "athletes playing sports"]),
@@ -78,9 +78,13 @@ TAGS = [
 # Tag yang menandai konten sensitif (kekerasan, korban). Hanya penanda; keputusan tetap pada pembaca.
 SENSITIVE = {"kericuhan", "senjata", "darah_luka", "jenazah"}
 TAG_MIN = 0.15         # peluang minimal agar tag disimpan
-# Demo dan kerumunan sering tersebar di beberapa tag mirip (kerumunan/demo/aparat), jadi ambangnya sedikit lebih rendah.
-TAG_MIN_BY = {"demo": 0.12, "kerumunan": 0.12}
-SENSITIVE_MIN = 0.55   # jauh lebih ketat: lebih baik terlewat daripada banyak alarm palsu
+# Ambang per tag, disetel 19 Nov 2026 dari 254 gambar produksi berlabel (model fp32; disetel di separuh sampel, diuji di
+# separuh lainnya: tag utama tepat 58% → 63%, tepat atau tertukar dengan tag mirip 68% → 77%). "_tinjau" dibuang: ia
+# menyerap kartu berita dan potret pejabat sehingga gambar itu tanpa tag. Bencana 0,9 (bukan 0,99 hasil penyetelan: sampel
+# hanya punya 2 foto bencana, dan uji banjir sebelumnya memberi skor ≥ 0,74).
+TAG_MIN_BY = {"bencana": 0.9, "demo": 0.2, "kebakaran": 0.6, "kecelakaan": 0.35, "kerumunan": 0.6, "logo": 0.6, "meme": 0.35,
+              "orang": 0.05, "pidato": 0.3, "poster": 0.1, "produk": 0.5, "rapat": 0.35, "tangkapan_layar": 0.3}
+SENSITIVE_MIN = 0.65   # jauh lebih ketat: lebih baik terlewat daripada banyak alarm palsu (uji fp32: 2/2 benar)
 TEMPERATURE = 100.0    # skala logit CLIP
 # Baris OCR dengan keyakinan di bawah ini dibuang. Uji 18 Nov 2026: teks asli hampir semua ≥ 0,90; teks acak dari huruf
 # Arab/Kirill yang dibaca sebagai Latin 0,53–0,87.
@@ -101,8 +105,12 @@ class Analyzer:
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = THREADS
         opts.inter_op_num_threads = 1
-        self.vision = ort.InferenceSession(os.path.join(CLIP_DIR, "vision_model_quantized.onnx"), opts, providers=["CPUExecutionProvider"])
-        text = ort.InferenceSession(os.path.join(CLIP_DIR, "text_model_quantized.onnx"), opts, providers=["CPUExecutionProvider"])
+        # fp32 bila ada: model 8-bit (u8s8) memberi skor yang menyimpang di CPU x86 tanpa VNNI (server: AMD EPYC, AVX2) —
+        # uji 19 Nov 2026: kericuhan 0,79 → 0,40, kelompok → demo. fp32 identik di ARM dan x86, ±70 ms lebih lambat.
+        sfx = "" if os.path.exists(os.path.join(CLIP_DIR, "vision_model.onnx")) and VARIANT == "fp32" else "_quantized"
+        self.vision = ort.InferenceSession(os.path.join(CLIP_DIR, f"vision_model{sfx}.onnx"), opts, providers=["CPUExecutionProvider"])
+        text = ort.InferenceSession(os.path.join(CLIP_DIR, f"text_model{sfx}.onnx"), opts, providers=["CPUExecutionProvider"])
+        self.variant = "fp32" if not sfx else "q8"
         tok = Tokenizer.from_file(os.path.join(CLIP_DIR, "tokenizer.json"))
         # Embedding teks label dihitung sekali; model teks lalu dilepas dari memori.
         embeds = []
