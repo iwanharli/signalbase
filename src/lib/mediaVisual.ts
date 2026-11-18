@@ -38,8 +38,12 @@ export type VisualAsset = {
   /** Other images (different URLs) with the same fingerprint: a picture being re-shared. */
   twins: number; lastSeen: string;
 };
+export type VisualFailures = { total: number; removed: number; refused: number; timeout: number; retrying: number; other: number };
 export type VisualStats = {
   total: number; withText: number; sensitive: number; tags: { tag: string; n: number }[]; pending: number;
+  /** Images of the period that couldn't be read, by cause (from MediaAsset.error): removed by the site (404/410), refused
+   *  by the site (403, not worked around), timeouts and connection errors (`retrying` of them still get another try), other. */
+  failed: VisualFailures;
   /** The project's older media are still being matched to its scope (new project or changed keywords). */
   syncing: boolean;
 };

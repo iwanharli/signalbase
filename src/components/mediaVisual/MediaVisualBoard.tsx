@@ -3,16 +3,16 @@
 // tags, possibly sensitive content and re-shared pictures. Click an image for its details and the posts that use it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Modal, Select, Skeleton } from "@mantine/core";
+import { Modal, Select, Skeleton, Tooltip } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconTags, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoOff, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconTags, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type { KeyScope } from "@/lib/media/keyScope";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
-import { NARRATIVE_MIN_POSTS, parseVisualDays, parseVisualView, tagLabel, VISUAL_KINDS, VISUAL_PERIODS, VISUAL_TAGS, WORKER_STALE_MS, type VisualAsset, type VisualPost, type VisualResponse, type VisualUse } from "@/lib/mediaVisual";
+import { NARRATIVE_MIN_POSTS, parseVisualDays, parseVisualView, tagLabel, VISUAL_KINDS, VISUAL_PERIODS, VISUAL_TAGS, WORKER_STALE_MS, type VisualAsset, type VisualFailures, type VisualPost, type VisualResponse, type VisualUse } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
@@ -134,6 +134,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
         </div>
         <div className={classes.stats}>
           {heroStats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{s.value === undefined ? "—" : formatNumber(s.value)}</b><span>{s.label}</span></div>)}
+          <FailedStat failed={stats?.failed} total={stats?.total} />
         </div>
       </header>
 
@@ -356,5 +357,26 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Hero card: images of the period that couldn't be read, with the causes on hover. */
+function FailedStat({ failed, total }: { failed?: VisualFailures; total?: number }) {
+  const share = failed && total !== undefined && failed.total + total > 0 ? Math.round((failed.total / (failed.total + total)) * 1000) / 10 : null;
+  const rows = failed ? [
+    { label: "Dihapus situsnya (404/410)", n: failed.removed },
+    { label: "Ditolak situs (403, tidak diakali)", n: failed.refused },
+    { label: `Timeout / koneksi${failed.retrying ? ` (${formatNumber(failed.retrying)} masih dicoba ulang)` : ""}`, n: failed.timeout },
+    { label: "Lainnya (bukan gambar, terlalu besar)", n: failed.other },
+  ].filter((r) => r.n > 0) : [];
+  return (
+    <Tooltip withArrow multiline w={300} position="bottom" disabled={!rows.length} label={
+      <div className={c.failTip}>
+        <b>Gambar yang tidak bisa dibaca{share !== null ? ` · ${share.toLocaleString("id-ID")}%` : ""}</b>
+        {rows.map((r) => <span key={r.label}><em>{r.label}</em>{formatNumber(r.n)}</span>)}
+      </div>
+    }>
+      <div tabIndex={rows.length ? 0 : undefined}><IconPhotoOff size={16} aria-hidden /><b>{failed ? formatNumber(failed.total) : "—"}</b><span>tidak terbaca</span></div>
+    </Tooltip>
   );
 }

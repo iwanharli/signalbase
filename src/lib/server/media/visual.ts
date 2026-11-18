@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import {
   formatVisualCursor, mergeKeyText, mergeTags, NARRATIVE_MIN_POSTS, VISUAL_PAGE_SIZE,
-  type VisualAsset, type VisualCursor, type VisualKind, type VisualPost, type VisualResponse, type VisualTwin, type VisualView, type VisualWorker,
+  type VisualAsset, type VisualCursor, type VisualFailures, type VisualKind, type VisualPost, type VisualResponse, type VisualTwin, type VisualView, type VisualWorker,
 } from "@/lib/mediaVisual";
 import { fetchItemsByCode } from "../bank";
 import { sharedCache } from "../bank/cache";
@@ -22,6 +22,8 @@ export type VisualQuery = {
 type Page = Omit<VisualResponse, "days" | "worker">;
 
 const USES_SHOWN = 3;
+/** Same as the worker's: a failed image is tried this many times. */
+const MAX_ATTEMPTS = 3;
 const TYPE_OF: Record<VisualKind, MediaType> = { news: "online", x_photo: "social", x_video: "social", youtube: "social" };
 
 // The page re-asks while someone scrolls or changes a filter; a minute is fresh enough for media that arrive every few minutes.
@@ -76,9 +78,21 @@ async function load(query: VisualQuery, keyId: string | null): Promise<Page> {
         SELECT (SELECT count(*)::int FROM a) total, (SELECT count(*)::int FROM a WHERE "keyWords" > 0) "withText",
                (SELECT count(*)::int FROM a WHERE cardinality(sensitive) > 0) sensitive,
                (SELECT json_agg(t ORDER BY t.n DESC) FROM (SELECT tag, count(*)::int n FROM a, unnest("tagList") tag GROUP BY tag ORDER BY n DESC LIMIT 12) t) tags`;
-      return { total: row.total, withText: row.withText, sensitive: row.sensitive, tags: row.tags ?? [] };
+      // Images that couldn't be read, by cause: the same period and source, any status but done/pending.
+      const kind = query.kind ? Prisma.sql`AND a.kind = ${query.kind}` : Prisma.empty;
+      const [f] = await prisma.$queryRaw<VisualFailures[]>`
+        WITH ids AS (SELECT DISTINCT l."assetId" id FROM "MediaLink" l WHERE ${where(cond.link)}),
+             a AS (SELECT a.status, a.attempts, coalesce(a.error, '') e FROM "MediaAsset" a JOIN ids ON ids.id = a.id WHERE a.status IN ('failed', 'gone') ${kind})
+        SELECT count(*)::int total,
+               count(*) FILTER (WHERE e ~ 'HTTP 404|HTTP 410')::int removed,
+               count(*) FILTER (WHERE e ~ 'HTTP 40[13]')::int refused,
+               count(*) FILTER (WHERE e ~* 'timed out|timeout|reset|refused|Name or service|HTTP 5')::int timeout,
+               count(*) FILTER (WHERE status = 'failed' AND attempts < ${MAX_ATTEMPTS})::int retrying,
+               count(*) FILTER (WHERE NOT e ~* 'HTTP 40[134]|HTTP 410|timed out|timeout|reset|refused|Name or service|HTTP 5')::int other
+        FROM a`;
+      return { total: row.total, withText: row.withText, sensitive: row.sensitive, tags: row.tags ?? [], failed: f };
     }),
-    prisma.mediaAsset.count({ where: { status: { in: ["pending", "failed"] }, attempts: { lt: 3 } } }),
+    prisma.mediaAsset.count({ where: { status: { in: ["pending", "failed"] }, attempts: { lt: MAX_ATTEMPTS } } }),
     keyId ? projectReady(keyId).then((ready) => !ready) : Promise.resolve(false),
   ]);
   return { ...page, view: query.view, stats: { ...summary, pending, syncing } };
