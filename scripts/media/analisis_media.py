@@ -102,6 +102,7 @@ TEMPERATURE = 100.0    # skala logit CLIP
 OCR_MIN_CONF = 0.88
 OCR_MIN_WORDS = 2      # di bawah ini dianggap "tidak ada teks" (kata = minimal 3 huruf)
 OCR_MAX_SIDE = int(os.environ.get("MEDIA_OCR_SIDE", "1000"))  # sisi terpanjang untuk OCR (uji: 1600 px RAM ±1,5 GB; 1000 px ±740 MB, hasil sama)
+OCR_UPSCALE_MAX = 2.0  # gambar kecil diperbesar ke OCR_MAX_SIDE, paling banyak 2×
 # Watermark/branding media yang muncul di hampir setiap gambar berita (uji sampel); baris yang cocok dibuang dari OCR.
 WATERMARK = re.compile(r"^\W*(kompas\.?com|jernih ?melihat ?dunia|konten ?redaksi ?kumparan|kumparan\w*|detik\w*|tribun\w*|"
                        r"cnn ?indonesia|antara\w*|liputan ?6|republika(\.co\.?(id)?)?|tempo\.?co|okezone|sindonews|suara\.?com|dok\.?)\W*$", re.I)
@@ -229,8 +230,10 @@ def ocr(engine: RapidOCR, img: Image.Image):
     """Teks dalam gambar, baris demi baris dari atas. Watermark media dan teks acak dibuang.
     Kembali (teks, jumlah kata ≥3 huruf, baris dengan letaknya): h = tinggi huruf, cy = letak tengah vertikal, keduanya
     relatif terhadap tinggi gambar (0–1). Dipakai worker untuk memilih "teks penting" (judul besar vs teks kecil di latar)."""
-    if max(img.size) > OCR_MAX_SIDE:
-        f = OCR_MAX_SIDE / max(img.size)
+    # Gambar besar diperkecil (RAM); gambar kecil diperbesar (maks. 2×): teks kecil di foto berita 730 px terbaca di bawah
+    # ambang keyakinan, pada 1000 px terbaca ("PIMPINAN DAN ANGGOTA DPRD ..." 0,85 → 0,98).
+    f = min(OCR_MAX_SIDE / max(img.size), OCR_UPSCALE_MAX)
+    if abs(f - 1) > 0.05:
         img = img.resize((round(img.width * f), round(img.height * f)), Image.BICUBIC)
     res, _ = engine(np.asarray(img))
     lines, unread = [], 0

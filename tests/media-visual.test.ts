@@ -141,6 +141,11 @@ test("words OCR ran together are split into common words, real words and names k
   assert.equal(splitJoinedText("CONTINUED US FUEL DELIVERIES", words, total), "CONTINUED US FUEL DELIVERIES"); // English stays whole
   words.set("viral", 4000); words.set("presiden", 30000);
   assert.equal(splitJoinedText("VIRALPRESIDENRIPRABOWO", words, total), "VIRAL PRESIDEN RI PRABOWO");
+  // Roman numerals (frequencies from kata.txt): "MASA PERSIDANGAN I TAHUN", not "MASA PER SIDANG ANI TAHUN"; never the first part.
+  for (const [w, f] of Object.entries({ masa: 3274, persidangan: 492, per: 3425, sidang: 3129, ani: 58, tahun: 20000, pemilihan: 2500, daerah: 9000 })) words.set(w, f);
+  assert.equal(splitJoinedText("MASAPERSIDANGANITAHUN", words, total), "MASA PERSIDANGAN I TAHUN");
+  assert.equal(splitJoinedText("DAERAHPEMILIHANII", words, total), "DAERAH PEMILIHAN II");
+  assert.equal(splitJoinedText("IIDAERAH", words, total), "IIDAERAH");
 });
 
 test("workerProblem: berhenti bila tanpa detak 15 menit, mati bila layanan tidak menjawab", () => {

@@ -286,6 +286,12 @@ const SPLIT_MIN = 8;
 const SPLIT_PART_MIN = 20;
 /** Parts are at least 3 letters, except these particles: otherwise English words fall apart ("CONTINUED" → "CON TI NU ED"). */
 const SHORT_PARTS = new Set(["di", "ke", "ya", "ri"]);
+/** Roman numerals as parts, as common as a mid-frequency word: "PERSIDANGANITAHUN" → "PERSIDANGAN I TAHUN", not "PER SIDANG
+ *  ANI TAHUN". Only in all-caps tokens and when every other part has 4+ letters: elsewhere a lone "i" is mostly a misread
+ *  letter ("dibumbui" → "di bumbu i", "MENIADIWAPRES" → "MEN I ADI WAPRES" in production OCR). */
+const ROMAN_PARTS = new Set(["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"]);
+const ROMAN_FREQ = 1000;
+const ROMAN_NEIGHBOUR_MIN = 4;
 const SPLIT_MAX_PARTS = 5;
 /** Cost added per part: of two splits, the one with fewer, longer words wins. */
 const SPLIT_PART_COST = 3;
@@ -295,21 +301,33 @@ const SPLIT_PART_COST = 3;
 export function splitJoined(token: string, words: WordFreq, total: number) {
   const low = token.toLowerCase();
   if (low.length < SPLIT_MIN || !/^[a-z]+$/.test(low) || words.has(low)) return token;
-  // best[i]: cheapest split of low[0..i) as [cost, cut positions].
-  const best: ([number, number[]] | null)[] = [[0, []], ...Array(low.length).fill(null)];
+  const caps = token === token.toUpperCase();
+  for (const roman of caps ? [true, false] : [false]) {
+    const parts = bestSplit(low, words, total, roman);
+    if (!parts || parts.length < 2 || parts.length > SPLIT_MAX_PARTS) continue;
+    if (roman && !parts.every((p) => ROMAN_PARTS.has(p) || p.length >= ROMAN_NEIGHBOUR_MIN)) continue;
+    let at = 0;
+    return parts.map((p) => token.slice(at, (at += p.length))).join(" ");
+  }
+  return token;
+}
+
+/** Cheapest split of a lowercase token into common words (with Roman numerals when `roman`), or null. */
+function bestSplit(low: string, words: WordFreq, total: number, roman: boolean) {
+  // best[i]: cheapest split of low[0..i) as [cost, parts].
+  const best: ([number, string[]] | null)[] = [[0, []], ...Array(low.length).fill(null)];
   for (let i = 0; i < low.length; i++) {
     if (!best[i]) continue;
-    for (let j = i + 2; j <= Math.min(low.length, i + 24); j++) {
+    for (let j = i + 1; j <= Math.min(low.length, i + 24); j++) {
       const part = low.slice(i, j);
-      const f = words.get(part);
-      if (!f || f < SPLIT_PART_MIN || (part.length < 3 && !SHORT_PARTS.has(part))) continue;
+      const isRoman = roman && i > 0 && ROMAN_PARTS.has(part); // never the first part
+      const f = isRoman ? Math.max(words.get(part) ?? 0, ROMAN_FREQ) : words.get(part);
+      if (!f || f < SPLIT_PART_MIN || (part.length < 3 && !SHORT_PARTS.has(part) && !isRoman)) continue;
       const cost = best[i]![0] + Math.log(total / f) + SPLIT_PART_COST;
-      if (!best[j] || cost < best[j]![0]) best[j] = [cost, [...best[i]![1], j]];
+      if (!best[j] || cost < best[j]![0]) best[j] = [cost, [...best[i]![1], part]];
     }
   }
-  const cuts = best[low.length]?.[1];
-  if (!cuts || cuts.length < 2 || cuts.length > SPLIT_MAX_PARTS) return token;
-  return cuts.map((end, k) => token.slice(k ? cuts[k - 1] : 0, end)).join(" ");
+  return best[low.length]?.[1] ?? null;
 }
 
 /** Every run-together token of a text split into words (punctuation and line breaks kept). */

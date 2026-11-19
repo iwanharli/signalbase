@@ -12,7 +12,7 @@ import { prisma } from "../db";
 import { RETENTION_DAYS } from "./projects";
 
 /** Bump when the rules in mediaVisual.ts change: analysed images are re-derived in the background. */
-export const TEXT_RULES_VERSION = 2; // 2: words OCR ran together split (kata.txt); calls to action need a call word
+export const TEXT_RULES_VERSION = 3; // 2: words OCR ran together split (kata.txt); calls to action need a call word. 3: Roman numerals in splits
 const DERIVE_BATCH = 1000;
 
 type Project = { id: string; query: string };
