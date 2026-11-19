@@ -334,7 +334,7 @@ model MediaAsset {
   id            String      @id @default(uuid())
   urlHash       String      @unique // sha256 of url
   url           String
-  kind          String // "news" | "x_photo" | "x_video" | "youtube"
+  kind          String // "news" | "x_photo" | "x_video" | "youtube" | "instagram" | "threads"
   status        String      @default("pending") // "pending" | "done" | "failed" (retried) | "gone" (404/expired, not retried)
   error         String?
   attempts      Int         @default(0)
@@ -372,9 +372,18 @@ model MediaAsset {
   sensitive     String[] // tags that mark possibly sensitive content (shown as "perlu ditinjau")
   model         String?
   analyzedAt    DateTime?
+  /// The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/layanan_asr.py).
+  videoUrl         String?
+  /// null = no video; "pending" | "done" | "failed" | "none" (no audio track, or too old when its turn came)
+  transcriptStatus String?
+  /// What was said in the first MEDIA_ASR_MAX_SECONDS of the video ("" = no speech), and the detected language.
+  transcript       String?
+  transcriptLang   String?
+  transcriptAt     DateTime?
   createdAt     DateTime    @default(now())
   links         MediaLink[]
 
+  @@index([transcriptStatus, createdAt])
   @@index([status, createdAt])
   @@index([dhash])
   @@index([twinGroup])

@@ -1,6 +1,6 @@
 """Layanan HTTP lokal untuk analisis media (dipanggil worker Signalbase, `npm run media`):
 
-    POST /analyze {"url": "https://..."}  →  {"model", "width", "height", "dhash", "tags", "sensitive", "ocrText", "ocrWords"}
+    POST /analyze {"url": "https://..."}  (gambar, atau frame video "<url>#t=25%")  →  {"model", "width", "height", "dhash", "tags", "sensitive", "ocrText", "ocrWords"}
     GET  /health
 
 Hanya 127.0.0.1. Paling banyak MEDIA_PARALLEL gambar (bawaan 2) dianalisis sekaligus, masing-masing dengan mesinnya sendiri
@@ -49,7 +49,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(url, str) or len(url) > 2000:
                 return self._send(400, {"error": "url wajib"})
             start = time.time()
-            data = A.fetch(url)
+            data = A.fetch_media(url)
             analyzer = ANALYZERS.get()
             try:
                 res = analyzer.analyze(data)

@@ -292,13 +292,68 @@ def fetch(url: str) -> bytes:
     return data
 
 
+# Frame video: "<url video>#t=25%" = frame pada 25% durasi. Hanya dari CDN video media sosial (bukan host bebas): X dan
+# Instagram/Facebook. Video dibaca bertahap lewat HTTP (PyAV/FFmpeg, range request), tidak diunduh utuh.
+VIDEO_HOST = re.compile(r"(^|\.)(video\.twimg\.com|cdninstagram\.com|fbcdn\.net)$")
+_FRAME = re.compile(r"t=(\d{1,2})%")
+
+
+def is_video_frame(url: str) -> bool:
+    base, _, frag = url.partition("#")
+    return bool(_FRAME.fullmatch(frag)) and bool(VIDEO_HOST.search(urllib.parse.urlsplit(base).hostname or ""))
+
+
+def open_video(url: str):
+    """Kontainer PyAV untuk URL video dari VIDEO_HOST (dicek juga alamatnya, SSRF)."""
+    import av  # bagian dari faster-whisper (requirements.txt); hanya perlu untuk video
+
+    if urllib.parse.urlsplit(url).scheme != "https" or not VIDEO_HOST.search(urllib.parse.urlsplit(url).hostname or ""):
+        raise ValueError("host video tidak diizinkan")
+    _public(url)
+    return av.open(url, timeout=FETCH_TIMEOUT, options={"user_agent": "Mozilla/5.0 (compatible; signalbase-media/1.0)"})
+
+
+def video_frame(url: str) -> bytes:
+    """Satu frame video sebagai JPEG, untuk dianalisis seperti gambar."""
+    base, _, frag = url.partition("#")
+    pct = int(_FRAME.fullmatch(frag).group(1))
+    try:
+        container = open_video(base)
+    except Exception as e:  # noqa: BLE001
+        # Video dihapus/kedaluwarsa: FFmpeg melapor "Server returned 404/403".
+        if re.search(r"40[34]|410", str(e)):
+            raise ValueError(f"video tidak tersedia: {str(e)[:100]}") from e
+        raise
+    with container:
+        vs = container.streams.video[0]
+        dur = (container.duration or 0) / 1_000_000
+        target = dur * pct / 100
+        if target > 0 and vs.time_base:
+            container.seek(int(target / vs.time_base), stream=vs)  # ke keyframe sebelum target
+        img = None
+        for frame in container.decode(vs):
+            img = frame.to_image()
+            if frame.time is None or frame.time >= target - 0.05:
+                break
+    if img is None:
+        raise ValueError("video tanpa frame")
+    out = io.BytesIO()
+    img.convert("RGB").save(out, "JPEG", quality=92)
+    return out.getvalue()
+
+
+def fetch_media(url: str) -> bytes:
+    """Gambar dari URL, atau frame video untuk "<video>#t=N%"."""
+    return video_frame(url) if is_video_frame(url) else fetch(url)
+
+
 if __name__ == "__main__":
     a = Analyzer()
     times = []
     for url in [u.strip() for u in open(sys.argv[1]) if u.strip()]:
         t0 = time.time()
         try:
-            data = fetch(url)
+            data = fetch_media(url)
             t1 = time.time()
             r = a.analyze(data)
             r.update(url=url, fetchMs=round((t1 - t0) * 1000), analyzeMs=round((time.time() - t1) * 1000))

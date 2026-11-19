@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   workerProblem,
-  formatVisualCursor, hashDistance, KIND_PRIORITY, metaOgImage, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
+  formatVisualCursor, hashDistance, instagramEmbed, isXGif, KIND_PRIORITY, metaOgImage, newsBodyImages, videoFrame, videoFrameUrls, youtubeImages, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
 } from "../src/lib/mediaVisual";
 
 test("YouTube thumbnail from every video URL form, none without an id", () => {
@@ -58,6 +58,40 @@ test("Instagram/Threads image from og:image: Meta CDN only, profile pictures and
   assert.equal(metaOgImage(page("https://static.cdninstagram.com/rsrc.php/yd/r/kHwIMM5b8PW.webp")), null); // deleted post → home page logo
   assert.equal(metaOgImage(page("http://scontent.cdninstagram.com/v/a.jpg")), null);
   assert.equal(metaOgImage("<head><title>Login</title></head>"), null);
+});
+
+test("video frames: YouTube hq1–hq3, X/Reel frames as #t=N%, GIFs only their poster", () => {
+  assert.deepEqual(youtubeImages("https://youtu.be/dQw4w9WgXcQ"), ["hqdefault", "hq1", "hq2", "hq3"].map((f) => `https://i.ytimg.com/vi/dQw4w9WgXcQ/${f}.jpg`));
+  assert.deepEqual(youtubeImages("https://www.youtube.com/@channel"), []);
+  const v = "https://video.twimg.com/amplify_video/1/vid/avc1/320x568/a.mp4?tag=14";
+  assert.deepEqual(videoFrameUrls(v), [`${v}#t=25%`, `${v}#t=50%`, `${v}#t=75%`]);
+  assert.deepEqual(videoFrame(`${v}#t=50%`), { url: v, at: 0.5 });
+  assert.equal(videoFrame("https://img.example/a.jpg"), null);
+  assert.equal(videoFrame("https://img.example/a.jpg#t=12"), null);
+  assert.ok(isXGif("https://video.twimg.com/tweet_video/HXdF.mp4") && !isXGif(v));
+});
+
+test("Instagram embed: every carousel slide and a Reel's video, Meta CDN only; null without data", () => {
+  const page = (media: unknown) => `<script>x({"contextJSON":${JSON.stringify(JSON.stringify({ context: {}, gql_data: { shortcode_media: media } }))}})</script>`;
+  const img = (n: number) => `https://scontent-sin6-2.cdninstagram.com/v/t51.82787-15/${n}_n.jpg?stp=x&oe=1`;
+  assert.deepEqual(instagramEmbed(page({ is_video: false, display_url: img(0), edge_sidecar_to_children: { edges: [1, 2, 3].map((n) => ({ node: { display_url: img(n) } })) } })),
+    { images: [img(1), img(2), img(3)], video: null });
+  const vid = "https://scontent-sin6-2.cdninstagram.com/o1/v/t2/f2/m86/abc.mp4?efg=1";
+  assert.deepEqual(instagramEmbed(page({ is_video: true, display_url: img(9), video_url: vid })), { images: [img(9)], video: vid });
+  assert.deepEqual(instagramEmbed(page({ is_video: true, display_url: img(9), video_url: "https://scontent.cdninstagram.com/rsrc.php/a.mp4" })), { images: [img(9)], video: null });
+  const vid2 = "https://scontent-sin6-2.cdninstagram.com/v/t50.2886-16/abc.mp4?efg=1";
+  assert.deepEqual(instagramEmbed(page({ is_video: true, display_url: img(9), video_url: vid2 })), { images: [img(9)], video: vid2 });
+  assert.deepEqual(instagramEmbed(page({ is_video: false, display_url: "https://evil.example/v/a.jpg" })), null);
+  assert.equal(instagramEmbed('<script>x({"contextJSON":null})</script>'), null);
+  assert.equal(instagramEmbed("<html></html>"), null);
+});
+
+test("news body images: besides the lead, no logos/icons/GIFs, at most four", () => {
+  const lead = "https://img.antaranews.com/cache/800x533/2026/11/19/a.jpg";
+  assert.deepEqual(newsBodyImages([lead, "https://cdn.x.id/infografis-1.webp", "https://cdn.x.id/logo.png", "https://cdn.x.id/a.gif", "https://cdn.x.id/infografis-1.webp", "https://cdn.x.id/b.jpg?w=1&amp;h=2"], lead),
+    ["https://cdn.x.id/infografis-1.webp", "https://cdn.x.id/b.jpg?w=1&h=2"]);
+  assert.equal(newsBodyImages(Array.from({ length: 9 }, (_, i) => `https://cdn.x.id/${i}.jpg`), null).length, 4);
+  assert.deepEqual(newsBodyImages(null, lead), []);
 });
 
 test("key text keeps the message of an image and drops app chrome, stamps, small print and caption repeats", async () => {

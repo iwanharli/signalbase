@@ -110,5 +110,16 @@ class Keamanan(unittest.TestCase):
                 A._public(url)
 
 
+    def test_frame_video_hanya_dari_cdn_video(self):
+        self.assertTrue(A.is_video_frame("https://video.twimg.com/amplify_video/1/vid/a.mp4?tag=14#t=50%"))
+        self.assertTrue(A.is_video_frame("https://scontent-sin6-2.cdninstagram.com/o1/v/t2/a.mp4?x=1#t=25%"))
+        for url in ["https://example.com/a.mp4#t=50%", "https://video.twimg.com/a.mp4#t=12", "https://video.twimg.com.evil.example/a.mp4#t=50%",
+                    "https://pbs.twimg.com/media/a.jpg"]:
+            self.assertFalse(A.is_video_frame(url), url)
+        for url in ["http://video.twimg.com/a.mp4", "https://example.com/a.mp4", "https://127.0.0.1/a.mp4"]:
+            with self.assertRaises(ValueError, msg=url):
+                A.open_video(url)
+
+
 if __name__ == "__main__":
     unittest.main()

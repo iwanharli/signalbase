@@ -7,7 +7,7 @@ import { formatNumber } from "@/lib/media/labels";
 import { reflowOcr } from "@/lib/mediaVisual";
 import c from "./mediaVisual.module.css";
 
-function Marked({ text, term }: { text: string; term: string }) {
+export function Marked({ text, term }: { text: string; term: string }) {
   const t = term.trim();
   if (t.length < 2) return <>{text}</>;
   const parts = text.split(new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));

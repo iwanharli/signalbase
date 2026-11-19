@@ -1,7 +1,8 @@
 // Local media analysis (npm run media): collects the images of new items from the source database (read-only) and has the
 // local service (scripts/media/layanan_media.py, MEDIA_SERVICE_URL) read their text (OCR), tag them and fingerprint them.
-// Feeds: news images (news_main.news_image), X photos and video thumbnails (through originalXPost), YouTube thumbnails,
-// Instagram and Threads post images (og:image of the public post page, metaOgImage).
+// Feeds: news images (news_main.news_image and images in the article body), X photos, video posters and frames (through
+// originalXPost), YouTube thumbnails and frames, Instagram posts (every carousel slide and Reel frames, from the official embed
+// page; og:image otherwise) and Threads post images (og:image). Speech of X videos and Reels is transcribed (transcribePending).
 // Facebook (post pages ask to log in) and TikTok (oEmbed returns no thumbnail) are not collected.
 //
 // Each tick: collect per feed the new items (head cursor) and, while a backlog remains, older ones from today backwards
@@ -12,12 +13,18 @@ import { prisma } from "../db";
 import { bankPool } from "../bank/pool";
 import { originalXPost } from "../xPost";
 import { xPostId } from "@/lib/media/xPost";
-import { metaOgImage, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, xPostImages, youtubeThumbnail, type OcrLine } from "@/lib/mediaVisual";
+import { instagramEmbed, isXGif, metaOgImage, newsBodyImages, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, videoFrameUrls, xPostImages, youtubeImages, type OcrLine } from "@/lib/mediaVisual";
+import { metaPost } from "@/lib/media/metaPost";
 import { backfillProjects, cleanupOldMedia, ensureMediaIndexes, tagItems } from "./projects";
 import { groupUngrouped, twinGroupFor } from "./twins";
-import { applyTextSignals, computeKeyText, refreshTextSignals } from "./textSignals";
+import { applyTextSignals, applyTranscript, computeKeyText, refreshTextSignals } from "./textSignals";
 
 const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
+/** Speech-to-text service (scripts/media/layanan_asr.py); optional: without it videos simply wait. */
+const ASR = () => process.env.MEDIA_ASR_URL ?? "http://127.0.0.1:3727";
+/** Transcription time per tick, and how old a video may be when its turn comes (Instagram video links expire in days). */
+const ASR_BUDGET_MS = Number(process.env.MEDIA_ASR_BUDGET_MS ?? 120_000);
+const ASR_MAX_AGE_DAYS = 3;
 /** First run: start this far back (images of older items have often expired). */
 const LOOKBACK_HOURS = Number(process.env.MEDIA_LOOKBACK_HOURS ?? 24);
 /** Items read per feed per tick. */
@@ -32,8 +39,10 @@ const X_GAP_MS = 400;
 /** Instagram/Threads: one post page per second, and at most this many per read (±2,800 and ±1,700 posts a day). */
 const META_GAP_MS = 1000;
 const META_BATCH = 60;
-/** Bytes of a post page read for its og:image (it sits in the first ±12 KB of a ±600 KB page). */
+/** Bytes of a post page read for its og:image (it sits in the first ±12 KB of a ±600 KB page), and of an Instagram embed
+ *  page for its media data (±230 KB into a ±300 KB page). */
 const META_HEAD_BYTES = 128 * 1024;
+const EMBED_BYTES = 640 * 1024;
 /** Honest client name, like the analysis service's image downloads. */
 const MEDIA_UA = "Mozilla/5.0 (compatible; signalbase-media/1.0)";
 /** Images read from the queue at once; batches repeat until the tick's analysis time is used up. */
@@ -46,11 +55,12 @@ const MAX_ATTEMPTS = 3;
 const PARALLEL = Math.max(1, Number(process.env.MEDIA_PARALLEL ?? 2));
 
 /** `context`: the item's caption or headline, so OCR text that only repeats it is left out of the key text. */
-type Found = { type: "social" | "online"; code: string; source: string; publishedAt: Date; kind: string; urls: string[]; context: string | null };
+/** `video`: the video whose poster is `urls[0]`, for transcription. */
+type Found = { type: "social" | "online"; code: string; source: string; publishedAt: Date; kind: string; urls: string[]; context: string | null; video?: string | null };
 type Collected = { found: Found[]; save: () => Promise<void> };
 /** `save(upTo)`: move the cursor to `upTo` (null: leave it), by default past every row read. */
 type Save = (upTo?: Row | null) => Promise<void>;
-type Row = { code: string; source: string; ts: string; at: Date; image?: string | null; url?: string | null; content?: string | null; title?: string | null };
+type Row = { code: string; source: string; ts: string; at: Date; image?: string | null; url?: string | null; content?: string | null; title?: string | null; body?: string[] | null };
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -94,10 +104,18 @@ const TS = (col: string) => `to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
 async function collectNews(): Promise<Collected[]> {
   const feeds = await newer("news", (cond, order, limit) => `SELECT * FROM (
       SELECT n.news_code code, n.news_source source, ${TS("n.news_timestamp")} ts, n.news_timestamp at, n.news_image image,
-             left(concat_ws(' ', n.news_title, n.news_preview), 1000) title
-      FROM news_main n WHERE n.news_timestamp <= now() AND n.news_image ~ '^https?://'
+             left(concat_ws(' ', n.news_title, n.news_preview), 1000) title,
+             CASE WHEN n.news_content ~* '<img' THEN ARRAY(SELECT m[1] FROM regexp_matches(n.news_content, '<img\\s[^>]*?src=["'']?(https?://[^"''\\s>]+)', 'gi') m LIMIT 12) END body
+      FROM news_main n WHERE n.news_timestamp <= now() AND (n.news_image ~ '^https?://' OR n.news_content ~* '<img')
     ) t WHERE ${cond} ORDER BY ${order} LIMIT ${limit}`, BACK_BATCH);
-  return feeds.map(({ rows, save }) => ({ save, found: rows.map((r): Found => ({ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls: [r.image!], context: r.title ?? null })) }));
+  return feeds.map(({ rows, save }) => ({
+    save,
+    found: rows.flatMap((r): Found[] => {
+      const lead = r.image && /^https?:\/\//.test(r.image) ? r.image : null;
+      const urls = [...(lead ? [lead] : []), ...newsBodyImages(r.body, lead)];
+      return urls.length ? [{ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls, context: r.title ?? null }] : [];
+    }),
+  }));
 }
 
 async function collectSocial(name: string, source: string, backLimit?: number, headLimit?: number) {
@@ -111,8 +129,8 @@ async function collectYoutube(): Promise<Collected[]> {
   return (await collectSocial("youtube", "youtube", BACK_BATCH)).map(({ rows, save }) => ({
     save,
     found: rows.flatMap((r): Found[] => {
-      const thumb = youtubeThumbnail(r.url);
-      return thumb ? [{ type: "social", code: r.code, source: "youtube", publishedAt: r.at, kind: "youtube", urls: [thumb], context: r.content ?? null }] : [];
+      const urls = youtubeImages(r.url);
+      return urls.length ? [{ type: "social", code: r.code, source: "youtube", publishedAt: r.at, kind: "youtube", urls, context: r.content ?? null }] : [];
     }),
   }));
 }
@@ -133,11 +151,12 @@ async function collectMeta(name: "instagram" | "threads"): Promise<Collected[]> 
     let last: Row | null = null;
     for (const r of rows) {
       if (!known.has(r.code) && r.url) {
-        const page = await postPage(r.url);
-        if (page === "blocked") break;
-        const image = page && metaOgImage(page);
-        if (image) found.push({ type: "social", code: r.code, source: name, publishedAt: r.at, kind: name, urls: [image], context: r.content ?? null });
-        await sleep(META_GAP_MS);
+        const media = await postMedia(name, r.url);
+        if (media === "blocked") break;
+        if (media?.images.length) {
+          const urls = media.video ? [media.images[0], ...videoFrameUrls(media.video), ...media.images.slice(1)] : media.images;
+          found.push({ type: "social", code: r.code, source: name, publishedAt: r.at, kind: name, urls, context: r.content ?? null, video: media.video });
+        }
       }
       last = r;
     }
@@ -146,8 +165,28 @@ async function collectMeta(name: "instagram" | "threads"): Promise<Collected[]> 
   return out;
 }
 
-/** The start of a public Instagram/Threads post page; "blocked" when it asks to log in or limits us, null on other errors. */
-async function postPage(url: string): Promise<string | "blocked" | null> {
+/** Images (and a Reel's video) of an Instagram/Threads post. Instagram: the official embed page (every carousel slide);
+ *  when it carries no data, and for Threads, the og:image of the post page. One page per META_GAP_MS. */
+async function postMedia(name: "instagram" | "threads", url: string): Promise<{ images: string[]; video: string | null } | "blocked" | null> {
+  const post = name === "instagram" ? metaPost(url) : null;
+  if (post?.platform === "instagram") {
+    const embed = await readPage(`${post.url}embed/captioned/`, EMBED_BYTES, (html) => html.includes('"contextJSON":null') || !!instagramEmbed(html));
+    await sleep(META_GAP_MS);
+    if (embed === "blocked") return embed;
+    const media = embed && instagramEmbed(embed);
+    if (media) return media;
+  }
+  const page = await readPage(url, META_HEAD_BYTES, (html) => /og:image[^>]*>/.test(html));
+  await sleep(META_GAP_MS);
+  if (page === "blocked") return page;
+  if (!page) return null;
+  const image = metaOgImage(page);
+  return image ? { images: [image], video: null } : null;
+}
+
+/** The start of a public Instagram/Threads page, read until `enough` or `maxBytes`; "blocked" when it asks to log in or
+ *  limits us, null on other errors. */
+async function readPage(url: string, maxBytes: number, enough: (html: string) => boolean): Promise<string | "blocked" | null> {
   const host = new URL(url).hostname;
   if (!/(^|\.)(instagram|threads)\.(com|net)$/.test(host)) return null;
   try {
@@ -157,12 +196,11 @@ async function postPage(url: string): Promise<string | "blocked" | null> {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let html = "";
-    while (html.length < META_HEAD_BYTES && !html.includes("og:image")) {
+    while (html.length < maxBytes && !enough(html)) {
       const { done, value } = await reader.read();
       if (done) break;
       html += decoder.decode(value, { stream: true });
     }
-    html += (await reader.read().then(({ value }) => decoder.decode(value ?? new Uint8Array())).catch(() => "")); // the rest of the tag
     await reader.cancel().catch(() => {});
     return html;
   } catch {
@@ -180,8 +218,12 @@ async function xImages(rows: Row[]) {
     if (!id) continue;
     try {
       const post = await originalXPost(id);
-      const images = xPostImages(post?.media ?? []);
-      if (images.length) found.push({ type: "social", code: r.code, source: "twitter", publishedAt: r.at, kind: post!.media.some((m) => m.kind === "video") ? "x_video" : "x_photo", urls: images, context: post!.text || r.content || null });
+      const media = post?.media ?? [];
+      const images = xPostImages(media);
+      // A video's poster first (its speech is transcribed), then frames of it; GIFs only their poster.
+      const video = media.find((m) => m.kind === "video" && !isXGif(m.url));
+      const urls = video?.poster ? [video.poster, ...images.filter((u) => u !== video.poster), ...videoFrameUrls(video.url)] : images;
+      if (urls.length) found.push({ type: "social", code: r.code, source: "twitter", publishedAt: r.at, kind: media.some((m) => m.kind === "video") ? "x_video" : "x_photo", urls, context: post!.text || r.content || null, video: video?.poster ? video.url : null });
     } catch { /* FxTwitter/X unavailable: this post is skipped, the feed moves on */ }
     await sleep(X_GAP_MS);
   }
@@ -193,7 +235,13 @@ async function store(found: Found[]) {
   for (const f of found) {
     for (const [position, url] of f.urls.entries()) {
       if (url.length > 2000) continue;
-      const asset = await prisma.mediaAsset.upsert({ where: { urlHash: sha(url) }, create: { urlHash: sha(url), url, kind: f.kind, context: f.context?.slice(0, 1000) ?? null }, update: {}, select: { id: true } });
+      const video = position === 0 && f.video && f.video.length <= 2000 ? f.video : null;
+      const asset = await prisma.mediaAsset.upsert({
+        where: { urlHash: sha(url) },
+        create: { urlHash: sha(url), url, kind: f.kind, context: f.context?.slice(0, 1000) ?? null, ...(video ? { videoUrl: video, transcriptStatus: "pending" } : {}) },
+        update: {}, select: { id: true, videoUrl: true },
+      });
+      if (video && !asset.videoUrl) await prisma.mediaAsset.update({ where: { id: asset.id }, data: { videoUrl: video, transcriptStatus: "pending" } });
       await prisma.mediaLink.upsert({
         where: { type_code_position: { type: f.type, code: f.code, position } },
         create: { type: f.type, code: f.code, position, assetId: asset.id, source: f.source, publishedAt: f.publishedAt },
@@ -304,14 +352,55 @@ export async function runMediaTick() {
     analyzed += n;
     if (!n || !serviceOk) break;
   }
+  const transcribed = await transcribePending().catch((e) => { console.error("[media] transkripsi gagal:", (e as Error).message); return 0; });
   const rederived = await refreshTextSignals().catch((e) => { console.error("[media] sinyal teks lama gagal:", (e as Error).message); return 0; });
   if (rederived) console.log(`[media] ${rederived} gambar lama diperbarui sinyal teksnya`);
-  const lastTick = { collected, backfilled, analyzed, ms: Date.now() - started };
+  const lastTick = { collected, backfilled, analyzed, transcribed, ms: Date.now() - started };
   await prisma.mediaWorkerState.upsert({
     where: { id: "main" }, create: { id: "main", heartbeatAt: new Date(), serviceOk, lastError, lastTick },
     update: { heartbeatAt: new Date(), serviceOk, lastError, lastTick },
   }).catch(() => {});
-  return { collected, backfilled, analyzed };
+  return { collected, backfilled, analyzed, transcribed };
+}
+
+type Transcript = { text: string; language: string | null; audio: boolean; error?: string; gone?: boolean };
+let asrDown = false;
+
+/** Transcribes the speech of waiting videos, newest posts first, for ASR_BUDGET_MS. Videos older than ASR_MAX_AGE_DAYS
+ *  when their turn comes are skipped ("none"). Without the service (not installed, or down) nothing changes. */
+async function transcribePending() {
+  await prisma.$executeRaw`UPDATE "MediaAsset" SET "transcriptStatus" = 'none' WHERE "transcriptStatus" = 'pending' AND "createdAt" < now() - make_interval(days => ${ASR_MAX_AGE_DAYS})`;
+  let done = 0;
+  for (const until = Date.now() + ASR_BUDGET_MS; Date.now() < until;) {
+    const [a] = await prisma.$queryRaw<{ id: string; videoUrl: string }[]>`
+      SELECT id, "videoUrl" FROM "MediaAsset" a WHERE "transcriptStatus" = 'pending' AND "videoUrl" IS NOT NULL
+      ORDER BY (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id) DESC NULLS LAST, "createdAt" DESC LIMIT 1`;
+    if (!a) break;
+    let res: Response;
+    try {
+      res = await fetch(`${ASR()}/transcribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: a.videoUrl }), signal: AbortSignal.timeout(300_000) });
+    } catch (e) {
+      if (!asrDown) console.warn(`[media] layanan transkripsi tidak menjawab: ${(e as Error).message}`);
+      asrDown = true;
+      break;
+    }
+    asrDown = false;
+    const body = await res.json().catch(() => ({})) as Transcript;
+    if (!res.ok) {
+      // A removed video ("gone") or a decoding error: not retried.
+      await prisma.mediaAsset.update({ where: { id: a.id }, data: { transcriptStatus: "failed", transcriptAt: new Date(), transcript: null } });
+      if (!body.gone) console.warn(`[media] transkripsi ${a.id} gagal: ${body.error ?? res.status}`);
+      continue;
+    }
+    const text = body.text?.trim().slice(0, 5000) ?? "";
+    await prisma.mediaAsset.update({
+      where: { id: a.id },
+      data: { transcriptStatus: body.audio ? "done" : "none", transcript: text, transcriptLang: body.language, transcriptAt: new Date() },
+    });
+    if (text) await applyTranscript(a.id, text).catch((e) => console.warn(`[media] proyek dari transkrip gagal: ${(e as Error).message}`));
+    done++;
+  }
+  return done;
 }
 
 let lastCleanup = 0;

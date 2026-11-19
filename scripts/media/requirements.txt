@@ -6,3 +6,7 @@ numpy==2.5.5
 pillow==13.0.0
 tokenizers==0.23.3
 rapidocr_onnxruntime==1.4.4
+# Transkripsi suara video (layanan_asr.py) dan frame video (PyAV). av 17+ belum cocok dengan faster-whisper 1.2.1
+# (argumen metadata_errors).
+faster-whisper==1.2.1
+av==16.1.0

@@ -1,7 +1,7 @@
 "use client";
 // What an image's text says, on the Media visual page: a call to action (rally date, time, place), numeric claims to
 // check, and shared narratives (the same message on several posts' images).
-import { IconCalendarEvent, IconChartBar, IconClock, IconLanguage, IconMapPin, IconMessages, IconSpeakerphone } from "@tabler/icons-react";
+import { IconCalendarEvent, IconChartBar, IconClock, IconLanguage, IconMapPin, IconMessages, IconSpeakerphone, IconMicrophone } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -9,13 +9,15 @@ import { formatNumber } from "@/lib/media/labels";
 import type { ActionCall, VisualNarrative } from "@/lib/mediaVisual";
 import m from "../media/modal.module.css";
 import c from "./mediaVisual.module.css";
+import { VisualImage } from "./VisualImage";
 
 dayjs.extend(relativeTime);
 
 /** Badges on a card's image. */
-export function SignalBadges({ action, claims, unread }: { action: ActionCall | null; claims: number; unread?: boolean }) {
+export function SignalBadges({ action, claims, unread, speech }: { action: ActionCall | null; claims: number; unread?: boolean; speech?: boolean }) {
   return (
     <>
+      {speech && <span className={c.kind} title="Ucapan di videonya sudah ditranskripsi"><IconMicrophone size={11} />Ucapan</span>}
       {action && <span className={c.actionBadge} title="Teks gambar berisi ajakan aksi dengan tanggal, jam, atau tempat"><IconSpeakerphone size={11} />Ajakan aksi</span>}
       {claims > 0 && <span className={c.kind} title="Teks gambar memuat klaim angka"><IconChartBar size={11} />Klaim angka</span>}
       {unread && <span className={c.kind} title="Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca"><IconLanguage size={11} />Aksara lain</span>}
@@ -60,8 +62,7 @@ export function NarrativeCard({ n, onOpen }: { n: VisualNarrative; onOpen: () =>
   return (
     <button type="button" className={c.card} onClick={onOpen}>
       <span className={c.thumb} style={{ aspectRatio: "16 / 10" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts */}
-        <img src={n.sample.url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+        <VisualImage src={n.sample.url} loading="lazy" />
         <span className={c.badges}><span className={c.narrBadge}><IconMessages size={11} />{formatNumber(n.posts)} post</span></span>
       </span>
       <span className={c.body}>

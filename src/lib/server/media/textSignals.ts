@@ -40,13 +40,20 @@ export async function applyTextSignals(assetId: string, keyText: string, project
     data: { actionCall: action ?? undefined, narrative: narrativeKey(keyText), claims: numericClaims(keyText), textRules: TEXT_RULES_VERSION },
   });
   if (action === null) await prisma.$executeRaw`UPDATE "MediaAsset" SET "actionCall" = NULL WHERE id = ${assetId} AND "actionCall" IS NOT NULL`;
-  const matched = await matchingProjects(keyText, projects ?? await keywordProjects());
-  if (matched.length) {
-    await prisma.$executeRaw`UPDATE "MediaLink" SET
-      "imageKeys" = ARRAY(SELECT DISTINCT unnest("imageKeys" || ${matched}::text[])),
-      keys = ARRAY(SELECT DISTINCT unnest(keys || ${matched}::text[]))
-      WHERE "assetId" = ${assetId}`;
-  }
+  await linkProjects(assetId, await matchingProjects(keyText, projects ?? await keywordProjects()));
+}
+
+/** The projects whose keywords are spoken in a video: the poster image's items count for them, like image text. */
+export async function applyTranscript(assetId: string, transcript: string) {
+  await linkProjects(assetId, await matchingProjects(transcript, await keywordProjects()));
+}
+
+async function linkProjects(assetId: string, matched: string[]) {
+  if (!matched.length) return;
+  await prisma.$executeRaw`UPDATE "MediaLink" SET
+    "imageKeys" = ARRAY(SELECT DISTINCT unnest("imageKeys" || ${matched}::text[])),
+    keys = ARRAY(SELECT DISTINCT unnest(keys || ${matched}::text[]))
+    WHERE "assetId" = ${assetId}`;
 }
 
 /** The key text of OCR lines (see keyText), with words OCR ran together split ("RESMIMUNDUR" → "RESMI MUNDUR"). */
@@ -85,7 +92,8 @@ export async function rematchProject(keyId: string, keywords: string[]) {
       "imageKeys" = array_append(l."imageKeys", ${keyId}),
       keys = CASE WHEN ${keyId} = ANY(l.keys) THEN l.keys ELSE array_append(l.keys, ${keyId}) END
     FROM "MediaAsset" a
-    WHERE a.id = l."assetId" AND a."keyWords" > 0 AND to_tsvector('indonesian', a."keyText") @@ to_tsquery('indonesian', ${query})`;
+    WHERE a.id = l."assetId" AND ((a."keyWords" > 0 AND to_tsvector('indonesian', a."keyText") @@ to_tsquery('indonesian', ${query}))
+      OR (a.transcript <> '' AND to_tsvector('indonesian', a.transcript) @@ to_tsquery('indonesian', ${query})))`;
 }
 
 // ── For the source-database queries of a project ──────────────────────────────────────────────────────────────────────
@@ -130,8 +138,8 @@ export function imageSearchCodes(terms: string[]) {
     const since = new Date(Date.now() - RETENTION_DAYS * 86_400_000).toISOString().slice(0, 23);
     const rows = await prisma.$queryRaw<{ type: MediaType; code: string }[]>`
       SELECT DISTINCT l.type, l.code, l."publishedAt" FROM "MediaLink" l JOIN "MediaAsset" a ON a.id = l."assetId"
-      WHERE a."keyWords" > 0 AND l."publishedAt" >= ${since}::timestamp
-        AND EXISTS (SELECT 1 FROM unnest(${terms}::text[]) t WHERE to_tsvector('indonesian', a."keyText") @@ plainto_tsquery('indonesian', t))
+      WHERE (a."keyWords" > 0 OR a.transcript <> '') AND l."publishedAt" >= ${since}::timestamp
+        AND EXISTS (SELECT 1 FROM unnest(${terms}::text[]) t WHERE to_tsvector('indonesian', concat_ws(' ', a."keyText", a.transcript)) @@ plainto_tsquery('indonesian', t))
       ORDER BY l."publishedAt" DESC LIMIT ${SEARCH_CODES}`;
     const out: Partial<Record<MediaType, string[]>> = {};
     for (const r of rows) (out[r.type] ??= []).push(r.code);
@@ -154,15 +162,15 @@ export async function withImageSearch(scope: KeyScope, q: string | null): Promis
 /** Longest image text added to an item for AI categorisation and the daily summary. */
 const AI_IMAGE_CHARS = 600;
 
-/** Key text of each item's images (in position order, each line once), for the AI: the message of a meme or poster
+/** Key text of each item's images and the speech of its video (in position order, each line once), for the AI: the message of a meme or poster
  *  whose caption is empty or only emojis. Empty map when nothing was analysed. */
 export async function imageTextFor(type: MediaType, codes: string[]): Promise<Map<string, string>> {
   if (!codes.length) return new Map();
   try {
     const rows = await prisma.$queryRaw<{ code: string; text: string }[]>`
-      SELECT l.code, string_agg(a."keyText", E'\\n' ORDER BY l.position) text
+      SELECT l.code, string_agg(concat_ws(E'\\n', nullif(a."keyText", ''), nullif(a.transcript, '')), E'\\n' ORDER BY l.position) text
       FROM "MediaLink" l JOIN "MediaAsset" a ON a.id = l."assetId"
-      WHERE l.type = ${type} AND l.code = ANY(${codes}::text[]) AND a."keyWords" > 0 AND NOT a.placeholder
+      WHERE l.type = ${type} AND l.code = ANY(${codes}::text[]) AND (a."keyWords" > 0 OR a.transcript <> '') AND NOT a.placeholder
       GROUP BY l.code`;
     return new Map(rows.map((r) => [r.code, mergeKeyText([r.text]).slice(0, AI_IMAGE_CHARS)]));
   } catch {

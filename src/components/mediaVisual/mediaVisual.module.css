@@ -27,8 +27,8 @@
 .card[data-sensitive] { border-color: color-mix(in srgb, var(--mantine-color-orange-5) 50%, var(--mantine-color-default-border)); }
 .card[data-skeleton] { cursor: default; }
 .thumb { position: relative; display: block; flex-shrink: 0; aspect-ratio: 16 / 10; /* per card: the photo's own ratio (inline style) */ overflow: hidden; background: rgba(127,127,127,.12); }
-.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.8,.2,1); }
-.card:hover .thumb img { transform: scale(1.04); }
+.thumb :is(img, video) { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.8,.2,1); }
+.card:hover .thumb :is(img, video) { transform: scale(1.04); }
 .thumb::after { content: ""; position: absolute; inset: 0 0 auto; height: 46px; pointer-events: none; background: linear-gradient(180deg, rgba(8,6,18,.55), transparent); }
 .broken { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 100%; font-size: 12px; color: var(--mantine-color-dimmed); }
 .badges { position: absolute; z-index: 1; left: 8px; top: 8px; right: 52px; display: flex; flex-wrap: wrap; gap: 5px; }
@@ -54,7 +54,7 @@
   color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); border: 1px solid var(--mantine-color-violet-1); }
 .tags span[data-tone="warn"] { color: var(--mantine-color-orange-7); background: var(--mantine-color-orange-0); border-color: var(--mantine-color-orange-2); }
 /* Possibly sensitive images: blurred until opened. */
-.thumb img[data-blur], .detailMedia img[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
+.thumb :is(img, video)[data-blur], .detailMedia :is(img, video)[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
 .veil { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center;
   font-size: 12.5px; font-weight: 800; color: #fff; background: rgba(10,8,20,.35); }
 .veil small { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); }
@@ -83,9 +83,9 @@
 .collage[data-n="3"] > :first-child { grid-row: span 2; }
 .collage[data-n="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .tile { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
-.tile img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.8,.2,1); }
-.card:hover .tile img { transform: scale(1.04); }
-.tile img[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
+.tile :is(img, video) { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 400ms cubic-bezier(.2,.8,.2,1); }
+.card:hover .tile :is(img, video) { transform: scale(1.04); }
+.tile :is(img, video)[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
 .more { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 800; color: #fff; background: rgba(10,8,20,.55); }
 .kind svg { flex-shrink: 0; }
 .gallery { display: grid; gap: 8px; }
@@ -93,9 +93,9 @@
 .gallery[data-n="3"] { grid-template-columns: 1fr 1fr; }
 .gallery[data-n="3"] > :first-child { grid-column: span 2; }
 .galleryItem { position: relative; display: block; padding: 0; border: 0; border-radius: 12px; overflow: hidden; cursor: zoom-in; background: rgba(127,127,127,.12); }
-.galleryItem img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
-.gallery:not([data-n="1"]) .galleryItem img { height: 220px; object-fit: cover; }
-.galleryItem img[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
+.galleryItem :is(img, video) { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+.gallery:not([data-n="1"]) .galleryItem :is(img, video) { height: 220px; object-fit: cover; }
+.galleryItem :is(img, video)[data-blur] { filter: blur(22px) saturate(.6); transform: scale(1.12); }
 .galleryNo { position: absolute; left: 8px; top: 8px; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px;
   font-size: 11px; font-weight: 800; color: #fff; background: rgba(10,8,20,.66); }
 .postText { margin: 0; font-size: 13px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
@@ -124,7 +124,7 @@
   background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); transition: border-color 140ms, transform 140ms; }
 .twin:hover:not(:disabled) { border-color: var(--mantine-color-violet-4); transform: translateY(-1px); }
 .twin:disabled { cursor: default; opacity: .6; }
-.twin img { display: block; width: 100%; height: 72px; object-fit: cover; background: rgba(127,127,127,.12); }
+.twin :is(img, video) { display: block; width: 100%; height: 72px; object-fit: cover; background: rgba(127,127,127,.12); }
 .twin span { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; min-width: 0; }
 .twin b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
 .twin small { font-size: 10.5px; color: var(--mantine-color-dimmed); }
@@ -149,7 +149,7 @@
 
 /* Image detail modal: the shell comes from media/modal.module.css; these are only its own pieces. */
 .headSource { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.62); }
-.detailMedia img { max-height: 460px; object-fit: contain; background: rgba(127,127,127,.12); }
+.detailMedia :is(img, video) { max-height: 460px; object-fit: contain; background: rgba(127,127,127,.12); }
 .detailBroken { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; border-radius: 12px;
   font-size: 13px; color: var(--mantine-color-dimmed); background: rgba(127,127,127,.08); border: 1px dashed var(--mantine-color-default-border); }
 .warn { margin: 0; padding: 9px 11px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; color: var(--mantine-color-orange-8);
@@ -185,8 +185,8 @@
 .detailShell { height: calc(100vh - 32px); height: calc(100dvh - 32px); }
 .detailColumns { grid-template-columns: minmax(0, 1.5fr) minmax(380px, 1fr); }
 .detailColumns .detailMedia, .detailColumns .gallery[data-n="1"] .galleryItem { display: grid; place-items: center; background: rgba(127,127,127,.08); }
-.detailColumns .detailMedia img, .detailColumns .gallery[data-n="1"] .galleryItem img { width: auto; max-width: 100%; max-height: calc(100dvh - 210px); object-fit: contain; background: none; }
-.detailColumns .gallery:not([data-n="1"]) .galleryItem img { height: clamp(220px, calc((100dvh - 320px) / 2), 380px); }
+.detailColumns .detailMedia :is(img, video), .detailColumns .gallery[data-n="1"] .galleryItem :is(img, video) { width: auto; max-width: 100%; max-height: calc(100dvh - 210px); object-fit: contain; background: none; }
+.detailColumns .gallery:not([data-n="1"]) .galleryItem :is(img, video) { height: clamp(220px, calc((100dvh - 320px) / 2), 380px); }
 .mediaInfo { margin: -6px 0 0; text-align: center; font-size: 12px; color: var(--mantine-color-dimmed); }
 .summary { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); }
 .summary em { font-size: 12.5px; font-style: normal; color: var(--mantine-color-dimmed); }
@@ -196,6 +196,8 @@
 .postLink { color: var(--mantine-color-violet-6); font-weight: 600; text-decoration: none; }
 .postLink:hover { text-decoration: underline; }
 .moreText { align-self: flex-start; padding: 0; border: 0; background: none; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-violet-6); }
+.transcript { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+.transcriptLang { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(127,127,127,.16); vertical-align: 1px; }
 .analysisNote { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 4px 2px 0; }
 :global([data-mantine-color-scheme="dark"]) .tags span[data-tone="alert"] { color: var(--mantine-color-red-3); background: color-mix(in srgb, var(--mantine-color-red-5) 14%, transparent); border-color: color-mix(in srgb, var(--mantine-color-red-5) 30%, transparent); }
 :global([data-mantine-color-scheme="dark"]) .tags span[data-tone="info"] { color: var(--mantine-color-cyan-3); background: color-mix(in srgb, var(--mantine-color-cyan-5) 14%, transparent); border-color: color-mix(in srgb, var(--mantine-color-cyan-5) 30%, transparent); }

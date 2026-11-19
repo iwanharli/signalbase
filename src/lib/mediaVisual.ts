@@ -33,6 +33,8 @@ export type VisualAsset = {
   actionCall: ActionCall | null; narrative: string | null; claims: string[];
   /** Text was found but not read: usually a non-Latin script (Arabic, Cyrillic, Chinese). */
   unreadText: boolean;
+  /** Speech of the video this image is the poster of (X video, Instagram Reel); null when none was transcribed. */
+  transcript: string | null; transcriptLang: string | null;
   /** Items using this image, and the newest few of them. */
   usedBy: number; uses: VisualUse[];
   /** Other images (different URLs) with the same fingerprint: a picture being re-shared. */
@@ -77,6 +79,8 @@ export type VisualPost = {
   images: (VisualAsset & { position: number; matched: boolean })[];
   keyText: string; tags: { tag: string; score: number }[]; sensitive: string[];
   actionCall: ActionCall | null; claims: string[]; narratives: string[]; unreadText: boolean;
+  /** Speech of the post's video (see VisualAsset.transcript). */
+  transcript: string | null; transcriptLang: string | null;
   /** Largest number of other URLs/posts sharing one of its images. */
   twins: number; sharedElsewhere: number;
 };
@@ -108,29 +112,86 @@ export function youtubeThumbnail(url: string | null | undefined) {
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
 
+/** YouTube images of a video: the thumbnail (often a designed cover) and three frames of the video itself (hq1–hq3, at
+ *  about a quarter, half and three quarters), where text shown in the video appears. */
+export function youtubeImages(url: string | null | undefined) {
+  const thumb = youtubeThumbnail(url);
+  return thumb ? [thumb, ...[1, 2, 3].map((n) => thumb.replace("/hqdefault.jpg", `/hq${n}.jpg`))] : [];
+}
+
+/** Frames analysed from a video (X, Instagram Reel), as "<video url>#t=<percent>%": the analysis service decodes that
+ *  frame, the page shows it with a <video> element seeked there (VisualImage). */
+export const VIDEO_FRAME_AT = [25, 50, 75];
+export const videoFrameUrls = (video: string) => VIDEO_FRAME_AT.map((p) => `${video}#t=${p}%`);
+export function videoFrame(url: string) {
+  const m = url.match(/^(https:\/\/[^#\s]+)#t=(\d{1,2})%$/);
+  return m ? { url: m[1], at: Number(m[2]) / 100 } : null;
+}
+/** An X GIF (tweet_video): no sound and few distinct frames, so only its poster is analysed. */
+export const isXGif = (url: string) => /^https:\/\/video\.twimg\.com\/tweet_video\//.test(url);
+
 /** Images of an X post worth analysing: photos, and the poster frame of videos/GIFs; at most four. */
 export function xPostImages(media: { kind: "image" | "video"; url: string; poster: string | null }[]) {
   return media.map((m) => (m.kind === "image" ? m.url : m.poster)).filter((u): u is string => !!u).slice(0, 4);
 }
 
-/** Hosts of Instagram/Threads images (og:image of a public post page). */
+/** Hosts of Instagram/Threads images and videos (og:image of a public post page, the embed's media). */
 const META_IMAGE_HOST = /(^|\.)(cdninstagram\.com|fbcdn\.net)$/;
-
-/** The image of a public Instagram/Threads post page: its og:image, as Meta advises since oEmbed stopped returning
- *  thumbnails (Nov 2025). Null without one, off Meta's CDN, or when it is the author's profile picture (Threads posts
- *  without an image show it; profile pictures are "t51.*-19" files) or the site logo (a deleted post redirects home). */
-export function metaOgImage(html: string) {
-  const tag = html.match(/<meta\s[^>]*property=["']og:image["'][^>]*>/i)?.[0];
-  const raw = tag?.match(/content=["']([^"']+)["']/i)?.[1];
+/** A Meta CDN URL (https, a media path: /v/… for images, /o1/v/… for Reel videos), entities decoded; null otherwise. */
+function metaCdnUrl(raw: string | null | undefined) {
   if (!raw) return null;
   try {
     const url = new URL(raw.replace(/&amp;/g, "&"));
-    if (url.protocol !== "https:" || !META_IMAGE_HOST.test(url.hostname)) return null;
-    if (!url.pathname.startsWith("/v/") || /\/t51\.\d+-19\//.test(url.pathname)) return null; // not a post file (site logo), or a profile picture
-    return url.toString();
+    return url.protocol === "https:" && META_IMAGE_HOST.test(url.hostname) && /^\/(o1\/)?v\//.test(url.pathname) ? url.toString() : null;
   } catch {
     return null;
   }
+}
+/** Most images taken from one Instagram post (carousel slides). */
+export const INSTAGRAM_MAX_IMAGES = 6;
+
+/** Media of an Instagram post from its official embed page (/p/<id>/embed/captioned/, what Meta's oEmbed shows): every
+ *  carousel slide (og:image has only the first) and a Reel's video. Null when the embed carries no data (then og:image). */
+export function instagramEmbed(html: string): { images: string[]; video: string | null } | null {
+  const at = html.indexOf('"contextJSON":"');
+  if (at < 0) return null;
+  let end = at + 15;
+  while (end < html.length && html[end] !== '"') end += html[end] === "\\" ? 2 : 1;
+  try {
+    const ctx = JSON.parse(JSON.parse(html.slice(at + 14, end + 1)));
+    const m = ctx?.gql_data?.shortcode_media;
+    if (!m) return null;
+    const kids: { display_url?: string }[] = m.edge_sidecar_to_children?.edges?.map((e: { node: unknown }) => e.node) ?? [];
+    const images = [...new Set((kids.length ? kids : [m]).map((n) => metaCdnUrl(n.display_url)).filter((u): u is string => !!u))].slice(0, INSTAGRAM_MAX_IMAGES);
+    const video = m.is_video ? metaCdnUrl(m.video_url) : null;
+    return images.length ? { images, video } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Images in an article's body besides its lead image, at most NEWS_BODY_MAX: infographics and documents often sit there.
+ *  `srcs`: the src of each <img> in news_main.news_content, in order. Logos, icons, ads, GIFs and SVGs are left out. */
+export const NEWS_BODY_MAX = 4;
+export function newsBodyImages(srcs: string[] | null | undefined, lead: string | null | undefined) {
+  const out: string[] = [];
+  for (const src of srcs ?? []) {
+    const url = src.replace(/&amp;/g, "&");
+    if (!/^https?:\/\//.test(url) || url === lead || out.includes(url) || url.length > 1000) continue;
+    if (/\.(gif|svg)(\?|$)/i.test(url) || /(logo|icon|avatar|banner|iklan|\bads?\b|pixel|spacer|emoji|placeholder)/i.test(url)) continue;
+    out.push(url);
+    if (out.length >= NEWS_BODY_MAX) break;
+  }
+  return out;
+}
+
+/** The image of a public Instagram/Threads post page: its og:image, as Meta advises since oEmbed stopped returning
+ *  thumbnails (Nov 2025). Null without one, off Meta's CDN, when it is the author's profile picture (Threads posts
+ *  without an image show it; profile pictures are "t51.*-19" files) or the site logo (a deleted post redirects home). */
+export function metaOgImage(html: string) {
+  const tag = html.match(/<meta\s[^>]*property=["']og:image["'][^>]*>/i)?.[0];
+  const url = metaCdnUrl(tag?.match(/content=["']([^"']+)["']/i)?.[1]);
+  return url && !/\/t51\.\d+-19\//.test(new URL(url).pathname) ? url : null;
 }
 
 /** Wait before retrying a failed image: 5 min, 30 min, then 2 h; null after the last attempt. */

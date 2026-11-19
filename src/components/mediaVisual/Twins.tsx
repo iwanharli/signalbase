@@ -12,6 +12,7 @@ import type { VisualTwin } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
 import m from "../media/modal.module.css";
 import c from "./mediaVisual.module.css";
+import { VisualImage } from "./VisualImage";
 
 dayjs.extend(relativeTime);
 
@@ -27,8 +28,7 @@ export function Twins({ assetId, count, label, onPost }: { assetId: string; coun
         {res.data ? res.data.twins.map((t) => (
           <button key={t.id} type="button" className={c.twin} disabled={!t.use.item} onClick={() => t.use.item && onPost(t.use.item, t.use.type)}
             title={t.use.item ? (t.use.item.title ?? t.use.item.content ?? "").slice(0, 160) : "Item tidak ditemukan di bank data"}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts */}
-            <img src={t.url} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            <VisualImage src={t.url} loading="lazy" />
             <span><b>{sourceLabel(t.use.source)}</b><small>{dayjs(t.use.publishedAt).locale("id").fromNow()}</small></span>
           </button>
         )) : Array.from({ length: Math.min(count, 4) }, (_, i) => <Skeleton key={i} h={96} radius={10} />)}

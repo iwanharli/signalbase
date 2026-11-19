@@ -5,15 +5,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Modal } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconAlertTriangle, IconCopy, IconExternalLink, IconEyeOff, IconFileText, IconPhoto, IconPhotoScan, IconStack2, IconX } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCopy, IconExternalLink, IconEyeOff, IconFileText, IconMicrophone, IconPhoto, IconPhotoScan, IconStack2, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
-import { tagLabel, VISUAL_KINDS, type VisualPost } from "@/lib/mediaVisual";
+import { tagLabel, videoFrame, VISUAL_KINDS, type VisualPost } from "@/lib/mediaVisual";
 import m from "../media/modal.module.css";
 import c from "./mediaVisual.module.css";
-import { OcrText } from "./OcrText";
+import { Marked, OcrText } from "./OcrText";
+import { VisualImage } from "./VisualImage";
 import { Twins } from "./Twins";
 import { SignalBadges, SignalSections } from "./Signals";
 import type { MediaItem, MediaType } from "@/lib/media/types";
@@ -28,8 +29,11 @@ const ratio = (i: Img) => (i.width && i.height ? Math.min(2, Math.max(0.75, i.wi
 export const collageRatio = (p: VisualPost) => (p.images.length <= 1 ? (p.images[0] ? ratio(p.images[0]) : 16 / 10) : p.images.length === 2 ? 1.6 : 1.25);
 
 function countLabel(p: VisualPost) {
-  const videos = p.images.filter((i) => i.kind === "x_video" || i.kind === "youtube").length;
-  const photos = p.images.length - videos;
+  // A video counts once: its poster, its frames ("#t=") and YouTube's thumbnail + frames are all of one video.
+  const frames = p.images.some((i) => videoFrame(i.url));
+  const isVideo = (i: VisualPost["images"][number]) => i.kind === "x_video" || i.kind === "youtube" || !!videoFrame(i.url) || (frames && i.position === 0);
+  const videos = p.images.some(isVideo) ? 1 : 0;
+  const photos = p.images.filter((i) => !isVideo(i)).length;
   return [videos && `${videos} video`, photos && `${photos} foto`].filter(Boolean).join(" + ");
 }
 
@@ -38,8 +42,7 @@ function Tile({ img, blur, more }: { img: Img; blur: boolean; more?: number }) {
   return (
     <span className={c.tile}>
       {broken ? <span className={c.broken}><IconPhoto size={18} /></span>
-        // eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts
-        : <img src={img.url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} data-blur={blur || undefined} />}
+        : <VisualImage src={img.url} loading="lazy" onError={() => setBroken(true)} data-blur={blur || undefined} />}
       {more ? <span className={c.more}>+{more}</span> : null}
     </span>
   );
@@ -59,7 +62,7 @@ export function PostCard({ post, onOpen }: { post: VisualPost; onOpen: () => voi
           <span className={c.kind}>{post.images[0] ? VISUAL_KINDS[post.images[0].kind] : sourceLabel(post.source)}</span>
           {many && <span className={c.kind}><IconStack2 size={11} />{countLabel(post)}</span>}
           {hidden && <span className={c.warnBadge}><IconAlertTriangle size={11} />Perlu ditinjau</span>}
-          <SignalBadges action={post.actionCall} claims={post.claims.length} unread={post.unreadText && !post.keyText} />
+          <SignalBadges action={post.actionCall} claims={post.claims.length} unread={post.unreadText && !post.keyText} speech={!!post.transcript} />
         </span>
         {post.twins > 0 && <span className={c.twins} title="Gambar yang sama ditemukan di URL lain"><IconCopy size={11} />{post.twins + 1}×</span>}
         {hidden && <span className={c.veil}><IconEyeOff size={18} />Kemungkinan konten sensitif<small>Klik untuk melihat</small></span>}
@@ -124,8 +127,7 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
           <div className={c.gallery} data-n={Math.min(4, post.images.length)}>
             {post.images.map((img, i) => (
               <button key={img.id} type="button" className={c.galleryItem} onClick={() => (revealed ? onZoom(i) : setRevealed(true))} aria-label={revealed ? `Perbesar gambar ${i + 1}` : "Tampilkan gambar sensitif"}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt="" referrerPolicy="no-referrer" data-blur={(!revealed && img.sensitive.length > 0) || undefined} />
+                <VisualImage src={img.url} data-blur={(!revealed && img.sensitive.length > 0) || undefined} />
                 {post.images.length > 1 && <span className={c.galleryNo}>{i + 1}</span>}
                 {!revealed && img.sensitive.length > 0 && <span className={c.veil}><IconEyeOff size={20} />Kemungkinan konten sensitif<small>Klik untuk menampilkan</small></span>}
               </button>
@@ -149,7 +151,8 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
               </>
             ) : <p className={m.sectionNote}>Item tidak ditemukan di bank data.</p>}
           </section>
-          {post.images.map((img, i) => (
+          {post.transcript && <Transcript text={post.transcript} lang={post.transcriptLang} highlight={highlight} />}
+          {post.images.map((img, i) => (post.images.length > 1 && !img.keyText && !img.ocrText ? null : (
             <section key={img.id} className={m.contextSection}>
               <h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{post.images.length > 1 ? `Teks di gambar ${i + 1}` : "Teks penting di gambar"}</h3>
               {post.images.length > 1 && img.tags.length > 0 && <div className={c.tags}>{img.sensitive.length > 0 && <span data-tone="warn"><IconAlertTriangle size={11} />Perlu ditinjau</span>}{img.tags.map((t) => <span key={t.tag} title={`Keyakinan ${Math.round(t.score * 100)}%`}>{tagLabel(t.tag)}</span>)}</div>}
@@ -157,7 +160,10 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
                 emptyNote={img.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : img.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
               {img.usedBy > 1 && <p className={m.sectionNote}>Gambar ini dipakai {formatNumber(img.usedBy)} post.</p>}
             </section>
-          ))}
+          )))}
+          {post.images.length > 1 && post.images.every((i) => !i.keyText && !i.ocrText) && (
+            <section className={m.contextSection}><h3><IconFileText size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Teks di gambar</h3><p className={m.sectionNote}>Tidak ada teks yang terbaca di {post.images.length} gambar.</p></section>
+          )}
           <SignalSections action={post.actionCall} claims={post.claims} narratives={post.narratives} onNarrative={onNarrative} />
           <AnalysisNote sensitive={post.sensitive} />
         </aside>
@@ -184,6 +190,19 @@ export function Summary({ tags, sensitive, action, claims, unread }: { tags: { t
 }
 
 /** Bottom of the side column: what the sensitive flag means, and where the analysis ran. */
+const LANGS: Record<string, string> = { id: "Indonesia", en: "Inggris", ms: "Melayu", jw: "Jawa", su: "Sunda", ar: "Arab", zh: "Mandarin" };
+
+/** What is said in the video (Whisper, first minutes), with the detected language. */
+export function Transcript({ text, lang, highlight = "" }: { text: string; lang: string | null; highlight?: string }) {
+  return (
+    <section className={m.contextSection}>
+      <h3><IconMicrophone size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Ucapan di video{lang && <span className={c.transcriptLang}>{LANGS[lang] ?? lang}</span>}</h3>
+      <p className={c.transcript}><Marked text={text} term={highlight} /></p>
+      <p className={m.sectionNote}>Transkrip otomatis dari menit-menit pertama video; bisa keliru pada nama dan istilah.</p>
+    </section>
+  );
+}
+
 export function AnalysisNote({ sensitive }: { sensitive: string[] }) {
   return (
     <div className={c.analysisNote}>

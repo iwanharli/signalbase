@@ -18,11 +18,12 @@ import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { ItemDetailModal } from "../media/ItemDetailModal";
 import { Lightbox } from "../media/Lightbox";
+import { VisualImage } from "./VisualImage";
 import { Masonry } from "../media/Masonry";
 import { OcrText } from "./OcrText";
 import { Twins } from "./Twins";
 import { NarrativeCard, SignalBadges, SignalSections } from "./Signals";
-import { AnalysisNote, collageRatio, DETAIL_MODAL_SIZE, PostCard, PostModal, Summary } from "./PostViews";
+import { AnalysisNote, collageRatio, DETAIL_MODAL_SIZE, PostCard, PostModal, Summary, Transcript } from "./PostViews";
 import { Button } from "../ui/Button";
 import m from "../media/modal.module.css";
 import classes from "../issues/issues.module.css";
@@ -239,13 +240,12 @@ function AssetCard({ asset, onOpen }: { asset: VisualAsset; onOpen: () => void }
     <button type="button" className={c.card} onClick={onOpen} data-sensitive={asset.sensitive.length > 0 || undefined}>
       <span className={c.thumb} style={{ aspectRatio: String(photoRatio(asset)) }}>
         {broken ? <span className={c.broken}><IconPhoto size={22} />Gambar sudah tidak tersedia</span>
-          // eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts
-          : <img src={asset.url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} data-blur={hidden || undefined} />}
+          : <VisualImage src={asset.url} loading="lazy" onError={() => setBroken(true)} data-blur={hidden || undefined} />}
         {hidden && !broken && <span className={c.veil}><IconEyeOff size={18} />Kemungkinan konten sensitif<small>Klik untuk melihat</small></span>}
         <span className={c.badges}>
           <span className={c.kind}>{VISUAL_KINDS[asset.kind]}</span>
           {asset.sensitive.length > 0 && <span className={c.warnBadge} title="Ditandai otomatis; periksa sendiri sebelum menyimpulkan"><IconAlertTriangle size={11} />Perlu ditinjau</span>}
-          <SignalBadges action={asset.actionCall} claims={asset.claims.length} unread={asset.unreadText && !asset.keyText} />
+          <SignalBadges action={asset.actionCall} claims={asset.claims.length} unread={asset.unreadText && !asset.keyText} speech={!!asset.transcript} />
         </span>
         {asset.twins > 0 && <span className={c.twins} title="Gambar yang sama ditemukan di URL lain"><IconCopy size={11} />{asset.twins + 1}×</span>}
       </span>
@@ -309,8 +309,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
         <section className={m.mainCol} aria-label="Gambar">
           {broken ? <div className={c.detailBroken}><IconPhoto size={26} />Gambar sudah tidak tersedia di sumbernya</div> : (
             <button type="button" className={`${m.media} ${c.detailMedia}`} onClick={() => (shown ? onZoom() : setShown(true))} aria-label={shown ? "Perbesar gambar" : "Tampilkan gambar sensitif"}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts */}
-              <img src={asset.url} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} data-blur={!shown || undefined} />
+              <VisualImage src={asset.url} onError={() => setBroken(true)} data-blur={!shown || undefined} />
               {!shown && <span className={c.veil}><IconEyeOff size={22} />Kemungkinan konten sensitif<small>Klik untuk menampilkan gambar</small></span>}
             </button>
           )}
@@ -324,6 +323,7 @@ function AssetDetail({ asset, onClose, onZoom, onPost, onNarrative, highlight }:
             <OcrText keyText={asset.keyText} ocrText={asset.ocrText} ocrWords={asset.ocrWords} highlight={highlight}
               emptyNote={asset.unreadText ? "Ada teks beraksara lain (mis. Arab, Kirill, Mandarin) yang belum bisa dibaca; periksa gambarnya." : asset.ocrText ? "Hanya teks tampilan aplikasi, watermark, stempel waktu, atau teks yang sama dengan caption." : "Tidak ada teks yang terbaca."} />
           </section>
+          {asset.transcript && <Transcript text={asset.transcript} lang={asset.transcriptLang} highlight={highlight} />}
           <SignalSections action={asset.actionCall} claims={asset.claims} narratives={asset.narrative ? [asset.narrative] : []} onNarrative={onNarrative} />
 
           <section className={m.contextSection}>

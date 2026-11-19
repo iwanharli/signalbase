@@ -52,7 +52,7 @@ switch_to() {
     || pm2 start npm --name signalbase-classifier --cwd "$APP_DIR" -- run classifier >/dev/null
   # Media visual: worker and the local analysis service (set up once on the server, see docs teknis Deployment).
   # Restarted without --update-env so the service keeps its model folder and port.
-  for p in signalbase-media signalbase-media-ai; do pm2 describe "$p" >/dev/null 2>&1 && pm2 restart "$p" >/dev/null; done
+  for p in signalbase-media signalbase-media-ai signalbase-media-asr; do pm2 describe "$p" >/dev/null 2>&1 && pm2 restart "$p" >/dev/null; done
   true
 }
 healthy() {

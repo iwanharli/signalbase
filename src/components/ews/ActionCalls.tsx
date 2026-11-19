@@ -11,6 +11,7 @@ import type { VisualResponse } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
 import { useRole } from "../RoleContext";
 import c from "./actionCalls.module.css";
+import { VisualImage } from "../mediaVisual/VisualImage";
 
 dayjs.extend(relativeTime);
 const SHOWN = 4;
@@ -40,8 +41,7 @@ export function ActionCalls({ days, keyId }: { days: number; keyId: string | nul
             const a = p.actionCall!;
             return (
               <Link key={p.key} href={`/analisis/media?${qs}`} className={c.item}>
-                {/* eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts */}
-                {img && <img src={img.url} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+                {img && <VisualImage src={img.url} loading="lazy" />}
                 <span className={c.facts}>
                   {a.date && <span><IconCalendarEvent size={12} />{a.date}</span>}
                   {a.time && <span><IconClock size={12} />{a.time}</span>}

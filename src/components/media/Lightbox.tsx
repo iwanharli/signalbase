@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight, IconExternalLink, IconX } from "@tabler/icons-react";
+import { videoFrame } from "@/lib/mediaVisual";
 import c from "./lightbox.module.css";
 
 export type LightboxImage = { src: string; alt?: string };
@@ -36,6 +37,7 @@ export function Lightbox({ images, index, onClose }: { images: LightboxImage[]; 
 
   if (!open || typeof document === "undefined") return null;
   const image = images[current] ?? images[0];
+  const frame = videoFrame(image.src);
   // The next and previous image (the same one when there are two), each once.
   const neighbours = many ? [...new Set([images[(current + 1) % images.length].src, images[(current - 1 + images.length) % images.length].src])].filter((src) => src !== image.src) : [];
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
@@ -53,18 +55,23 @@ export function Lightbox({ images, index, onClose }: { images: LightboxImage[]; 
       <header className={c.bar} onClick={stop}>
         <span className={c.counter}>{many ? `${current + 1} / ${images.length}` : "Pratinjau gambar"}</span>
         <div className={c.tools}>
-          <a href={image.src} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" title="Buka gambar asli"><IconExternalLink size={18} /></a>
+          <a href={frame?.url ?? image.src} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" title="Buka gambar asli"><IconExternalLink size={18} /></a>
           <button type="button" onClick={onClose} title="Tutup (Esc)" aria-label="Tutup pratinjau"><IconX size={20} /></button>
         </div>
       </header>
 
       <div className={c.stage}>
         {!loaded[image.src] && <Loader className={c.loader} color="white" size="md" />}
-        {/* eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts */}
-        <img key={image.src} src={image.src} alt={image.alt ?? ""} referrerPolicy="no-referrer" className={c.image} data-ready={loaded[image.src] || undefined}
-          onClick={stop} onLoad={() => setLoaded((l) => ({ ...l, [image.src]: true }))} onError={() => setLoaded((l) => ({ ...l, [image.src]: true }))} />
+        {frame
+          // A video frame (Media visual): the video itself, from that point, with its sound.
+          ? <video key={image.src} src={frame.url} controls playsInline autoPlay className={c.image} data-ready={loaded[image.src] || undefined} onClick={stop}
+            onLoadedMetadata={(e) => { const v = e.currentTarget; if (Number.isFinite(v.duration)) v.currentTime = v.duration * frame.at; setLoaded((l) => ({ ...l, [image.src]: true })); }}
+            onError={() => setLoaded((l) => ({ ...l, [image.src]: true }))} />
+          // eslint-disable-next-line @next/next/no-img-element -- remote media from many hosts
+          : <img key={image.src} src={image.src} alt={image.alt ?? ""} referrerPolicy="no-referrer" className={c.image} data-ready={loaded[image.src] || undefined}
+            onClick={stop} onLoad={() => setLoaded((l) => ({ ...l, [image.src]: true }))} onError={() => setLoaded((l) => ({ ...l, [image.src]: true }))} />}
         {/* Neighbours load in the background so the next step is instant. */}
-        {neighbours.map((src) => <link key={src} rel="preload" as="image" href={src} referrerPolicy="no-referrer" />)}
+        {neighbours.filter((src) => !videoFrame(src)).map((src) => <link key={src} rel="preload" as="image" href={src} referrerPolicy="no-referrer" />)}
       </div>
 
       {image.alt && <p className={c.caption} onClick={stop}>{image.alt}</p>}
