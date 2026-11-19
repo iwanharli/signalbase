@@ -369,7 +369,7 @@ let asrDown = false;
 /** Transcribes the speech of waiting videos, newest posts first, for ASR_BUDGET_MS. Videos older than ASR_MAX_AGE_DAYS
  *  when their turn comes are skipped ("none"). Without the service (not installed, or down) nothing changes. */
 async function transcribePending() {
-  await prisma.$executeRaw`UPDATE "MediaAsset" SET "transcriptStatus" = 'none' WHERE "transcriptStatus" = 'pending' AND "createdAt" < now() - make_interval(days => ${ASR_MAX_AGE_DAYS})`;
+  await prisma.$executeRaw`UPDATE "MediaAsset" SET "transcriptStatus" = 'none' WHERE "transcriptStatus" = 'pending' AND "createdAt" < now() - make_interval(days => ${ASR_MAX_AGE_DAYS}::int)`;
   let done = 0;
   for (const until = Date.now() + ASR_BUDGET_MS; Date.now() < until;) {
     const [a] = await prisma.$queryRaw<{ id: string; videoUrl: string }[]>`
