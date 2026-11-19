@@ -363,7 +363,12 @@ export async function runMediaTick() {
     for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until || collecting;) {
       const done = await analyzePending();
       n += done;
-      if (!serviceOk) break;
+      // The service isn't answering (e.g. still loading its models after a deploy): try again while collecting.
+      if (!serviceOk) {
+        if (!collecting) break;
+        await sleep(IDLE_WAIT_MS * 3);
+        continue;
+      }
       if (!done) {
         if (!collecting) break;
         await sleep(IDLE_WAIT_MS); // nothing waiting yet: new images may arrive from the collecting
@@ -425,7 +430,10 @@ async function transcribePending(collecting: () => boolean = () => false) {
     } catch (e) {
       if (!asrDown) console.warn(`[media] layanan transkripsi tidak menjawab: ${(e as Error).message}`);
       asrDown = true;
-      break;
+      // Still loading its model after a restart, or not installed: try again while collecting, then stop.
+      if (!collecting()) break;
+      await sleep(IDLE_WAIT_MS * 3);
+      continue;
     }
     asrDown = false;
     const body = await res.json().catch(() => ({})) as Transcript;
