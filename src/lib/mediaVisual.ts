@@ -235,6 +235,16 @@ const NOISE = [
   /^\d{4}[-/]\d{2}[-/]\d{2}([ T]\d{2}[:.]\d{2}.*)?$/,
   /^[^\s@]{0,40}\s*@\w{2,}\s*([·.•-].*)?$/, // "Kanda @kandaabahlul · 4 jam", "@akun"
   /^(https?:\/\/)?(www\.)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i, // a bare domain or link
+  // Phone status bar ("12.05 LTE 87%", "VoLTE 4G", "100%").
+  /^(\d{1,2}[.:]\d{2}\s*)?((vo\s?)?(lte|wifi|wi-fi)|[345]g\+?|h\+|\d{1,3}\s*%|[\s.,:|•·])+$/i,
+  /^\d{1,2}[.:]\d{2}\b.{0,20}\b(lte|[345]g|wifi)\b/i,
+  // App screens: tabs, buttons, prompts, store badges, stock-chart labels.
+  /^(postingan|posting|posts?|beranda|home|jelajahi|explore|untuk anda|for you|notifikasi|notifications|pesan|messages|profil|profile|reels|shorts|feed|trending|terbaru|latest|populer|top|media|balasan|komentar|comments|replies|penayangan|tayangan|views|langganan|subscribe|subscribed|yuk subscribe!?|subscribe sekarang|app store|google play|download on the app store|get it on google play|konten dari pengguna|time mark|percent|change|high|low|open|close|volume|votar|vote|live|siaran langsung|breaking|breaking news|news|berita|epaper|e-paper|baca juga|advertisement|iklan|sponsored|bersponsor|disponsori|\.?com)[!.:]?$/i,
+  /^(posting balasan anda|post your reply|tulis komentar|add a comment|tambahkan komentar|terjemahkan postingan|lihat terjemahan|lihat postingan|lihat semua|see all|tonton sekarang|watch now)\b/i,
+  // A line that is a view/like count ("10.49 · 16 Nov 2026 · 102 rb Tayangan").
+  /\b\d[\d.,]*\s*(rb|jt|k|m|ribu|juta)?\s*(x\s+)?(penayangan|tayangan|views|ditonton|kali ditonton)\b/i,
+  // A news outlet's or platform's name alone (logo, watermark).
+  /^(kompas(\s?tv|\.com|\.id)?|idn\s?times|inews(\.id)?|tempo(\.co)?|detik(com|news)?|tribun\s?\w*|cnn(\s?indonesia)?|cnbc(\s?indonesia)?|metro\s?tv|tv\s?one|kumparan|liputan\s?6|okezone|suara(\.com)?|antara(news)?|republika|merdeka(\.com)?|times|tiktok|google|youtube|instagram|facebook|threads|shopee|tokopedia)$/i,
 ];
 /** Lines shorter than this (share of the image height) are background text: shirts, signs, small print. */
 export const KEY_MIN_LINE_HEIGHT = 0.015;
@@ -330,11 +340,20 @@ export function narrativeKey(text: string) {
 }
 
 const UNIT = "(%|persen|ribu|rb|juta|jt|miliar|milyar|triliun|t|orang|jiwa|warga|korban|perusahaan|titik|hektar|ha|km|kg|ton|unit|kasus|rumah|desa|sekolah|tersangka|personel|rupiah)";
-const CLAIM_RE = new RegExp(`(rp\\.?\\s*\\d[\\d.,]*\\s*(ribu|rb|juta|jt|miliar|triliun|t)?|\\b\\d[\\d.,]*\\s*${UNIT}(?![\\p{L}\\d]))`, "iu");
+const CLAIM_RE = new RegExp(`((?<!\\p{L})rp\\.?\\s*\\d[\\d.,]*\\s*(ribu|rb|juta|jt|miliar|triliun|t)?|\\b\\d[\\d.,]*\\s*${UNIT}(?![\\p{L}\\d]))`, "iu");
+/** Numbers that are not claims: view/like/subscriber counts, speeds (dashcams), "3T" (frontier regions), Rp 0 (offers). */
+const NOT_CLAIM = [
+  /\d[\d.,]*\s*(rb|jt|k|m|ribu|juta)?\s*(x\s+)?(penayangan|tayangan|views?|ditonton|suka|likes?|komentar|balasan|subscribers?|pelanggan|pengikut|followers?|retweets?|reposts?|dibagikan|shares?)(?!\p{L})/giu,
+  /speed\s*:?\s*[\d.,]+\s*(km\s*\/\s*(h|jam))?/gi,
+  /\d[\d.,]*\s*km\s*\/\s*(h|jam)(?!\p{L})/giu,
+  /(?<![\p{L}\d])3T(?![\p{L}\d])/gu,
+  /(?<!\p{L})rp\.?\s*0(?![\d.,])/giu,
+];
 
 /** Lines of the key text that state a number with a unit (amounts, percentages, counts): claims worth checking. */
 export function numericClaims(text: string) {
-  return text.split("\n").map((l) => l.trim()).filter((l) => l.length >= 6 && CLAIM_RE.test(l)).slice(0, 8);
+  return text.split("\n").map((l) => l.trim())
+    .filter((l) => l.length >= 6 && CLAIM_RE.test(NOT_CLAIM.reduce((t, re) => t.replace(re, " "), l))).slice(0, 8);
 }
 
 // ── Words OCR ran together ────────────────────────────────────────────────────────────────────────────────────────────

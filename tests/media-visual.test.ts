@@ -155,6 +155,23 @@ test("numeric claims are lines with a number and a unit", async () => {
     ["104 perusahaan diselidiki oleh kepolisian", "Naik 0,35% ke 5.323", "Bantuan Rp 950.000 per keluarga"]);
 });
 
+test("not claims: view/like counts, dashcam speeds, 3T regions, Rp inside a word, Rp 0 (production)", async () => {
+  const { numericClaims } = await import("../src/lib/mediaVisual");
+  for (const l of ["10.49 -16 Nov 2026- 102 rb Tayangan", "4.230 Posting ulang 146 Kutipan 14rb Suka", "@tempo video channel 5,4 rb suka 503 rb x ditonton 10",
+    "5,84 jt subscriber", "Speed:0.0km/h", ":70 km/jam", "MBG Fokus Wilayah 3T", "BUZZERP2", "Coba 1 bulan seharga Rp 0"]) assert.deepEqual(numericClaims(l), [], l);
+  for (const l of ["Jokowi maling APBN 497 T", "Rp 52 Triliun dari tambang", "Mereka gugur demi demokrasi. Keadilan untuk 894 jiwa", "BI-Rate Naik 25bps ke 6,00%"])
+    assert.deepEqual(numericClaims(l), [l], l);
+});
+
+test("screenshot chrome: status bar, app screens, outlet names and view counts are not key text", async () => {
+  const { keyText } = await import("../src/lib/mediaVisual");
+  const line = (t: string, cy: number) => ({ t, h: 0.04, cy });
+  const chrome = ["12.05 LTE 87%", "VoLTE 4G", "KOMPAS", "Konten dari Pengguna", "Posting balasan Anda", "10.49 -16 Nov 2026- 102 rb Tayangan", "App Store", "High", "BREAKING NEWS", ".com", "YUK SUBSCRIBE!"];
+  const message = "POLISI TANGKAP PELAKU PENIPUAN ONLINE DI MEDAN";
+  const r = keyText([...chrome.map((t, i) => line(t, i / 20)), line(message, 0.8)], null);
+  assert.equal(r.text, message);
+});
+
 test("reports about a rally are not calls to action (production false positive)", async () => {
   const { detectActionCall } = await import("../src/lib/mediaVisual");
   assert.equal(detectActionCall("Kapolri Tinjau Kericuhan Demo / di Yogyakarta / Polri Dalami Motif Aksi Massa / jam 18.00 WIB di lapangan"), null);
