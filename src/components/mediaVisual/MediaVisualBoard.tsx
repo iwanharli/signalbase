@@ -33,8 +33,8 @@ type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | n
 const PERIOD_OPTIONS = VISUAL_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const selectClasses = { input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption };
 const VIEW_OPTIONS = [{ value: "post", label: "Per post" }, { value: "image", label: "Per gambar" }, { value: "narrative", label: "Narasi" }] as const;
-/** Text in the image: all, with key text, without (empty, or only app chrome/stamps/caption repeats). */
-const TEXT_OPTIONS = [{ value: "", label: "Semua" }, { value: "1", label: "Ada teks" }, { value: "0", label: "Tanpa teks" }];
+/** Text in the image (default "Ada teks"): all, with key text, without (empty, or only app chrome/stamps/caption repeats). */
+const TEXT_OPTIONS = [{ value: "all", label: "Semua" }, { value: "1", label: "Ada teks" }, { value: "0", label: "Tanpa teks" }];
 const KIND_OPTIONS = [{ value: "", label: "Semua" }, ...Object.entries(VISUAL_KINDS).map(([value, label]) => ({ value, label }))];
 const ago = (iso: string) => dayjs(iso).locale("id").fromNow();
 
@@ -47,7 +47,8 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
   const kind = params.get("kind") ?? "";
   const tag = params.get("tag") ?? "";
   const sensitive = params.get("sensitive") === "1";
-  const text = params.get("text") === "1" || params.get("text") === "0" ? params.get("text")! : "";
+  /** Text filter: "1" with text (default), "0" without, "all" every image. */
+  const text = ["0", "all"].includes(params.get("text") ?? "") ? params.get("text")! : "1";
   const action = params.get("action") === "1";
   const claims = params.get("claims") === "1";
   const unread = params.get("unread") === "1";
@@ -81,7 +82,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
     if (claims) s.set("claims", "1");
     if (unread) s.set("unread", "1");
     if (sensitive) s.set("sensitive", "1");
-    if (text) s.set("text", text);
+    if (text !== "all") s.set("text", text);
     return s.toString();
   }, [days, view, kind, tag, q, keyId, sensitive, text, action, claims, unread, narrative]);
   useEffect(() => { setCursor(null); setItems([]); setPosts([]); }, [filters]);
@@ -162,7 +163,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
           )}
           <Select aria-label="Tag visual" w={210} allowDeselect={false} searchable classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
             value={tag} onChange={(v) => go({ tag: v || null })} data={tagOptions} />
-          <Segmented label="Teks di gambar" options={TEXT_OPTIONS} value={text} onChange={(v) => go({ text: v || null })} />
+          <Segmented label="Teks di gambar" options={TEXT_OPTIONS} value={text} onChange={(v) => go({ text: v === "1" ? null : v })} />
           <div className={c.toggles}>
             <button type="button" data-active={sensitive || undefined} data-tone="warn" aria-pressed={sensitive} onClick={() => go({ sensitive: sensitive ? null : "1" })}><IconAlertTriangle size={14} />Perlu ditinjau</button>
             <button type="button" data-active={action || undefined} data-tone="alert" aria-pressed={action} onClick={() => go({ action: action ? null : "1" })}><IconSpeakerphone size={14} />Ajakan aksi</button>
@@ -170,7 +171,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
             <button type="button" data-active={unread || undefined} aria-pressed={unread} onClick={() => go({ unread: unread ? null : "1" })} title="Teks beraksara lain (Arab, Kirill, Mandarin…) yang belum bisa dibaca"><IconLanguage size={14} />Aksara lain</button>
           </div>
           {narrative && <span className={c.narrChip} title={narrative}><IconMessages size={13} />Pesan sama: “{narrative.split(" ").slice(0, 5).join(" ")}…”<button type="button" onClick={() => go({ narrative: null })} aria-label="Hapus filter narasi"><IconX size={12} /></button></span>}
-          {(kind || tag || text || sensitive || action || claims || unread || narrative || q || keyId) && (
+          {(kind || tag || text !== "1" || sensitive || action || claims || unread || narrative || q || keyId) && (
             <button type="button" className={c.reset} onClick={() => { setSearch(""); go({ kind: null, tag: null, text: null, sensitive: null, action: null, claims: null, unread: null, narrative: null, q: null, key: null }); }}><IconRefresh size={13} />Reset</button>
           )}
         </div>
