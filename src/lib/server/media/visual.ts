@@ -24,7 +24,7 @@ type Page = Omit<VisualResponse, "days" | "worker">;
 const USES_SHOWN = 3;
 /** Same as the worker's: a failed image is tried this many times. */
 const MAX_ATTEMPTS = 3;
-const TYPE_OF: Record<VisualKind, MediaType> = { news: "online", x_photo: "social", x_video: "social", youtube: "social" };
+const TYPE_OF: Record<VisualKind, MediaType> = { news: "online", x_photo: "social", x_video: "social", youtube: "social", instagram: "social", threads: "social" };
 
 // The page re-asks while someone scrolls or changes a filter; a minute is fresh enough for media that arrive every few minutes.
 const cache = sharedCache<Page>("media.visual", { ttlMs: 60_000, maxEntries: 300, staleWhileRevalidate: true });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   workerProblem,
-  formatVisualCursor, hashDistance, KIND_PRIORITY, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
+  formatVisualCursor, hashDistance, KIND_PRIORITY, metaOgImage, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
 } from "../src/lib/mediaVisual";
 
 test("YouTube thumbnail from every video URL form, none without an id", () => {
@@ -46,6 +46,18 @@ test("periods, tags and analysis order", () => {
   assert.equal(parseVisualDays(null), 3);
   for (const t of ["senjata", "darah_luka", "jenazah", "kericuhan", "aparat", "kebakaran", "bencana"]) assert.ok(t in VISUAL_TAGS, t);
   assert.ok(KIND_PRIORITY.x_photo < KIND_PRIORITY.news && KIND_PRIORITY.youtube < KIND_PRIORITY.news);
+});
+
+test("Instagram/Threads image from og:image: Meta CDN only, profile pictures and other hosts dropped", () => {
+  const page = (url: string) => `<head><meta property="og:title" content="x" /><meta property="og:image" content="${url}" /></head>`;
+  const post = "https://scontent-dus1-1.cdninstagram.com/v/t51.82787-15/907557690_n.jpg?stp=dst-jpg&amp;oe=6A1B2C3D";
+  assert.equal(metaOgImage(page(post)), "https://scontent-dus1-1.cdninstagram.com/v/t51.82787-15/907557690_n.jpg?stp=dst-jpg&oe=6A1B2C3D");
+  assert.ok(metaOgImage(page("https://scontent.xx.fbcdn.net/v/t39.30808-6/1_n.jpg")));
+  assert.equal(metaOgImage(page("https://scontent-dus1-1.cdninstagram.com/v/t51.82787-19/629_n.jpg")), null); // profile picture
+  assert.equal(metaOgImage(page("https://evil.example/cdninstagram.com/a.jpg")), null);
+  assert.equal(metaOgImage(page("https://static.cdninstagram.com/rsrc.php/yd/r/kHwIMM5b8PW.webp")), null); // deleted post → home page logo
+  assert.equal(metaOgImage(page("http://scontent.cdninstagram.com/v/a.jpg")), null);
+  assert.equal(metaOgImage("<head><title>Login</title></head>"), null);
 });
 
 test("key text keeps the message of an image and drops app chrome, stamps, small print and caption repeats", async () => {

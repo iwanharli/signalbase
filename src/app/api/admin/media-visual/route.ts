@@ -7,7 +7,7 @@ import { resolveScope } from "@/lib/server/panelScope";
 
 // Media visual (Analisis → Media visual): analysed images of the period, newest first.
 //   ?view=post|image (one card per post, default; or per image)
-//   &days=1|3|7|30 &kind=news|x_photo|x_video|youtube &tag= &sensitive=1 &text=1 &q= (text in the image) &key= (project)
+//   &days=1|3|7|30 &kind=news|x_photo|x_video|youtube|instagram|threads &tag= &sensitive=1 &text=1 &q= (text in the image) &key= (project)
 //   &action=1 (calls to action) &claims=1 (numeric claims) &unread=1 (text in a script OCR can't read) &narrative=<key> (one shared narrative); view=narrative lists them
 //   &after=<cursor of the previous page> (keyset paging: images arriving while scrolling don't shift the pages)
 // On trial: admins only (the page and the menu entry are hidden from everyone else too).

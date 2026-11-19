@@ -1,7 +1,8 @@
 // Local media analysis (npm run media): collects the images of new items from the source database (read-only) and has the
 // local service (scripts/media/layanan_media.py, MEDIA_SERVICE_URL) read their text (OCR), tag them and fingerprint them.
-// Feeds: news images (news_main.news_image), X photos and video thumbnails (through originalXPost), YouTube thumbnails.
-// Instagram, Facebook, Threads and TikTok are not collected: their files are not available to Signalbase.
+// Feeds: news images (news_main.news_image), X photos and video thumbnails (through originalXPost), YouTube thumbnails,
+// Instagram and Threads post images (og:image of the public post page, metaOgImage).
+// Facebook (post pages ask to log in) and TikTok (oEmbed returns no thumbnail) are not collected.
 //
 // Each tick: collect per feed the new items (head cursor) and, while a backlog remains, older ones from today backwards
 // (back cursor), then analyse pending images, newest posts first. Nothing
@@ -11,7 +12,7 @@ import { prisma } from "../db";
 import { bankPool } from "../bank/pool";
 import { originalXPost } from "../xPost";
 import { xPostId } from "@/lib/media/xPost";
-import { PLACEHOLDER_MIN_ARTICLES, retryDelayMs, xPostImages, youtubeThumbnail, type OcrLine } from "@/lib/mediaVisual";
+import { metaOgImage, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, xPostImages, youtubeThumbnail, type OcrLine } from "@/lib/mediaVisual";
 import { backfillProjects, cleanupOldMedia, ensureMediaIndexes, tagItems } from "./projects";
 import { groupUngrouped, twinGroupFor } from "./twins";
 import { applyTextSignals, computeKeyText, refreshTextSignals } from "./textSignals";
@@ -28,6 +29,13 @@ const BACK_BATCH = Number(process.env.MEDIA_BACK_BATCH ?? 1500);
 const X_ALL = process.env.MEDIA_X_ALL === "1";
 /** Pause between FxTwitter requests, to stay well below its rate limits. */
 const X_GAP_MS = 400;
+/** Instagram/Threads: one post page per second, and at most this many per read (±2,800 and ±1,700 posts a day). */
+const META_GAP_MS = 1000;
+const META_BATCH = 60;
+/** Bytes of a post page read for its og:image (it sits in the first ±12 KB of a ±600 KB page). */
+const META_HEAD_BYTES = 128 * 1024;
+/** Honest client name, like the analysis service's image downloads. */
+const MEDIA_UA = "Mozilla/5.0 (compatible; signalbase-media/1.0)";
 /** Images read from the queue at once; batches repeat until the tick's analysis time is used up. */
 const ANALYZE_BATCH = Number(process.env.MEDIA_ANALYZE_BATCH ?? 120);
 /** Analysis time per tick: long enough that collecting (±90 s, mostly X) is a small part, short enough that new posts are
@@ -40,6 +48,8 @@ const PARALLEL = Math.max(1, Number(process.env.MEDIA_PARALLEL ?? 2));
 /** `context`: the item's caption or headline, so OCR text that only repeats it is left out of the key text. */
 type Found = { type: "social" | "online"; code: string; source: string; publishedAt: Date; kind: string; urls: string[]; context: string | null };
 type Collected = { found: Found[]; save: () => Promise<void> };
+/** `save(upTo)`: move the cursor to `upTo` (null: leave it), by default past every row read. */
+type Save = (upTo?: Row | null) => Promise<void>;
 type Row = { code: string; source: string; ts: string; at: Date; image?: string | null; url?: string | null; content?: string | null; title?: string | null };
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -52,8 +62,9 @@ async function cursorOf(name: string) {
   return { ts: rows[0].ts, code: "" };
 }
 
-type Feed = { rows: Row[]; save: () => Promise<void> };
-const saveCursor = (name: string, at?: Row) => async () => {
+type Feed = { rows: Row[]; save: Save };
+const saveCursor = (name: string, last?: Row): Save => async (upTo) => {
+  const at = upTo === undefined ? last : upTo;
   if (at) await prisma.mediaCursor.upsert({ where: { name }, create: { name, ts: at.ts, code: at.code }, update: { ts: at.ts, code: at.code } });
 };
 
@@ -61,13 +72,13 @@ const saveCursor = (name: string, at?: Row) => async () => {
  *  Head (`<feed>:head`): items after the head, oldest first (all new posts; the first run starts at the newest batch).
  *  Back (`<feed>:back`): the gap between the feed's old cursor (`<feed>`, where collecting started) and the head, read
  *  newest first, so a backlog fills from today backwards; it stops once it reaches the old cursor. */
-async function newer(name: string, sql: (cond: string, order: string, limit: number) => string, backLimit = COLLECT_BATCH): Promise<Feed[]> {
+async function newer(name: string, sql: (cond: string, order: string, limit: number) => string, backLimit = COLLECT_BATCH, headLimit = COLLECT_BATCH): Promise<Feed[]> {
   const [head, back] = await Promise.all([prisma.mediaCursor.findUnique({ where: { name: `${name}:head` } }), prisma.mediaCursor.findUnique({ where: { name: `${name}:back` } })]);
   if (!head) {
-    const { rows } = await bankPool().query<Row>(sql("true", "at DESC, code DESC", COLLECT_BATCH));
+    const { rows } = await bankPool().query<Row>(sql("true", "at DESC, code DESC", headLimit));
     return [{ rows, save: saveCursor(`${name}:head`, rows[0]) }];
   }
-  const h = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code", COLLECT_BATCH), [head.ts, head.code]);
+  const h = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2)`, "at, code", headLimit), [head.ts, head.code]);
   const floor = await cursorOf(name);
   const top = back ?? head;
   const b = await bankPool().query<Row>(sql(`(at, code) > ($1::timestamp, $2) AND (at, code) < ($3::timestamp, $4)`, "at DESC, code DESC", backLimit), [floor.ts, floor.code, top.ts, top.code]);
@@ -89,11 +100,11 @@ async function collectNews(): Promise<Collected[]> {
   return feeds.map(({ rows, save }) => ({ save, found: rows.map((r): Found => ({ type: "online", code: r.code, source: r.source, publishedAt: r.at, kind: "news", urls: [r.image!], context: r.title ?? null })) }));
 }
 
-async function collectSocial(name: "x" | "youtube", source: string, backLimit?: number) {
+async function collectSocial(name: string, source: string, backLimit?: number, headLimit?: number) {
   return newer(name, (cond, order, limit) => `SELECT * FROM (
       SELECT p.post_code code, p.post_source source, ${TS("p.post_timestamps")} ts, p.post_timestamps at, p.post_url url, left(p.post_content, 2000) content
       FROM post_main p WHERE p.post_source = '${source}' AND p.post_timestamps <= now()
-    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${limit}`, backLimit);
+    ) t WHERE ${cond} ORDER BY ${order} LIMIT ${limit}`, backLimit, headLimit);
 }
 
 async function collectYoutube(): Promise<Collected[]> {
@@ -110,6 +121,53 @@ async function collectX(): Promise<Collected[]> {
   const out: Collected[] = [];
   for (const { rows, save } of await collectSocial("x", "twitter")) out.push({ save, found: await xImages(rows) }); // one after the other: FxTwitter pace
   return out;
+}
+
+/** Instagram/Threads: the image of each post's public page. A page that asks to log in or a rate limit stops the read;
+ *  the cursor then stays at the last post read, so the rest is tried next tick. */
+async function collectMeta(name: "instagram" | "threads"): Promise<Collected[]> {
+  const out: Collected[] = [];
+  for (const { rows, save } of await collectSocial(name, name, META_BATCH, META_BATCH)) {
+    const known = new Set((await prisma.mediaLink.findMany({ where: { type: "social", code: { in: rows.map((r) => r.code) } }, select: { code: true } })).map((l) => l.code));
+    const found: Found[] = [];
+    let last: Row | null = null;
+    for (const r of rows) {
+      if (!known.has(r.code) && r.url) {
+        const page = await postPage(r.url);
+        if (page === "blocked") break;
+        const image = page && metaOgImage(page);
+        if (image) found.push({ type: "social", code: r.code, source: name, publishedAt: r.at, kind: name, urls: [image], context: r.content ?? null });
+        await sleep(META_GAP_MS);
+      }
+      last = r;
+    }
+    out.push({ found, save: () => save(last) });
+  }
+  return out;
+}
+
+/** The start of a public Instagram/Threads post page; "blocked" when it asks to log in or limits us, null on other errors. */
+async function postPage(url: string): Promise<string | "blocked" | null> {
+  const host = new URL(url).hostname;
+  if (!/(^|\.)(instagram|threads)\.(com|net)$/.test(host)) return null;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": MEDIA_UA }, signal: AbortSignal.timeout(15_000), cache: "no-store" });
+    if (res.status === 429 || /\/(accounts\/)?login/.test(new URL(res.url).pathname)) { await res.body?.cancel(); return "blocked"; }
+    if (!res.ok || !res.body) { await res.body?.cancel(); return null; }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let html = "";
+    while (html.length < META_HEAD_BYTES && !html.includes("og:image")) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value, { stream: true });
+    }
+    html += (await reader.read().then(({ value }) => decoder.decode(value ?? new Uint8Array())).catch(() => "")); // the rest of the tag
+    await reader.cancel().catch(() => {});
+    return html;
+  } catch {
+    return null;
+  }
 }
 
 /** X posts' images through FxTwitter; posts already collected (by the other cursor) are not asked again. */
@@ -158,7 +216,7 @@ async function analyzePending() {
   const pending = await prisma.$queryRaw<{ id: string; url: string; attempts: number; context: string | null }[]>`
     SELECT id, url, attempts, context FROM "MediaAsset" a
     WHERE (status = 'pending' OR (status = 'failed' AND attempts < ${MAX_ATTEMPTS})) AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= now())
-    ORDER BY date_trunc('day', (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id)) DESC NULLS LAST, CASE kind WHEN 'x_photo' THEN 0 WHEN 'x_video' THEN 1 WHEN 'youtube' THEN 2 ELSE 3 END, "createdAt" DESC
+    ORDER BY date_trunc('day', (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id)) DESC NULLS LAST, CASE kind WHEN 'x_photo' THEN 0 WHEN 'instagram' THEN 1 WHEN 'threads' THEN 1 WHEN 'x_video' THEN 2 WHEN 'youtube' THEN 3 ELSE 4 END, "createdAt" DESC
     LIMIT ${ANALYZE_BATCH}`;
   const failed = (a: { attempts: number }) => {
     const wait = retryDelayMs(a.attempts + 1);
@@ -225,7 +283,7 @@ export async function runMediaTick() {
   const started = Date.now();
   lastError = null;
   const collected: Record<string, number> = {};
-  for (const [name, collect] of [["news", collectNews], ["x", collectX], ["youtube", collectYoutube]] as const) {
+  for (const [name, collect] of [["news", collectNews], ["x", collectX], ["youtube", collectYoutube], ["instagram", () => collectMeta("instagram")], ["threads", () => collectMeta("threads")]] as const) {
     try {
       collected[name] = 0;
       for (const { found, save } of await collect()) {

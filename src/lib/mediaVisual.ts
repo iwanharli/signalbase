@@ -12,7 +12,7 @@ export const VISUAL_TAGS: Record<string, string> = {
 export const tagLabel = (tag: string) => VISUAL_TAGS[tag] ?? tag;
 
 /** Where an image came from (MediaAsset.kind). */
-export const VISUAL_KINDS = { news: "Berita online", x_photo: "Foto X", x_video: "Video X", youtube: "YouTube" } as const;
+export const VISUAL_KINDS = { news: "Berita online", x_photo: "Foto X", x_video: "Video X", youtube: "YouTube", instagram: "Instagram", threads: "Threads" } as const;
 export type VisualKind = keyof typeof VISUAL_KINDS;
 export const isVisualKind = (v: string | null): v is VisualKind => !!v && v in VISUAL_KINDS;
 
@@ -113,6 +113,26 @@ export function xPostImages(media: { kind: "image" | "video"; url: string; poste
   return media.map((m) => (m.kind === "image" ? m.url : m.poster)).filter((u): u is string => !!u).slice(0, 4);
 }
 
+/** Hosts of Instagram/Threads images (og:image of a public post page). */
+const META_IMAGE_HOST = /(^|\.)(cdninstagram\.com|fbcdn\.net)$/;
+
+/** The image of a public Instagram/Threads post page: its og:image, as Meta advises since oEmbed stopped returning
+ *  thumbnails (Nov 2025). Null without one, off Meta's CDN, or when it is the author's profile picture (Threads posts
+ *  without an image show it; profile pictures are "t51.*-19" files) or the site logo (a deleted post redirects home). */
+export function metaOgImage(html: string) {
+  const tag = html.match(/<meta\s[^>]*property=["']og:image["'][^>]*>/i)?.[0];
+  const raw = tag?.match(/content=["']([^"']+)["']/i)?.[1];
+  if (!raw) return null;
+  try {
+    const url = new URL(raw.replace(/&amp;/g, "&"));
+    if (url.protocol !== "https:" || !META_IMAGE_HOST.test(url.hostname)) return null;
+    if (!url.pathname.startsWith("/v/") || /\/t51\.\d+-19\//.test(url.pathname)) return null; // not a post file (site logo), or a profile picture
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 /** Wait before retrying a failed image: 5 min, 30 min, then 2 h; null after the last attempt. */
 export const RETRY_DELAYS_MS = [5 * 60_000, 30 * 60_000, 2 * 3_600_000];
 export function retryDelayMs(attemptsSoFar: number) {
@@ -135,7 +155,7 @@ export function hashDistance(a: string, b: string) {
 export const PLACEHOLDER_MIN_ARTICLES = 5;
 
 /** Analysis order: social media first (X photos carry ~5× more text than news photos in tests), then news. */
-export const KIND_PRIORITY: Record<VisualKind, number> = { x_photo: 0, x_video: 1, youtube: 2, news: 3 };
+export const KIND_PRIORITY: Record<VisualKind, number> = { x_photo: 0, instagram: 1, threads: 1, x_video: 2, youtube: 3, news: 4 };
 
 // ── "Teks penting" from OCR lines ─────────────────────────────────────────────────────────────────────────────────────
 
