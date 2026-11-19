@@ -19,13 +19,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 import analisis_media as A  # noqa: E402
 
 PORT = int(os.environ.get("MEDIA_PORT", "3726"))
-NAME = "media-clip-b32-v3+rapidocr-en-u"  # v3: model tag terlatih dari 1.150 label (19 Nov 2026); v2: fp32 CLIP, ambang dari 254 label
+NAME = "media-clip-b32-v3+rapidocr"  # v3: model tag terlatih dari 1.150 label (19 Nov 2026); v2: fp32 CLIP, ambang dari 254 label
 PARALLEL = max(1, int(os.environ.get("MEDIA_PARALLEL", "2")))
 # Satu mesin per analisis yang berjalan: RapidOCR tidak dijamin aman dipakai bersamaan oleh beberapa thread.
 ANALYZERS: "queue.Queue[A.Analyzer]" = queue.Queue()
 for _ in range(PARALLEL):
     ANALYZERS.put(A.Analyzer())
 VARIANT = ANALYZERS.queue[0].variant
+OCR = ANALYZERS.queue[0].ocr_variant  # en5 (PP-OCRv5), en3, ch4
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -38,7 +39,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self._send(200, {"ok": True, "model": NAME, "parallel": PARALLEL}) if self.path == "/health" else self._send(404, {"error": "not found"})
+        self._send(200, {"ok": True, "model": f"{NAME}-{OCR}", "parallel": PARALLEL}) if self.path == "/health" else self._send(404, {"error": "not found"})
 
     def do_POST(self):
         if self.path != "/analyze":
@@ -55,7 +56,7 @@ class Handler(BaseHTTPRequestHandler):
                 res = analyzer.analyze(data)
             finally:
                 ANALYZERS.put(analyzer)
-            res["model"] = f"{NAME}-{VARIANT}"
+            res["model"] = f"{NAME}-{OCR}-u-{VARIANT}"
             res["ms"] = round((time.time() - start) * 1000)
             self._send(200, res)
         except urllib.error.HTTPError as e:
@@ -71,5 +72,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"layanan media {NAME} di 127.0.0.1:{PORT}, {PARALLEL} mesin", flush=True)
+    print(f"layanan media {NAME}-{OCR} di 127.0.0.1:{PORT}, {PARALLEL} mesin", flush=True)
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

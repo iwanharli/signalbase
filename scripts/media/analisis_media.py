@@ -4,7 +4,8 @@ gambar (dHash 64-bit). Dipakai oleh layanan media (worker) dan untuk uji sampel:
     python analisis_media.py <file-url.txt>     # satu URL gambar per baris; hasil JSON per baris + ringkasan waktu
 
 Model dibaca dari MEDIA_CLIP_DIR: CLIP (Xenova/clip-vit-base-patch32) vision_model.onnx dan text_model.onnx (fp32; cadangan
-*_quantized.onnx), tokenizer.json, dan pembaca teks Inggris en_PP-OCRv3_rec_infer.onnx (SWHL/RapidOCR, PP-OCRv3). Paket Python: scripts/media/requirements.txt.
+*_quantized.onnx), tokenizer.json, dan pembaca teks Inggris en_PP-OCRv5_rec.onnx + en_PP-OCRv5_dict.txt (monkt/paddleocr-onnx
+languages/english, Apache-2.0; cadangan en_PP-OCRv3_rec_infer.onnx dari SWHL/RapidOCR). Paket Python: scripts/media/requirements.txt.
 Tesseract dicoba lebih dulu (uji 18 Nov 2026) tapi gagal membaca teks bergaya di thumbnail ("TERBUKTI SADAP PRESIDEN
 PRABOWO" terbaca "A BY LS TAP 1"); RapidOCR membacanya utuh.
 """
@@ -134,9 +135,25 @@ class Analyzer:
         self.tag_embeds = e / np.linalg.norm(e, axis=1, keepdims=True)
         del text
         self.tag_model = dict(np.load(TAG_MODEL)) if os.path.exists(TAG_MODEL) else None
-        # Model pembaca bawaan RapidOCR (Mandarin) membuang spasi di teks Latin ("SadapPrabowo"); model Inggris tidak.
-        rec = os.path.join(CLIP_DIR, "en_PP-OCRv3_rec_infer.onnx")
-        self.ocr_engine = RapidOCR(intra_op_num_threads=THREADS, inter_op_num_threads=1, **({"rec_model_path": rec} if os.path.exists(rec) else {}))
+        # Pembaca teks: PP-OCRv5 Inggris bila ada, cadangan PP-OCRv3 Inggris, lalu bawaan RapidOCR (Mandarin, membuang spasi
+        # di teks Latin: "SadapPrabowo"). Uji 19 Nov 2026, 40 gambar produksi: v5 membaca 14% lebih banyak baris dan 17% lebih
+        # banyak kata dari v3 dengan spasi terjaga ("POLRES INDRAMAYU BANGUN SINERGI"), dan huruf bergaya yang v3 tandai
+        # "tidak terbaca" ("Undangan ke Majlis Pertunangan").
+        rec5, keys5 = os.path.join(CLIP_DIR, "en_PP-OCRv5_rec.onnx"), os.path.join(CLIP_DIR, "en_PP-OCRv5_dict.txt")
+        rec3 = os.path.join(CLIP_DIR, "en_PP-OCRv3_rec_infer.onnx")
+        if os.path.exists(rec5) and os.path.exists(keys5):
+            rec, self.ocr_variant = {"rec_model_path": rec5, "rec_keys_path": keys5}, "en5"
+        elif os.path.exists(rec3):
+            rec, self.ocr_variant = {"rec_model_path": rec3}, "en3"
+        else:
+            rec, self.ocr_variant = {}, "ch4"
+        self.ocr_engine = RapidOCR(intra_op_num_threads=THREADS, inter_op_num_threads=1, **rec)
+        # Aksara lain, hanya untuk gambar yang tetap tidak terbaca: ocr_<aksara>_rec.onnx + ocr_<aksara>_dict.txt di CLIP_DIR.
+        self.alt_ocr = {}
+        for script in ALT_SCRIPTS:
+            model, keys = (os.path.join(CLIP_DIR, f"ocr_{script}_{x}") for x in ("rec.onnx", "dict.txt"))
+            if os.path.exists(model) and os.path.exists(keys):
+                self.alt_ocr[script] = RapidOCR(intra_op_num_threads=THREADS, inter_op_num_threads=1, rec_model_path=model, rec_keys_path=keys)
 
     def tags(self, img: Image.Image):
         # Dua pandangan: potongan tengah (detail) dan gambar utuh berlatar polos (tangkapan layar/poster panjang yang
@@ -168,9 +185,15 @@ class Analyzer:
         img = img.convert("RGB")
         tags, sensitive = self.tags(img)
         text, words, lines, unreadable = ocr(self.ocr_engine, img)
+        script = None
+        if unreadable and words < OCR_MIN_WORDS * 3 and self.alt_ocr:
+            found = other_script(self.alt_ocr, img)
+            if found:
+                script, text, words, lines = found
+                unreadable = False
         return {"width": img.width, "height": img.height, "dhash": dhash(img), "tags": tags, "sensitive": sensitive,
                 "ocrText": text if words >= OCR_MIN_WORDS else "", "ocrWords": words, "ocrLines": lines if words >= OCR_MIN_WORDS else [],
-                "unreadText": unreadable and words < OCR_MIN_WORDS * 3}
+                "unreadText": unreadable and words < OCR_MIN_WORDS * 3, "ocrScript": script}
 
 
 TAG_INDEX = {t: i for i, (t, _) in enumerate(TAGS)}
@@ -250,6 +273,46 @@ def ocr(engine: RapidOCR, img: Image.Image):
     total = len(res or [])
     unreadable = unread >= 3 and unread / max(1, total) >= 0.6
     return "\n".join(l["t"] for l in lines), sum(len(WORD.findall(l["t"])) for l in lines), lines, unreadable
+
+
+# Aksara non-Latin (PP-OCR, monkt/paddleocr-onnx, Apache-2.0): arabic (Arab/Urdu/Persia, v3), eslav (Kirill, v5), chinese
+# (Mandarin/Jepang, v5 server). Model Inggris membaca teks ini sebagai huruf acak; uji teks buatan 19 Nov 2026: ketiganya
+# membacanya benar. Model Arab mengeluarkan huruf terbalik (kanan ke kiri) tanpa spasi; urutannya dibalik di sini.
+ALT_SCRIPTS = ("arabic", "eslav", "chinese")
+ALT_MIN_CONF = 0.75  # keyakinan model aksara lain lebih rendah dari model Inggris untuk teks yang sama jelasnya
+_LATIN = re.compile(r"[A-Za-z]")
+_LETTER = re.compile(r"[^\W\d_]")
+
+
+def other_script(engines: dict, img: Image.Image):
+    """Teks beraksara lain di gambar yang tidak terbaca model Inggris: (aksara, teks, jumlah kata, baris) dari model yang
+    membaca paling banyak huruf non-Latin, atau None. Hasil yang kebanyakan huruf Latin ditolak (itu bukan aksara lain)."""
+    if max(img.size) > OCR_MAX_SIDE:
+        f = OCR_MAX_SIDE / max(img.size)
+        img = img.resize((round(img.width * f), round(img.height * f)), Image.BICUBIC)
+    best = None
+    for script, engine in engines.items():
+        res, _ = engine(np.asarray(img))
+        lines = []
+        for box, t, conf in res or []:
+            t = t.strip()
+            if not t or float(conf) < ALT_MIN_CONF:
+                continue
+            if script == "arabic":
+                t = t[::-1]
+            ys = [p[1] for p in box]
+            lines.append({"t": t, "h": round((max(ys) - min(ys)) / img.height, 4), "cy": round((max(ys) + min(ys)) / 2 / img.height, 4)})
+        letters = sum(len(_LETTER.findall(l["t"])) for l in lines)
+        latin = sum(len(_LATIN.findall(l["t"])) for l in lines)
+        other = letters - latin
+        if other >= 6 and other >= latin and (best is None or other > best[0]):
+            best = (other, script, lines)
+    if not best:
+        return None
+    _, script, lines = best
+    # Kata Arab tanpa spasi: setiap baris dihitung sekurangnya satu kata.
+    words = sum(max(1, len(WORD.findall(l["t"]))) for l in lines)
+    return script, "\n".join(l["t"] for l in lines), words, lines
 
 
 def dhash(img: Image.Image) -> str:

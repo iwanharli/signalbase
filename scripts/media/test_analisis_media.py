@@ -47,6 +47,21 @@ class Ocr(unittest.TestCase):
         self.assertFalse(A.ocr(engine(latin), img)[3])
         self.assertFalse(A.ocr(engine([]), img)[3])
 
+    def test_aksara_lain(self):
+        box = [[10, 10], [200, 10], [200, 40], [10, 40]]
+        def engine(rows):
+            return lambda _img: ([(box, t, c) for t, c in rows], None)
+        img = gambar()
+        # Arab keluar terbalik dari model: dibalik lagi. Kirill dipilih karena paling banyak huruf non-Latin.
+        engines = {"arabic": engine([("نيرهاظتملا", 0.95)]), "eslav": engine([("задержала", 0.87), ("протестующих", 0.91)]),
+                   "chinese": engine([("3anepkana", 0.9)])}
+        script, text, words, lines = A.other_script(engines, img)
+        self.assertEqual((script, text, words), ("eslav", "задержала\nпротестующих", 2))
+        self.assertEqual(A.other_script({"arabic": engine([("نيرهاظتملا", 0.95)])}, img)[1], "المتظاهرين")
+        # Huruf Latin (model aksara lain membaca teks Latin bergaya) dan keyakinan rendah ditolak.
+        self.assertIsNone(A.other_script({"chinese": engine([("THEULTIMATE DESTINATION", 0.9)])}, img))
+        self.assertIsNone(A.other_script({"eslav": engine([("задержала", 0.5)])}, img))
+
 
 class ModelTag(unittest.TestCase):
     """Set uji tetap (data/label_tag.npz, 286 gambar berlabel yang tidak dipakai melatih): menjaga akurasi model tag saat
