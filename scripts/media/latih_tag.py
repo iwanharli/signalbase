@@ -5,7 +5,9 @@ hanya digeser seperlunya oleh data berlabel, sehingga tag yang contohnya sedikit
 
 Data: scripts/media/data/label_tag.npz — embedding gambar (rata-rata dua pandangan, ternormalisasi; float16), label
 utama per gambar (tag atau "none"), dan penanda set uji tetap (25% per kelas, tidak pernah dipakai melatih). Label
-19 Nov 2026: 1.150 gambar produksi (berita, foto/video X, thumbnail YouTube). Gambarnya sendiri tidak disimpan.
+19 Nov 2026: 1.150 gambar produksi (berita, foto/video X, thumbnail YouTube), lalu sesi 2: 392 gambar dua hari terakhir
+(termasuk Instagram/Threads), lebih banyak dari tag yang sering tertukar; semuanya masuk data latih, set uji tetap sama
+(286). Hasil: tepat 66,8% → 68,9%, longgar 79,7% → 78,7%. Gambarnya sendiri tidak disimpan.
 Butuh model teks CLIP (MEDIA_CLIP_DIR) untuk bobot awal; uji model jadi: test_analisis_media.py (tanpa CLIP).
 """
 import os
