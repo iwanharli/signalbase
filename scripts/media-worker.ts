@@ -19,7 +19,7 @@ async function loop() {
       const r = await runMediaTick();
       analyzed = r.analyzed + r.backfilled;
       const total = Object.values(r.collected).reduce((a, b) => a + b, 0);
-      if (total || analyzed) console.log(`[media] terkumpul ${JSON.stringify(r.collected)}, proyek dicek ${r.backfilled}, dianalisis ${r.analyzed} dalam ${Math.round((Date.now() - started) / 1000)} dtk`);
+      if (total || analyzed || r.transcribed) console.log(`[media] terkumpul ${JSON.stringify(r.collected)}, proyek dicek ${r.backfilled}, dianalisis ${r.analyzed}, ditranskripsi ${r.transcribed} dalam ${Math.round((Date.now() - started) / 1000)} dtk`);
     } catch (e) {
       console.error("[media] tick gagal:", e);
     }

@@ -59,6 +59,20 @@ export function workerProblem(w: VisualWorker, now = Date.now()): string | null 
   if (!w.serviceOk) return "Layanan analisis media tidak menjawab";
   return null;
 }
+/** One bell notification: a call to action (image or speech), a narrative several posts share, or a sensitive image. */
+export type VisualAlert = { kind: "action" | "narrative" | "sensitive"; id: string; text: string; at: string; posts?: number };
+/** Where a notification opens on the Media visual page (last 24 hours, that signal). */
+export function alertHref(a: VisualAlert, keyId?: string | null) {
+  const p = new URLSearchParams({ days: "1", text: "all" });
+  if (a.kind === "action") p.set("action", "1");
+  else if (a.kind === "sensitive") p.set("sensitive", "1");
+  else p.set("narrative", a.id);
+  if (keyId) p.set("key", keyId);
+  return `/analisis/media?${p}`;
+}
+/** Notifications newer than the last time the bell was opened. */
+export const unseenAlerts = (alerts: VisualAlert[], seenAt: string | null) => (seenAt ? alerts.filter((a) => a.at > seenAt) : alerts).length;
+
 /** Keyset cursor: the last image of a page (its newest use, as text, and its id). */
 export type VisualCursor = { ts: string; id: string };
 export function parseVisualCursor(v: string | null): VisualCursor | null {
@@ -349,6 +363,9 @@ const NOT_CLAIM = [
   /(?<![\p{L}\d])3T(?![\p{L}\d])/gu,
   /(?<!\p{L})rp\.?\s*0(?![\d.,])/giu,
 ];
+
+/** A transcript as one sentence per line, so the line-based rules (claims, calls to action) see sentences. */
+export const speechLines = (transcript: string | null | undefined) => (transcript ?? "").replace(/([.?!])\s+/g, "$1\n").trim();
 
 /** Lines of the key text that state a number with a unit (amounts, percentages, counts): claims worth checking. */
 export function numericClaims(text: string) {

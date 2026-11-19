@@ -131,10 +131,10 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.heroText}>
           <div className={c.heroTop}>
             <span className={classes.badge}><IconEye size={13} />Analisis lokal</span>
-            {res.data && <WorkerPill worker={worker ?? null} stale={workerStale} pending={stats?.pending ?? 0} />}
+            {res.data && worker && <WorkerPill worker={worker} stale={workerStale} pending={stats?.pending ?? 0} />}
           </div>
           <h1>Media visual <em>{VISUAL_PERIODS.find((p) => p.days === days)?.label}</em> terakhir</h1>
-          <p>Gambar dari berita online, X, dan YouTube: teks di dalam gambar, tag visual, dan gambar yang beredar ulang. Dianalisis di server sendiri; gambarnya tidak disimpan.</p>
+          <p>Gambar dan video dari berita online, X, YouTube, Instagram, dan Threads: teks di dalam gambar, ucapan di video, tag visual, dan gambar yang beredar ulang. Dianalisis di server sendiri; gambar dan videonya tidak disimpan.</p>
         </div>
         <div className={classes.stats}>
           {heroStats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{s.value === undefined ? "—" : formatNumber(s.value)}</b><span>{s.label}</span></div>)}

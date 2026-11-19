@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import {
   formatVisualCursor, mergeKeyText, mergeTags, NARRATIVE_MIN_POSTS, VISUAL_PAGE_SIZE,
-  type VisualAsset, type VisualCursor, type VisualFailures, type VisualKind, type VisualPost, type VisualResponse, type VisualTwin, type VisualView, type VisualWorker,
+  type VisualAlert, type VisualAsset, type VisualCursor, type VisualFailures, type VisualKind, type VisualPost, type VisualResponse, type VisualTwin, type VisualView, type VisualWorker,
 } from "@/lib/mediaVisual";
 import { fetchItemsByCode } from "../bank";
 import { sharedCache } from "../bank/cache";
@@ -42,6 +42,9 @@ export async function workerStatus(): Promise<VisualWorker> {
 }
 
 const where = (parts: Prisma.Sql[]) => Prisma.join(parts, " AND ");
+/** Frames of a video (X/Reel "#t=25%", YouTube hq1–hq3): part of their post (gallery, text, search), but not counted or
+ *  listed as images of their own, so one video is one image in the counts and the image view. */
+const NOT_FRAME = Prisma.sql`a.url !~ '(#t=[0-9]+%|/vi/[^/]+/hq[123][.]jpg)$'`;
 
 /** SQL conditions: on the link (period, project), on the image (shown at all) and the filters an image must match. */
 function conditions(query: VisualQuery, keyId: string | null) {
@@ -78,7 +81,7 @@ async function load(query: VisualQuery, keyId: string | null): Promise<Page> {
       // One pass over the distinct images of the period, then counts and tags from that set.
       const [row] = await prisma.$queryRaw<(Summary & { tags: Summary["tags"] | null })[]>`
         WITH ids AS (SELECT DISTINCT l."assetId" id FROM "MediaLink" l WHERE ${where(cond.link)}),
-             a AS (SELECT a."keyWords", a.sensitive, a."tagList" FROM "MediaAsset" a JOIN ids ON ids.id = a.id WHERE ${where(cond.shown)})
+             a AS (SELECT a."keyWords", a.sensitive, a."tagList" FROM "MediaAsset" a JOIN ids ON ids.id = a.id WHERE ${where([...cond.shown, NOT_FRAME])})
         SELECT (SELECT count(*)::int FROM a) total, (SELECT count(*)::int FROM a WHERE "keyWords" > 0) "withText",
                (SELECT count(*)::int FROM a WHERE cardinality(sensitive) > 0) sensitive,
                (SELECT json_agg(t ORDER BY t.n DESC) FROM (SELECT tag, count(*)::int n FROM a, unnest("tagList") tag GROUP BY tag ORDER BY n DESC LIMIT 12) t) tags`;
@@ -86,7 +89,7 @@ async function load(query: VisualQuery, keyId: string | null): Promise<Page> {
       const kind = query.kind ? Prisma.sql`AND a.kind = ${query.kind}` : Prisma.empty;
       const [f] = await prisma.$queryRaw<VisualFailures[]>`
         WITH ids AS (SELECT DISTINCT l."assetId" id FROM "MediaLink" l WHERE ${where(cond.link)}),
-             a AS (SELECT a.status, a.attempts, coalesce(a.error, '') e FROM "MediaAsset" a JOIN ids ON ids.id = a.id WHERE a.status IN ('failed', 'gone') ${kind})
+             a AS (SELECT a.status, a.attempts, coalesce(a.error, '') e FROM "MediaAsset" a JOIN ids ON ids.id = a.id WHERE a.status IN ('failed', 'gone') AND ${NOT_FRAME} ${kind})
         SELECT count(*)::int total,
                count(*) FILTER (WHERE e ~ 'HTTP 404|HTTP 410')::int removed,
                count(*) FILTER (WHERE e ~ 'HTTP 40[13]')::int refused,
@@ -139,7 +142,7 @@ async function imagePage(query: VisualQuery, cond: ReturnType<typeof conditions>
            count(*)::int "usedBy", max(l."publishedAt") "lastSeen", to_char(max(l."publishedAt"), 'YYYY-MM-DD"T"HH24:MI:SS.US') "lastSeenTs",
            (array_agg(json_build_object('type', l.type, 'code', l.code, 'source', l.source, 'publishedAt', l."publishedAt") ORDER BY l."publishedAt" DESC))[1:${USES_SHOWN}] uses
     FROM "MediaAsset" a JOIN "MediaLink" l ON l."assetId" = a.id
-    WHERE ${where([...cond.link, ...cond.shown, ...cond.match])}
+    WHERE ${where([...cond.link, ...cond.shown, ...cond.match, NOT_FRAME])}
     GROUP BY a.id ${after} ORDER BY "lastSeen" DESC, a.id DESC LIMIT ${VISUAL_PAGE_SIZE + 1}`;
   const page = rows.slice(0, VISUAL_PAGE_SIZE);
   const [twins, items] = await Promise.all([twinCounts(page.map((r) => r.twinGroup)), itemsFor(page.flatMap((r) => r.uses))]);
@@ -204,13 +207,16 @@ async function postPage(query: VisualQuery, cond: ReturnType<typeof conditions>)
 const TWINS_SHOWN = 24;
 
 /** Other images in the same near-duplicate group as `id`, newest use first, each with the post/article using it. */
-export async function twinsOf(id: string): Promise<{ total: number; twins: VisualTwin[] }> {
+/** Similar images of one image; with a project, only when that image is in it and only twins used in it. */
+export async function twinsOf(id: string, keyId: string | null = null): Promise<{ total: number; twins: VisualTwin[] }> {
   const me = await prisma.mediaAsset.findUnique({ where: { id }, select: { twinGroup: true } });
   if (!me?.twinGroup) return { total: 0, twins: [] };
+  if (keyId && !(await prisma.mediaLink.findFirst({ where: { assetId: id, keys: { has: keyId } }, select: { assetId: true } }))) return { total: 0, twins: [] };
+  const inKey = keyId ? Prisma.sql`AND ${keyId} = ANY(l.keys)` : Prisma.empty;
   const rows = await prisma.$queryRaw<{ id: string; url: string; kind: VisualKind; width: number | null; height: number | null; type: MediaType; code: string; source: string; publishedAt: Date }[]>`
     SELECT DISTINCT ON (a.id) a.id, a.url, a.kind, a.width, a.height, l.type, l.code, l.source, l."publishedAt"
     FROM "MediaAsset" a JOIN "MediaLink" l ON l."assetId" = a.id
-    WHERE a."twinGroup" = ${me.twinGroup} AND a.id <> ${id} AND a.status = 'done' AND NOT a.placeholder
+    WHERE a."twinGroup" = ${me.twinGroup} AND a.id <> ${id} AND a.status = 'done' AND NOT a.placeholder ${inKey}
     ORDER BY a.id, l."publishedAt" DESC`;
   rows.sort((a, b) => +b.publishedAt - +a.publishedAt);
   const shown = rows.slice(0, TWINS_SHOWN);
@@ -240,4 +246,36 @@ async function narrativePage(cond: ReturnType<typeof conditions>): Promise<Pick<
         sample: { id: a.id, url: a.url, kind: a.kind as VisualKind, width: a.width, height: a.height, keyText: a.keyText ?? "" } }] : [];
     }),
   };
+}
+
+// ── Notifications (top-bar bell) ──────────────────────────────────────────────────────────────────────────────────────
+
+/** What the bell lists from the last ALERT_HOURS: new calls to action, narratives that spread, sensitive images. */
+export const ALERT_HOURS = 24;
+const ALERTS_PER_KIND = 6;
+
+/** The bell's items, newest first; `keyIds` limits them to those projects (users), null = the whole bank. */
+export async function mediaAlerts(keyIds: string[] | null): Promise<VisualAlert[]> {
+  if (keyIds && !keyIds.length) return [];
+  const since = new Date(Date.now() - ALERT_HOURS * 3_600_000).toISOString().slice(0, 23);
+  const inKeys = keyIds ? Prisma.sql`AND l.keys && ${keyIds}::text[]` : Prisma.empty;
+  const base = Prisma.sql`FROM "MediaLink" l JOIN "MediaAsset" a ON a.id = l."assetId"
+    WHERE l."publishedAt" >= ${since}::timestamp AND a.status = 'done' AND NOT a.placeholder ${inKeys}`;
+  const [actions, narratives, sensitive] = await Promise.all([
+    prisma.$queryRaw<{ id: string; text: string; at: Date }[]>`
+      SELECT a.id, coalesce(nullif(a."keyText", ''), a.transcript, '') text, max(l."publishedAt") at ${base} AND a."actionCall" IS NOT NULL
+      GROUP BY a.id ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+    prisma.$queryRaw<{ key: string; posts: number; at: Date }[]>`
+      SELECT a.narrative key, count(DISTINCT (l.type, l.code))::int posts, max(l."publishedAt") at ${base} AND a.narrative IS NOT NULL
+      GROUP BY a.narrative HAVING count(DISTINCT (l.type, l.code)) >= ${NARRATIVE_MIN_POSTS} ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+    prisma.$queryRaw<{ id: string; tags: string[]; at: Date }[]>`
+      SELECT a.id, a.sensitive tags, max(l."publishedAt") at ${base} AND cardinality(a.sensitive) > 0
+      GROUP BY a.id ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+  ]);
+  const iso = (d: Date) => new Date(d).toISOString();
+  return [
+    ...actions.map((r): VisualAlert => ({ kind: "action", id: r.id, text: r.text.split("\n")[0].slice(0, 140), at: iso(r.at) })),
+    ...narratives.map((r): VisualAlert => ({ kind: "narrative", id: r.key, text: r.key, posts: r.posts, at: iso(r.at) })),
+    ...sensitive.map((r): VisualAlert => ({ kind: "sensitive", id: r.id, text: r.tags.join(", "), at: iso(r.at) })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
 }

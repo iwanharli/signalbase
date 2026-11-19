@@ -7,6 +7,7 @@ import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChar
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
+import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
 import classes from "./shell.module.css";
@@ -26,7 +27,7 @@ const NAV: NavItem[] = [
   { href: "/analisis", label: "Analisis", icon: IconChartDots3, children: [
     { href: "/analisis/sna", label: "SNA", icon: IconChartDots3 },
     { href: "/analisis/ontologi", label: "Ontologi", icon: IconHierarchy2 },
-    { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan, adminOnly: true }, // uji coba: admin saja
+    { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan },
   ] },
   { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
   { href: "/api-keys", label: "Proyek", icon: IconKey },
@@ -134,6 +135,7 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
               </Link>
             )}
             {role === "admin" && <MediaWorkerAlert />}
+            <MediaAlertsBell />
             {barTools.map((t) => (
               <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
                 <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>

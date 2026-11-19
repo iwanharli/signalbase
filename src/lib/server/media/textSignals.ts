@@ -4,7 +4,7 @@
 // the source-database queries of a project include those codes (withImageCodes → bank/query.ts scopeConditions).
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
-import { detectActionCall, keyText, mergeKeyText, narrativeKey, numericClaims, splitJoinedText, type OcrLine } from "@/lib/mediaVisual";
+import { detectActionCall, keyText, mergeKeyText, narrativeKey, numericClaims, speechLines, splitJoinedText, type OcrLine } from "@/lib/mediaVisual";
 import { wordFreq } from "./kata";
 import { keywordQuery, searchTerms } from "../bank/query";
 import { sharedCache } from "../bank/cache";
@@ -32,20 +32,25 @@ async function matchingProjects(text: string, projects: Project[]) {
   return rows.map((r) => r.id);
 }
 
-/** Derived signals and project matches for one analysed image; its links get the matched projects. */
-export async function applyTextSignals(assetId: string, keyText: string, projects?: Project[]) {
-  const action = detectActionCall(keyText);
+/** Derived signals and project matches for one analysed image; its links get the matched projects. The speech of its
+ *  video (if transcribed) adds calls to action and claims; the narrative key stays the image's own message. */
+export async function applyTextSignals(assetId: string, keyText: string, projects?: Project[], transcript?: string | null) {
+  const speech = speechLines(transcript);
+  const action = detectActionCall(keyText) ?? (speech ? detectActionCall(speech) : null);
+  const claims = [...new Set([...numericClaims(keyText), ...(speech ? numericClaims(speech) : [])])].slice(0, 8);
   await prisma.mediaAsset.update({
     where: { id: assetId },
-    data: { actionCall: action ?? undefined, narrative: narrativeKey(keyText), claims: numericClaims(keyText), textRules: TEXT_RULES_VERSION },
+    data: { actionCall: action ?? undefined, narrative: narrativeKey(keyText), claims, textRules: TEXT_RULES_VERSION },
   });
   if (action === null) await prisma.$executeRaw`UPDATE "MediaAsset" SET "actionCall" = NULL WHERE id = ${assetId} AND "actionCall" IS NOT NULL`;
-  await linkProjects(assetId, await matchingProjects(keyText, projects ?? await keywordProjects()));
+  const all = projects ?? await keywordProjects();
+  await linkProjects(assetId, [...new Set([...await matchingProjects(keyText, all), ...(speech ? await matchingProjects(speech, all) : [])])]);
 }
 
-/** The projects whose keywords are spoken in a video: the poster image's items count for them, like image text. */
+/** A video's speech arrived: its poster image's signals and projects are derived again with it. */
 export async function applyTranscript(assetId: string, transcript: string) {
-  await linkProjects(assetId, await matchingProjects(transcript, await keywordProjects()));
+  const a = await prisma.mediaAsset.findUnique({ where: { id: assetId }, select: { keyText: true } });
+  await applyTextSignals(assetId, a?.keyText ?? "", undefined, transcript);
 }
 
 async function linkProjects(assetId: string, matched: string[]) {
@@ -66,7 +71,7 @@ export function computeKeyText(lines: OcrLine[], context: string | null) {
  *  lines and their signals derived again, a batch per tick. Returns how many were done. */
 export async function refreshTextSignals() {
   const rows = await prisma.mediaAsset.findMany({
-    where: { status: "done", textRules: { lt: TEXT_RULES_VERSION } }, select: { id: true, keyText: true, ocrLines: true, context: true },
+    where: { status: "done", textRules: { lt: TEXT_RULES_VERSION } }, select: { id: true, keyText: true, ocrLines: true, context: true, transcript: true },
     orderBy: { analyzedAt: "desc" }, take: DERIVE_BATCH,
   });
   if (!rows.length) return 0;
@@ -78,7 +83,7 @@ export async function refreshTextSignals() {
       text = key.text;
       await prisma.mediaAsset.update({ where: { id: r.id }, data: { keyText: key.text, keyWords: key.words } });
     }
-    await applyTextSignals(r.id, text, projects);
+    await applyTextSignals(r.id, text, projects, r.transcript);
   }
   return rows.length;
 }

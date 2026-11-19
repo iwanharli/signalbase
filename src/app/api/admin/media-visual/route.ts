@@ -10,9 +10,9 @@ import { resolveScope } from "@/lib/server/panelScope";
 //   &days=1|3|7|30 &kind=news|x_photo|x_video|youtube|instagram|threads &tag= &sensitive=1 &text=1|0 (with / without text) &q= (text in the image) &key= (project)
 //   &action=1 (calls to action) &claims=1 (numeric claims) &unread=1 (text in a script OCR can't read) &narrative=<key> (one shared narrative); view=narrative lists them
 //   &after=<cursor of the previous page> (keyset paging: images arriving while scrolling don't shift the pages)
-// On trial: admins only (the page and the menu entry are hidden from everyone else too).
+// Admins and viewers: the whole bank or one project; users: only through one of their own projects (resolveScope).
+// The worker's status is for admins only.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
-  if (user.role !== "admin") return NextResponse.json({ error: "Fitur ini masih uji coba" }, { status: 403 });
   const p = new URL(req.url).searchParams;
   const days = parseVisualDays(p.get("days"));
   const resolved = await resolveScope(p.get("key"), user);
@@ -26,7 +26,7 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
       after: parseVisualCursor(p.get("after")),
       action: p.get("action") === "1", claims: p.get("claims") === "1", unread: p.get("unread") === "1",
       narrative: /^[a-z0-9 ]{8,200}$/.test(p.get("narrative") ?? "") ? p.get("narrative") : null,
-    }, resolved.keyId), workerStatus()]);
+    }, resolved.keyId), user.role === "admin" ? workerStatus() : Promise.resolve(null)]);
     return NextResponse.json({ days, ...res, worker });
   } catch (e) {
     return sourceErrorResponse(e, "media visual");

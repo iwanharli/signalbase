@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Skeleton } from "@mantine/core";
+import { useSearchParams } from "next/navigation";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import type { VisualTwin } from "@/lib/mediaVisual";
@@ -17,7 +18,9 @@ import { VisualImage } from "./VisualImage";
 dayjs.extend(relativeTime);
 
 export function Twins({ assetId, count, label, onPost }: { assetId: string; count: number; label?: string; onPost: (item: MediaItem, type: MediaType) => void }) {
-  const res = useApi<{ total: number; twins: VisualTwin[] }>(count > 0 ? `/api/admin/media-visual/twins?id=${encodeURIComponent(assetId)}` : null);
+  // The page's project (users always have one): twins are looked up within it.
+  const keyId = useSearchParams().get("key");
+  const res = useApi<{ total: number; twins: VisualTwin[] }>(count > 0 ? `/api/admin/media-visual/twins?id=${encodeURIComponent(assetId)}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}` : null);
   if (count <= 0) return null;
   const total = res.data?.total ?? count;
   return (

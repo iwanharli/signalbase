@@ -22,8 +22,8 @@ import { applyTextSignals, applyTranscript, computeKeyText, refreshTextSignals }
 const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
 /** Speech-to-text service (scripts/media/layanan_asr.py); optional: without it videos simply wait. */
 const ASR = () => process.env.MEDIA_ASR_URL ?? "http://127.0.0.1:3727";
-/** Transcription time per tick, and how old a video may be when its turn comes (Instagram video links expire in days). */
-const ASR_BUDGET_MS = Number(process.env.MEDIA_ASR_BUDGET_MS ?? 120_000);
+/** Transcription time per tick (beside the image analysis, not after it), and how old a video may be when its turn comes (Instagram video links expire in days). */
+const ASR_BUDGET_MS = Number(process.env.MEDIA_ASR_BUDGET_MS ?? 180_000);
 const ASR_MAX_AGE_DAYS = 3;
 /** First run: start this far back (images of older items have often expired). */
 const LOOKBACK_HOURS = Number(process.env.MEDIA_LOOKBACK_HOURS ?? 24);
@@ -261,8 +261,8 @@ type Analysis = { width: number; height: number; dhash: string; tags: { tag: str
 /** Analyses waiting images: those of the newest posts first (per day), social media before news within a day (richer in
  *  text); failed ones after their pause. */
 async function analyzePending() {
-  const pending = await prisma.$queryRaw<{ id: string; url: string; attempts: number; context: string | null }[]>`
-    SELECT id, url, attempts, context FROM "MediaAsset" a
+  const pending = await prisma.$queryRaw<{ id: string; url: string; attempts: number; context: string | null; transcript: string | null }[]>`
+    SELECT id, url, attempts, context, transcript FROM "MediaAsset" a
     WHERE (status = 'pending' OR (status = 'failed' AND attempts < ${MAX_ATTEMPTS})) AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= now())
     ORDER BY date_trunc('day', (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id)) DESC NULLS LAST, CASE kind WHEN 'x_photo' THEN 0 WHEN 'instagram' THEN 1 WHEN 'threads' THEN 1 WHEN 'x_video' THEN 2 WHEN 'youtube' THEN 3 ELSE 4 END, "createdAt" DESC
     LIMIT ${ANALYZE_BATCH}`;
@@ -308,7 +308,7 @@ async function analyzePending() {
   return done;
 }
 
-async function saveAnalysis(a: { id: string; attempts: number; context: string | null }, body: Analysis) {
+async function saveAnalysis(a: { id: string; attempts: number; context: string | null; transcript: string | null }, body: Analysis) {
   const key = computeKeyText(body.ocrLines ?? [], a.context);
   await prisma.mediaAsset.update({
     where: { id: a.id },
@@ -320,7 +320,7 @@ async function saveAnalysis(a: { id: string; attempts: number; context: string |
     },
   });
   // Calls to action, narrative, numeric claims, and the projects whose keywords appear in the image.
-  await applyTextSignals(a.id, key.text).catch((e) => console.warn(`[media] sinyal teks gagal: ${(e as Error).message}`));
+  await applyTextSignals(a.id, key.text, undefined, a.transcript).catch((e) => console.warn(`[media] sinyal teks gagal: ${(e as Error).message}`));
 }
 
 let serviceOk = true;
@@ -346,13 +346,22 @@ export async function runMediaTick() {
     }
   }
   const backfilled = await backfillProjects().catch((e) => { console.error("[media] backfill proyek gagal:", (e as Error).message); return 0; });
-  let analyzed = 0;
-  for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until;) {
-    const n = await analyzePending();
-    analyzed += n;
-    if (!n || !serviceOk) break;
-  }
-  const transcribed = await transcribePending().catch((e) => { console.error("[media] transkripsi gagal:", (e as Error).message); return 0; });
+  // Images and speech at the same time: two separate services (layanan_media.py, layanan_asr.py) with their own cores.
+  const analyze = async () => {
+    let n = 0;
+    for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until;) {
+      const done = await analyzePending();
+      n += done;
+      if (!done || !serviceOk) break;
+    }
+    return n;
+  };
+  const [analyzed, transcribed] = await Promise.all([
+    analyze(),
+    transcribePending().catch((e) => { console.error("[media] transkripsi gagal:", (e as Error).message); return 0; }),
+  ]);
+  const reanalysed = await requeueOldModel().catch((e) => { console.error("[media] antre ulang model lama gagal:", (e as Error).message); return 0; });
+  if (reanalysed) console.log(`[media] ${reanalysed} gambar model lama diantrekan ulang`);
   const rederived = await refreshTextSignals().catch((e) => { console.error("[media] sinyal teks lama gagal:", (e as Error).message); return 0; });
   if (rederived) console.log(`[media] ${rederived} gambar lama diperbarui sinyal teksnya`);
   const lastTick = { collected, backfilled, analyzed, transcribed, ms: Date.now() - started };
@@ -361,6 +370,20 @@ export async function runMediaTick() {
     update: { heartbeatAt: new Date(), serviceOk, lastError, lastTick },
   }).catch(() => {});
   return { collected, backfilled, analyzed, transcribed };
+}
+
+/** Re-analysis after a model change, without holding up new images: while fewer than REANALYSE_BELOW images wait, the
+ *  newest REANALYSE_BATCH images analysed with another model than the service's go back in the queue. */
+const REANALYSE_BELOW = 2000;
+const REANALYSE_BATCH = 2000;
+async function requeueOldModel() {
+  const waiting = await prisma.mediaAsset.count({ where: { status: "pending" } });
+  if (waiting >= REANALYSE_BELOW) return 0;
+  const health = await fetch(`${SERVICE()}/health`, { signal: AbortSignal.timeout(5000) }).then((r) => r.json() as Promise<{ model?: string }>).catch(() => null);
+  if (!health?.model) return 0;
+  return prisma.$executeRaw`UPDATE "MediaAsset" SET status = 'pending', attempts = 0, "nextAttemptAt" = NULL WHERE id IN (
+    SELECT id FROM "MediaAsset" WHERE status = 'done' AND NOT placeholder AND (model IS NULL OR model NOT LIKE ${`${health.model}%`})
+    ORDER BY "analyzedAt" DESC LIMIT ${REANALYSE_BATCH})`;
 }
 
 type Transcript = { text: string; language: string | null; audio: boolean; error?: string; gone?: boolean };

@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
 import { MediaVisualBoard } from "@/components/mediaVisual/MediaVisualBoard";
-import { getSession } from "@/lib/server/auth";
+import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { getSession, visibleKeys } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
 import { roleOf } from "@/lib/session";
 
-/** Media visual is on trial: admins only (menu, page and API). */
-export default async function MediaVisualPage() {
+/** Media visual: admins and viewers see the whole bank; users only the images of their own projects (like SNA). */
+export default async function MediaVisualPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
   const session = await getSession();
-  if (!session || roleOf(session) !== "admin") redirect("/dashboard");
-  return <MediaVisualBoard keyLocked={false} />;
+  if (!session) redirect("/login");
+  const isUser = roleOf(session) === "user";
+  const { key: keyParam } = await searchParams;
+  if (isUser && !keyParam) {
+    const key = await prisma.apiKey.findFirst({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } });
+    if (key) redirect(`/analisis/media?key=${key.id}`);
+    return <NoKeyYet type="social" label="Media visual" hasKeys={false} />;
+  }
+  return <MediaVisualBoard keyLocked={isUser} />;
 }
