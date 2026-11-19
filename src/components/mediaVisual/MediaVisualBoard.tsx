@@ -33,6 +33,8 @@ type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | n
 const PERIOD_OPTIONS = VISUAL_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const selectClasses = { input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption };
 const VIEW_OPTIONS = [{ value: "post", label: "Per post" }, { value: "image", label: "Per gambar" }, { value: "narrative", label: "Narasi" }] as const;
+/** Text in the image: all, with key text, without (empty, or only app chrome/stamps/caption repeats). */
+const TEXT_OPTIONS = [{ value: "", label: "Semua" }, { value: "1", label: "Ada teks" }, { value: "0", label: "Tanpa teks" }];
 const KIND_OPTIONS = [{ value: "", label: "Semua" }, ...Object.entries(VISUAL_KINDS).map(([value, label]) => ({ value, label }))];
 const ago = (iso: string) => dayjs(iso).locale("id").fromNow();
 
@@ -45,7 +47,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
   const kind = params.get("kind") ?? "";
   const tag = params.get("tag") ?? "";
   const sensitive = params.get("sensitive") === "1";
-  const text = params.get("text") === "1";
+  const text = params.get("text") === "1" || params.get("text") === "0" ? params.get("text")! : "";
   const action = params.get("action") === "1";
   const claims = params.get("claims") === "1";
   const unread = params.get("unread") === "1";
@@ -79,7 +81,7 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
     if (claims) s.set("claims", "1");
     if (unread) s.set("unread", "1");
     if (sensitive) s.set("sensitive", "1");
-    if (text) s.set("text", "1");
+    if (text) s.set("text", text);
     return s.toString();
   }, [days, view, kind, tag, q, keyId, sensitive, text, action, claims, unread, narrative]);
   useEffect(() => { setCursor(null); setItems([]); setPosts([]); }, [filters]);
@@ -160,8 +162,8 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
           )}
           <Select aria-label="Tag visual" w={210} allowDeselect={false} searchable classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
             value={tag} onChange={(v) => go({ tag: v || null })} data={tagOptions} />
+          <Segmented label="Teks di gambar" options={TEXT_OPTIONS} value={text} onChange={(v) => go({ text: v || null })} />
           <div className={c.toggles}>
-            <button type="button" data-active={text || undefined} aria-pressed={text} onClick={() => go({ text: text ? null : "1" })}><IconLetterCase size={14} />Ada teks</button>
             <button type="button" data-active={sensitive || undefined} data-tone="warn" aria-pressed={sensitive} onClick={() => go({ sensitive: sensitive ? null : "1" })}><IconAlertTriangle size={14} />Perlu ditinjau</button>
             <button type="button" data-active={action || undefined} data-tone="alert" aria-pressed={action} onClick={() => go({ action: action ? null : "1" })}><IconSpeakerphone size={14} />Ajakan aksi</button>
             <button type="button" data-active={claims || undefined} aria-pressed={claims} onClick={() => go({ claims: claims ? null : "1" })}><IconChartBar size={14} />Klaim angka</button>

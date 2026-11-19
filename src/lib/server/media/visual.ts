@@ -13,7 +13,7 @@ import { prisma } from "../db";
 import { projectReady } from "./projects";
 
 export type VisualQuery = {
-  view: VisualView; days: number; kind: VisualKind | null; tag: string | null; sensitive: boolean; text: boolean; q: string; after: VisualCursor | null;
+  view: VisualView; days: number; kind: VisualKind | null; tag: string | null; sensitive: boolean; text: "with" | "without" | null; q: string; after: VisualCursor | null;
   /** Calls to action only; numeric claims only; one shared narrative (its key). */
   action: boolean; claims: boolean; narrative: string | null;
   /** Text in a script the OCR can't read (Arabic, Cyrillic, Chinese…). */
@@ -56,8 +56,8 @@ function conditions(query: VisualQuery, keyId: string | null) {
   const match: Prisma.Sql[] = [];
   if (query.tag) match.push(Prisma.sql`${query.tag} = ANY(a."tagList")`);
   if (query.sensitive) match.push(Prisma.sql`cardinality(a.sensitive) > 0`);
-  // "Ada teks" and the search use the key text: app chrome, camera stamps and caption repeats left out.
-  if (query.text) match.push(Prisma.sql`a."keyWords" > 0`);
+  // "Ada teks"/"Tanpa teks" and the search use the key text: app chrome, camera stamps and caption repeats left out.
+  if (query.text) match.push(query.text === "with" ? Prisma.sql`a."keyWords" > 0` : Prisma.sql`a."keyWords" = 0`);
   if (query.q) match.push(Prisma.sql`a."keyText" ILIKE ${`%${query.q.replace(/[%_\\]/g, "\\$&")}%`}`);
   if (query.action) match.push(Prisma.sql`a."actionCall" IS NOT NULL`);
   if (query.unread) match.push(Prisma.sql`a."unreadText"`);
