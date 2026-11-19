@@ -53,6 +53,8 @@ const ANALYZE_BUDGET_MS = Number(process.env.MEDIA_ANALYZE_BUDGET_MS ?? 180_000)
 const MAX_ATTEMPTS = 3;
 /** Images sent to the service at once; match its MEDIA_PARALLEL (one engine each). */
 const PARALLEL = Math.max(1, Number(process.env.MEDIA_PARALLEL ?? 2));
+/** While collecting with nothing to analyse or transcribe yet, look again after this pause. */
+const IDLE_WAIT_MS = 10_000;
 
 /** `context`: the item's caption or headline, so OCR text that only repeats it is left out of the key text. */
 /** `video`: the video whose poster is `urls[0]`, for transcription. */
@@ -331,34 +333,48 @@ export async function runMediaTick() {
   const started = Date.now();
   lastError = null;
   const collected: Record<string, number> = {};
-  for (const [name, collect] of [["news", collectNews], ["x", collectX], ["youtube", collectYoutube], ["instagram", () => collectMeta("instagram")], ["threads", () => collectMeta("threads")]] as const) {
+  // Collecting (FxTwitter, one Instagram/Threads page a second: minutes) runs beside the image analysis and the speech
+  // transcription, so the analysis service isn't idle meanwhile; both keep going until collecting is done and their own
+  // time budget is used.
+  let collecting = true;
+  const collectAll = async () => {
     try {
-      collected[name] = 0;
-      for (const { found, save } of await collect()) {
-        await store(found);
-        await tagItems(found.map((f) => ({ type: f.type, code: f.code })));
-        await save();
-        collected[name] += found.length;
+      for (const [name, collect] of [["news", collectNews], ["x", collectX], ["youtube", collectYoutube], ["instagram", () => collectMeta("instagram")], ["threads", () => collectMeta("threads")]] as const) {
+        try {
+          collected[name] = 0;
+          for (const { found, save } of await collect()) {
+            await store(found);
+            await tagItems(found.map((f) => ({ type: f.type, code: f.code })));
+            await save();
+            collected[name] += found.length;
+          }
+        } catch (e) {
+          lastError = `${name}: ${(e as Error).message}`.slice(0, 300);
+          console.error(`[media] ${name} gagal:`, (e as Error).message);
+        }
       }
-    } catch (e) {
-      lastError = `${name}: ${(e as Error).message}`.slice(0, 300);
-      console.error(`[media] ${name} gagal:`, (e as Error).message);
+      return await backfillProjects().catch((e) => { console.error("[media] backfill proyek gagal:", (e as Error).message); return 0; });
+    } finally {
+      collecting = false;
     }
-  }
-  const backfilled = await backfillProjects().catch((e) => { console.error("[media] backfill proyek gagal:", (e as Error).message); return 0; });
-  // Images and speech at the same time: two separate services (layanan_media.py, layanan_asr.py) with their own cores.
+  };
   const analyze = async () => {
     let n = 0;
-    for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until;) {
+    for (const until = Date.now() + ANALYZE_BUDGET_MS; Date.now() < until || collecting;) {
       const done = await analyzePending();
       n += done;
-      if (!done || !serviceOk) break;
+      if (!serviceOk) break;
+      if (!done) {
+        if (!collecting) break;
+        await sleep(IDLE_WAIT_MS); // nothing waiting yet: new images may arrive from the collecting
+      }
     }
     return n;
   };
-  const [analyzed, transcribed] = await Promise.all([
+  const [backfilled, analyzed, transcribed] = await Promise.all([
+    collectAll(),
     analyze(),
-    transcribePending().catch((e) => { console.error("[media] transkripsi gagal:", (e as Error).message); return 0; }),
+    transcribePending(() => collecting).catch((e) => { console.error("[media] transkripsi gagal:", (e as Error).message); return 0; }),
   ]);
   const reanalysed = await requeueOldModel().catch((e) => { console.error("[media] antre ulang model lama gagal:", (e as Error).message); return 0; });
   if (reanalysed) console.log(`[media] ${reanalysed} gambar model lama diantrekan ulang`);
@@ -389,16 +405,20 @@ async function requeueOldModel() {
 type Transcript = { text: string; language: string | null; audio: boolean; error?: string; gone?: boolean };
 let asrDown = false;
 
-/** Transcribes the speech of waiting videos, newest posts first, for ASR_BUDGET_MS. Videos older than ASR_MAX_AGE_DAYS
+/** Transcribes the speech of waiting videos, newest posts first, for ASR_BUDGET_MS (and as long as `collecting`). Videos older than ASR_MAX_AGE_DAYS
  *  when their turn comes are skipped ("none"). Without the service (not installed, or down) nothing changes. */
-async function transcribePending() {
+async function transcribePending(collecting: () => boolean = () => false) {
   await prisma.$executeRaw`UPDATE "MediaAsset" SET "transcriptStatus" = 'none' WHERE "transcriptStatus" = 'pending' AND "createdAt" < now() - make_interval(days => ${ASR_MAX_AGE_DAYS}::int)`;
   let done = 0;
-  for (const until = Date.now() + ASR_BUDGET_MS; Date.now() < until;) {
+  for (const until = Date.now() + ASR_BUDGET_MS; Date.now() < until || collecting();) {
     const [a] = await prisma.$queryRaw<{ id: string; videoUrl: string }[]>`
       SELECT id, "videoUrl" FROM "MediaAsset" a WHERE "transcriptStatus" = 'pending' AND "videoUrl" IS NOT NULL
       ORDER BY (SELECT max(l."publishedAt") FROM "MediaLink" l WHERE l."assetId" = a.id) DESC NULLS LAST, "createdAt" DESC LIMIT 1`;
-    if (!a) break;
+    if (!a) {
+      if (!collecting()) break;
+      await sleep(IDLE_WAIT_MS);
+      continue;
+    }
     let res: Response;
     try {
       res = await fetch(`${ASR()}/transcribe`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: a.videoUrl }), signal: AbortSignal.timeout(300_000) });
