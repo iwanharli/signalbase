@@ -184,6 +184,14 @@ export function instagramEmbed(html: string): { images: string[]; video: string 
   }
 }
 
+/** The post's own image in an Instagram embed page that carries no JSON data (`<img class="EmbeddedMediaImage">`);
+ *  null without one (a removed or private post), off Meta's CDN, or a profile picture. */
+export function instagramEmbedImage(html: string) {
+  const tag = html.match(/<img\b[^>]*\bclass=["'][^"']*\bEmbeddedMediaImage\b[^>]*>/i)?.[0];
+  const url = metaCdnUrl(tag?.match(/\bsrc=["']([^"']+)["']/i)?.[1]);
+  return url && !/\/t51\.\d+-19\//.test(new URL(url).pathname) ? url : null;
+}
+
 /** Images in an article's body besides its lead image, at most NEWS_BODY_MAX: infographics and documents often sit there.
  *  `srcs`: the src of each <img> in news_main.news_content, in order. Logos, icons, ads, GIFs and SVGs are left out. */
 export const NEWS_BODY_MAX = 4;

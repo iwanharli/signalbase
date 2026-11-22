@@ -13,7 +13,7 @@ import { prisma } from "../db";
 import { bankPool } from "../bank/pool";
 import { originalXPost } from "../xPost";
 import { xPostId } from "@/lib/media/xPost";
-import { instagramEmbed, isXGif, metaOgImage, newsBodyImages, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, videoFrameUrls, xPostImages, youtubeImages, type OcrLine } from "@/lib/mediaVisual";
+import { instagramEmbed, instagramEmbedImage, isXGif, metaOgImage, newsBodyImages, PLACEHOLDER_MIN_ARTICLES, retryDelayMs, videoFrameUrls, xPostImages, youtubeImages, type OcrLine } from "@/lib/mediaVisual";
 import { metaPost } from "@/lib/media/metaPost";
 import { backfillProjects, cleanupOldMedia, ensureMediaIndexes, tagItems } from "./projects";
 import { groupUngrouped, twinGroupFor } from "./twins";
@@ -43,6 +43,9 @@ const META_BATCH = 60;
  *  page for its media data (±230 KB into a ±300 KB page). */
 const META_HEAD_BYTES = 128 * 1024;
 const EMBED_BYTES = 640 * 1024;
+/** After an Instagram post page answers with a login page, it isn't asked again for this long (embeds still are). */
+const POST_PAGE_PAUSE_MS = 60 * 60_000;
+let postPageBlockedUntil = 0;
 /** Honest client name, like the analysis service's image downloads. */
 const MEDIA_UA = "Mozilla/5.0 (compatible; signalbase-media/1.0)";
 /** Images read from the queue at once; batches repeat until the tick's analysis time is used up. */
@@ -172,15 +175,24 @@ async function collectMeta(name: "instagram" | "threads"): Promise<Collected[]> 
 async function postMedia(name: "instagram" | "threads", url: string): Promise<{ images: string[]; video: string | null } | "blocked" | null> {
   const post = name === "instagram" ? metaPost(url) : null;
   if (post?.platform === "instagram") {
-    const embed = await readPage(`${post.url}embed/captioned/`, EMBED_BYTES, (html) => html.includes('"contextJSON":null') || !!instagramEmbed(html));
+    const embed = await readPage(`${post.url}embed/captioned/`, EMBED_BYTES, (html) => !!instagramEmbed(html) || (html.includes('"contextJSON":null') && /EmbeddedMediaImage[^>]*>|may have been removed/.test(html)));
     await sleep(META_GAP_MS);
     if (embed === "blocked") return embed;
     const media = embed && instagramEmbed(embed);
     if (media) return media;
+    // No JSON data (most embeds): the post's own image in the page's markup. A removed or private post has none.
+    const image = embed && instagramEmbedImage(embed);
+    if (image) return { images: [image], video: null };
+    // The post page is only a fallback while Instagram lets us read it (it rate-limits it to a login page, Nov 2026).
+    if (Date.now() < postPageBlockedUntil) return null;
   }
   const page = await readPage(url, META_HEAD_BYTES, (html) => /og:image[^>]*>/.test(html));
   await sleep(META_GAP_MS);
-  if (page === "blocked") return page;
+  if (page === "blocked") {
+    // Instagram post page limited, embeds still fine: skip this post and the fallback for a while, keep collecting.
+    if (post?.platform === "instagram") { postPageBlockedUntil = Date.now() + POST_PAGE_PAUSE_MS; return null; }
+    return page;
+  }
   if (!page) return null;
   const image = metaOgImage(page);
   return image ? { images: [image], video: null } : null;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   workerProblem,
-  formatVisualCursor, hashDistance, instagramEmbed, isXGif, KIND_PRIORITY, metaOgImage, newsBodyImages, videoFrame, videoFrameUrls, youtubeImages, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
+  formatVisualCursor, hashDistance, instagramEmbed, instagramEmbedImage, isXGif, KIND_PRIORITY, metaOgImage, newsBodyImages, videoFrame, videoFrameUrls, youtubeImages, NEAR_TWIN_BITS, parseVisualCursor, parseVisualDays, retryDelayMs, VISUAL_TAGS, xPostImages, youtubeThumbnail,
 } from "../src/lib/mediaVisual";
 
 test("YouTube thumbnail from every video URL form, none without an id", () => {
@@ -84,6 +84,15 @@ test("Instagram embed: every carousel slide and a Reel's video, Meta CDN only; n
   assert.deepEqual(instagramEmbed(page({ is_video: false, display_url: "https://evil.example/v/a.jpg" })), null);
   assert.equal(instagramEmbed('<script>x({"contextJSON":null})</script>'), null);
   assert.equal(instagramEmbed("<html></html>"), null);
+});
+
+test("Instagram embed without JSON: the post's own image from its markup, never the avatar or other hosts", () => {
+  const post = "https://scontent-fra3-1.cdninstagram.com/v/t51.82787-15/916779160_n.jpg?stp=x&amp;oe=1";
+  const avatar = "https://scontent-fra5-1.cdninstagram.com/v/t51.82787-19/807759156_n.jpg";
+  assert.equal(instagramEmbedImage(`<img src="${avatar}" class="Avatar"><img alt="" class="EmbeddedMediaImage" src="${post}" srcset="x">`), post.replace("&amp;", "&"));
+  assert.equal(instagramEmbedImage(`<img class="EmbeddedMediaImage" src="${avatar}">`), null);
+  assert.equal(instagramEmbedImage('<img class="EmbeddedMediaImage" src="https://evil.example/v/a.jpg">'), null);
+  assert.equal(instagramEmbedImage("<p>the post may have been removed.</p>"), null);
 });
 
 test("news body images: besides the lead, no logos/icons/GIFs, at most four", () => {
