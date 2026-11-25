@@ -76,7 +76,6 @@ export type MediaItem = {
 
 export type ItemClassification = { category: string; label: string; confidence: number | null; reason: string | null; manual?: boolean; correctedBy?: string | null; categorizedAt?: string };
 
-export const MOOD_SAMPLE_LIMIT = 10_000;
 
 export type MoodCount = { value: string; n: number };
 export type DailyCount = { day: string; n: number };

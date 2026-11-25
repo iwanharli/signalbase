@@ -8,6 +8,7 @@ import { clampHistory } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
+import { COUNT_CAP } from "@/lib/server/bank/stats";
 import { ANY_LABEL, firstManualLabel } from "@/lib/media/manualLabels";
 import { itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
 import { withImageSearch } from "@/lib/server/media/textSignals";
@@ -75,7 +76,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
       withoutMood.delete("mood");
       const [{ total, capped }, moods, aiCategories] = await Promise.all([
         countCapped(type, query, scope),
-        moodBreakdown(type, withoutMood, scope),
+        moodBreakdown(type, withoutMood, scope, COUNT_CAP), // the newest COUNT_CAP matches, as before: keeps client calls fast
         categories ? categoryBreakdown(keyId, type, categories) : null,
       ]);
       return NextResponse.json({ total, capped, moods, ...(aiCategories ? { aiCategories } : {}) });

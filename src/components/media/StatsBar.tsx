@@ -4,7 +4,6 @@ import { IconInfoCircle, IconMessages, IconWorldWww } from "@tabler/icons-react"
 import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { formatNumber, MEDIA_TYPE_LABEL, MOOD_KIND_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodColorVar, moodInfo } from "@/lib/media/mood";
-import { MOOD_SAMPLE_LIMIT } from "@/lib/media/types";
 import type { MediaType, MoodCount } from "@/lib/media/types";
 import classes from "./stats.module.css";
 import { Tip } from "../ui/Tip";
@@ -34,8 +33,8 @@ function MoodBreakdown({ type, moods, selected, onSelect }: {
     <div className={classes.moods}>
       <div className={classes.moodHead}>
         <span className={classes.label}>{MOOD_KIND_LABEL[type]}{dominant && <> · dominan <strong style={{ color: moodColorVar(dominant.value, 4) }}>{moodInfo(dominant.value).label}</strong></>}</span>
-        {type === "social" && <Tooltip label="Persentase dihitung dari post berlabel dalam maksimal 10.000 post terbaru yang cocok. Filter emosi tidak diterapkan pada grafik, sehingga seluruh emosi tetap dapat dibandingkan." withArrow multiline maw={320} events={{ hover: true, focus: true, touch: true }}>
-          <button type="button" className={classes.sampleNote} aria-label="Dasar grafik: maksimal 10.000 post terbaru yang cocok, persentase dari post berlabel, tanpa filter emosi.">Maks. {formatNumber(MOOD_SAMPLE_LIMIT)} post<IconInfoCircle size={13} aria-hidden /></button>
+        {total > 0 && <Tooltip label={`Persentase dihitung dari semua ${type === "social" ? "post" : "berita"} berlabel yang cocok dengan filter dan rentang tanggal. Filter ${type === "social" ? "emosi" : "sentimen"} tidak diterapkan pada grafik, sehingga semuanya tetap dapat dibandingkan.`} withArrow multiline maw={320} events={{ hover: true, focus: true, touch: true }}>
+          <button type="button" className={classes.sampleNote} aria-label={`Dasar grafik: ${formatNumber(total)} ${type === "social" ? "post" : "berita"} berlabel, tanpa filter ${type === "social" ? "emosi" : "sentimen"}.`}>Dari {formatNumber(total)} {type === "social" ? "post" : "berita"}<IconInfoCircle size={13} aria-hidden /></button>
         </Tooltip>}
       </div>
       {!moods ? <Skeleton h={10} radius="xl" /> : total === 0 ? <span className={classes.empty}>Belum ada data teranalisis</span> : (

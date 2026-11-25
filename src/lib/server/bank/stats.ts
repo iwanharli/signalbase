@@ -1,20 +1,20 @@
 // Counts and aggregates over the source database. All results are cached because the tables hold millions of rows.
 import type { KeyScope } from "@/lib/media/keyScope";
-import { MOOD_SAMPLE_LIMIT } from "@/lib/media/types";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { sharedCache } from "./cache";
 import { analyticsPool, bankPool, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 
-/** Upper bound for the fast (capped) count and for the rows sampled by the mood breakdown. */
-export const COUNT_CAP = MOOD_SAMPLE_LIMIT;
+/** Upper bound for the fast (capped) count the public API returns with every list. */
+export const COUNT_CAP = 10_000;
 
 // Both counts are served stale while they refresh: a broad scope (e.g. "polri") takes 7–15 s (up to a minute when the
 // analytics pool is busy), so after the first time nobody waits for a count again. The capped count answers the public
 // API (KIPERMAS) on every list request.
 const exactCountCache = sharedCache<number>("bank.exactCount", { ttlMs: 15 * 60_000, maxEntries: 300, staleWhileRevalidate: true });
 const cappedCountCache = sharedCache<{ total: number; capped: boolean }>("bank.cappedCount", { ttlMs: 5 * 60_000, maxEntries: 300, staleWhileRevalidate: true });
-// Kept 10 minutes and refreshed in the background: a broad scope (e.g. "polri") takes ~13 s, so only the first look waits.
+// Kept 10 minutes and refreshed in the background (and warmed for every project): over every match, a broad scope takes
+// 5-25 s (SLOG POLRI 30 days 21 s, all data 25 s; 26 Nov 2026), so only the first look waits.
 const moodCache = sharedCache<MoodCount[]>("bank.mood", { ttlMs: 10 * 60_000, maxEntries: 200, staleWhileRevalidate: true });
 
 /** Exact number of matches. Can take ~20 s on the full social table, so it gets a 90 s timeout. */
@@ -38,16 +38,21 @@ export function countCapped(type: MediaType, params: URLSearchParams, scope: Key
   });
 }
 
-/** Matches per emotion (social) or sentiment (online), over the newest COUNT_CAP matches. Runs on the analytics pool with a
- *  longer timeout, so a slow breakdown never takes the connections the item lists need. */
-export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: KeyScope) {
-  return moodCache(filterKey(type, params, scope), async () => {
+/** Matches per emotion (social) or sentiment (online), over every match of the filters (not a sample: a sample of the newest
+ *  posts only described the last few days of a broad range). Runs with a long timeout on its own connection, so a slow
+ *  breakdown never takes the connections the item lists need. `sample` limits it to the newest matches instead: the public
+ *  API keeps that (COUNT_CAP), since a client's own filter combinations would otherwise wait up to half a minute. */
+export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: KeyScope, sample?: number) {
+  return moodCache(`${filterKey(type, params, scope)}|${sample ?? "all"}`, async () => {
     const c = COLUMNS[type];
     const { where, values } = buildWhere(type, params, scope);
-    const { rows } = await withLongTimeout(60_000, (client) => client.query<MoodCount>(
-      `SELECT value, count(*)::int n FROM (
-         SELECT lower(${c.mood}) value FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} DESC LIMIT ${COUNT_CAP}
-       ) t WHERE value IS NOT NULL AND value <> '' GROUP BY 1 ORDER BY 2 DESC`,
+    const labelled = `${c.mood} IS NOT NULL AND ${c.mood} <> ''`;
+    const sql = sample
+      ? `SELECT value, count(*)::int n FROM (
+           SELECT lower(${c.mood}) value FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} DESC LIMIT ${Math.floor(sample)}
+         ) t WHERE value IS NOT NULL AND value <> '' GROUP BY 1 ORDER BY 2 DESC`
+      : `SELECT lower(${c.mood}) value, count(*)::int n FROM ${c.from} WHERE ${where} AND ${labelled} GROUP BY 1 ORDER BY 2 DESC`;
+    const { rows } = await withLongTimeout(120_000, (client) => client.query<MoodCount>(sql,
       values,
     ));
     return rows;
