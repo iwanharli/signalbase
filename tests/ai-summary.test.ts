@@ -77,3 +77,15 @@ test("input codes written into prose are removed, the rest of the sentence kept"
   assert.equal(stripCodes("Warganet marah (S2, S5) soal ini."), "Warganet marah soal ini.");
   assert.equal(stripCodes("Tol KM 12 dan Pasal 33 tetap utuh."), "Tol KM 12 dan Pasal 33 tetap utuh.");
 });
+
+test("pesan gagal ringkasan tidak pernah memuat balasan mentah penyedia", async () => {
+  const { summaryErrorText } = await import("../src/lib/ai/summary");
+  const raw = "Penyedia AI menolak (401): Authentication Fails, Your api key: ****4b5e is invalid (request_id: ddc06b1f-da6b-4f0f-9cdc-e3c4d59f72a8)";
+  assert.equal(summaryErrorText(raw, true), "API key penyedia AI tidak valid. Periksa di Pengaturan AI.");
+  assert.equal(summaryErrorText(raw, false), null);
+  assert.equal(summaryErrorText("Penyedia AI menolak (402): Insufficient Balance", true), "Saldo penyedia AI habis. Isi ulang di akun penyedia.");
+  assert.equal(summaryErrorText("socket hang up", true), "Penyedia AI sedang bermasalah. Periksa di Pengaturan AI.");
+  assert.equal(summaryErrorText("Tidak ada data pada hari itu untuk cakupan ini.", false), "Tidak ada data pada hari itu untuk cakupan ini.");
+  assert.equal(summaryErrorText(null, true), null);
+  for (const out of [summaryErrorText(raw, true), summaryErrorText("x (500) req_123", true)]) assert.doesNotMatch(out ?? "", /\*\*\*\*|request_id|req_/);
+});

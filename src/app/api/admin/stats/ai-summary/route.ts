@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { summaryContentSchema, type SummaryResponse } from "@/lib/ai/summary";
+import { summaryContentSchema, summaryErrorText, type SummaryResponse } from "@/lib/ai/summary";
 import { BANK_SCOPE, dataDay, getSetting } from "@/lib/server/ai/summary";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
@@ -24,8 +24,8 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const body: SummaryResponse = {
     summary: row ? {
       day: row.day, status: row.status === "ok" ? "ok" : "failed", content: content?.success ? content.data : null,
-      // Users see a generic message; provider errors are for admins.
-      error: row.error ? (user.role === "admin" ? row.error : "Ringkasan belum dapat dibuat.") : null,
+      // The raw provider error stays in the database and the server log; the page gets a short reason at most.
+      error: summaryErrorText(row.error, user.role === "admin"),
       model: row.model, updatedAt: row.updatedAt.toISOString(),
     } : null,
     days, latest: dataDay(), hour: setting?.summaryHour ?? 6,

@@ -84,7 +84,7 @@ export function AiSummary({ keyId, admin }: { keyId: string | null; admin: boole
         </p>
       )}
       {s?.status === "failed" && (
-        <p className={c.state} data-error><IconAlertTriangle size={16} />Ringkasan data {longDay(s.day)} gagal ditulis{s.error ? `: ${s.error}` : "."}</p>
+        <p className={c.state} data-error><IconAlertTriangle size={16} />Ringkasan data {longDay(s.day)} belum dapat dibuat.{s.error ? ` ${s.error}` : ""}</p>
       )}
 
       {content && <>

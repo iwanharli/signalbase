@@ -159,3 +159,17 @@ export type UsageResponse = {
 /** "≈ Rp…" untuk jumlah USD bila kurs tersedia, selain itu kosong. */
 export const rupiah = (usd: number, currency: string | null, kurs: number | null | undefined) =>
   currency === "USD" && kurs ? `≈ Rp${Math.round(usd * kurs).toLocaleString("id-ID")}` : "";
+
+/** What the Ringkasan page says about a failed summary. The stored error (often the provider's raw reply, with part of
+ *  the key and a request id) never reaches the browser: users get nothing extra, admins one short reason to act on. */
+export function summaryErrorText(error: string | null, isAdmin: boolean): string | null {
+  if (!error) return null;
+  if (error.startsWith("Tidak ada data")) return error; // not a failure of the AI: nothing was posted that day
+  if (!isAdmin) return null;
+  if (/\((401|403)\)|authentication|invalid|tidak valid|tidak punya akses/i.test(error)) return "API key penyedia AI tidak valid. Periksa di Pengaturan AI.";
+  if (/\(402\)|insufficient|balance|saldo/i.test(error)) return "Saldo penyedia AI habis. Isi ulang di akun penyedia.";
+  if (/\(429\)|rate limit|batas pemakaian/i.test(error)) return "Penyedia AI sedang membatasi permintaan.";
+  if (/format|json/i.test(error)) return "Jawaban AI tidak sesuai format.";
+  return "Penyedia AI sedang bermasalah. Periksa di Pengaturan AI.";
+}
+
