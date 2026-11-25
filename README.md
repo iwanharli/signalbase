@@ -48,7 +48,8 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, relevansi), kategori, lokasi, tautan sumber;
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`; `polisi or polri` atau `polisi | polri` = salah satu kata, kata dalam satu alternatif harus muncul semua; query dikirim 1 detik setelah berhenti mengetik, 2 detik bila teks masih kurang dari 4 karakter), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
-  - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi.
+  - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi. Pilihan **Proyek / Isu** membuka halaman sebagai proyek itu (`?key=<id>`: seluruh cakupan, label manual, kategori AI);
+  - **filter tersimpan** di browser per jenis media dan proyek, tetap setelah muat ulang; alamat hanya memuat `?key=`. Tombol merah **Reset filter** (juga “Reset ke awal”) mengembalikan bawaan tanpa melepas proyek.
 - **SNA** (`/analisis/sna`) — graf jaringan d3: akun top poster (pilih maks. 25/50/100/200) ↔ akun yang mereka sebut, garis dan ikon berwarna menurut emosi post; rentang 1/3/7 hari; klik node membuka panel (ringkasan, postingan, mention); legenda dengan toggle emosi, kunci graf, layar penuh.
 - **Ontologi** (`/analisis/ontologi`) — graf d3 isu EWS (tabel `alerts`) ↔ aktor/target, tampilan sama dengan SNA; filter proyek berdasarkan kata kunci di aktor/target.
 - **Command Center** (`/command-center`) — rangkuman Ringkasan dalam satu layar tanpa scroll, latar bola dunia Mapbox (`MAPBOX_TOKEN`), kartu kaca, dengan grafik sederhana (donat emosi/sentimen, garis volume, tiga cincin perbandingan dengan periode sebelumnya, batang kata kunci dan isu); segar otomatis tiap 60 detik, bisa layar penuh.
@@ -183,7 +184,7 @@ npm run dev                   # http://localhost:3100
 | Harga | `/pricing` | Paket Coba, Starter, Pro, Instansi (bulanan/tahunan) dan tabel perbandingan. Isi di `src/components/pricing/plans.ts`; batas paket (proyek, keyword, panggilan harian, kuota AI, masa aktif) ditegakkan di `src/lib/plans.ts`. |
 | Product knowledge | `/signalbase-product-knowledge.pdf` | Brosur PDF 9 halaman dari data website yang sama. Setelah mengubah `content.ts` atau `plans.ts`, jalankan `npm run brochure` lalu commit PDF-nya. |
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
-| Media Sosial | `/media/social` | Jelajah post. `?mood=marah` membuka langsung dengan filter emosi. |
+| Media Sosial | `/media/social` | Jelajah post (`?key=<id>` = lewat proyek). Link berfilter seperti `?mood=marah` diterapkan dan disimpan, lalu URL dibersihkan. |
 | Media Online | `/media/online` | Jelajah berita. |
 | Command Center | `/command-center` | Ringkasan satu layar dari data Ringkasan + Isu (`?key=<id>` untuk admin melihat satu proyek). Grafik Chart.js di `src/components/commandCenter/`. Logo/atribusi Mapbox di pojok peta disembunyikan lewat CSS demi tampilan; ketentuan Mapbox meminta atribusi tetap tampil, jadi pertimbangkan menampilkannya lagi (hapus aturan `.stage :global(.mapboxgl-ctrl-bottom-left)` di `commandCenter.module.css`) atau mencantumkan "© Mapbox © OpenStreetMap" di tempat lain. |
 | SNA | `/analisis/sna` | Graf d3 (`src/components/sna/`); data dari `GET /api/admin/sna?days=1\|3\|7&limit=25\|50\|100\|200[&key=]` dan `GET /api/admin/sna/account?username=&role=hub\|child&days=[&key=]` untuk panel (`src/lib/server/bank/sna.ts`, tabel `post_main` + `post_mentioned`). |
@@ -200,6 +201,7 @@ npm run dev                   # http://localhost:3100
 
 ### Aturan filter yang saling terkait
 
+- **Ganti proyek** → filter label manual dan kategori AI dikosongkan (milik satu proyek).
 - **Status analisis = Belum** → filter emosi dan intensitas dikosongkan (data belum berlabel).
 - **Relevansi = Tidak relevan** → status analisis diubah ke *Semua*, karena post yang dikecualikan AI tidak diberi label emosi.
 - Default media sosial: **Sudah dianalisis** + **Relevan** (post yang dikecualikan AI disembunyikan).
@@ -302,7 +304,7 @@ src/
 ├── components/
 │   ├── media/                    Penjelajah media
 │   │   ├── MediaBrowser.tsx      Penyusun halaman
-│   │   ├── useMediaFilters.ts    State filter + aturan antar-filter
+│   │   ├── useMediaFilters.ts    State filter tersimpan, URL bersih, aturan antar-filter
 │   │   ├── useMediaFeed.ts       Paging + infinite scroll
 │   │   ├── QuickFilters.tsx      Bar filter cepat
 │   │   ├── AdvancedFilters.tsx   Drawer filter lanjutan
@@ -326,7 +328,7 @@ src/
 │   │   ├── types.ts              MediaItem, Analysis, MediaType, …
 │   │   ├── labels.ts             Label tampilan & format angka
 │   │   ├── mood.ts               Label & warna emosi/sentimen
-│   │   └── filters.ts            State filter ↔ query string, preset tanggal
+│   │   └── filters.ts            State filter ↔ query string & simpanan, preset tanggal
 │   ├── server/
 │   │   ├── bank/                 Akses database sumber
 │   │   │   ├── pool.ts           Koneksi read-only
@@ -356,7 +358,7 @@ tests/                            Tes node:test (npm test)
 ### Menambah filter baru
 
 1. **Server** — tambahkan kondisi di `buildWhere` (`lib/server/bank/query.ts`) dan nama parameternya di `FILTER_PARAMS` (agar ikut kunci cache).
-2. **Shared** — tambahkan field di `MediaFilters`, `defaultFilters`, `toSearchParams`, dan `countAdvanced` (`lib/media/filters.ts`).
+2. **Shared** — tambahkan field di `MediaFilters`, `defaultFilters`, `toSearchParams`, `filtersFromSearchParams`, `countAdvanced`, dan nama parameternya di `FILTER_URL_PARAMS` (agar tersimpan dan dibersihkan dari URL) (`lib/media/filters.ts`).
 3. **UI** — tambahkan `<Field>` di `AdvancedFilters.tsx`; bila perlu tampil di `StatsBar.tsx`.
 4. **Dokumentasi** — `docs/API.md` dan `components/ApiDocs.tsx`.
 
@@ -434,7 +436,7 @@ npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name sig
 
 ## Pratinjau post X di panel admin
 
-Di Media Sosial, pilihan **Quick View / Original View** memakai komponen pratinjau yang sama untuk setiap kartu: kartu Quick tampil dulu, post asli dimuat di belakang (maks. 4 serentak, hanya kartu dekat layar) lalu menggantikannya. Instagram/Facebook memakai tombol "Lihat tampilan asli". Original View adalah default; pilihan disimpan di `?tampilan=` dan `localStorage`.
+Di Media Sosial, pilihan **Quick View / Original View** memakai komponen pratinjau yang sama untuk setiap kartu: kartu Quick tampil dulu, post asli dimuat di belakang (maks. 4 serentak, hanya kartu dekat layar) lalu menggantikannya. Instagram/Facebook memakai tombol "Lihat tampilan asli". Original View adalah default; pilihan disimpan di `localStorage` (`?tampilan=` pada link lama masih dibaca, lalu dihapus dari URL).
 
 Modal media sosial memuat bagian **Post asli** untuk URL `x.com` atau `twitter.com` yang memiliki ID post valid. Server mencoba `react-tweet` lebih dulu, lalu API FxTwitter jika sumber pertama gagal atau tidak menemukan post. Kedua sumber tidak memerlukan kredensial akun X. Pratinjau menampilkan teks, identitas akun publik, media, dan kutipan yang tersedia; video diputar atas tindakan pengguna. Data tersimpan dan analisis Signalbase tetap ditampilkan terpisah.
 

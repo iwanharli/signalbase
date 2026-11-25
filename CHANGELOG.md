@@ -6,7 +6,7 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 | Tanggal | Yang ditambahkan |
 |---|---|
-| [2026-11-26](#2026-11-26) | Pilihan Proyek di halaman media memakai `?key=` |
+| [2026-11-26](#2026-11-26) | Route `/project`, proyek media lewat `?key=`, filter media tersimpan dan URL bersih, tombol Reset filter |
 | [2026-11-18](#2026-11-18) | Tema gelap, Ringkasan didesain ulang, pencarian OR dan jeda pencarian |
 | [2026-11-17](#2026-11-17) | Filter Proyek / Isu di halaman media |
 | [2026-11-16](#2026-11-16) | Biaya AI, API usage, model QW lokal |
@@ -20,11 +20,12 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 ## 2026-11-26
 
 ### Diubah
-- Alamat Media Sosial/Online kini hanya `/media/<jenis>` (plus `?key=`): filter dan pilihan Quick/Original View disimpan di browser, tidak ditulis ke URL. Link berisi filter (Ringkasan, SNA, hasil AI, bookmark lama) tetap diterapkan, disimpan (menimpa simpanan jenis media + proyek itu), lalu URL dibersihkan. Konsekuensi: filter tidak bisa dibagikan lewat URL, Back tidak memundurkan filter, dan tab dengan jenis media + proyek sama berbagi satu simpanan. Ini menggantikan perilaku URL berisi filter di entri sebelumnya.
-- Filter Media Sosial/Online disimpan di `localStorage` (per jenis media dan proyek) dan dipulihkan bila halaman dibuka dengan URL tanpa filter; URL yang memuat filter diutamakan. Rentang 2/7/30 hari disimpan sebagai pilihan, bukan tanggal. Reset menghapus simpanan (proyek tetap); logout dari menu menghapus semua simpanan. Tombol merah **Reset filter** baru di baris Filter aktif (nonaktif saat filter bawaan); tombol “Reset ke awal” tetap.
-- URL halaman Media Sosial/Online hanya memuat filter yang berbeda dari bawaan (`sort=newest`, `analyzed=yes`, `relevance=relevant`, dan `relevance=` di online tidak lagi ditulis); nilai kosong tetap ditulis bila berarti “Semua”. Permintaan ke API tidak berubah; link lama tetap berfungsi dan dibersihkan saat ada filter yang diubah.
-- Route panel Proyek pindah dari `/api-keys` ke `/project` (`/project`, `/project/new`, `/project/[id]`, `/project/[id]/ai`). URL lama `/api-keys/...` dialihkan sementara (307) dengan query ikut; `/kunci-api` langsung ke `/project`. API (`/api/admin/keys`, `/api/v1`), parameter `?key=`, database, dan nama kode tidak berubah.
-- **Proyek / Isu** di filter lanjutan Media Sosial/Online kini memakai `?key=`: halaman dilihat sebagai proyek itu (seluruh cakupan, kecocokan teks gambar, label manual, kategori AI), bukan lagi penyaring kata kunci saja. Ganti proyek mengosongkan filter label dan kategori AI; Reset tidak melepas proyek; akun klien tidak bisa mengosongkan pilihan; dropdown memuat proyek aktif yang mencakup jenis media itu; chip "Proyek: …" dihapus. Link lama `?project=` dialihkan ke `?key=` (bila keduanya ada, `key` dipakai). Irisan dua proyek tidak tersedia lagi; parameter internal `pkw` dihapus. API publik dan database tidak berubah.
+- **Route Proyek**: `/api-keys` menjadi `/project` (`/project`, `/project/new`, `/project/[id]`, `/project/[id]/ai`). URL lama `/api-keys/...` dialihkan sementara (307) dengan query ikut; `/kunci-api` langsung ke `/project`. API (`/api/admin/keys`, `/api/v1`) dan nama kode tidak berubah.
+- **Proyek / Isu** di filter lanjutan Media Sosial/Online kini memakai `?key=`: halaman dilihat sebagai proyek itu (seluruh cakupan, kecocokan teks gambar, label manual, kategori AI), bukan lagi penyaring kata kunci saja. Ganti proyek mengosongkan filter label dan kategori AI; akun klien tidak bisa mengosongkan pilihan; dropdown memuat proyek aktif yang mencakup jenis media itu; chip "Proyek: …" dihapus. Link lama `?project=` dialihkan ke `?key=` (bila keduanya ada, `key` dipakai). Irisan dua proyek tidak tersedia lagi; parameter internal `pkw` dihapus.
+- **URL tanpa filter**: alamat Media Sosial/Online hanya `/media/<jenis>` (plus `?key=`). Link berisi filter atau `tampilan=` (Ringkasan, SNA, hasil AI, bookmark lama) tetap diterapkan, disimpan, lalu URL dibersihkan; filter dari link menimpa simpanan jenis media + proyek itu. Filter tidak bisa dibagikan lewat URL, Back tidak memundurkan filter, dan tab dengan jenis media + proyek sama berbagi satu simpanan.
+- **Filter tersimpan** di `localStorage` per jenis media dan proyek; tetap setelah muat ulang atau lewat menu. Rentang 2/7/30 hari disimpan sebagai pilihan, bukan tanggal. Pilihan Quick/Original View juga hanya di `localStorage`. Reset mengembalikan bawaan (proyek tetap); logout lewat menu **Keluar** menghapus simpanan filter (sesi yang habis sendiri tidak).
+- Tombol merah **Reset filter** baru di baris Filter aktif (nonaktif saat filter bawaan); tombol “Reset ke awal” tetap.
+- API publik dan database tidak berubah.
 
 ## 2026-11-18
 
