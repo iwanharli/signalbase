@@ -7,6 +7,7 @@ import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChar
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
+import { AiProgressDock } from "./AiProgressDock";
 import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
@@ -180,6 +181,8 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
       </header>}
 
       <main key={path} className={classes.main} data-bare={bare || undefined}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
+      {/* Outside <main> (re-mounted per page), so it stays on screen and keeps its data while moving between pages. */}
+      {!bare && <AiProgressDock />}
     </div>
   );
 }
