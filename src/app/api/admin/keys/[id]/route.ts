@@ -41,7 +41,8 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
   const { id } = await params;
   const parsed = updateKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    const message = parsed.error.issues[0]?.path[0] === "name" ? "Nama minimal 2 karakter" : "Parameter cakupan tidak valid";
+    const issue = parsed.error.issues[0];
+    const message = issue?.path[0] === "name" ? "Nama minimal 2 karakter" : issue?.path[1] === "keywords" ? issue.message : "Parameter cakupan tidak valid";
     return NextResponse.json({ error: message }, { status: 400 });
   }
   const key = await prisma.apiKey.findUnique({ where: { id }, include: { classifier: { select: { apiKeyId: true } } } });

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Switch, TagsInput } from "@mantine/core";
 import { IconAdjustmentsHorizontal, IconDatabase, IconMapPin, IconTag } from "@tabler/icons-react";
 import type { KeyScope } from "@/lib/media/keyScope";
+import { keywordProblem } from "@/lib/media/keywordExpr";
 import { capitalize, humanize } from "@/lib/media/labels";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
@@ -32,8 +33,11 @@ function useScopeOptions() {
 }
 
 export function KeywordsInput({ scope, onChange }: { scope: KeyScope; onChange: (scope: KeyScope) => void }) {
+  const problem = scope.keywords.map((k) => { const p = keywordProblem(k); return p && `"${k}": ${p}`; }).find(Boolean);
   return (
-    <TagsInput classNames={keyInputClasses} label="Kata kunci" description="Pisahkan dengan Enter atau koma. Spasi tetap menjadi bagian frasa, misalnya pelayanan publik. Kosong berarti tidak dibatasi kata kunci."
+    <TagsInput classNames={keyInputClasses} label="Kata kunci"
+      description={<>Pisahkan dengan Enter atau koma. Spasi tetap menjadi bagian frasa, misalnya pelayanan publik. Bisa juga ekspresi dengan AND / OR dan tanda kurung, misalnya <code>{'(polres OR polsek) AND ("urus skck" OR "waktu tunggu")'}</code>. Post masuk bila cocok dengan salah satu kata kunci. Kosong berarti tidak dibatasi kata kunci.</>}
+      error={problem}
       placeholder="mis. polri, polisi" value={scope.keywords} onChange={(keywords) => onChange({ ...scope, keywords })} splitChars={[","]} clearable />
   );
 }

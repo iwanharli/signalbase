@@ -337,7 +337,9 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "keywords" && (
             <SectionPanel icon={IconTag} title="Kata kunci" description="Aplikasi hanya menerima post dan berita yang menyebut salah satu kata kunci.">
               <fieldset disabled={revoked || busy} className={classes.fieldset}><KeywordsInput scope={scope} onChange={setScope} /></fieldset>
-              {keywordsChanged && data.classifier && <div className={classes.warning}><IconAlertTriangle size={17} />Mengubah kata kunci akan mengulang kategorisasi AI dari awal.</div>}
+              {keywordsChanged && data.classifier && (labelImpact(scope, data.scope) === "restart"
+                ? <div className={classes.warning}><IconAlertTriangle size={17} />Menghapus kata kunci akan mengulang kategorisasi AI dari awal, karena sebagian post berlabel tidak lagi masuk proyek.</div>
+                : <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Post yang masuk lewat kata kunci baru dilabeli bertahap; post yang sudah berlabel tidak diproses ulang.</div>)}
             </SectionPanel>
           )}
 

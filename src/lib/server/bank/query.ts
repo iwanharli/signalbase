@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 // Builds the SQL filter for source-database queries from request parameters.
 // Every user-supplied value is passed as a bound parameter.
 import type { KeyScope } from "@/lib/media/keyScope";
+import { keywordToQuery } from "@/lib/media/keywordExpr";
 import type { MediaType } from "@/lib/media/types";
 
 /** Table aliases and columns per media type. Social: post_main p + post_analyses a; news: news_main n + news_analyses a. */
@@ -24,8 +25,9 @@ const FILTER_PARAMS = ["q", "from", "to", "since", "source", "mood", "lang", "an
 const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /**
- * A key's keywords as a Postgres full-text query (any keyword matches; multi-word keywords match as a phrase).
- * "polisi tidur" is a speed bump, not the police, so it never counts as "polisi". No keywords = no restriction.
+ * A key's keywords as a Postgres full-text query: any keyword matches. A keyword is a word, a phrase (words in order), or
+ * an AND / OR expression (lib/media/keywordExpr.ts). "polisi tidur" never counts as "polisi". No keywords = no restriction;
+ * a keyword that cannot be read (only possible for rows saved before validation) is left out.
  *
  * Every query against post_content_tsv / news_title_tsv must use the 'indonesian' config: the source database's triggers
  * build those columns with pg_catalog.indonesian, which stores word stems ("kecelakaan" → celaka, "ditangkap" → tangkap).
@@ -34,10 +36,8 @@ const isDate = (value: string | null): value is string => !!value && /^\d{4}-\d{
 export function keywordQuery(keywords: string[]) {
   return keywords
     .flatMap((keyword) => {
-      const words = keyword.toLowerCase().match(/[a-z0-9]+/g);
-      if (!words) return [];
-      const phrase = words.join(" <-> ");
-      return [phrase === "polisi" ? "(polisi & !(polisi <-> tidur))" : `(${phrase})`];
+      const r = keywordToQuery(keyword);
+      return "query" in r && r.query ? [r.query] : [];
     })
     .join(" | ");
 }

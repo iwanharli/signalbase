@@ -42,7 +42,7 @@ export const POST = adminRoute(async (req: Request, _ctx, username, user) => {
   const parsed = createKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    const message = issue?.path[0] === "name" ? "Nama minimal 2 karakter" : issue?.path[0] === "classifier" ? `Kategorisasi AI: ${issue.message}` : "Parameter cakupan tidak valid";
+    const message = issue?.path[0] === "name" ? "Nama minimal 2 karakter" : issue?.path[0] === "classifier" ? `Kategorisasi AI: ${issue.message}` : issue?.path[1] === "keywords" ? issue.message : "Parameter cakupan tidak valid";
     return NextResponse.json({ error: message }, { status: 400 });
   }
   const scope = {
