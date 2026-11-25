@@ -1,13 +1,14 @@
 "use client";
-// "Label manual" tab of a project: the label choices people pick from on each post's card. Saved on its own (not part of
+// "Kustomisasi Label" tab of a project: the label choices people pick from on each post's card. Saved on its own (not part of
 // the scope draft). Separate from AI categorisation. Each row shows the label's colour and how many posts carry it;
 // renaming keeps those posts labelled, removing takes the label off them.
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconArrowBackUp, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowBackUp, IconArrowRight, IconEye, IconRobot, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
-import { labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
+import type { MediaType } from "@/lib/media/types";
+import { ANY_LABEL, labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
 import c from "./manualLabelSettings.module.css";
@@ -18,7 +19,7 @@ let nextId = 1;
 const rowsFrom = (options: string[]): Row[] => options.map((o) => ({ id: nextId++, original: o, name: o, removed: false }));
 const colorVar = (options: string[], label: string) => `var(--mantine-color-${labelColor(options, label)}-6)`;
 
-export function ManualLabelSettings({ keyId }: { keyId: string }) {
+export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resultType: MediaType }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState("");
@@ -101,6 +102,16 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
   const preview = names.find(Boolean);
   return (
     <div className={c.root}>
+      {canEdit && (
+        <div className={c.aiLink}>
+          <IconRobot size={18} />
+          <span><b>Pelabelan AI</b><small>Segera hadir · AI memilih label untuk tiap post</small></span>
+          {/* Every labelled item: the page's default "analysed" and "relevant" filters would hide some, so both are cleared. */}
+          <Button size="sm" variant="secondary" icon={IconEye} href={`/media/${resultType}?key=${keyId}&label=${ANY_LABEL}&analyzed=&relevance=`}>Lihat hasil</Button>
+          <Button size="sm" variant="primary" iconRight={IconArrowRight} href={`/project/${keyId}/labels`}>Pengaturan</Button>
+        </div>
+      )}
+
       <div className={c.stats}>
         <div><b>{saved.length}</b><span>pilihan label</span></div>
         <div><b>{total.toLocaleString("id-ID")}</b><span>post diberi label</span></div>

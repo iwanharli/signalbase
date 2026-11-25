@@ -68,8 +68,10 @@ function EstimateLine({ apiKeyId, startFrom }: { apiKeyId: string; startFrom: st
 }
 
 /** Where labelling starts: a recent window, a chosen date, or the whole scope; new items are always added. */
-function RangeField({ value, onChange, apiKeyId }: { value: string | null; onChange: (value: string | null) => void; apiKeyId?: string | null }) {
-  const [choice, setChoice] = useState<string>(value ? "custom" : "all");
+export function RangeField({ value, onChange, apiKeyId, defaultChoice }: { value: string | null; onChange: (value: string | null) => void; apiKeyId?: string | null;
+  /** Preset highlighted at first; otherwise a date shows as "Tanggal tertentu". */
+  defaultChoice?: string }) {
+  const [choice, setChoice] = useState<string>(defaultChoice ?? (value ? "custom" : "all"));
   const pick = (key: string, next: string | null) => { setChoice(key); onChange(next); };
   return (
     <div className={classes.range}>

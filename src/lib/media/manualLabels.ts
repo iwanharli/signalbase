@@ -43,3 +43,25 @@ export type LabelSettings = {
 
 /** A choice renamed in the settings: posts labelled `from` move to `to`. */
 export type LabelRename = { from: string; to: string };
+
+/** The starting AI instruction for a project's labels; empty while it has none. */
+export const defaultLabelPrompt = (labels: string[]) => !labels.length ? "" : `Baca isi setiap post atau berita, ${labels.length > 1 ? "lalu pilih label yang sesuai. Boleh lebih dari satu." : "lalu beri label bila sesuai."}
+
+Pilihan label:
+${labels.map((label) => `- ${label}`).join("\n")}
+
+Aturan:
+- Pilih hanya dari daftar di atas.
+- Nilai berdasarkan isi teksnya, jangan menebak hal yang tidak tertulis.
+- Jika tidak ada yang jelas cocok atau Anda ragu, jangan beri label.
+${labels.length > 1 ? "- Pilih lebih dari satu hanya bila masing-masing jelas terpenuhi.\n" : ""}- Untuk setiap label yang dipilih, berikan alasan singkat dan skor keyakinan dalam persen: bilangan bulat 0 (sangat ragu) sampai 100 (sangat yakin).
+
+Format jawaban: hanya JSON, tanpa teks lain, dengan bentuk seperti contoh ini:
+${JSON.stringify({ results: [
+  { id: "id-item-1", labels: [{ label: labels[0], confidence: 85, reason: "alasan singkat" }] },
+  { id: "id-item-2", labels: [] },
+] }, null, 2)}
+
+- Sertakan semua item dengan id yang sama seperti yang diterima.
+- Jika tidak ada label yang cocok, isi "labels" dengan daftar kosong [].
+- Tulis nama label persis seperti di daftar pilihan.`;
