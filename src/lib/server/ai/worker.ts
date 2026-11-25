@@ -15,6 +15,7 @@ import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
 import { classifyBatch, providerErrorMessage, type ProviderConfig, type TokenCount } from "./providers";
 import { localQw, localQwMin, usesLocalQw } from "./localQw";
+import { providerAccount, runPool, turnGroups } from "./schedule";
 import { imageTextFor, withImageCodes } from "../media/textSignals";
 
 const BATCH_SIZE = 20;
@@ -24,6 +25,11 @@ const MAX_BATCHES_PER_TICK = 5;
 const BACKFILL_BATCHES_PER_TICK = 20;
 /** The extra backfill batches stop after this long, so the other keys still get their turn about once a minute. */
 const BACKFILL_MAX_MS = 40_000;
+/** Extra backfill time per tick shared by all keys of one provider group: a tick stays about this long however many
+ *  keys there are (after it, each key only gets its normal share). */
+const GROUP_BACKFILL_MS = 45_000;
+/** Provider groups labelled at the same time (CLASSIFIER_PARALLEL); each group still runs its keys one by one. */
+const parallelGroups = () => Math.max(1, Math.floor(Number(process.env.CLASSIFIER_PARALLEL)) || 3);
 
 type TypeCursors = { newest?: TimeCursor; oldest?: TimeCursor; backfillDone?: boolean; sweptAt?: number; rejected?: string[]; rejectedSince?: number };
 /** Most rejected item codes remembered per type (newest kept), so the sweep doesn't retry them forever. */
@@ -198,7 +204,7 @@ export async function retryRejected(apiKeyId: string) {
   return { labelled, remaining };
 }
 
-async function runClassifier(classifierId: string) {
+async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   const row = await loadClassifier(classifierId);
   if (!row || !row.enabled || row.apiKey.revokedAt) return;
   if (await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name)) return;
@@ -214,7 +220,7 @@ async function runClassifier(classifierId: string) {
   let budget = backfilling ? BATCH_SIZE * BACKFILL_BATCHES_PER_TICK : normalBudget;
   let sentThisTick = 0;
   // The normal share is always processed; only the extra part is cut off by time.
-  const overtime = () => sentThisTick >= normalBudget && Date.now() - started > BACKFILL_MAX_MS;
+  const overtime = () => sentThisTick >= normalBudget && (Date.now() - started > BACKFILL_MAX_MS || Date.now() > groupDeadline);
   let limitedQuota = false;
   // Signalbase AI on a user's key: stay within the plan's monthly post quota (it resumes next month or on upgrade).
   if (platform && row.apiKey.ownerId) {
@@ -346,9 +352,22 @@ async function pauseIfOverBudget(apiKeyId: string, minBalance: number | null, da
   return true;
 }
 
-/** One pass over every enabled classifier. */
+let turn = 0;
+
+/** One pass over every enabled classifier: provider groups side by side, the keys of a group in turn. */
 export async function runClassifiers() {
-  const rows = await prisma.classifier.findMany({ where: { enabled: true, apiKey: { revokedAt: null } }, select: { apiKeyId: true } });
-  for (const { apiKeyId } of rows) await runClassifier(apiKeyId);
+  const rows = await prisma.classifier.findMany({
+    where: { enabled: true, apiKey: { revokedAt: null } },
+    select: { apiKeyId: true, providerKind: true, providerBaseUrl: true, providerKeyEnc: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const groups = turnGroups(rows, providerAccount, turn++);
+  await runPool(groups, parallelGroups(), async (group) => {
+    const deadline = Date.now() + GROUP_BACKFILL_MS;
+    for (const { apiKeyId } of group) {
+      // One key failing (database hiccup, bad settings) must not stop the others of its group.
+      await runClassifier(apiKeyId, deadline).catch((error) => console.error(`[classifier] ${apiKeyId}: run failed:`, error));
+    }
+  });
   return rows.length;
 }
