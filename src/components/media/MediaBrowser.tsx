@@ -21,7 +21,7 @@ import { Masonry } from "./Masonry";
 import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
-import { useMediaFilters } from "./useMediaFilters";
+import { SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 
@@ -29,7 +29,6 @@ type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classif
 
 const CARD_STAGGER_MS = 30;
 const PAGE_SIZE = 24;
-const SOURCE_KEY = "signalbase.media.tampilan";
 
 function ScrollTopButton() {
   const [visible, setVisible] = useState(false);
@@ -47,23 +46,25 @@ function ScrollTopButton() {
 
 /** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal.
  *  With ?key=<id> the page shows the bank as that API key sees it: its scope, and its AI categories. */
-export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
+export function MediaBrowser(props: { type: MediaType; keyLocked?: boolean }) {
+  const ready = useCleanMediaUrl(props.type);
+  const projectId = useSearchParams().get("key") ?? "";
+  if (!ready) return null;
+  // Remounted per project, so nothing loaded for one project (banner, labels, AI categories, open post) carries over.
+  return <ProjectBrowser key={projectId} {...props} />;
+}
+
+function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
   // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
-  const urlSource = searchParams.get("tampilan");
   const [original, setOriginal] = useState(true); // Original View unless the user chose Quick
   useEffect(() => {
-    let saved: string | null = null;
-    try { saved = localStorage.getItem(SOURCE_KEY); } catch { /* storage unavailable */ }
-    setOriginal((urlSource ?? saved ?? "asli") === "asli");
-  }, [urlSource]);
+    try { setOriginal(localStorage.getItem(SOURCE_KEY) !== "quick"); } catch { /* storage unavailable */ }
+  }, []);
   const changeSource = (source: "quick" | "asli") => {
     setOriginal(source === "asli");
     try { localStorage.setItem(SOURCE_KEY, source); } catch { /* ignore */ }
-    const url = new URL(window.location.href);
-    url.searchParams.set("tampilan", source);
-    window.history.replaceState(null, "", url);
   };
   const originalView = type === "social" && original;
   const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/keys/${keyId}/classifier` : null);
@@ -82,17 +83,15 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
   const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
-  const { filters, update, reset, query: filterQuery, advancedCount, activeCount } = useMediaFilters(type);
-  // Every request carries the key, so the server applies its scope.
-  const query = keyId ? `${filterQuery}&key=${encodeURIComponent(keyId)}` : filterQuery;
+  const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
   const feed = useMediaFeed(type, query);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<MediaItem | null>(null);
 
   const options = useApi<FilterOptions>(`/api/admin/media/${type}?view=options`);
-  // Active projects with keywords; the list is already limited to the account's own projects for users.
-  const keyList = useApi<{ id: string; name: string; keywords: string[]; revokedAt: string | null }[]>("/api/admin/keys");
-  const projects = useMemo(() => (keyList.data ?? []).filter((k) => !k.revokedAt && k.keywords.length).map((k) => ({ value: k.id, label: k.name })), [keyList.data]);
+  // Active projects that cover this media type; the list is already limited to the account's own projects for users.
+  const keyList = useApi<{ id: string; name: string; scope: KeyScope; revokedAt: string | null }[]>("/api/admin/keys");
+  const projects = useMemo(() => (keyList.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, type)).map((k) => ({ value: k.id, label: k.name })), [keyList.data, type]);
   // The exact total is slow on large sets, so it loads on its own; sort doesn't change it.
   const countQuery = new URLSearchParams(query);
   countQuery.delete("sort");
@@ -117,6 +116,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
         onChange={update}
         options={options.data}
         projects={projects}
+        keyLocked={keyLocked}
         aiCategories={aiCategories}
         manualLabels={labelSettings.data?.options ?? null}
         activeCount={activeCount}
@@ -158,7 +158,7 @@ export function MediaBrowser({ type, keyLocked = false }: { type: MediaType; key
           busy={feed.loading}
         />
 
-        <ActiveFilters filters={filters} options={options.data} projects={projects} onChange={update} />
+        <ActiveFilters filters={filters} options={options.data} onChange={update} onReset={reset} canReset={activeCount > 0} />
 
         {feed.error && (
           <Alert color="red" mb="md" title="Gagal memuat">

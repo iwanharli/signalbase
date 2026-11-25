@@ -1,6 +1,6 @@
 "use client";
 // Interactive mock of the real Signalbase panel for the landing page: a browser frame around the panel's top bar
-// and one of three views (same layout as /dashboard, /media/social and /api-keys). All data is made up (data.ts).
+// and one of three views (same layout as /dashboard, /media/social and /project). All data is made up (data.ts).
 import { useState } from "react";
 import { IconBook2, IconKey, IconLayoutDashboard, IconMessages, IconWorldWww } from "@tabler/icons-react";
 import { LogoMark } from "../../Logo";
@@ -14,7 +14,7 @@ type View = "home" | "social" | "keys";
 const VIEWS: Record<View, { path: string; render: () => React.ReactNode }> = {
   home: { path: "dashboard", render: () => <HomeView /> },
   social: { path: "media/social", render: () => <MediaView /> },
-  keys: { path: "api-keys", render: () => <KeysView /> },
+  keys: { path: "project", render: () => <KeysView /> },
 };
 
 /** The panel's menu; entries without a view are shown but not clickable. */

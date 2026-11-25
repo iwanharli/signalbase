@@ -601,7 +601,7 @@ function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
           )}
           <div className={c.groupLinks}>
             {!viewed && <Link href={`/dashboard?key=${project.id}`}>Lihat Ringkasan proyek <IconArrowRight size={12} /></Link>}
-            <Link href={`/api-keys/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>
+            <Link href={`/project/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>
           </div>
         </div>
       )}
@@ -621,7 +621,7 @@ function ProjectCard({ project, others, data, types, period, from }: {
       <header className={c.projectHead}>
         <span><IconPlugConnected size={16} /></span>
         <div><h3>Keyword per proyek<CardHelp id="projectKeywords" /></h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
-        <Link href="/api-keys" className={c.projectEdit}>Kelola</Link>
+        <Link href="/project" className={c.projectEdit}>Kelola</Link>
       </header>
       <div className={c.groups}>
         <ProjectGroup project={project} viewed data={data ?? undefined} open={openIds.has(project.id)} onToggle={() => toggle(project.id)} keywordHref={hrefFor(project.id)} />

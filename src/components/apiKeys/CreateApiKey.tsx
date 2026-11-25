@@ -75,7 +75,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
   const footer = (
     <>
       {index > 0 && <Button onDark variant="secondary" icon={IconArrowLeft} onClick={() => go(STEPS[index - 1])}>Kembali</Button>}
-      {index === 0 && <Button onDark variant="secondary" href="/api-keys">Batal</Button>}
+      {index === 0 && <Button onDark variant="secondary" href="/project">Batal</Button>}
       {step === "review" ? (
         <Button variant="primary" icon={IconKey} onClick={submit} loading={busy} disabled={!nameValid}>{busy ? "Membuat…" : "Buat proyek"}</Button>
       ) : (
@@ -164,13 +164,13 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
 
       <div className={classes.createFoot}>
         <Button onDark variant="secondary" onClick={onAnother}>Buat proyek lain</Button>
-        <Button variant="primary" href="/api-keys">Selesai, ke daftar proyek</Button>
+        <Button variant="primary" href="/project">Selesai, ke daftar proyek</Button>
       </div>
     </div>
   );
 }
 
-/** /api-keys/new — step-by-step key creation, then the key value shown once. */
+/** /project/new — step-by-step key creation, then the key value shown once. */
 export function CreateApiKey() {
   const [created, setCreated] = useState<CreatedKey | null>(null);
 
@@ -184,7 +184,7 @@ export function CreateApiKey() {
 
   return (
     <div className={classes.page}>
-      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+      <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
       <header className={classes.titleRow}>
         <h1>{created ? "Proyek berhasil dibuat" : "Buat proyek"}</h1>
         <p>{created ? "Langkah terakhir: salin kuncinya." : "Beri akses baca ke aplikasi lain dalam beberapa langkah."}</p>

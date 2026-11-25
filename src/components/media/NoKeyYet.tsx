@@ -15,7 +15,7 @@ export function NoKeyYet({ type, hasKeys, label = MEDIA_TYPE_LABEL[type] }: { ty
       <p>{hasKeys
         ? `Proyek Anda belum mencakup ${label.toLowerCase()}. Ubah cakupan proyek (harus mencakup media online) atau buat proyek baru.`
         : "Data muncul setelah Anda membuat proyek dan menentukan keyword yang ingin dipantau. Hanya post dan berita yang menyebut keyword itu yang ditampilkan."}</p>
-      <Button icon={IconKey} href={hasKeys ? "/api-keys" : "/api-keys/new"}>{hasKeys ? "Atur proyek" : "Buat proyek & atur keyword"}</Button>
+      <Button icon={IconKey} href={hasKeys ? "/project" : "/project/new"}>{hasKeys ? "Atur proyek" : "Buat proyek & atur keyword"}</Button>
     </div>
   );
 }

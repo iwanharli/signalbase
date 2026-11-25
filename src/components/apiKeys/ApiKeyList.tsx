@@ -38,7 +38,7 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
   const revoked = !!apiKey.revokedAt;
   const recent = isRecentlyUsed(apiKey);
   const restrictions = scopeRestrictions(apiKey.scope, provinceName);
-  const href = `/api-keys/${apiKey.id}`;
+  const href = `/project/${apiKey.id}`;
 
   return (
     <div className={classes.row} role="row" data-revoked={revoked || undefined}>
@@ -111,7 +111,7 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
 /** Today's API calls (/api/admin/usage). limit is set for user accounts with a plan. */
 type Usage = { day: string; perKey: Record<string, number>; used: number | null; limit: number | null; plan: string | null; ai?: { used: number; limit: number | null } };
 
-/** /api-keys — every key as a row; creating and editing happen on their own pages. */
+/** /project — every key as a row; creating and editing happen on their own pages. */
 export function ApiKeyList() {
   const role = useRole(); // viewers are read-only: no "Buat proyek"
   const keys = useApi<ApiKeyRow[]>("/api/admin/keys");
@@ -166,7 +166,7 @@ export function ApiKeyList() {
               ? <div><b>{formatNumber(usage.data.ai.used)}</b><span>dari {formatNumber(usage.data.ai.limit)} post AI bulan ini</span></div>
               : <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>}
           </div>
-          {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
+          {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/project/new">Buat proyek</Button>}
         </div>
       </header>
 
@@ -199,7 +199,7 @@ export function ApiKeyList() {
           <div className={classes.empty}>
             <IconKey size={24} />
             <b>{term ? "Tidak ada proyek yang cocok" : filter === "active" ? "Belum ada proyek aktif" : "Belum ada proyek yang dicabut"}</b>
-            {!term && filter === "active" && role !== "viewer" && <Button variant="primary" size="sm" icon={IconPlus} href="/api-keys/new">Buat proyek</Button>}
+            {!term && filter === "active" && role !== "viewer" && <Button variant="primary" size="sm" icon={IconPlus} href="/project/new">Buat proyek</Button>}
           </div>
         )}
       </section>

@@ -6,6 +6,6 @@ import { CreateApiKey } from "@/components/apiKeys/CreateApiKey";
 export default async function NewApiKeyPage() {
   // Viewers are read-only: no project setup.
   const session = await getSession();
-  if (session && roleOf(session) === "viewer") redirect("/api-keys");
+  if (session && roleOf(session) === "viewer") redirect("/project");
   return <CreateApiKey />;
 }

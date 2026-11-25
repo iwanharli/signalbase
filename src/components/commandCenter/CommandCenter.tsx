@@ -118,7 +118,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
   });
 
   if (s?.noKey) return (
-    <div className={classes.page}><div className={classes.onboard}><KeyRound size={34} /><b>Command Center masih kosong</b><p>Buat proyek dan tentukan keyword agar ringkasan muncul di sini.</p><Link href="/api-keys/new">Buat proyek & atur keyword</Link></div></div>
+    <div className={classes.page}><div className={classes.onboard}><KeyRound size={34} /><b>Command Center masih kosong</b><p>Buat proyek dan tentukan keyword agar ringkasan muncul di sini.</p><Link href="/project/new">Buat proyek & atur keyword</Link></div></div>
   );
 
   const wait = !loaded || (!!q("social") && !social.data) || (!!q("online") && !online.data);

@@ -82,7 +82,7 @@ function Onboarding({ name }: { name: string }) {
       <p>Beranda masih kosong karena belum ada proyek. Data hanya muncul untuk keyword yang Anda pilih.</p>
       <ol>{steps.map((s, i) => <li key={s.title} style={{ animationDelay: `${i * 90}ms` }}><span><s.icon size={20} /></span><b>{i + 1}. {s.title}</b><small>{s.text}</small></li>)}</ol>
       <div className={classes.onboardActions}>
-        <Link href="/api-keys/new" className={classes.primaryLink}><IconKey size={16} />Buat proyek & atur keyword</Link>
+        <Link href="/project/new" className={classes.primaryLink}><IconKey size={16} />Buat proyek & atur keyword</Link>
         <Link href="/docs" className={classes.more}><IconBook2 size={14} />Baca dokumentasi API</Link>
       </div>
     </section>
@@ -128,7 +128,7 @@ export function Overview({ name, role }: { name: string; role: Role }) {
               <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
               <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
               <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
-                <Link href={`/api-keys/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
+                <Link href={`/project/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
             </> : <>
               {/* The date waits for the client data, so a server in another time zone can't render a different day. */}
               <span className={classes.live}><i />{data ? dayjs().locale("id").format("dddd, D MMMM YYYY") : "Ringkasan"}</span>
