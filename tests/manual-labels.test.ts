@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_LABELS, normalizeLabels, defaultLabelPrompt, labelOutputFormat, syncLabelList } from "../src/lib/media/manualLabels";
+import { MAX_LABELS, normalizeLabels, defaultLabelPrompt, labelOutputFormat, syncLabelList, firstManualLabel, keptLabelNames, sortLabels } from "../src/lib/media/manualLabels";
 
 test("label choices are trimmed, spaces collapsed, empties and case-insensitive duplicates dropped, order kept", () => {
   assert.deepEqual(normalizeLabels(["  Prioritas ", "tindak   lanjut", "", "PRIORITAS", "Hoaks", "hoaks "]), ["Prioritas", "tindak lanjut", "Hoaks"]);
@@ -37,4 +37,21 @@ test("an edited prompt's label list follows the project, keeping meanings and th
   assert.equal(syncLabelList("tanpa daftar\n- x", ["Hoaks"]), "tanpa daftar\n- x");
   const fresh = defaultLabelPrompt(["A", "B"]);
   assert.equal(syncLabelList(fresh, ["A", "B"]), fresh);
+});
+
+test("several labels per post: project order, and manualLabel is the first one a person gave", () => {
+  const entries = sortLabels([{ label: "Provokasi", source: "human" as const, score: null }, { label: "Hoaks", source: "ai" as const, score: 90 }, { label: "Ujaran", source: "human" as const, score: null }], ["Hoaks", "Ujaran", "Provokasi"]);
+  assert.deepEqual(entries.map((e) => e.label), ["Hoaks", "Ujaran", "Provokasi"]);
+  assert.equal(firstManualLabel(entries), "Ujaran");
+  assert.equal(firstManualLabel(entries.filter((e) => e.source === "ai")), null);
+  assert.equal(firstManualLabel([]), null);
+});
+
+test("label changes drop rows that a rename would collide with", () => {
+  // Plain removal.
+  assert.deepEqual(keptLabelNames(["A", "B"], ["A"], []), ["A"]);
+  // B is removed and A takes its name: B's rows must go first.
+  assert.deepEqual(keptLabelNames(["A", "B"], ["B"], [{ from: "A", to: "B" }]), ["A"]);
+  // A swap keeps both.
+  assert.deepEqual(keptLabelNames(["A", "B"], ["B", "A"], [{ from: "A", to: "B" }, { from: "B", to: "A" }]), ["A", "B"]);
 });

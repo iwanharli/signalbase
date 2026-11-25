@@ -1,16 +1,16 @@
 "use client";
 // /project/[id]/labels — AI settings of "Kustomisasi Label", saved per project.
-// shortcut: settings are only stored and tested; no AI labels anything and both switches stay off until the label worker exists.
+// The label worker (npm run label-ai) does the labelling; progress is as of page load.
 import { useState } from "react";
 import Link from "next/link";
-import { PasswordInput, Skeleton, Switch, Textarea, TextInput } from "@mantine/core";
+import { NumberInput, PasswordInput, Skeleton, Switch, Textarea, TextInput } from "@mantine/core";
 import { IconArrowLeft, IconCheck, IconX, IconDeviceFloppy, IconPlayerPlay, IconRefresh, IconRobot, IconShieldLock, IconTags } from "@tabler/icons-react";
 import { defaultLabelPrompt, syncLabelList, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
 import { notifications } from "@mantine/notifications";
 import { post } from "@/lib/api-client";
 import { apiKeyProblem } from "@/lib/ai/classifier";
-import { LABEL_AI_PROVIDERS, labelAiProvider, type LabelAiSaved, type LabelAiState } from "@/lib/ai/labelAi";
+import { LABEL_AI_PROVIDERS, labelAiProvider, type LabelAiProgress, type LabelAiSaved, type LabelAiState } from "@/lib/ai/labelAi";
 import { daysAgo, RangeField } from "../ai/ClassifierEditor";
 import { Button } from "../ui/Button";
 import ai from "../ai/ai.module.css";
@@ -37,7 +37,7 @@ export function LabelAiSettings({ keyId }: { keyId: string }) {
       </header>
       {loadError ? <p role="alert">{loadError}</p>
         : settings.data && !settings.data.canEdit ? <p>Hanya pemilik proyek atau admin yang dapat mengatur AI label.</p>
-        : settings.data && stored.data ? <LabelAiPanel key={keyId} keyId={keyId} labels={settings.data.options} initial={stored.data.saved} />
+        : settings.data && stored.data ? <LabelAiPanel key={keyId} keyId={keyId} labels={settings.data.options} initial={stored.data.saved} progress={stored.data.progress ?? null} />
         : <Skeleton h={320} radius="lg" />}
     </div>
   );
@@ -45,13 +45,19 @@ export function LabelAiSettings({ keyId }: { keyId: string }) {
 
 type TestResult = { ok: boolean; ms: number; error?: string };
 
-function LabelAiPanel({ keyId, labels, initial }: { keyId: string; labels: string[]; initial: LabelAiSaved | null }) {
+function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; labels: string[]; initial: LabelAiSaved | null; progress: LabelAiProgress | null }) {
+  const [enabled, setEnabled] = useState(initial?.enabled ?? false);
+  const [dailyLimit, setDailyLimit] = useState(initial?.dailyLimit ?? 500);
+  const [openedAt] = useState(() => Date.now());
   const [saved, setSaved] = useState(initial);
   // null: not edited, so the whole instruction follows the saved labels. An edited one gets its label list updated on load
   // (not while typing, which would rewrite lines under the cursor).
   const [edited, setEdited] = useState<string | null>(() => (initial?.prompt == null ? null : syncLabelList(initial.prompt, labels)));
-  const [provider, setProvider] = useState(() => labelAiProvider(initial?.provider ?? ""));
-  const [model, setModel] = useState<string>(initial?.model ?? provider.model);
+  const [provider, setProvider] = useState<(typeof LABEL_AI_PROVIDERS)[number]>(() => {
+    const stored = labelAiProvider(initial?.provider ?? "");
+    return stored.webSearch ? stored : LABEL_AI_PROVIDERS[0];
+  });
+  const [model, setModel] = useState<string>(initial && initial.provider === provider.id ? initial.model : provider.model);
   const [apiKey, setApiKey] = useState("");
   const [test, setTest] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
@@ -82,8 +88,8 @@ function LabelAiPanel({ keyId, labels, initial }: { keyId: string; labels: strin
   const save = async () => {
     setSaving(true);
     try {
-      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom }, "PUT") as LabelAiState).saved!;
-      setSaved(next); setModel(next.model); setEdited(next.prompt); setApiKey("");
+      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom, enabled, dailyLimit }, "PUT") as LabelAiState).saved!;
+      setSaved(next); setEnabled(next.enabled); setDailyLimit(next.dailyLimit); setModel(next.model); setEdited(next.prompt); setApiKey("");
       notifications.show({ color: "teal", message: "Pengaturan AI label disimpan" });
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -98,14 +104,14 @@ function LabelAiPanel({ keyId, labels, initial }: { keyId: string; labels: strin
     <section className={card.editorCard}>
       <div className={ai.editor}>
         <p className={ai.platformNote} role="note">
-          <IconRobot size={15} />Pelabelan otomatis dengan AI <b>segera hadir</b>. Pengaturan sudah bisa disimpan dan diuji, tetapi belum ada post yang dilabeli AI.
+          <IconRobot size={15} />Saat aktif, AI memberi label otomatis dan <b>memakai kredit API key Anda</b>. Setiap post yang mendapat label <b>selalu dicari sumbernya di internet</b> (satu panggilan tambahan per post). Hasilnya dugaan yang perlu diperiksa; post yang labelnya sudah diubah orang tidak disentuh AI.
         </p>
 
         <div className={ai.provider}>
           <div className={ai.providerHead}><IconRobot size={15} />Penyedia AI<small>DeepSeek atau Grok · khusus proyek ini</small></div>
           <div className={ai.presets}>
             {LABEL_AI_PROVIDERS.map((p) => (
-              <button key={p.id} type="button" disabled={busy} aria-pressed={p.id === provider.id} data-active={p.id === provider.id || undefined} onClick={() => pickProvider(p)}>{p.label}</button>
+              <button key={p.id} type="button" disabled={busy || !p.webSearch} title={p.webSearch ? undefined : "Belum tersedia: pencarian sumbernya belum dibuat"} aria-pressed={p.id === provider.id} data-active={p.id === provider.id || undefined} onClick={() => pickProvider(p)}>{p.label}{p.webSearch ? "" : " · belum tersedia"}</button>
             ))}
           </div>
           <div className={ai.row}>
@@ -141,8 +147,27 @@ function LabelAiPanel({ keyId, labels, initial }: { keyId: string; labels: strin
         </div>
 
         <div className={ai.sameToggle}>
-          <Switch checked={false} disabled color="violet" size="md" label="Aktifkan pelabelan AI" description="Tersedia setelah proses pelabelan otomatis dibuat." classNames={switches} />
+          <Switch checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} disabled={busy} color="violet" size="md" label="Aktifkan pelabelan AI"
+            description={`${enabled ? "AI melabeli post dalam rentang data, lalu post baru berkala." : "Mati: tidak ada post baru yang dikirim ke AI."} Berlaku setelah disimpan.`} classNames={switches} />
         </div>
+
+        <NumberInput classNames={inputs} label="Batas post per hari" description="Rem biaya. Percobaan ulang ikut dihitung." min={1} max={20000} allowDecimal={false}
+          value={dailyLimit} onChange={(v) => setDailyLimit(Number(v) || 1)} />
+
+        {progress && saved && (
+          <div className={ai.provider}>
+            <div className={ai.providerHead}><IconRobot size={15} />Progres<small>Saat halaman dibuka</small></div>
+            <p className={ai.platformNote}>
+              {progress.processed.toLocaleString("id-ID")} post diproses · {progress.failed.toLocaleString("id-ID")} kegagalan · hari ini {progress.todayCount.toLocaleString("id-ID")} dikirim ·
+              {" "}token masuk {progress.inputTokens.toLocaleString("id-ID")}, keluar {progress.outputTokens.toLocaleString("id-ID")} ·
+              {" "}{progress.lastRunAt ? `worker terakhir ${new Date(progress.lastRunAt).toLocaleString("id-ID")}` : "worker belum pernah memproses proyek ini"}
+            </p>
+            {progress.lastError && <p className={ai.testResult} role="alert"><IconX size={14} />{progress.lastError}</p>}
+            {initial?.enabled && (!progress.lastRunAt || openedAt - Date.parse(progress.lastRunAt) > 10 * 60_000) && (
+              <p className={ai.testResult} role="alert"><IconX size={14} />Pelabelan aktif, tetapi worker tidak terlihat berjalan lebih dari 10 menit. Periksa npm run label-ai.</p>
+            )}
+          </div>
+        )}
 
         <RangeField value={startFrom} onChange={setStartFrom} defaultChoice={initial ? undefined : "7"} />
 

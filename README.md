@@ -169,6 +169,7 @@ npm run dev                   # http://localhost:3100
 | `npm run db:seed:projects` | Buat proyek contoh "Polisi" (kata kunci `polisi`, tanpa AI; aman diulang) |
 | `npm test` | Jalankan tes `node:test` di `tests/` lewat `tsx` |
 | `npm run classifier` | Worker kategorisasi AI (berjalan terus) |
+| `npm run label-ai` | Worker pelabelan AI, terpisah dari kategorisasi (berjalan terus; satu instance saja) |
 | `npx tsc --noEmit` | Pemeriksaan tipe |
 
 ---

@@ -1,6 +1,6 @@
 // Manual labels of a project, as the panel and the public API read them. Separate from AI categorisation.
 import { ANY_CATEGORY, LOW_CONFIDENCE, LOW_CONFIDENCE_FILTER } from "@/lib/ai/classifier";
-import { ANY_LABEL } from "@/lib/media/manualLabels";
+import { ANY_LABEL, sortLabels, type ItemLabelEntry } from "@/lib/media/manualLabels";
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 import { filterCodes } from "./bank";
@@ -15,11 +15,20 @@ export async function projectLabels(apiKeyId: string): Promise<string[] | null> 
   return key?.manualLabels.length ? key.manualLabels : null;
 }
 
-/** Manual label per item code for the given items; unlabelled items are absent. */
-export async function manualLabelsFor(apiKeyId: string, type: MediaType, codes: string[]) {
-  if (!codes.length) return new Map<string, string>();
-  const rows = await prisma.itemLabel.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true, label: true } });
-  return new Map(rows.map((r) => [r.code, r.label]));
+/** Labels per item code for the given items, in the project's order; unlabelled items are absent. */
+export async function itemLabelsFor(apiKeyId: string, type: MediaType, codes: string[], options: string[]) {
+  const byCode = new Map<string, ItemLabelEntry[]>();
+  if (!codes.length) return byCode;
+  const rows = await prisma.itemLabel.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true, label: true, source: true, score: true, additionalData: true } });
+  for (const r of rows) {
+    const data = r.additionalData as Pick<ItemLabelEntry, "reason" | "needsReview" | "sources"> | null;
+    byCode.set(r.code, [...(byCode.get(r.code) ?? []), {
+      label: r.label, source: r.source === "ai" ? "ai" : "human", score: r.score,
+      reason: data?.reason ?? null, needsReview: data?.needsReview, sources: data?.sources?.filter((x) => /^https?:\/\//i.test(x.url)) ?? [],
+    }]);
+  }
+  for (const [code, entries] of byCode) byCode.set(code, sortLabels(entries, options));
+  return byCode;
 }
 
 /**
@@ -28,9 +37,10 @@ export async function manualLabelsFor(apiKeyId: string, type: MediaType, codes: 
  * candidates are also limited to items in that AI category (both filters together).
  */
 export async function labelPage(apiKeyId: string, type: MediaType, label: string, query: URLSearchParams, scope: KeyScope, { limit, offset }: { limit: number; offset: number }, aiCategory: string | null = null) {
-  const rows = await prisma.itemLabel.findMany({
-    where: { apiKeyId, type, ...(label === ANY_LABEL ? {} : { label }) },
-    orderBy: { updatedAt: "desc" }, take: LABEL_CAP, select: { code: true },
+  // One entry per item, however many labels it has, so the cap and the total count items.
+  const rows = await prisma.itemLabel.groupBy({
+    by: ["code"], where: { apiKeyId, type, ...(label === ANY_LABEL ? {} : { label }) },
+    orderBy: { _max: { updatedAt: "desc" } }, take: LABEL_CAP,
   });
   let codes = rows.map((r) => r.code);
   if (aiCategory && codes.length) {

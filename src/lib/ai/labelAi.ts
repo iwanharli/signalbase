@@ -2,11 +2,12 @@
 import { z } from "zod";
 import { apiKeyProblem, XAI_BASE_URL } from "./classifier";
 
-/** The providers offered, the first one preselected. Both speak the OpenAI API; the address is fixed per provider, so the
- *  browser never chooses where a key is sent. */
+/** The providers listed, the first one preselected. Both speak the OpenAI API; the address is fixed per provider, so the
+ *  browser never chooses where a key is sent. Every AI label is checked by web search, so only a provider whose search is
+ *  built (`webSearch`) can be saved. */
 export const LABEL_AI_PROVIDERS = [
-  { id: "deepseek", label: "DeepSeek", vendor: "DeepSeek", baseUrl: "https://api.deepseek.com", model: "deepseek-flash" },
-  { id: "grok", label: "Grok (xAI)", vendor: "xAI", baseUrl: XAI_BASE_URL, model: "grok-4.7" },
+  { id: "deepseek", label: "DeepSeek", vendor: "DeepSeek", baseUrl: "https://api.deepseek.com", model: "deepseek-flash", webSearch: true },
+  { id: "grok", label: "Grok (xAI)", vendor: "xAI", baseUrl: XAI_BASE_URL, model: "grok-4.7", webSearch: false },
 ] as const;
 export type LabelAiProviderId = (typeof LABEL_AI_PROVIDERS)[number]["id"];
 export const labelAiProvider = (id: string) => LABEL_AI_PROVIDERS.find((p) => p.id === id) ?? LABEL_AI_PROVIDERS[0];
@@ -27,9 +28,14 @@ export const labelAiSchema = z.object({
   prompt: z.string().trim().min(10, "Instruksi minimal 10 karakter").max(8000, "Instruksi maksimal 8000 karakter").nullable(),
   /** Oldest publish time to label; null = everything in scope. */
   startFrom: z.string().refine((v) => !Number.isNaN(Date.parse(v)), "Tanggal mulai tidak valid").nullable(),
-}).refine(keyLooksRight, KEY_MESSAGE);
+  enabled: z.boolean().default(false),
+  dailyLimit: z.number().int().min(1, "Batas harian minimal 1").max(20_000, "Batas harian maksimal 20.000").default(500),
+}).refine(keyLooksRight, KEY_MESSAGE)
+  .refine((v) => labelAiProvider(v.provider).webSearch, { message: "Penyedia ini belum bisa dipakai: pencarian sumbernya belum tersedia", path: ["provider"] });
 export type LabelAiInput = z.infer<typeof labelAiSchema>;
 
 /** Saved settings as the panel receives them: never the key itself. */
-export type LabelAiSaved = { provider: LabelAiProviderId; model: string; apiKeyHint: string; prompt: string | null; startFrom: string | null; updatedBy: string; updatedAt: string };
-export type LabelAiState = { saved: LabelAiSaved | null };
+export type LabelAiSaved = { provider: LabelAiProviderId; model: string; apiKeyHint: string; prompt: string | null; startFrom: string | null; enabled: boolean; dailyLimit: number; updatedBy: string; updatedAt: string };
+/** What the label worker has done for the project. */
+export type LabelAiProgress = { processed: number; failed: number; todayCount: number; lastError: string | null; lastRunAt: string | null; inputTokens: number; outputTokens: number };
+export type LabelAiState = { saved: LabelAiSaved | null; progress?: LabelAiProgress | null };

@@ -47,7 +47,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
 
   if (!settings.data) return settings.error ? <p className={c.note}>{settings.error}</p> : <Skeleton h={160} radius="md" />;
   const canEdit = settings.data.canEdit;
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const total = settings.data.labelledItems;
 
   const add = (name: string) => {
     const label = name.trim().replace(/\s+/g, " ");
@@ -88,7 +88,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
     setBusy(true);
     try {
       const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(options), renames: moves }, "PUT")) as { removed: number; renamed: number };
-      const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} post dilepas dari label yang dihapus`].filter(Boolean);
+      const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} label dilepas dari post`].filter(Boolean);
       notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
       setConfirming(null);
       settings.reload();
@@ -105,7 +105,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
       {canEdit && (
         <div className={c.aiLink}>
           <IconRobot size={18} />
-          <span><b>Pelabelan AI</b><small>Segera hadir · AI memilih label untuk tiap post</small></span>
+          <span><b>Pelabelan AI</b><small>AI memilih label untuk tiap post secara otomatis</small></span>
           {/* Every labelled item: the page's default "analysed" and "relevant" filters would hide some, so both are cleared. */}
           <Button size="sm" variant="secondary" icon={IconEye} href={`/media/${resultType}?key=${keyId}&label=${ANY_LABEL}&analyzed=&relevance=`}>Lihat hasil</Button>
           <Button size="sm" variant="primary" iconRight={IconArrowRight} href={`/project/${keyId}/labels`}>Pengaturan</Button>
@@ -184,7 +184,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
           <span>
             {problem ?? ([
               renames.length && `${renames.length} ganti nama`,
-              removedRows.length && `${removedRows.length} dihapus${lost ? ` (${lost} post dilepas)` : ""}`,
+              removedRows.length && `${removedRows.length} dihapus${lost ? ` (${lost} label dilepas dari post)` : ""}`,
               rows.filter((r) => !r.original).length && `${rows.filter((r) => !r.original).length} baru`,
             ].filter(Boolean).join(" · ") || "Urutan diubah")}
           </span>
@@ -201,7 +201,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
           return (
             <div className={c.confirm}>
               <span className={c.confirmLabel} style={{ ["--label" as string]: colorVar(saved, confirming.original!) }}><i />{confirming.original}</span>
-              <p><b>{used.toLocaleString("id-ID")} post</b> yang diberi label ini akan <b>kehilangan labelnya</b>. Tindakan ini tidak dapat dibatalkan.</p>
+              <p><b>{used.toLocaleString("id-ID")} post</b> yang diberi label ini akan <b>kehilangan label ini</b> (label lainnya tetap). Tindakan ini tidak dapat dibatalkan.</p>
               <p className={c.note}>Untuk sekadar mengganti nama, batalkan lalu ubah namanya langsung di daftar: post tetap berlabel.{others ? " Perubahan lain yang belum disimpan ikut disimpan." : ""}</p>
               <div className={c.confirmActions}>
                 <Button variant="subtle" onClick={() => setConfirming(null)} disabled={busy}>Batal</Button>

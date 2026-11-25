@@ -8,7 +8,8 @@ import { clampHistory } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
-import { labelPage, manualLabelsFor, projectLabels } from "@/lib/server/manualLabels";
+import { firstManualLabel } from "@/lib/media/manualLabels";
+import { itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
 import { withImageSearch } from "@/lib/server/media/textSignals";
 
 const DEFAULT_PAGE_SIZE = 24;
@@ -23,7 +24,8 @@ type Context = { params: Promise<{ type: string }> };
 //   GET /api/v1/media/{social|online}?view=options     choices for filter dropdowns (sources, provinces, moods, post types)
 //   GET /api/v1/media/{social|online}?view=trend&interval=week|day&from=&to=   labelled items per period and AI category
 //   GET /api/v1/media/{social|online}?label=Hoaks&…    items with one manual label (label=__any: every labelled item);
-//       works with the other filters, aiCategory and view=summary. Items carry `manualLabel` when the key has label choices.
+//       works with the other filters, aiCategory and view=summary. Items carry `labels` (all of them) and `manualLabel`
+//       (the first one a person gave, in the project's order) when the key has label choices.
 // Totals are capped at COUNT_CAP to keep every request fast; `capped` says when that happened.
 /** CORS preflight for browser calls from sites the key allows. */
 export const OPTIONS = (req: Request) => apiPreflight(req);
@@ -105,7 +107,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
     const [labels, matches, manual] = await Promise.all([
       categories ? classificationsFor(keyId, type, codes, categories) : null,
       matchedKeywords(type, codes, scope.keywords),
-      labelChoices ? manualLabelsFor(keyId, type, codes) : null,
+      labelChoices ? itemLabelsFor(keyId, type, codes, labelChoices) : null,
     ]);
     return NextResponse.json({ page, pages, size, total, capped, items: items.map((item) => toPublic(analysisForPlan({ ...item, matchedKeywords: matches.get(item.code) ?? [] }, analysis), type, labels, manual)) });
   } catch (e) {
@@ -113,8 +115,8 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
   }
 });
 
-/** API shape of an item; `classification` is present (possibly null) only for keys with AI categorisation, `manualLabel`
- *  only for keys with manual label choices. */
-function toPublic({ code, ...item }: MediaItem, type: MediaType, labels: Awaited<ReturnType<typeof classificationsFor>> | null, manual: Map<string, string> | null) {
-  return { id: code, type, ...item, ...(labels ? { classification: labels.get(code) ?? null } : {}), ...(manual ? { manualLabel: manual.get(code) ?? null } : {}) };
+/** API shape of an item; `classification` is present (possibly null) only for keys with AI categorisation, `labels` and
+ *  `manualLabel` only for keys with label choices. */
+function toPublic({ code, ...item }: MediaItem, type: MediaType, labels: Awaited<ReturnType<typeof classificationsFor>> | null, manual: Awaited<ReturnType<typeof itemLabelsFor>> | null) {
+  return { id: code, type, ...item, ...(labels ? { classification: labels.get(code) ?? null } : {}), ...(manual ? { manualLabel: firstManualLabel(manual.get(code) ?? []), labels: (manual.get(code) ?? []).map(({ label, source, score }) => ({ label, source, score })) } : {}) };
 }

@@ -22,7 +22,8 @@ export async function labelAiPlanProblem(user: PanelUser, model: string) {
 
 export const publicLabelAi = (row: LabelAi): LabelAiSaved => ({
   provider: row.provider as LabelAiProviderId, model: row.model, apiKeyHint: row.keyHint, prompt: row.prompt,
-  startFrom: row.startFrom?.toISOString() ?? null, updatedBy: row.updatedBy, updatedAt: row.updatedAt.toISOString(),
+  startFrom: row.startFrom?.toISOString() ?? null, enabled: row.enabled, dailyLimit: row.dailyLimit,
+  updatedBy: row.updatedBy, updatedAt: row.savedAt.toISOString(),
 });
 
 /** The stored key, only for the provider it was entered for: it must never be sent to another one. */
@@ -36,7 +37,12 @@ export function labelAiConfig(provider: string, model: string, apiKeyEnc: string
 }
 
 export async function saveLabelAi(apiKeyId: string, input: LabelAiInput, username: string) {
-  const data = { provider: input.provider, model: input.model, prompt: input.prompt, startFrom: input.startFrom ? new Date(input.startFrom) : null, updatedBy: username };
+  const data = {
+    provider: input.provider, model: input.model, prompt: input.prompt, startFrom: input.startFrom ? new Date(input.startFrom) : null,
+    enabled: input.enabled, dailyLimit: input.dailyLimit, updatedBy: username, savedAt: new Date(),
+    // A save is a person acting on whatever stopped the worker: try again right away.
+    lastError: null, errorStreak: 0, retryAfter: null,
+  };
   if (input.apiKey) {
     const key = { keyEnc: encryptSecret(input.apiKey), keyHint: secretHint(input.apiKey) };
     return prisma.labelAi.upsert({ where: { apiKeyId }, create: { apiKeyId, ...data, ...key }, update: { ...data, ...key } });

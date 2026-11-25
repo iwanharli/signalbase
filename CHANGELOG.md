@@ -19,6 +19,19 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 ## 2026-11-26
 
+### Ditambahkan
+- **Worker pelabelan AI** (`npm run label-ai`, PM2 `signalbase-label-ai`), proses terpisah dari kategorisasi AI. Toggle "Aktifkan pelabelan AI" (default mati), batas post per hari (default 500), dan progres di halaman pengaturan label. Per tick 60 detik, maks 100 post per proyek, 20 per panggilan: post baru, lalu yang gagal (maks 3 percobaan) atau menunggu teks, lalu riwayat sampai tanggal mulai, lalu sapuan post terlambat (3 hari, tiap 10 menit). Balasan AI divalidasi (format JSON tetap, label asing ditolak, skor bulat 0-100, di bawah 40 dibuang, di bawah 60 ditandai "periksa"). Post yang labelnya pernah diubah orang tidak disentuh AI. Key/saldo/akses bermasalah: dijeda otomatis; 429/5xx/timeout: jeda 1-30 menit. DeepSeek dipanggil dengan thinking dimatikan. Paket Starter dan trial ditolak. Belum ada uji sampel. Mengubah prompt, model, atau menambah label tidak melabeli ulang post yang sudah diproses.
+- `ItemLabel.additional_data` label AI kini berisi `reason`, `needsReview`, `provider`, `model`, `labeledAt`, `promptVersion`, `customPrompt`, `input` (`parts`, `characters`, `truncated`), `webSearch`, `sources`. Baris lama tidak diisi ulang.
+- **Pencarian sumber selalu aktif di pelabelan AI** (tanpa toggle). Dua tahap: penyaringan per batch, lalu tiap post yang mendapat label dicek satu per satu dengan web search DeepSeek (`/anthropic/v1/messages`, `web_search`). Label tidak disimpan bila pencarian tidak berjalan (dicoba lagi, maks 3). Maks 3 URL per label, hanya URL yang dikembalikan pencarian. `needsReview` bila skor < 60, sumber membantah, atau tanpa sumber. `additional_data`: `reason`, `needsReview`, `disputed`, `sources`, `webSearch`, `searchQueries`, selain metadata lain; post tanpa label cocok tidak dicari. Detail post menampilkan alasan dan tautan sumber. Grok dinonaktifkan sampai pencariannya dibuat (worker menjeda proyek Grok). API publik `labels[]` tetap hanya `label`, `source`, `score`. Pemeriksaan pengaturan sebelum tiap pencarian, jadi jeda berlaku segera.
+- Log terminal `label-ai`: waktu WIB, per batch (jumlah, durasi, hasil), ringkasan per proyek (post, panggilan, token, hitungan harian), alasan menunggu/dijeda. Pesan diam hanya dicetak saat berubah; teks post dan API key tidak dicetak.
+
+### Database
+- Tambahan saja: kolom worker di `LabelAi`, tabel `LabelAiItem` dan `LabelAiUsage`. Sudah diterapkan di lokal; produksi tetap perlu SQL `ItemLabel` multi-label lebih dulu.
+
+### Diubah
+- **Satu post bisa punya beberapa label** per proyek. `ItemLabel`: kunci utama menjadi `apiKeyId`+`type`+`code`+`label`, kolom baru `source` (`human`/`ai`). Kartu dan detail: label dicentang/dilepas satu per satu, atau hapus semua; `PUT item-labels` menerima `{type, code, label, on}` dan membalas `labels`. Hitungan post berlabel dan filter dihitung per post. Ganti nama label yang memakai nama label terhapus tidak lagi bentrok (baris label terhapus dibuang dulu). API publik: `manualLabel` tetap satu nilai (label orang pertama menurut urutan daftar), ditambah `labels[]` `{label, source, score}`. Belum ada label dari AI.
+- **Deploy:** `prisma db push` di `deploy.sh` MENOLAK perubahan kunci utama tanpa `--accept-data-loss`. Sebelum deploy: backup, lalu jalankan `docs/sql/2026-11-26-itemlabel-multi.sql` di database produksi, kemudian langsung deploy. Di antara keduanya, menyimpan label di aplikasi versi lama gagal.
+
 ### Diubah
 - Daftar **Pilihan label** di Instruksi untuk AI kini mengikuti label proyek juga pada instruksi yang sudah diedit: disesuaikan saat halaman dibuka (`syncLabelList`), keterangan di samping label dan bagian teks lain dipertahankan; perlu klik Simpan. Label yang diganti namanya dianggap baru. Menggantikan perilaku "instruksi yang diedit tidak mengikuti daftar label".
 

@@ -3,7 +3,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
-import { labelPage, manualLabelsFor } from "@/lib/server/manualLabels";
+import { itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
 import { countExact, fetchItemsByCode, filterCodes, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
@@ -23,7 +23,7 @@ type Context = { params: Promise<{ type: string }> };
 //   ?view=moods   → the mood breakdown (slow on broad scopes, cached; fetched separately for the same reason)
 //   otherwise     → one page of items
 // With a key that has AI categorisation, items carry `classification` and ?aiCategory= filters by it. With a key, items
-// also carry `manualLabel` (the project's manual label, or null).
+// also carry `manualLabels` (the item's labels in that project).
 export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { type } = await params;
   if (!isMediaType(type)) return NextResponse.json({ error: "Jenis tidak dikenal" }, { status: 404 });
@@ -89,7 +89,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       categories ? classificationsFor(keyId!, type, codes, categories, type === "social") : null,
       type === "social" ? socialMetadata(codes, keyId ? scope.keywords : []) : null,
       // Manual labels of the project (separate from AI categorisation).
-      keyId ? manualLabelsFor(keyId, type, codes) : null,
+      keyId ? projectLabels(keyId).then((options) => itemLabelsFor(keyId, type, codes, options ?? [])) : null,
     ]);
     // "Kata kunci di gambar": on the page, items the project matches by image text whose own text doesn't match.
     const viaImage = items.map((i) => i.code).filter((c) => scope.imageCodes?.[type]?.includes(c));
@@ -103,7 +103,10 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
         ...(byImage.has(item.code) ? { matchedByImage: true } : {}),
         ...analysisForPlan(item, analysisLevel),
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
-        ...(manual ? { manualLabel: manual.get(item.code) ?? null } : {}),
+        ...(manual ? {
+          manualLabels: manual.get(item.code)?.map((e) => e.label) ?? [],
+          aiLabels: Object.fromEntries((manual.get(item.code) ?? []).filter((e) => e.source === "ai").map((e) => [e.label, { score: e.score, reason: e.reason ?? null, needsReview: e.needsReview, sources: e.sources ?? [] }])),
+        } : {}),
         ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),
       })),
     });

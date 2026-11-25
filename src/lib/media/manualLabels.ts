@@ -30,6 +30,22 @@ export function normalizeLabels(input: unknown): string[] {
 const LABEL_COLORS = ["violet", "red", "teal", "orange", "blue", "pink", "lime", "indigo", "yellow", "grape", "cyan", "green"];
 export const labelColor = (options: string[], label: string) => LABEL_COLORS[Math.max(0, options.indexOf(label)) % LABEL_COLORS.length];
 
+/** One label on an item, as the public API returns it. `score` is the AI's confidence (0-100); null for a person's label. */
+export type ItemLabelEntry = {
+  label: string; source: "human" | "ai"; score: number | null;
+  /** Panel only: what the AI said, and the pages its search returned. */
+  reason?: string | null; needsReview?: boolean; sources?: { url: string; title: string }[];
+};
+
+/** Orders labels as the project lists them; any not listed go last. */
+export const sortLabels = <T extends { label: string }>(entries: T[], options: string[]) => {
+  const rank = (label: string) => (options.includes(label) ? options.indexOf(label) : options.length);
+  return [...entries].sort((a, b) => rank(a.label) - rank(b.label) || a.label.localeCompare(b.label, "id"));
+};
+
+/** `manualLabel` of the public API, a single value for older consumers: the first label a person gave, in the project's order. */
+export const firstManualLabel = (entries: ItemLabelEntry[]) => entries.find((e) => e.source === "human")?.label ?? null;
+
 /** What the panel needs to show labels for one project. */
 export type LabelSettings = {
   options: string[];
@@ -39,10 +55,17 @@ export type LabelSettings = {
   canLabel: boolean;
   /** Posts and articles carrying each label in this project. */
   counts: Record<string, number>;
+  /** Posts and articles with at least one label; less than the sum of `counts` when some have several. */
+  labelledItems: number;
 };
 
 /** A choice renamed in the settings: posts labelled `from` move to `to`. */
 export type LabelRename = { from: string; to: string };
+
+/** Saved choices whose posts stay labelled after a change. Everything else is removed before renaming: a post may hold
+ *  several labels, so rows left under a name that another label takes over would collide with it. */
+export const keptLabelNames = (saved: string[], options: string[], renames: LabelRename[]) => saved.filter((name) =>
+  renames.some((r) => r.from === name) || (options.includes(name) && !renames.some((r) => r.to === name)));
 
 /** The starting AI instruction for a project's labels; empty while it has none. Editable, so the answer format is not in it. */
 export const defaultLabelPrompt = (labels: string[]) => !labels.length ? "" : `Kamu membantu menandai post media sosial dan berita berbahasa Indonesia.

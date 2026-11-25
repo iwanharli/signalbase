@@ -13,7 +13,16 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
   const blocked = await labelAiBlocked(user, id);
   if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
   const row = await prisma.labelAi.findUnique({ where: { apiKeyId: id } });
-  const state: LabelAiState = { saved: row ? publicLabelAi(row) : null };
+  const tokens = row ? await prisma.labelAiUsage.aggregate({ where: { apiKeyId: id }, _sum: { inputTokens: true, outputTokens: true } }) : null;
+  const state: LabelAiState = {
+    saved: row ? publicLabelAi(row) : null,
+    progress: row ? {
+      processed: row.processed, failed: row.failed,
+      todayCount: row.todayDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) ? row.todayCount : 0,
+      lastError: row.lastError, lastRunAt: row.lastRunAt?.toISOString() ?? null,
+      inputTokens: tokens?._sum.inputTokens ?? 0, outputTokens: tokens?._sum.outputTokens ?? 0,
+    } : null,
+  };
   return NextResponse.json(state, { headers: { "Cache-Control": "no-store" } });
 });
 
@@ -27,6 +36,9 @@ export const PUT = adminRoute(async (req: Request, { params }: Context, username
   if (planProblem) return NextResponse.json({ error: planProblem }, { status: 403 });
   const key = await prisma.apiKey.findUnique({ where: { id }, select: { revokedAt: true } });
   if (!key || key.revokedAt) return NextResponse.json({ error: "Proyek tidak ditemukan atau sudah dicabut" }, { status: 404 });
+  if (parsed.data.enabled && !(await prisma.apiKey.findUnique({ where: { id }, select: { manualLabels: true } }))?.manualLabels.length) {
+    return NextResponse.json({ error: "Tambahkan pilihan label sebelum mengaktifkan pelabelan AI" }, { status: 400 });
+  }
   try {
     const state: LabelAiState = { saved: publicLabelAi(await saveLabelAi(id, parsed.data, username)) };
     return NextResponse.json(state);
