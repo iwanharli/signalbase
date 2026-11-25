@@ -45,11 +45,33 @@
 .bar[data-state="live"] i { background: #2dd4bf; }
 .note { font-size: 10.5px; color: rgba(255,255,255,.5); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Breathing while a project is being labelled: a slow violet→cyan glow that swells and fades. */
+.ringButton[data-working] { animation: in 360ms cubic-bezier(.2,.9,.25,1.15) both, breathe 3.2s ease-in-out 360ms infinite; }
+.ringButton[data-working]::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, rgba(139,92,246,.0), rgba(139,92,246,.55), rgba(34,211,238,.55), rgba(139,92,246,.0));
+  filter: blur(7px); opacity: .35; animation: halo 3.2s ease-in-out infinite, turn 9s linear infinite; z-index: -1; }
+.ringButton[data-working] .ringValue { animation: glow 3.2s ease-in-out infinite; }
+.card[data-working] { animation: in 260ms cubic-bezier(.2,.9,.25,1.1) both, cardBreathe 3.2s ease-in-out 260ms infinite; }
+.bar[data-active] { overflow: visible; }
+.bar[data-active] i { animation: flow 2.6s linear infinite, barGlow 3.2s ease-in-out infinite; }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 14px 40px -16px rgba(46,16,101,.7), 0 0 0 0 rgba(34,211,238,0), inset 0 1px 0 rgba(255,255,255,.06); }
+  50% { transform: scale(1.06); box-shadow: 0 14px 40px -16px rgba(46,16,101,.7), 0 0 22px 2px rgba(124,58,237,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+}
+@keyframes halo { 0%, 100% { opacity: .2; transform: scale(.92); } 50% { opacity: .75; transform: scale(1.08); } }
+@keyframes turn { to { rotate: 360deg; } }
+@keyframes glow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(34,211,238,0)); } 50% { filter: drop-shadow(0 0 3px rgba(34,211,238,.9)); } }
+@keyframes cardBreathe {
+  0%, 100% { border-color: rgba(167,139,250,.2); box-shadow: 0 14px 40px -16px rgba(46,16,101,.7), inset 0 1px 0 rgba(255,255,255,.06); }
+  50% { border-color: rgba(103,232,249,.38); box-shadow: 0 14px 40px -16px rgba(46,16,101,.7), 0 0 26px -6px rgba(124,58,237,.55), inset 0 1px 0 rgba(255,255,255,.06); }
+}
+@keyframes barGlow { 0%, 100% { box-shadow: 0 0 0 rgba(34,211,238,0); } 50% { box-shadow: 0 0 8px rgba(34,211,238,.75); } }
 @keyframes in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
 @keyframes spin { to { transform: rotate(270deg); } }
 @keyframes flow { to { background-position: -200% 0; } }
 @keyframes ping { 70%, 100% { transform: scale(2.8); opacity: 0; } }
 
 @media (max-width: 640px) { .dock { right: 12px; bottom: 12px; } }
-@media (prefers-reduced-motion: reduce) { .card, .ringButton, .ring[data-spin], .bar i, .dot::after { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .card, .ringButton, .ringButton::before, .ringValue, .ring[data-spin], .bar i, .dot::after { animation: none !important; } }
 @media print { .dock { display: none; } }

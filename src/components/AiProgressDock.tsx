@@ -80,7 +80,7 @@ export function AiProgressDock() {
     return (
       <aside className={classes.dock} aria-label="Progres kategorisasi AI">
         <Tooltip label={ringLabel} position="left" withArrow openDelay={200}>
-          <button type="button" className={classes.ringButton} onClick={toggle} aria-label={`${ringLabel}. Tampilkan`} data-warn={hasError || undefined}>
+          <button type="button" className={classes.ringButton} onClick={toggle} aria-label={`${ringLabel}. Tampilkan`} data-warn={hasError || undefined} data-working={working.some((p) => p.active) || undefined}>
             <Ring pct={ringPct} live={allLive} />
             <span className={classes.ringCenter}>{allLive ? <IconCheck size={12} stroke={2.6} /> : ringPct !== null ? ringPct : ""}</span>
           </button>
@@ -91,7 +91,7 @@ export function AiProgressDock() {
 
   return (
     <aside className={classes.dock} aria-label="Progres kategorisasi AI">
-      <div className={classes.card}>
+      <div className={classes.card} data-working={working.some((p) => p.active) || undefined}>
         <header className={classes.head}>
           <span><i className={classes.dot} data-live={allLive || undefined} aria-hidden />Kategorisasi AI</span>
           <button type="button" onClick={toggle} className={classes.hide} aria-label="Sembunyikan progres"><IconMinus size={14} /></button>
@@ -106,7 +106,7 @@ export function AiProgressDock() {
                   {p.error && <IconAlertTriangle size={12} className={classes.warn} />}
                   <em data-live={p.state === "live" || undefined}>{p.state === "live" ? <IconCheck size={12} stroke={2.6} /> : p.pct === null ? "…" : `${p.pct}%`}</em>
                 </span>
-                <span className={classes.bar} data-state={p.state}><i style={{ width: `${p.pct ?? 0}%` }} /></span>
+                <span className={classes.bar} data-state={p.state} data-active={(p.active && p.state !== "live") || undefined}><i style={{ width: `${p.pct ?? 0}%` }} /></span>
                 <small className={classes.note}>{note(p)}</small>
               </Link>
             </li>

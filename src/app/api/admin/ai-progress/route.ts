@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { overallProgress, typeProgress, type TypeCursor } from "@/lib/ai/progress";
+import { overallProgress, scopeCountsFor, typeProgress, type TypeCursor } from "@/lib/ai/progress";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { adminRoute, visibleKeys } from "@/lib/server/auth";
@@ -33,11 +33,14 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const projects = rows.map((r) => {
     const scope = parseKeyScope(r.apiKey.scope, r.apiKey.keywords);
     const cursors = (r.cursors ?? {}) as Partial<Record<MediaType, TypeCursor>>;
-    const stored = r.scopeCounts as Partial<Record<MediaType, number | null>> | null;
-    const types = MEDIA_TYPES.filter((t) => allowsType(scope, t)).map((type) =>
-      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: stored?.[type] ?? null }));
+    // The counts the project page last made for this range (same numbers, so both show the same percent).
+    const stored = scopeCountsFor(r.scopeCounts, JSON.stringify(scope), r.startFrom ? r.startFrom.toISOString() : "");
+    const allowed = MEDIA_TYPES.filter((t) => allowsType(scope, t));
+    const totals = allowed.map((t) => stored?.[t] ?? null);
+    const types = allowed.map((type, i) =>
+      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: totals[i] }));
     return {
-      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types), types,
+      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: r.todayDate === day ? r.todayCount : 0,
       active: !!r.lastRunAt && now - r.lastRunAt.getTime() < ACTIVE_MS,
