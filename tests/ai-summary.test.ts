@@ -89,3 +89,12 @@ test("pesan gagal ringkasan tidak pernah memuat balasan mentah penyedia", async 
   assert.equal(summaryErrorText(null, true), null);
   for (const out of [summaryErrorText(raw, true), summaryErrorText("x (500) req_123", true)]) assert.doesNotMatch(out ?? "", /\*\*\*\*|request_id|req_/);
 });
+
+test("mode berpikir dimatikan hanya untuk DeepSeek", async () => {
+  const { requestExtras } = await import("../src/lib/server/ai/summary");
+  assert.deepEqual(requestExtras("https://api.deepseek.com"), { thinking: { type: "disabled" } });
+  assert.deepEqual(requestExtras("https://api.deepseek.com/v1/"), { thinking: { type: "disabled" } });
+  assert.deepEqual(requestExtras("https://api.openai.com/v1"), {});
+  assert.deepEqual(requestExtras("https://deepseek.com.evil.example"), {});
+  assert.deepEqual(requestExtras(null), {});
+});

@@ -30,6 +30,11 @@ export const settingConfig = (s: Pick<AiSetting, "providerKind" | "providerBaseU
   kind: s.providerKind === "anthropic" ? "anthropic" : "openai_compatible", baseUrl: s.providerBaseUrl, model: s.providerModel, apiKeyEnc: s.providerKeyEnc,
 });
 
+/** DeepSeek models think before answering by default, and that reasoning is billed as output: for the Ringkasan and the
+ *  reports it was ±70% of the output tokens (26 Nov 2026). The JSON they ask for does not need it, so it is switched off. */
+export const requestExtras = (baseUrl: string | null | undefined): Record<string, unknown> =>
+  /(^|\.)deepseek\.com$/i.test((() => { try { return new URL(baseUrl ?? "").hostname; } catch { return ""; } })()) ? { thinking: { type: "disabled" } } : {};
+
 export const settingView = (s: AiSetting): AiSettingView => ({
   provider: { kind: s.providerKind === "anthropic" ? "anthropic" : "openai_compatible", baseUrl: s.providerBaseUrl ?? "", model: s.providerModel, apiKeyHint: s.providerKeyHint },
   summaryEnabled: s.summaryEnabled, summaryHour: s.summaryHour, includeProjects: s.includeProjects, monthlyBudget: s.monthlyBudget,
@@ -71,7 +76,7 @@ export async function loggedCall(setting: AiSetting, purpose: "summary" | "repor
     },
   }).catch((e) => console.warn("[ai-summary] log failed:", (e as Error).message));
   try {
-    const raw = await completeJson(settingConfig(setting), system, user, (u) => { usage = u; }, maxTokens);
+    const raw = await completeJson(settingConfig(setting), system, user, (u) => { usage = u; }, maxTokens, requestExtras(setting.providerBaseUrl));
     return { raw, log, usage, ms: Date.now() - started };
   } catch (error) {
     await log(false, providerErrorMessage(error));
