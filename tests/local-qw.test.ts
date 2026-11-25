@@ -20,6 +20,17 @@ test("model lokal QW hanya untuk key di LOCAL_QW_KEYS dan bila LOCAL_QW_URL diis
   assert.equal(localQwMin(), 0.8);
 });
 
+test("ambang per key di LOCAL_QW_KEYS menimpa LOCAL_QW_MIN hanya untuk key itu", () => {
+  process.env.LOCAL_QW_URL = "http://127.0.0.1:1";
+  process.env.LOCAL_QW_KEYS = "kunci-a, kunci-b:0.85, kunci-c:abc";
+  process.env.LOCAL_QW_MIN = "0";
+  assert.equal(usesLocalQw("kunci-b"), true);
+  assert.equal(localQwMin("kunci-a"), 0);
+  assert.equal(localQwMin("kunci-b"), 0.85);
+  assert.equal(localQwMin("kunci-c"), 0); // ambang tidak valid = LOCAL_QW_MIN
+  assert.equal(localQwMin("kunci-x"), 0);
+});
+
 test("layanan model lokal mati: null (semua item ke penyedia AI), bukan error", async () => {
   process.env.LOCAL_QW_URL = "http://127.0.0.1:1";
   assert.equal(await localQw("social", [{ id: "x", text: "patroli malam" }]), null);

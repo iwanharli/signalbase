@@ -130,9 +130,10 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const local: Labelled[] = [];
   if (usesLocalQw(job.apiKeyId)) {
     const allowed = new Set(job.categories[type].map((c) => c.code));
+    const min = localQwMin(job.apiKeyId);
     const res = await localQw(type, toProvider);
     for (const l of res?.items ?? []) {
-      if (l.confidence >= localQwMin() && (allowed.has(l.category) || l.category === NO_CATEGORY)) {
+      if (l.confidence >= min && (allowed.has(l.category) || l.category === NO_CATEGORY)) {
         local.push({ id: l.id, category: l.category, confidence: l.confidence, reason: "IndoBERT lokal", model: res!.model });
       }
     }
