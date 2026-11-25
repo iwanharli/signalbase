@@ -7,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import { API_PATH, codeSamples, ENDPOINTS, ERRORS, FIELDS, LIST_RESPONSE, MAX_PAGE_SIZE, PARAM_GROUPS } from "@/lib/media/apiReference";
 import { SITE_URL } from "../landing/content";
+import { PRICING_PUBLIC } from "../pricing/plans";
 import { PageHeader } from "../landing/decor";
 import { Cta } from "../landing/sections";
 import landing from "../landing/landing.module.css";
@@ -172,7 +173,7 @@ export function IntegrationPage() {
             <table className={c.table}>
               <tbody>{CALL_LIMITS.map(([plan, value]) => <tr key={plan}><th>{plan}</th><td className={c.right}>{value}</td></tr>)}</tbody>
             </table>
-            <Link href="/pricing" className={c.textLink}>Bandingkan paket <IconArrowUpRight size={15} /></Link>
+            {PRICING_PUBLIC && <Link href="/pricing" className={c.textLink}>Bandingkan paket <IconArrowUpRight size={15} /></Link>}
           </div>
           <div className={c.tableCard}>
             <h3>Kode status</h3>

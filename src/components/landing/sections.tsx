@@ -3,7 +3,7 @@ import Link from "next/link";
 import { IconArrowRight, IconArrowUpRight, IconBolt, IconCheck, IconChevronDown, IconCode, IconSearch, IconShieldCheck, IconSparkles } from "@tabler/icons-react";
 import { AI_POINTS, AI_PROVIDERS, EXPLORE, FAQS, FEATURES, HERO_TRUST, SOURCES, STEPS } from "./content";
 import { Brand, Floaters, SectionTitle, SignalWave } from "./decor";
-import { BROCHURE_FILENAME, BROCHURE_URL } from "../pricing/plans";
+import { BROCHURE_FILENAME, BROCHURE_URL, PRICING_PUBLIC } from "../pricing/plans";
 import { ProductPreview } from "./preview/ProductPreview";
 import { UseCases } from "./UseCases";
 import c from "./landing.module.css";
@@ -48,8 +48,8 @@ export function Sources() {
 export function Explore() {
   return (
     <section className={reveal(c.section)}>
-      <SectionTitle label="JELAJAHI SIGNALBASE" title="Satu platform, empat hal yang perlu Anda tahu." />
-      <div className={c.explore}>
+      <SectionTitle label="JELAJAHI SIGNALBASE" title={`Satu platform, ${EXPLORE.length === 4 ? "empat" : "tiga"} hal yang perlu Anda tahu.`} />
+      <div className={c.explore} style={{ "--n": EXPLORE.length } as React.CSSProperties}>
         {EXPLORE.map((e) => (
           <Link key={e.href} href={e.href} className={c.exploreCard}>
             <span className={c.featureIcon}><e.icon size={22} /></span>
@@ -201,7 +201,7 @@ export function LandingFooter() {
         <Link href="/" aria-label="Signalbase beranda"><Brand /></Link>
         <p>Media intelligence. <br />Connected to your world.</p>
       </div>
-      <div><b>Platform</b><Link href="/fitur">Fitur</Link><Link href="/integrasi">Integrasi API</Link><Link href="/solusi">Solusi</Link><Link href="/pricing">Harga</Link></div>
+      <div><b>Platform</b><Link href="/fitur">Fitur</Link><Link href="/integrasi">Integrasi API</Link><Link href="/solusi">Solusi</Link>{PRICING_PUBLIC && <Link href="/pricing">Harga</Link>}</div>
       <div><b>Jelajahi</b><Link href="/faq">Pertanyaan umum</Link><Link href="/login">Masuk</Link><Link href="/register">Daftar</Link><Link href="/docs">Dokumentasi ↗</Link><a href={BROCHURE_URL} download={BROCHURE_FILENAME}>Product knowledge (PDF)</a></div>
       <div className={c.footerBottom}>
         <span>© {new Date().getFullYear()} Signalbase.</span>

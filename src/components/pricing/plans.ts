@@ -1,6 +1,9 @@
 // Plans shown on /pricing. Edit prices, limits and copy here; the page only lays them out.
 // Note: these limits are what the plans promise. The panel does not enforce them yet; admins assign them by hand.
 
+/** Public /pricing page and every link to it. False = hidden for now (page answers 404); flip back to show prices again. */
+export const PRICING_PUBLIC = false;
+
 export type Billing = "monthly" | "yearly";
 
 export type Plan = {

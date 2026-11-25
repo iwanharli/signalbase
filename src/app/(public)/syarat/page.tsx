@@ -11,9 +11,9 @@ const SECTIONS: LegalSection[] = [
     <li>Data pendaftaran harus benar; akun yang dipakai atas nama pihak lain dapat dinonaktifkan.</li>
   </ul> },
   { id: "paket", title: "Trial, paket, dan pembayaran", body: <ul>
-    <li>Akun baru mendapat trial selama 7 hari sejak disetujui, dengan batasan sesuai halaman Harga.</li>
+    <li>Akun baru mendapat trial selama 7 hari sejak disetujui, dengan batasan yang diinformasikan saat pendaftaran.</li>
     <li>Setelah trial atau periode paket berakhir, kunci API berhenti bekerja sampai paket diperpanjang; proyek, keyword, dan pengaturan tetap tersimpan.</li>
-    <li>Harga, batas, dan fitur paket tercantum di halaman Harga dan dapat berubah; perubahan berlaku pada periode tagihan berikutnya.</li>
+    <li>Harga, batas, dan fitur paket diinformasikan oleh tim Signalbase dan dapat berubah; perubahan berlaku pada periode tagihan berikutnya.</li>
     <li>Harga belum termasuk PPN. Pembayaran yang sudah diterima tidak dapat dikembalikan, kecuali disepakati tertulis.</li>
   </ul> },
   { id: "api", title: "Kunci API dan batas pemakaian", body: <ul>

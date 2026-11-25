@@ -3,6 +3,7 @@ import {
   IconBrandFacebook, IconBrandInstagram, IconBrandThreads, IconBrandTiktok, IconBrandX, IconBrandYoutube,
   IconHelpCircle, IconKey, IconLayersIntersect, IconPlugConnected, IconSearch, IconSparkles, IconTag, IconWorldWww,
 } from "@tabler/icons-react";
+import { PRICING_PUBLIC } from "../pricing/plans";
 
 /** Public address of the site, used in code examples. */
 export const SITE_URL = "https://signalbase.kecup.in";
@@ -14,7 +15,7 @@ export const NAV_LINKS = [
   { href: "/solusi", label: "Solusi", icon: IconLayersIntersect },
   { href: "/pricing", label: "Harga", icon: IconTag },
   { href: "/faq", label: "FAQ", icon: IconHelpCircle },
-] as const;
+].filter((l) => PRICING_PUBLIC || l.href !== "/pricing");
 
 /** Home page cards that lead to the detailed pages. */
 export const EXPLORE = [
@@ -22,7 +23,7 @@ export const EXPLORE = [
   { href: "/integrasi", icon: IconPlugConnected, label: "INTEGRASI", title: "Data yang sama, langsung di aplikasi Anda.", text: "API JSON dengan cakupan per proyek: daftar konten, ringkasan, dan tren kategori." },
   { href: "/solusi", icon: IconLayersIntersect, label: "SOLUSI", title: "Untuk humas, layanan publik, dan produk.", text: "Contoh cara organisasi memakai Signalbase untuk pertanyaan yang berbeda." },
   { href: "/pricing", icon: IconKey, label: "HARGA", title: "Mulai dengan trial 7 hari.", text: "Pilih Starter, Pro, atau Instansi sesuai jumlah isu dan kebutuhan analisis Anda." },
-] as const;
+].filter((e) => PRICING_PUBLIC || e.href !== "/pricing");
 
 export const HERO_TRUST = ["Sosial & berita", "AI sesuai kebutuhan", "Siap diintegrasikan"] as const;
 
