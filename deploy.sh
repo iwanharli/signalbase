@@ -42,6 +42,9 @@ npx prisma generate >/dev/null
 active=$(cat .next-active 2>/dev/null || echo .next)
 next=$([ "$active" = .next-a ] && echo .next-b || echo .next-a)
 echo "▸ build → $next (live stays on $active)"
+# Type files from earlier builds (both slots are in tsconfig) still name pages that were moved or removed and would fail
+# the type check; they are only for checking, never served, and the build writes them again.
+rm -rf .next*/types
 NODE_ENV=production NEXT_DIST_DIR="$next" npm run build
 
 switch_to() {
