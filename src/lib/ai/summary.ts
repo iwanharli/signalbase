@@ -1,6 +1,7 @@
 // Shared (client + server) definitions for Ringkasan AI: the summary's shape and the admin settings form.
 import { z } from "zod";
 import { apiKeyProblem } from "./classifier";
+import { clip } from "./clip";
 
 export const TONES = ["positif", "netral", "negatif", "waspada"] as const;
 export type Tone = (typeof TONES)[number];
@@ -13,7 +14,7 @@ export type Trend = (typeof TRENDS)[number];
 const oneOf = <T extends string>(list: readonly T[], fallback: T) =>
   z.string().transform((t): T => (list as readonly string[]).includes(t.trim().toLowerCase()) ? (t.trim().toLowerCase() as T) : fallback);
 const tone = oneOf(TONES, "netral");
-const text = (max: number) => z.string().trim().min(1).transform((s) => s.slice(0, max));
+const text = (max: number) => z.string().trim().min(1).transform((s) => clip(s, max));
 /** Codes of the input items a statement rests on (S3, B1, E2, I4); unknown codes are dropped on the server. */
 const evidence = z.array(z.string()).default([]).transform((a) => [...new Set(a.map((x) => x.trim().toUpperCase()).filter((x) => /^[SBEI]\d{1,3}$/.test(x)))].slice(0, 4));
 

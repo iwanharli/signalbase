@@ -24,6 +24,7 @@ import { prisma } from "./db";
 import { getSetting, loggedCall, monthCost } from "./ai/summary";
 import { brands, COMMENTS, engagementScore, itemLabel, itemLine, LIKES, Refs, SHARES, topEngaged, VIEWS } from "./ai/summaryInput";
 import { providerErrorMessage } from "./ai/providers";
+import { schemaIssues } from "@/lib/ai/clip";
 
 /** Platforms the bank does not collect; named in the limitations section. */
 const NOT_COLLECTED = ["grup WhatsApp/Telegram", "komentar di bawah unggahan", "siaran TV/radio"];
@@ -371,7 +372,7 @@ async function assess(ref: ScopeRef, d: BriefData, input: string): Promise<{ ai:
   try {
     const { raw, log } = await loggedCall(setting, "report", { id: ref.id, name: `${ref.name} · ${KIND_LABEL[d.kind]} ${d.day}` }, SYSTEM_PROMPT(d.kind), input, 32_000);
     const parsed = briefAiSchema.safeParse(raw);
-    if (!parsed.success) { await log(false, "Jawaban model tidak sesuai format"); return { ai: null, error: "Narasi analisis gagal dibuat (format jawaban AI tidak valid)." }; }
+    if (!parsed.success) { await log(false, `Jawaban model tidak sesuai format: ${schemaIssues(parsed.error.issues)}`.slice(0, 500)); return { ai: null, error: "Narasi analisis gagal dibuat (format jawaban AI tidak valid)." }; }
     await log(true, null);
     return { ai: parsed.data, error: null };
   } catch (error) {

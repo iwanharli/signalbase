@@ -20,6 +20,7 @@ import { prisma } from "./db";
 import { typeInsights } from "./insights";
 import { typeStats } from "./overview";
 import { withImageCodes } from "./media/textSignals";
+import { wellFormed } from "@/lib/ai/clip";
 
 export const BANK_SCOPE = "bank";
 const BANK_NAME = "Seluruh data";
@@ -101,7 +102,8 @@ export function briefCover(d: BriefData): ReportCover {
 /** Builds and stores (or replaces) one scope's executive brief of one finished period. */
 export async function writeReport(ref: ScopeRef, kind: ReportKind, period: { start: string; end: string }) {
   const data = await buildBrief({ id: ref.id, name: ref.name, scope: ref.scope, keywords: ref.project?.keywords ?? [] }, kind, period, await reportProfile(ref.id));
-  const json = { data: data as unknown as Prisma.InputJsonValue, cover: briefCover(data) as unknown as Prisma.InputJsonValue };
+  // wellFormed: half an emoji left in any AI text would make Postgres reject the whole row.
+  const json = { data: wellFormed(data) as unknown as Prisma.InputJsonValue, cover: wellFormed(briefCover(data)) as unknown as Prisma.InputJsonValue };
   return prisma.archivedReport.upsert({
     where: { scope_kind_start: { scope: ref.id, kind, start: period.start } },
     create: { scope: ref.id, scopeName: ref.name, kind, start: period.start, day: period.end, ...json },

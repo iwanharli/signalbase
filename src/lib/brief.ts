@@ -2,6 +2,7 @@
 // about one finished period (harian / mingguan / bulanan): numbers computed from the bank, plus an AI assessment written
 // through the lens of the institution the report serves. Shared by the writer (lib/server/brief.ts) and the print page.
 import { z } from "zod";
+import { clip } from "./ai/clip";
 import type { ReportKind } from "./report";
 
 export type Metric = { now: number; prev: number | null };
@@ -44,9 +45,11 @@ export type BriefData = {
 
 // ---------------------------------------------------------------- AI assessment
 
-const t = (max: number) => z.string().trim().min(1).transform((s) => s.slice(0, max));
-const opt = (max: number) => z.string().trim().transform((s) => s.slice(0, max)).optional();
-const list = <T extends z.ZodTypeAny>(item: T, max: number) => z.array(item).default([]).transform((a) => a.slice(0, max));
+const t = (max: number) => z.string().trim().min(1).transform((s) => clip(s, max));
+const opt = (max: number) => z.string().trim().transform((s) => clip(s, max)).optional();
+/** A list where an incomplete item (an empty field, a missing key) is dropped instead of failing the whole narrative. */
+const list = <T extends z.ZodTypeAny>(item: T, max: number) => z.array(z.unknown()).default([])
+  .transform((a) => a.flatMap((x) => { const r = item.safeParse(x); return r.success ? [r.data as z.output<T>] : []; }).slice(0, max));
 const pick = <T extends string>(values: readonly T[], fallback: T) =>
   z.string().transform((v): T => values.find((x) => x === v.trim().toUpperCase() || x === v.trim().toLowerCase()) ?? fallback);
 const codes = z.array(z.string()).default([]).transform((a) => [...new Set(a.map((x) => x.trim().toUpperCase()).filter((x) => /^[SBEI]\d{1,3}$/.test(x)))].slice(0, 4));
@@ -64,7 +67,7 @@ export const briefAiSchema = z.object({
   catatanKpi: z.object({
     posts: opt(90), accounts: opt(90), interactions: opt(90), views: opt(90), news: opt(90), negShare: opt(90), ews: opt(90),
   }).default({}),
-  tren: z.object({ judul: t(90), isi: t(420) }).optional(),
+  tren: z.object({ judul: t(90), isi: t(420) }).optional().catch(undefined), // incomplete: left out, not the whole narrative
   platform: list(z.object({ tujuan: t(40), kanal: t(60), alasan: t(140) }), 5),
   isuRelevansi: list(z.object({ kode: t(6), relevansi: t(80) }), 12),
   emosi: opt(420),
@@ -83,7 +86,7 @@ export const briefAiSchema = z.object({
   disinformasi: list(z.object({ narasi: t(220), status: t(120), evidence: codes }), 4),
   evaluasi: opt(700),
   prioritas: list(t(200), 3),
-  keterbatasan: t(500),
+  keterbatasan: t(500).catch(""),
 });
 export type BriefAi = z.infer<typeof briefAiSchema>;
 
