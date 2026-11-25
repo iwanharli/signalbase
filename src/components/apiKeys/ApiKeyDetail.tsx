@@ -13,6 +13,7 @@ import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
 import { BalanceCard } from "../ai/BalanceCard";
+import { ClassifierResults } from "../ai/KeyClassifier";
 import { KeyAccess, type KeyAccessRules } from "./KeyAccess";
 import { CopyKeyButton } from "./CopyKeyButton";
 import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
@@ -359,6 +360,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
               <AiOverview detail={data} />
             </SectionPanel>
           )}
+          {tab === "ai" && data.classifier?.enabled && <ClassifierResults keyId={data.id} />}
 
           {tab === "labels" && (
             <SectionPanel icon={IconTags} title="Label manual" description="Pilihan label yang diberikan orang pada tiap post atau berita proyek ini. Terpisah dari kategorisasi AI.">

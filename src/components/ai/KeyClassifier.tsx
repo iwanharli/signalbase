@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconArrowLeft, IconCheck, IconClock, IconPlayerPause, IconPlayerPlay, IconRobot, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconChartBar, IconCheck, IconClock, IconPlayerPause, IconPlayerPlay, IconRobot, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -37,17 +37,17 @@ type Response = {
 const REFRESH_MS = 30_000;
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
-function Progress({ state, counts, types, keyId }: { state: ClassifierState; counts: Response["counts"]; types: MediaType[]; keyId: string }) {
+const pct = (n: number, total: number | null) => (total ? Math.min(100, Math.round((n / total) * 100)) : 0);
+
+/** The "Progres kategorisasi" card: overall share, counts and the last error. Full width, right under the page title. */
+function OverallProgress({ state, counts, e }: { state: ClassifierState; counts: Response["counts"]; e: Estimate | null }) {
   const todayCount = state.todayDate === today() ? state.todayCount : 0;
-  const estimate = useApi<Estimate>(estimateUrl(keyId, state.startFrom ?? null));
-  const e = estimate.data;
   const done = counts.reduce((sum, c) => sum + c.n, 0);
   const inRange = e ? (e.social ?? 0) + (e.online ?? 0) : null;
-  const pct = (n: number, total: number | null) => (total ? Math.min(100, Math.round((n / total) * 100)) : 0);
 
   return (
-    <section className={classes.progress}>
-      <div className={classes.overall}>
+    <section className={classes.overallSection}>
+      <div className={`${classes.overall} ${classes.overallWide}`}>
         <div className={classes.overallHead}>
           <small>Progres kategorisasi</small>
           <span className={classes.pct}>{inRange === null ? "…" : `${pct(done, inRange)}%`}</span>
@@ -63,7 +63,14 @@ function Progress({ state, counts, types, keyId }: { state: ClassifierState; cou
       </div>
 
       {state.lastError && <div className={classes.error}><IconAlertTriangle size={16} />{state.lastError}</div>}
+    </section>
+  );
+}
 
+/** Per media type: how far it has got and the category bars. */
+function Progress({ state, counts, types, e }: { state: ClassifierState; counts: Response["counts"]; types: MediaType[]; e: Estimate | null }) {
+  return (
+    <section className={classes.progress}>
       {types.map((type) => {
         const cursor = state.cursors?.[type];
         const typeCounts = counts.filter((c) => c.type === type);
@@ -130,6 +137,36 @@ function ProgressSkeleton() {
       <div className={classes.stats}>{[0, 1, 2, 3].map((n) => <div key={n}><i style={{ width: "50%", height: 20 }} /><i style={{ width: "70%" }} /></div>)}</div>
       {[0, 1, 2, 3, 4, 5].map((n) => <div key={n} className={classes.skBar}><i data-code /><i style={{ width: `${70 - n * 9}%` }} /></div>)}
     </div>
+  );
+}
+
+/**
+ * Progress of a project's AI categorisation: the "Progres kategorisasi" card, then the per-type bars beside the review
+ * panel. Shown on the project page under the Kategorisasi AI card; refreshes while open. Nothing unless it is switched on.
+ */
+export function ClassifierResults({ keyId }: { keyId: string }) {
+  const data = useApi<Response>(`/api/admin/keys/${keyId}/classifier`);
+  const reload = data.reload;
+  useEffect(() => {
+    const timer = setInterval(reload, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [reload]);
+  const state = data.data?.classifier;
+  // Counting the scope is slow, so it is fetched once and shared by the overall card and the per-type blocks.
+  const estimate = useApi<Estimate>(state ? estimateUrl(keyId, state.startFrom ?? null) : null);
+  if (!data.data) return <ProgressSkeleton />;
+  if (!state?.enabled) return null;
+  const key = data.data.key;
+  const types = key.scope.types.length ? key.scope.types : [...MEDIA_TYPES];
+  return (
+    <>
+      <OverallProgress state={state} counts={data.data.counts} e={estimate.data} />
+      <div className={classes.results}>
+        <Progress state={state} counts={data.data.counts} types={types} e={estimate.data} />
+        <ReviewPanel keyId={keyId} types={types} low={data.data.lowConfidence} onRetried={data.reload}
+          none={data.data.counts.filter((c) => c.category === NO_CATEGORY).reduce((s, c) => s + c.n, 0)} />
+      </div>
+    </>
   );
 }
 
@@ -241,7 +278,10 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
 
       {key?.revokedAt && <div className={classes.error}><IconAlertTriangle size={16} />Proyek ini sudah dicabut, kategorisasi tidak berjalan.</div>}
 
-      <div className={classes.layout}>
+      {/* Progress and review live on the project page (Kategorisasi AI tab, ClassifierResults); this page is the settings. */}
+      {state?.enabled && <Link href={`/api-keys/${keyId}?tab=ai`} className={classes.resultsLink}><IconChartBar size={15} />Lihat progres dan hasil kategorisasi</Link>}
+
+      <div className={classes.layout} data-single={state ? true : undefined}>
         <section className={classes.editorCard}>
           {!draft ? <EditorSkeleton /> : (
             <>
@@ -263,21 +303,17 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
           )}
         </section>
 
-        <aside className={classes.side}>
-          {!data.data ? <ProgressSkeleton /> : state && draft ? (
-            <>
-              <Progress state={state} counts={data.data.counts} types={types} keyId={keyId} />
-              <ReviewPanel keyId={keyId} types={types} low={data.data.lowConfidence} onRetried={data.reload}
-                none={data.data.counts.filter((c) => c.category === NO_CATEGORY).reduce((s, c) => s + c.n, 0)} />
-            </>
-          ) : (
-            <div className={classes.idle}>
-              <IconRobot size={26} />
-              <b>Belum aktif</b>
-              <p>Pilih penyedia, tulis prompt dan kategori (atau pakai preset 8 Quick Win), lalu aktifkan. Worker mulai memproses dalam satu menit.</p>
-            </div>
-          )}
-        </aside>
+        {!state && (
+          <aside className={classes.side}>
+            {!data.data ? <ProgressSkeleton /> : (
+              <div className={classes.idle}>
+                <IconRobot size={26} />
+                <b>Belum aktif</b>
+                <p>Pilih penyedia, tulis prompt dan kategori (atau pakai preset 8 Quick Win), lalu aktifkan. Worker mulai memproses dalam satu menit.</p>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );
