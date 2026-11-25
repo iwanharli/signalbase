@@ -17,8 +17,9 @@ import { ClassifierResults } from "../ai/KeyClassifier";
 import { KeyAccess, type KeyAccessRules } from "./KeyAccess";
 import { CopyKeyButton } from "./CopyKeyButton";
 import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
+import { KeywordTable } from "./KeywordTable";
 import { ManualLabelSettings } from "./ManualLabelSettings";
-import { keyInputClasses, KeywordsInput, ScopeParams } from "./ScopeFields";
+import { keyInputClasses, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
 import { BalanceUsage } from "../ai/BalanceUsage";
@@ -336,7 +337,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
 
           {tab === "keywords" && (
             <SectionPanel icon={IconTag} title="Kata kunci" description="Aplikasi hanya menerima post dan berita yang menyebut salah satu kata kunci.">
-              <fieldset disabled={revoked || busy} className={classes.fieldset}><KeywordsInput scope={scope} onChange={setScope} /></fieldset>
+              <KeywordTable keyId={data.id} scope={scope} saved={data.scope.keywords} onChange={setScope} disabled={revoked || busy} />
               {keywordsChanged && data.classifier && (labelImpact(scope, data.scope) === "restart"
                 ? <div className={classes.warning}><IconAlertTriangle size={17} />Menghapus kata kunci akan mengulang kategorisasi AI dari awal, karena sebagian post berlabel tidak lagi masuk proyek.</div>
                 : <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Post yang masuk lewat kata kunci baru dilabeli bertahap; post yang sudah berlabel tidak diproses ulang.</div>)}
