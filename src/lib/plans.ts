@@ -1,3 +1,7 @@
+/** "Paket & tagihan" for user accounts (menu, plan chip, plan/quota banners, /billing). False = hidden for now, as for demo
+ *  accounts; admins still manage invoices from Pengguna. */
+export const BILLING_VISIBLE = false;
+
 // Plan limits enforced by the panel and API. Keep in line with what /pricing promises
 // (src/components/pricing/plans.ts); null means no limit.
 
