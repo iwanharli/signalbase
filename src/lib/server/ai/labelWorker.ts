@@ -5,7 +5,7 @@
 // LabelAiItem, so it is not paid for twice and a person's decision is never overwritten.
 import type { LabelAi, Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
-import { labelAiProvider } from "@/lib/ai/labelAi";
+import { labelAiProvider, planAllowsLabelAi } from "@/lib/ai/labelAi";
 import { backoffMs, labelErrorKind, needsReview, parseLabelReply, reachesFurther, type AiLabel, type CheckedLabel } from "@/lib/ai/labelReply";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { defaultLabelPrompt, labelOutputFormat, syncLabelList } from "@/lib/media/manualLabels";
@@ -401,7 +401,7 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
 async function planStop(ownerId: string | null) {
   if (!ownerId) return null;
   const { limits, expired } = await accountPlan(ownerId);
-  return expired || !limits.aiPostsPerMonth || !limits.ownAiKey ? "Dijeda otomatis: paket akun ini tidak mencakup pelabelan AI atau sudah berakhir." : null;
+  return !planAllowsLabelAi(limits, expired) ? "Dijeda otomatis: paket akun ini tidak mencakup pelabelan AI atau sudah berakhir." : null;
 }
 
 export async function runLabelProject(apiKeyId: string) {
