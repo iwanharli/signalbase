@@ -3,7 +3,7 @@
 // A failed or unsupported original leaves the Quick card as is.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconEye, IconLayoutList } from "@tabler/icons-react";
+import { IconEye } from "@tabler/icons-react";
 import { createLimiter } from "@/lib/limiter";
 import { originalOf } from "@/lib/media/original";
 import type { MediaItem, MediaType } from "@/lib/media/types";
@@ -42,7 +42,6 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
   const [granted, setGranted] = useState(false);
   const release = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
-  const [quick, setQuick] = useState(false);
 
   const done = useCallback(() => { release.current?.(); release.current = null; }, []);
   const onStatus = useCallback((s: "ready" | "failed") => { setStatus(s); done(); }, [done]);
@@ -64,7 +63,7 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
   if (!original) return <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} />;
 
   const mounted = manual ? wanted : granted;
-  const showOriginal = !quick && (manual ? wanted : status === "ready");
+  const showOriginal = manual ? wanted : status === "ready";
   const fallback = <PostContent text={item.content} title={item.title} metrics={item.metrics} />;
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -74,7 +73,6 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
         <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} />
         {!manual && mounted && status === "loading" && <span className={classes.shimmer} role="status" aria-label="Memuat tampilan asli" />}
         {manual && !wanted && <button type="button" className={classes.chip} onClick={(e) => { stop(e); setWanted(true); }}><IconEye size={13} aria-hidden />Lihat tampilan asli</button>}
-        {quick && (manual ? wanted : status === "ready") && <button type="button" className={classes.chip} onClick={(e) => { stop(e); setQuick(false); }}><IconEye size={13} aria-hidden />Tampilan asli</button>}
         {!manual && status === "failed" && <span className={classes.chip} data-muted>Tampilan asli tidak tersedia</span>}
       </div>
       {mounted && (
@@ -86,7 +84,6 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
             {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
             {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}
             <footer className={classes.foot}>
-              <button type="button" onClick={() => setQuick(true)}><IconLayoutList size={14} aria-hidden />Tampilan Quick</button>
               <button type="button" onClick={() => onOpen(item)}>Detail</button>
             </footer>
           </div>
