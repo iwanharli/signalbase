@@ -11,6 +11,8 @@ import type { MediaType } from "@/lib/media/types";
 import { ANY_LABEL, labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
+import { LabelAiProgress } from "./LabelAiProgress";
+import { BalanceUsage } from "../ai/BalanceUsage";
 import c from "./manualLabelSettings.module.css";
 
 type Row = { id: number; original: string | null; name: string; removed: boolean };
@@ -19,6 +21,8 @@ let nextId = 1;
 const rowsFrom = (options: string[]): Row[] => options.map((o) => ({ id: nextId++, original: o, name: o, removed: false }));
 const colorVar = (options: string[], label: string) => `var(--mantine-color-${labelColor(options, label)}-6)`;
 
+const REFRESH_MS = 30_000;
+
 export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resultType: MediaType }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
   const [rows, setRows] = useState<Row[]>([]);
@@ -26,7 +30,14 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
   const [busy, setBusy] = useState(false);
   /** A used label waiting for the delete warning to be confirmed. */
   const [confirming, setConfirming] = useState<Row | null>(null);
-  useEffect(() => { if (settings.data) setRows(rowsFrom(settings.data.options)); }, [settings.data]);
+  // Rows follow the saved choices only when those change, so a refresh of the counts leaves edits and focus alone.
+  const savedKey = settings.data ? JSON.stringify(settings.data.options) : null;
+  useEffect(() => { if (savedKey) setRows(rowsFrom(JSON.parse(savedKey) as string[])); }, [savedKey]);
+  const refresh = settings.reload;
+  useEffect(() => {
+    const timer = setInterval(() => { if (!document.hidden) refresh(); }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   const tidy = (name: string) => name.trim().replace(/\s+/g, " ");
   const kept = rows.filter((r) => !r.removed);
@@ -91,6 +102,8 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
       const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} label dilepas dari post`].filter(Boolean);
       notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
       setConfirming(null);
+      // Also when the names end up as they were (one removed and added again), where the effect above would not run.
+      setRows(rowsFrom(normalizeLabels(options)));
       settings.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -192,6 +205,10 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
           <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={() => save()} loading={busy} disabled={!!problem}>Simpan label</Button>
         </div>
       )}
+
+      {canEdit && <div className={c.usage}><BalanceUsage keyId={keyId} labelling /></div>}
+
+      {canEdit && <LabelAiProgress keyId={keyId} />}
 
       <Modal opened={!!confirming} onClose={() => !busy && setConfirming(null)} centered radius="lg" size="sm"
         title={<span className={c.warnTitle}><IconAlertTriangle size={18} />Hapus label yang sedang dipakai?</span>}>

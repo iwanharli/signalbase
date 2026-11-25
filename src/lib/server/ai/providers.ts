@@ -145,7 +145,11 @@ export function providerErrorMessage(error: unknown) {
 }
 
 /** Tokens of one call, with the part of the input the provider served from its cache. */
-export type CallUsage = { input: number; cached: number; output: number };
+export type CallUsage = {
+  input: number; cached: number; output: number;
+  /** Set only by the labelling source check: web searches that returned results. */
+  searches?: number;
+};
 
 /** Parses a JSON reply, tolerating a ```json fence some models add. */
 const parseJsonReply = (text: string) => JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));

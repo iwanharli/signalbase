@@ -30,6 +30,14 @@ export function normalizeLabels(input: unknown): string[] {
 const LABEL_COLORS = ["violet", "red", "teal", "orange", "blue", "pink", "lime", "indigo", "yellow", "grape", "cyan", "green"];
 export const labelColor = (options: string[], label: string) => LABEL_COLORS[Math.max(0, options.indexOf(label)) % LABEL_COLORS.length];
 
+/** Panel-only values of the label filter, about AI labelling's results. */
+export const AI_LABELS = "__ai";
+export const AI_REVIEW = "__ai_review";
+export const AI_NO_LABEL = "__ai_none";
+export const LABEL_FILTER_NAMES: Record<string, string> = {
+  [ANY_LABEL]: "Sudah diberi label", [AI_LABELS]: "Hasil label AI", [AI_REVIEW]: "Label AI perlu diperiksa", [AI_NO_LABEL]: "AI: tidak ada label cocok",
+};
+
 /** One label on an item, as the public API returns it. `score` is the AI's confidence (0-100); null for a person's label. */
 export type ItemLabelEntry = {
   label: string; source: "human" | "ai"; score: number | null;

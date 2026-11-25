@@ -59,7 +59,7 @@ export function toSearchParams(f: MediaFilters) {
 
 // Quick date ranges. `days` counts back from today; null means no lower bound.
 export const DATE_PRESETS = [
-  { label: "2 hari", days: 1 },
+  { label: "1 hari", days: 0 },
   { label: "7 hari", days: 6 },
   { label: "30 hari", days: 29 },
   { label: "Semua", days: null },
@@ -157,7 +157,9 @@ export function savedFilterValue(f: MediaFilters, type: MediaType) {
 /** The browser URL parameters a saved value stands for today. */
 export function savedFilterParams(value: string, type: MediaType) {
   const saved = new URLSearchParams(value);
-  const preset = DATE_PRESETS.find((p) => p.days != null && String(p.days) === saved.get("days"));
+  // "1" is the former “2 hari” range saved in a browser: it becomes “1 hari” rather than silently showing everything.
+  const days = saved.get("days") === "1" ? "0" : saved.get("days");
+  const preset = DATE_PRESETS.find((p) => p.days != null && String(p.days) === days);
   const filters = filtersFromSearchParams(saved, type);
   return browserFilterParams(preset ? { ...filters, ...presetRange(preset) } : filters, type);
 }

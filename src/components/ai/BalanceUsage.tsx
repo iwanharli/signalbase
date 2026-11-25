@@ -1,6 +1,7 @@
 "use client";
 // AI usage per hour or day with a switchable time range: provider credit spent (from balance snapshots)
-// or tokens billed (recorded per request, works for every provider).
+// or tokens billed (recorded per request, works for every provider). For AI labelling the cost is an estimate from its own
+// token records, since a drop in the account's balance can't be told apart from other uses of the same key.
 import { useEffect, useRef, useState } from "react";
 import { IconChartBar } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -8,13 +9,17 @@ import "dayjs/locale/id";
 import { useApi } from "@/lib/useApi";
 import classes from "./usage.module.css";
 import { rupiah } from "@/lib/ai/summary";
+import { USAGE_PARTS } from "@/lib/ai/labelAi";
 
 type Usage = {
   currency: string | null; current: number | null; checkedAt?: string; since: string | null; bucket?: "hour" | "day";
-  buckets: { start: string; spent: number; topUp: number }[];
-  tokens?: { start: string; input: number; output: number; calls: number }[];
+  buckets: { start: string; spent: number; topUp: number; parts?: number[]; searches?: number }[];
+  tokens?: { start: string; input: number; output: number; calls: number; parts?: number[] }[];
   models?: string[];
   kurs?: number | null;
+  /** Labelling only: false until its settings are saved; the live balance of the whole provider account. */
+  configured?: boolean;
+  balance?: { currency: string; total: number } | null;
 };
 type Mode = "balance" | "tokens";
 const compact = (n: number) => new Intl.NumberFormat("id-ID", { notation: n >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
@@ -40,11 +45,17 @@ function niceMax(value: number) {
 
 const H = 170, PAD = { top: 12, right: 8, bottom: 26, left: 52 };
 
-export function BalanceUsage({ keyId }: { keyId: string }) {
+export function BalanceUsage({ keyId, labelling }: { keyId: string; labelling?: boolean }) {
   const [days, setDays] = useState<string>("7");
   const [mode, setMode] = useState<Mode>("balance");
-  const usage = useApi<Usage>(`/api/admin/keys/${keyId}/classifier/usage?days=${days}`);
+  const usage = useApi<Usage>(`/api/admin/keys/${keyId}/${labelling ? "label-ai" : "classifier"}/usage?days=${days}`);
   const [hover, setHover] = useState<number | null>(null);
+  const refresh = usage.reload;
+  useEffect(() => {
+    if (!labelling) return;
+    const timer = setInterval(() => { if (!document.hidden) refresh(); }, 30_000);
+    return () => clearInterval(timer);
+  }, [labelling, refresh]);
   // Draw at the container's real width so text and bars keep their pixel size at any panel width.
   const plotRef = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(640);
@@ -60,9 +71,12 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
   const tokenMode = mode === "tokens";
   // One series for the chart: credit spent, or input + output tokens.
   const buckets = tokenMode
-    ? (data?.tokens ?? []).map((t) => ({ start: t.start, spent: t.input + t.output, topUp: 0, input: t.input, output: t.output, calls: t.calls }))
+    ? (data?.tokens ?? []).map((t) => ({ start: t.start, spent: t.input + t.output, topUp: 0, input: t.input, output: t.output, calls: t.calls, parts: t.parts, searches: undefined }))
     : (data?.buckets ?? []).map((b) => ({ ...b, input: 0, output: 0, calls: 0 }));
   const fmt = (v: number, digits = 2) => (tokenMode ? compact(v) : money(v, currency, digits));
+  // Labelling bars are stacked by part; categorisation has one series.
+  const parts = labelling ? USAGE_PARTS.map((p, i) => ({ ...p, i, total: buckets.reduce((s, b) => s + (b.parts?.[i] ?? 0), 0) })).filter((p) => !tokenMode || p.i < 2) : [];
+  const searches = buckets.reduce((s, b) => s + (b.searches ?? 0), 0);
   const spent = buckets.reduce((s, b) => s + b.spent, 0);
   const topUp = buckets.reduce((s, b) => s + b.topUp, 0);
   const inputTotal = buckets.reduce((s, b) => s + b.input, 0);
@@ -80,15 +94,17 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
   const fmtBucket = (iso: string, long = false) => dayjs(iso).locale("id").format(hourly ? (long ? "D MMM, HH:00" : "HH:00") : (long ? "dddd, D MMM YYYY" : "D MMM"));
   const hovered = hover !== null && spent + topUp > 0 ? buckets[hover] : null;
 
+  if (data?.configured === false) return null;
+
   return (
     <section className={classes.card}>
       <header className={classes.head}>
         <span className={classes.icon}><IconChartBar size={16} /></span>
         <div>
-          <b>{tokenMode ? "Penggunaan token" : "Penggunaan saldo"}</b>
+          <b>{tokenMode ? "Penggunaan token" : "Penggunaan saldo"}{labelling ? " · pelabelan AI" : ""}</b>
           <small>{tokenMode
-            ? `Token yang dipakai proyek ini per ${hourly ? "jam" : "hari"}${data?.models?.length ? ` · ${data.models.join(", ")}` : ""}`
-            : `Kredit penyedia AI yang terpakai per ${hourly ? "jam" : "hari"}`}</small>
+            ? `Token yang dipakai ${labelling ? "pelabelan AI " : ""}proyek ini per ${hourly ? "jam" : "hari"}${data?.models?.length ? ` · ${data.models.join(", ")}` : ""}`
+            : labelling ? `Perkiraan biaya pelabelan AI proyek ini per ${hourly ? "jam" : "hari"}` : `Kredit penyedia AI yang terpakai per ${hourly ? "jam" : "hari"}`}</small>
         </div>
         <div className={classes.ranges} role="tablist" aria-label="Satuan">
           {(["balance", "tokens"] as const).map((m) => (
@@ -103,13 +119,15 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
       </header>
 
       <div className={classes.stats}>
-        <div><small>{tokenMode ? "Total token" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir{!tokenMode && data && rupiah(spent, currency, data.kurs) ? ` · ${rupiah(spent, currency, data.kurs)}` : ""}</span></div>
+        <div><small>{tokenMode ? "Total token" : labelling ? "Perkiraan terpakai" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir{!tokenMode && data && rupiah(spent, currency, data.kurs) ? ` · ${rupiah(spent, currency, data.kurs)}` : ""}</span></div>
         {tokenMode ? <>
           <div><small>Input</small><b>{data ? compact(inputTotal) : "—"}</b><span>token prompt</span></div>
           <div><small>Output</small><b>{data ? compact(outputTotal) : "—"}</b><span>token jawaban</span></div>
         </> : <>
           <div><small>Rata-rata</small><b>{data ? money(average, currency) : "—"}</b><span>per {hourly ? "jam" : "hari"}{data && rupiah(average, currency, data.kurs) ? ` · ${rupiah(average, currency, data.kurs)}` : ""}</span></div>
-          <div><small>Top-up</small><b>{data ? money(topUp, currency) : "—"}</b><span>dalam rentang</span></div>
+          {labelling
+            ? <div><small>Sisa saldo</small><b>{data?.balance ? money(data.balance.total, data.balance.currency) : "—"}</b><span>{data?.balance ? `saldo seluruh akun${rupiah(data.balance.total, data.balance.currency, data.kurs) ? ` · ${rupiah(data.balance.total, data.balance.currency, data.kurs)}` : ""}` : data ? "tidak bisa dicek" : ""}</span></div>
+            : <div><small>Top-up</small><b>{data ? money(topUp, currency) : "—"}</b><span>dalam rentang</span></div>}
         </>}
       </div>
 
@@ -128,7 +146,16 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
               return (
                 <g key={b.start}>
                   {hovered && hover === i && <rect x={PAD.left + i * step} y={PAD.top} width={step} height={plotH} className={classes.hoverBand} />}
-                  {h > 0 && <path className={classes.bar} data-dim={(hover !== null && hover !== i) || undefined}
+                  {labelling && h > 0 && (
+                    <g className={classes.stack} data-dim={(hover !== null && hover !== i) || undefined}>
+                      {parts.map((p) => {
+                        const value = b.parts?.[p.i] ?? 0;
+                        const below = (b.parts ?? []).slice(0, p.i).reduce((s, v) => s + v, 0);
+                        return value > 0 && <rect key={p.label} x={x} width={barW} y={y(below + value)} height={y(below) - y(below + value)} fill={p.color} />;
+                      })}
+                    </g>
+                  )}
+                  {!labelling && h > 0 && <path className={classes.bar} data-dim={(hover !== null && hover !== i) || undefined}
                     d={`M${x},${y(0)} V${y(b.spent) + Math.min(4, h)} a${Math.min(4, barW / 2, h)},${Math.min(4, barW / 2, h)} 0 0 1 ${Math.min(4, barW / 2, h)},-${Math.min(4, barW / 2, h)} H${x + barW - Math.min(4, barW / 2, h)} a${Math.min(4, barW / 2, h)},${Math.min(4, barW / 2, h)} 0 0 1 ${Math.min(4, barW / 2, h)},${Math.min(4, barW / 2, h)} V${y(0)} Z`} />}
                   {b.topUp > 0 && <circle cx={x + barW / 2} cy={y(b.spent) - 9} r={4} className={classes.topUp} />}
                   {i % labelEvery === 0 && <text x={x + barW / 2} y={H - 8} className={classes.tick} textAnchor="middle">{fmtBucket(b.start)}</text>}
@@ -142,13 +169,14 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
             <div className={classes.tooltip} style={{ left: Math.min(W - 70, Math.max(70, PAD.left + hover! * step + step / 2)) }}>
               <small>{fmtBucket(hovered.start, true)}</small>
               <b>{tokenMode ? `${compact(hovered.spent)} token` : money(hovered.spent, currency, 4)}</b>
-              <span>{tokenMode ? `${compact(hovered.input)} input · ${compact(hovered.output)} output · ${hovered.calls} permintaan` : "terpakai"}</span>
+              <span>{tokenMode ? `${compact(hovered.input)} input · ${compact(hovered.output)} output · ${hovered.calls} permintaan` : labelling ? "perkiraan" : "terpakai"}</span>
+              {parts.map((p) => <span key={p.label}><i className={classes.swatch} style={{ background: p.color }} />{p.label}: {tokenMode ? compact(hovered.parts?.[p.i] ?? 0) : money(hovered.parts?.[p.i] ?? 0, currency, 4)}{!tokenMode && p.i === 2 ? ` · ${hovered.searches ?? 0} pencarian` : ""}</span>)}
               {hovered.topUp > 0 && <em>+{money(hovered.topUp, currency)} top-up</em>}
             </div>
           )}
           {spent === 0 && (
             <p className={classes.empty}>
-              {tokenMode ? "Belum ada token tercatat dalam rentang ini. Token dicatat untuk setiap permintaan ke penyedia AI."
+              {labelling ? "Belum ada pemakaian pelabelan AI dalam rentang ini." : tokenMode ? "Belum ada token tercatat dalam rentang ini. Token dicatat untuk setiap permintaan ke penyedia AI."
                 : data.since
                 ? `Belum ada saldo terpakai dalam rentang ini. Riwayat tercatat sejak ${dayjs(data.since).locale("id").format("D MMM YYYY, HH:mm")}.`
                 : "Belum ada riwayat saldo. Saldo dicatat setiap 15 menit selama kategorisasi berjalan, dan setiap kali saldo diperbarui."}
@@ -156,6 +184,12 @@ export function BalanceUsage({ keyId }: { keyId: string }) {
           )}
         </div>
       )}
+      {labelling && data && (
+        <div className={classes.legend}>
+          {parts.map((p) => <span key={p.label}><i className={classes.swatch} style={{ background: p.color }} />{p.label} <b>{tokenMode ? compact(p.total) : money(p.total, currency)}</b>{!tokenMode && p.i === 2 ? ` · ${searches.toLocaleString("id-ID")} pencarian` : ""}</span>)}
+        </div>
+      )}
+      {labelling && !tokenMode && <p className={classes.hint}>Perkiraan: token dikali harga model, ditambah US$0,75 per 1.000 pencarian yang ada hasilnya (daftar harga DeepSeek, 26 Nov 2026). Bisa berbeda dari tagihan. Pemakaian sebelum rincian ini dicatat masuk Penyaringan, tanpa biaya pencarian.</p>}
     </section>
   );
 }

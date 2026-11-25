@@ -76,6 +76,9 @@ test("saved filters: a quick range is saved as its length and restored relative 
   const value = savedFilterValue({ ...defaultFilters("online"), ...presetRange(week) }, "online");
   assert.equal(value, "days=6");
   assert.equal(savedFilterParams(value, "online").get("from"), presetRange(week).from);
+  assert.deepEqual(DATE_PRESETS.map((p) => p.days), [0, 6, 29, null]);
+  // The former “2 hari” saved in a browser restores as “1 hari”.
+  assert.equal(savedFilterParams("days=1", "online").get("from"), presetRange(DATE_PRESETS[0]).from);
 });
 
 test("an incoming link: filters are taken off the URL and remembered, the project stays", () => {

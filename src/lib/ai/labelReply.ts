@@ -62,6 +62,10 @@ export const needsReview = (l: { score: number; disputed: boolean; sources: Sour
 
 type Block = { type?: string; text?: string; content?: unknown; input?: { query?: unknown } };
 
+/** Searches the provider charges for: only those that returned results. */
+export const billableSearches = (content: unknown) => (Array.isArray(content) ? (content as Block[]) : [])
+  .filter((b) => b?.type === "web_search_tool_result" && Array.isArray(b.content) && b.content.length > 0).length;
+
 /**
  * The web search reply (Anthropic-compatible content blocks): what was searched, the pages the API itself returned, and
  * the model's closing text. Throws when no search actually ran, so nothing is stored as checked without one.

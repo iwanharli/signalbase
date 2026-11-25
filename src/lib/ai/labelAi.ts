@@ -39,3 +39,36 @@ export type LabelAiSaved = { provider: LabelAiProviderId; model: string; apiKeyH
 /** What the label worker has done for the project. */
 export type LabelAiProgress = { processed: number; failed: number; todayCount: number; lastError: string | null; lastRunAt: string | null; inputTokens: number; outputTokens: number };
 export type LabelAiState = { saved: LabelAiSaved | null; progress?: LabelAiProgress | null };
+
+const USAGE_HOUR = 3_600_000, USAGE_DAY = 24 * USAGE_HOUR;
+
+/** The chart's stacked parts, bottom first. */
+export const USAGE_PARTS = [
+  { label: "Penyaringan", color: "#a78bfa" },
+  { label: "Token cek sumber", color: "#22d3ee" },
+  { label: "Biaya pencarian", color: "#fbbf24" },
+] as const;
+type Parts = [number, number, number];
+export type UsageRow = {
+  hour: Date; model: string; inputTokens: number; cachedTokens: number; outputTokens: number; calls: number;
+  checkInputTokens: number; checkCachedTokens: number; checkOutputTokens: number; searches: number;
+};
+
+/** Labelling usage per bucket, split into USAGE_PARTS: estimated cost (`parts`) and tokens (`tokenParts`, none for the
+ *  search fee). `price` returns the cost of each part of one row. Rows outside the range are ignored. */
+export function usageSeries(rows: UsageRow[], from: Date, end: number, hourly: boolean, price: (row: UsageRow) => Parts) {
+  const size = hourly ? USAGE_HOUR : USAGE_DAY;
+  const out = Array.from({ length: Math.max(1, Math.round((end - from.getTime()) / size)) }, (_, i) => ({
+    start: new Date(from.getTime() + i * size).toISOString(), spent: 0, input: 0, output: 0, calls: 0, searches: 0,
+    parts: [0, 0, 0] as Parts, tokenParts: [0, 0, 0] as Parts,
+  }));
+  for (const row of rows) {
+    const b = out[Math.floor((row.hour.getTime() - from.getTime()) / size)];
+    if (!b) continue;
+    price(row).forEach((v, i) => { b.parts[i] += v; b.spent += v; });
+    const check = row.checkInputTokens + row.checkOutputTokens;
+    b.tokenParts[0] += row.inputTokens + row.outputTokens - check; b.tokenParts[1] += check;
+    b.input += row.inputTokens; b.output += row.outputTokens; b.calls += row.calls; b.searches += row.searches;
+  }
+  return out;
+}

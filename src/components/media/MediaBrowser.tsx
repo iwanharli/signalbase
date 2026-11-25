@@ -148,8 +148,6 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
           type={type}
           filters={filters}
           onChange={update}
-          onReset={reset}
-          activeCount={activeCount}
           advancedCount={advancedCount}
           advancedOpen={drawerOpen}
           onToggleAdvanced={() => setDrawerOpen((open) => !open)}

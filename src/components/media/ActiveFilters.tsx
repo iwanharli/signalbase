@@ -1,5 +1,5 @@
 "use client";
-import { ANY_LABEL } from "@/lib/media/manualLabels";
+import { LABEL_FILTER_NAMES } from "@/lib/media/manualLabels";
 import { IconFilterOff, IconX } from "@tabler/icons-react";
 import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { humanize, POST_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
@@ -28,7 +28,7 @@ export function ActiveFilters({ filters: f, options, onChange, onReset, canReset
   if (f.minLevel) add("level", `Intensitas ≥ ${f.minLevel}`, { minLevel: "" });
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
   if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
-  if (f.manualLabel) add("manualLabel", f.manualLabel === ANY_LABEL ? "Sudah diberi label" : `Label: ${f.manualLabel}`, { manualLabel: null });
+  if (f.manualLabel) add("manualLabel", LABEL_FILTER_NAMES[f.manualLabel] ?? `Label: ${f.manualLabel}`, { manualLabel: null });
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">
     {chips.length > 0 && <span>Filter aktif</span>}
     {chips.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={14} aria-hidden /></button>)}

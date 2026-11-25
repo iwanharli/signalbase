@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { labelAiSchema } from "../src/lib/ai/labelAi";
-import { backoffMs, labelErrorKind, needsReview, parseLabelReply, parseVerdict, reachesFurther, readSearchReply } from "../src/lib/ai/labelReply";
+import { labelAiSchema, usageSeries } from "../src/lib/ai/labelAi";
+import { backoffMs, labelErrorKind, needsReview, parseLabelReply, parseVerdict, reachesFurther, readSearchReply, billableSearches } from "../src/lib/ai/labelReply";
 import { labelAiConfig, publicLabelAi, storedKeyFor } from "../src/lib/server/ai/labelAi";
 
 const input = { provider: "deepseek", model: "deepseek-flash", apiKey: "", prompt: null, startFrom: null };
@@ -23,7 +23,7 @@ test("a stored key is only used with the provider it was entered for", () => {
 test("the panel never receives the stored key", () => {
   const now = new Date();
   const out = publicLabelAi({ apiKeyId: "p", provider: "grok", model: "m", keyEnc: "sealed-secret", keyHint: "abcd", prompt: null, startFrom: null, updatedBy: "u", createdAt: now, updatedAt: now, savedAt: now, enabled: false, dailyLimit: 500,
-    cursors: {}, processed: 0, failed: 0, todayCount: 0, todayDate: "", errorStreak: 0, retryAfter: null, lastError: null, lastRunAt: null });
+    cursors: {}, processed: 0, failed: 0, todayCount: 0, todayDate: "", errorStreak: 0, retryAfter: null, lastError: null, lastRunAt: null, scopeCounts: null });
   assert.doesNotMatch(JSON.stringify(out), /sealed-secret|keyEnc/);
 });
 
@@ -82,4 +82,12 @@ test("labels are only checked by a search that ran, and keep only URLs the searc
   assert.deepEqual(out.map((l) => [l.label, l.score, l.sources.map((s) => s.url), needsReview(l)]), [["Hoaks", 90, ["https://a.id/1"], false], ["Provokasi", 20, [], true]]);
   assert.throws(() => parseVerdict(JSON.stringify({ labels: [verdict("Hoaks", 90, false, [])] }), candidates, reply.results), /semua label/);
   assert.throws(() => parseVerdict("tidak ada", candidates, reply.results), /JSON/);
+});
+
+test("labelling usage is split per bucket into screening, source check and search fee", () => {
+  const from = new Date("2026-11-24T17:00:00Z");
+  const row = (hour: string, tokens: number, check = 0, searches = 0) => ({ hour: new Date(hour), model: "m", inputTokens: tokens, cachedTokens: 0, outputTokens: 1, calls: 1, checkInputTokens: check, checkCachedTokens: 0, checkOutputTokens: 0, searches });
+  const out = usageSeries([row("2026-11-24T16:00:00Z", 99), row("2026-11-24T17:00:00Z", 10), row("2026-11-25T16:00:00Z", 20, 15, 2), row("2026-11-25T17:00:00Z", 5)], from, from.getTime() + 2 * 86_400_000, false, (r) => [r.inputTokens - r.checkInputTokens, r.checkInputTokens, r.searches * 10]);
+  assert.deepEqual(out.map((b) => [b.input, b.spent, b.parts, b.tokenParts, b.searches]), [[30, 50, [15, 15, 20], [17, 15, 0], 2], [5, 5, [5, 0, 0], [6, 0, 0], 0]]);
+  assert.equal(billableSearches([{ type: "web_search_tool_result", content: [{}] }, { type: "web_search_tool_result", content: [] }, { type: "web_search_tool_result", content: { error_code: "x" } }]), 1);
 });

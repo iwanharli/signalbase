@@ -31,10 +31,6 @@
 .search kbd { font: 700 11px ui-monospace, monospace; padding: 2px 7px; border-radius: 6px; color: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.2); }
 .search button { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 8px; cursor: pointer; color: #fff; background: rgba(255,255,255,.1); }
 
-.reset { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 99px; cursor: pointer; font-weight: 700; font-size: 12px; font-family: inherit;
-  color: #fda4af; background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.3); animation: enter 260ms ease both; }
-.reset:hover { background: rgba(244,63,94,.2); }
-
 .quick { --segment-height: 30px; }
 .quickSegmented, .sortSegmented, .viewSegmented { flex-shrink: 0; }
 .quickSegmented button, .sortSegmented button, .viewSegmented button { padding: 0 10px; }
@@ -135,7 +131,7 @@
 .activeFilters button { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; overflow-wrap: anywhere; text-align: left; min-height: 36px; padding: 6px 11px; border: 1px solid var(--mantine-color-violet-2); border-radius: 10px; background: var(--mantine-color-violet-0); color: var(--mantine-color-violet-9); font: inherit; font-size: 12.5px; cursor: pointer; }
 .activeFilters button svg { flex-shrink: 0; }
 .activeFilters button:hover { background: var(--mantine-color-violet-1); }
-.activeFilters button:focus-visible, .toggle:focus-visible, .reset:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 3px; }
+.activeFilters button:focus-visible, .toggle:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 3px; }
 /* Doubled class: must beat the chip button rules above and in dark mode. */
 .activeFilters button.resetAll.resetAll { margin-left: auto; font-weight: 700; color: #fff; background: var(--mantine-color-red-7); border-color: var(--mantine-color-red-7); }
 .activeFilters button.resetAll.resetAll:hover:not(:disabled) { background: var(--mantine-color-red-8); }

@@ -1,6 +1,6 @@
 // The source check of AI labelling: one call per labelled post, with DeepSeek's server-side web search (its
 // Anthropic-compatible API). The search runs on their side; we get its results back along with the answer.
-import { parseVerdict, readSearchReply, type AiLabel } from "@/lib/ai/labelReply";
+import { billableSearches, parseVerdict, readSearchReply, type AiLabel } from "@/lib/ai/labelReply";
 import { decryptSecret } from "../secrets";
 import type { CallUsage, ProviderConfig } from "./providers";
 
@@ -37,7 +37,7 @@ export async function checkSources(config: ProviderConfig, system: string, text:
   const u = body?.usage;
   if (u) {
     const cached = Number(u.cache_read_input_tokens) || 0;
-    onUsage({ input: (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0), cached, output: Number(u.output_tokens) || 0 });
+    onUsage({ input: (Number(u.input_tokens) || 0) + cached + (Number(u.cache_creation_input_tokens) || 0), cached, output: Number(u.output_tokens) || 0, searches: billableSearches(body.content) });
   }
   if (body?.stop_reason !== "end_turn") throw new Error(`Jawaban hasil pencarian tidak selesai (${body?.stop_reason ?? "tanpa alasan"})`);
   const reply = readSearchReply(body.content);

@@ -8,7 +8,7 @@ import { clampHistory } from "@/lib/server/plan";
 import { analysisForPlan } from "@/lib/media/planAnalysis";
 import { countCapped, fetchItemsByCode, filterOptions, listItems, moodBreakdown, moodsForCodes } from "@/lib/server/bank";
 import { matchedKeywords } from "@/lib/server/bank/socialMetadata";
-import { firstManualLabel } from "@/lib/media/manualLabels";
+import { ANY_LABEL, firstManualLabel } from "@/lib/media/manualLabels";
 import { itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
 import { withImageSearch } from "@/lib/server/media/textSignals";
 
@@ -44,6 +44,7 @@ export const GET = apiRoute(async (req: Request, { params }: Context, { keyId, s
     const [categories, labelChoices] = await Promise.all([keyCategories(keyId, type), projectLabels(keyId)]);
     // Manual labels (set by people in the panel; separate from AI categorisation).
     const manualLabel = query.get("label");
+    if (manualLabel?.startsWith("__") && manualLabel !== ANY_LABEL) return NextResponse.json({ error: "Nilai label tidak dikenal" }, { status: 400 });
     if (manualLabel && !labelChoices) return NextResponse.json({ error: "Kunci ini tidak memakai label manual" }, { status: 400 });
 
     if (query.get("view") === "trend") {

@@ -91,10 +91,16 @@ const itemKey = (apiKeyId: string, type: MediaType, code: string) => ({ apiKeyId
 function recordUsage(apiKeyId: string, model: string) {
   return (u: CallUsage) => {
     const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
+    const check = u.searches === undefined
+      ? { checkInputTokens: 0, checkCachedTokens: 0, checkOutputTokens: 0, searches: 0 }
+      : { checkInputTokens: u.input, checkCachedTokens: u.cached, checkOutputTokens: u.output, searches: u.searches };
     prisma.labelAiUsage.upsert({
       where: { apiKeyId_hour_model: { apiKeyId, hour, model } },
-      create: { apiKeyId, hour, model, inputTokens: u.input, cachedTokens: u.cached, outputTokens: u.output, calls: 1 },
-      update: { inputTokens: { increment: u.input }, cachedTokens: { increment: u.cached }, outputTokens: { increment: u.output }, calls: { increment: 1 } },
+      create: { apiKeyId, hour, model, inputTokens: u.input, cachedTokens: u.cached, outputTokens: u.output, calls: 1, ...check },
+      update: { inputTokens: { increment: u.input }, cachedTokens: { increment: u.cached }, outputTokens: { increment: u.output }, calls: { increment: 1 },
+        checkInputTokens: { increment: check.checkInputTokens }, checkCachedTokens: { increment: check.checkCachedTokens },
+        checkOutputTokens: { increment: check.checkOutputTokens }, searches: { increment: check.searches },
+      },
     }).catch(() => {});
   };
 }
