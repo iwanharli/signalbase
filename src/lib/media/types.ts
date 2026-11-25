@@ -63,8 +63,11 @@ export type MediaItem = {
   author?: Author | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;
-  /** Manual label within the project being viewed (?key=); absent without a project. Not AI categorisation. */
-  manualLabel?: string | null;
+  /** Panel: labels within the project being viewed (?key=), in the project's order; absent without a project. Not AI
+   *  categorisation. */
+  manualLabels?: string[];
+  /** Panel: AI's confidence (0-100), reason and source links for the labels it gave, by label. */
+  aiLabels?: Record<string, { score: number | null; reason: string | null; needsReview?: boolean; sources?: { url: string; title: string }[] }>;
   /** Shown through a project whose keywords appear only in the item's image text (media worker), not in its text. */
   matchedByImage?: boolean;
   /** Extra metadata returned only by the admin social feed. */

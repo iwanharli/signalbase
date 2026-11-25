@@ -113,7 +113,8 @@ async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: stri
     signal: AbortSignal.timeout(120_000),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? res.statusText}`);
+  // Most providers answer {error: {message}}; xAI sends the message as a plain string.
+  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? (typeof body?.error === "string" ? body.error : res.statusText)}`);
   if (body?.usage) onUsage?.({ input: Number(body.usage.prompt_tokens) || 0, output: Number(body.usage.completion_tokens) || 0 });
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("Respons penyedia AI tidak berisi teks");
@@ -144,7 +145,11 @@ export function providerErrorMessage(error: unknown) {
 }
 
 /** Tokens of one call, with the part of the input the provider served from its cache. */
-export type CallUsage = { input: number; cached: number; output: number };
+export type CallUsage = {
+  input: number; cached: number; output: number;
+  /** Set only by the labelling source check: web searches that returned results. */
+  searches?: number;
+};
 
 /** Parses a JSON reply, tolerating a ```json fence some models add. */
 const parseJsonReply = (text: string) => JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
@@ -153,7 +158,9 @@ const parseJsonReply = (text: string) => JSON.parse(text.trim().replace(/^```(?:
  * One free-form request that must answer with a JSON object (e.g. Ringkasan AI). Reports usage even when the reply
  * turns out unusable, so the cost is still recorded.
  */
-export async function completeJson(config: ProviderConfig, system: string, user: string, onUsage: (u: CallUsage) => void, maxTokens = 6000): Promise<unknown> {
+export async function completeJson(config: ProviderConfig, system: string, user: string, onUsage: (u: CallUsage) => void, maxTokens = 6000,
+  /** Provider-specific request fields (OpenAI-compatible only). */
+  extra: Record<string, unknown> = {}): Promise<unknown> {
   const apiKey = decryptSecret(config.apiKeyEnc);
   if (config.kind === "anthropic") {
     const client = new Anthropic({ apiKey, timeout: 180_000, maxRetries: 2 });
@@ -174,13 +181,13 @@ export async function completeJson(config: ProviderConfig, system: string, user:
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: config.model, max_tokens: maxTokens, response_format: { type: "json_object" },
+      model: config.model, max_tokens: maxTokens, response_format: { type: "json_object" }, ...extra,
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
     }),
     signal: AbortSignal.timeout(180_000),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? res.statusText}`);
+  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? (typeof body?.error === "string" ? body.error : res.statusText)}`);
   const u = body?.usage;
   // DeepSeek reports prompt_cache_hit_tokens; OpenAI prompt_tokens_details.cached_tokens.
   if (u) onUsage({ input: Number(u.prompt_tokens) || 0, cached: Number(u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens) || 0, output: Number(u.completion_tokens) || 0 });

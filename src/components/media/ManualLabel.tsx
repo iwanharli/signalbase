@@ -1,18 +1,19 @@
 "use client";
-// Strip at the top of each card to give a post or article one of the project's manual labels (not AI categorisation).
+// Strip at the top of each card to give a post or article one or more of the project's labels (not AI categorisation).
 // MediaBrowser provides the project's choices through ManualLabelContext; without a project, or without choices, nothing shows.
-// Each choice keeps one colour (by its position in the project's list), so labelled cards are easy to spot in the grid.
+// Each choice keeps one colour (by its position in the project's list), so labelled cards are easy to spot in the grid; the strip takes the first one's colour.
 import { createContext, useContext, useEffect, useState } from "react";
 import { Loader, Menu } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconChevronDown, IconTag, IconX } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { labelColor as colorOf } from "@/lib/media/manualLabels";
+import { REVIEW_LABEL_SCORE } from "@/lib/ai/labelReply";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import classes from "./manualLabel.module.css";
 
 /** onLabelled: lets the page re-render, so a label set in the detail modal shows on its card at once (and vice versa). */
-export type ManualLabelContextValue = { keyId: string; type: MediaType; options: string[]; canLabel: boolean; onLabelled?: (code: string, label: string | null) => void };
+export type ManualLabelContextValue = { keyId: string; type: MediaType; options: string[]; canLabel: boolean; onLabelled?: (code: string, labels: string[]) => void };
 export const ManualLabelContext = createContext<ManualLabelContextValue | null>(null);
 
 
@@ -20,62 +21,89 @@ export const ManualLabelContext = createContext<ManualLabelContextValue | null>(
  *  panel: a rounded box of its own (the detail modal's side panel). */
 export function ManualLabelPicker({ item, bleed, panel }: { item: MediaItem; bleed?: boolean; panel?: boolean }) {
   const ctx = useContext(ManualLabelContext);
-  const [value, setValue] = useState<string | null>(item.manualLabel ?? null);
+  const [values, setValues] = useState<string[]>(item.manualLabels ?? []);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setValue(item.manualLabel ?? null), [item.manualLabel]);
+  useEffect(() => setValues(item.manualLabels ?? []), [item.manualLabels]);
   if (!ctx || !ctx.options.length) return null;
 
-  const change = async (next: string | null) => {
-    if (next === value) return;
-    const before = value;
-    setValue(next);
+  /** Puts one label on or takes it off; null clears them all. The server answers with the item's labels. */
+  const change = async (label: string | null, on = false) => {
     setBusy(true);
     try {
-      await post(`/api/admin/keys/${ctx.keyId}/item-labels`, { type: ctx.type, code: item.code, label: next }, "PUT");
-      item.manualLabel = next; // the feed shares this object, so the label survives re-renders
-      ctx.onLabelled?.(item.code, next);
+      const { labels } = await post(`/api/admin/keys/${ctx.keyId}/item-labels`, { type: ctx.type, code: item.code, label, on }, "PUT") as { labels: string[] };
+      setValues(labels);
+      item.manualLabels = labels; // the feed shares this object, so the labels survive re-renders
+      // A label a person just put on or took off is no longer the AI's.
+      if (label === null) item.aiLabels = {};
+      else if (item.aiLabels) delete item.aiLabels[label];
+      ctx.onLabelled?.(item.code, labels);
     } catch (err) {
-      setValue(before);
       notifications.show({ color: "red", message: `Label tidak tersimpan: ${(err as Error).message}` });
     } finally {
       setBusy(false);
     }
   };
 
-  const color = value ? colorOf(ctx.options, value) : null;
+  const tint = (option: string) => ({ ["--label" as string]: `var(--mantine-color-${colorOf(ctx.options, option)}-6)` });
+  const set = values.length > 0;
   const pill = (
-    <button type="button" className={classes.pill} data-set={value ? true : undefined} disabled={!ctx.canLabel || busy}
-      aria-label={value ? `Label: ${value}${ctx.canLabel ? ", ubah" : ""}` : "Beri label"}>
-      {busy ? <Loader size={11} color="currentColor" /> : value ? <i className={classes.dot} /> : <IconTag size={13} />}
-      <span>{value ?? (ctx.canLabel ? "Beri label" : "Belum diberi label")}</span>
-      {ctx.canLabel && <IconChevronDown size={13} className={classes.chevron} />}
+    <button type="button" className={classes.pills} disabled={!ctx.canLabel || busy}
+      aria-label={set ? `Label: ${values.map((v) => (item.aiLabels?.[v] ? `${v} (dugaan AI ${item.aiLabels[v].score ?? "?"}%)` : v)).join(", ")}${ctx.canLabel ? ", ubah" : ""}` : "Beri label"}>
+      {set ? values.map((value) => {
+        const fromAi = item.aiLabels?.[value];
+        const unsure = !!fromAi && (fromAi.needsReview ?? (fromAi.score ?? 0) < REVIEW_LABEL_SCORE);
+        return (
+          <span key={value} className={classes.pill} data-set style={tint(value)} title={fromAi ? `Dugaan AI ${fromAi.score ?? "?"}%${unsure ? " · perlu diperiksa" : ""}${fromAi.reason ? ` — ${fromAi.reason}` : ""}` : undefined}>
+            <i className={classes.dot} /><span>{value}{fromAi ? ` · AI ${fromAi.score ?? "?"}%${unsure ? " · periksa" : ""}` : ""}</span>
+          </span>
+        );
+      }) : <span className={classes.pill}><IconTag size={13} /><span>{ctx.canLabel ? "Beri label" : "Belum diberi label"}</span></span>}
+      {busy ? <Loader size={11} color="currentColor" /> : ctx.canLabel && <IconChevronDown size={13} className={classes.chevron} />}
     </button>
   );
 
+  // The detail panel also spells out what the AI said and where its search found support.
+  const notes = panel ? values.flatMap((value) => (item.aiLabels?.[value] ? [{ value, ...item.aiLabels[value] }] : [])) : [];
+
   // Clicks inside (the menu is portalled, but React events still bubble here) must not open the detail modal.
-  return (
-    <div className={classes.bar} data-set={value ? true : undefined} data-bleed={bleed || undefined} data-panel={panel || undefined} style={color ? { ["--label" as string]: `var(--mantine-color-${color}-6)` } : undefined}
+  const bar = (
+    <div className={classes.bar} data-set={set || undefined} data-bleed={bleed || undefined} data-panel={panel || undefined} style={set ? tint(values[0]) : undefined}
       onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <span className={classes.caption}>Label</span>
       {ctx.canLabel ? (
-        <Menu position="bottom-start" shadow="md" radius="md" width={220} withinPortal>
+        <Menu position="bottom-start" shadow="md" radius="md" width={220} withinPortal closeOnItemClick={false}>
           <Menu.Target>{pill}</Menu.Target>
           <Menu.Dropdown>
-            <Menu.Label>Pilih label</Menu.Label>
+            <Menu.Label>Pilih label (bisa lebih dari satu)</Menu.Label>
             {ctx.options.map((option) => (
-              <Menu.Item key={option} onClick={() => change(option)}
-                leftSection={<i className={classes.dot} style={{ ["--label" as string]: `var(--mantine-color-${colorOf(ctx.options, option)}-6)` }} />}
-                rightSection={option === value ? <IconCheck size={14} /> : null}>
+              <Menu.Item key={option} disabled={busy} onClick={() => change(option, !values.includes(option))} role="menuitemcheckbox" aria-checked={values.includes(option)}
+                leftSection={<i className={classes.dot} style={tint(option)} />}
+                rightSection={values.includes(option) ? <IconCheck size={14} /> : null}>
                 {option}
               </Menu.Item>
             ))}
-            {value && <>
+            {set && <>
               <Menu.Divider />
-              <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={() => change(null)}>Hapus label</Menu.Item>
+              <Menu.Item color="red" disabled={busy} leftSection={<IconX size={14} />} onClick={() => change(null)}>Hapus semua label</Menu.Item>
             </>}
           </Menu.Dropdown>
         </Menu>
       ) : pill}
+    </div>
+  );
+  if (!notes.length) return bar;
+  return (
+    <div className={classes.withNotes}>
+      {bar}
+      {notes.map((note) => (
+        <div key={note.value} className={classes.note} style={tint(note.value)}>
+          <b>{note.value} · dugaan AI {note.score ?? "?"}%</b>
+          {note.reason && <p>{note.reason}</p>}
+          {note.sources?.length ? (
+            <ul>{note.sources.map((s) => <li key={s.url}><a href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> <small>{new URL(s.url).hostname}</small></li>)}</ul>
+          ) : <p><small>{note.sources ? "Tidak ada sumber pendukung yang tercatat." : ""}</small></p>}
+        </div>
+      ))}
     </div>
   );
 }

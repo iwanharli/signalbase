@@ -74,10 +74,10 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
   // Manual labels of the project (separate from AI categorisation): the dropdown on each card.
   const labelSettings = useApi<LabelSettings>(keyId ? `/api/admin/keys/${keyId}/labels` : null);
   const [, setLabelVersion] = useState(0);
-  const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel, onLabelled: (code: string, label: string | null) => {
+  const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel, onLabelled: (code: string, labels: string[]) => {
     // The modal may hold a copy of the item (after an AI correction): update the feed's own object too, then re-render.
     const target = feed.items.find((i) => i.code === code);
-    if (target) target.manualLabel = label;
+    if (target) target.manualLabels = labels;
     setLabelVersion((v) => v + 1);
   } } : null;
   const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
@@ -148,8 +148,6 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
           type={type}
           filters={filters}
           onChange={update}
-          onReset={reset}
-          activeCount={activeCount}
           advancedCount={advancedCount}
           advancedOpen={drawerOpen}
           onToggleAdvanced={() => setDrawerOpen((open) => !open)}

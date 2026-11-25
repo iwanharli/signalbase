@@ -62,6 +62,9 @@ model ApiKey {
   /// Manual label choices of this project (in order), set by its owner or an admin; people label posts with one of them.
   manualLabels    String[]          @default([])
   itemLabels      ItemLabel[]
+  labelAi         LabelAi?
+  labelAiItems    LabelAiItem[]
+  labelAiUsage    LabelAiUsage[]
 }
 
 // AI categorisation settings and progress for one API key.
@@ -313,7 +316,75 @@ model ProjectMember {
   @@index([accountId])
 }
 
-/// The manual label a person gave one post or article within one project (one label per item per project).
+/// AI labelling settings of one project ("Kustomisasi Label"), with its own provider key.
+model LabelAi {
+  apiKeyId  String    @id
+  apiKey    ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  provider  String // "deepseek" | "grok"; the address follows from it, see lib/ai/labelAi.ts
+  model     String
+  keyEnc    String // AES-256-GCM, see lib/server/secrets.ts
+  keyHint   String // last 4 characters, for display only
+  prompt    String? // null = the default built from the project's labels
+  startFrom DateTime? // oldest publish time to label; null = the whole scope
+  updatedBy String
+  savedAt   DateTime  @default(now()) // last save by a person (updatedAt also moves with the worker)
+  enabled    Boolean @default(false)
+  dailyLimit Int     @default(500) // posts sent per day (Jakarta)
+  // Worker state. Cursors per media type: { social: { newest, oldest, backfillDone, ... } }
+  cursors     Json      @default("{}")
+  processed   Int       @default(0)
+  failed      Int       @default(0)
+  todayCount  Int       @default(0)
+  todayDate   String    @default("")
+  errorStreak Int       @default(0)
+  retryAfter  DateTime?
+  lastError   String?
+  lastRunAt   DateTime?
+  /// Posts in the labelling range, cached because counting the source is slow.
+  scopeCounts Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+/// What AI labelling has done with each post of a project, or that a person decided it.
+model LabelAiItem {
+  apiKeyId    String
+  apiKey      ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  type        String // "social" | "online"
+  code        String
+  status      String // "done" | "empty" (no label fits) | "failed" | "waiting_text" | "human" (AI leaves it alone)
+  attempts    Int       @default(0)
+  retryAfter  DateTime?
+  error       String?
+  model       String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@id([apiKeyId, type, code])
+  @@index([apiKeyId, type, status, retryAfter])
+}
+
+/// Tokens of AI labelling per hour and model, kept apart from categorisation's.
+model LabelAiUsage {
+  apiKeyId     String
+  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  hour         DateTime
+  model        String
+  inputTokens  Int      @default(0)
+  cachedTokens Int      @default(0)
+  outputTokens Int      @default(0)
+  calls        Int      @default(0)
+  // The source check's share of the tokens above (0 for rows from before it was kept apart), and its billable searches.
+  checkInputTokens  Int @default(0)
+  checkCachedTokens Int @default(0)
+  checkOutputTokens Int @default(0)
+  searches          Int @default(0)
+
+  @@id([apiKeyId, hour, model])
+}
+
+/// One label of one post or article within one project; an item can carry several (one row each).
 model ItemLabel {
   apiKeyId  String
   apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
@@ -321,9 +392,15 @@ model ItemLabel {
   code      String
   label     String
   setBy     String // username
-  updatedAt DateTime @updatedAt
+  source    String   @default("human") // "human" | "ai"
+  /// AI confidence 0-100; null for a label a person gave.
+  score          Int?
+  additionalData Json?    @map("additional_data")
+  /// Rows older than this column carry the time it was added, not when the label was given.
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt
 
-  @@id([apiKeyId, type, code])
+  @@id([apiKeyId, type, code, label])
   @@index([apiKeyId, label])
 }
 

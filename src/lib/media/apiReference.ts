@@ -57,7 +57,7 @@ export const PARAM_GROUPS: { title: string; params: Param[] }[] = [
   {
     title: "Label manual (kunci dengan pilihan label)",
     params: [
-      { name: "label", values: "nama label, mis. Hoaks; __any", description: "Item yang diberi label itu oleh tim Anda di panel (__any = semua yang sudah diberi label). Bisa digabung dengan filter lain, aiCategory, dan view=summary. Pilihan label ada di view=options (manualLabels)." },
+      { name: "label", values: "nama label, mis. Hoaks; __any", description: "Item yang diberi label itu, oleh tim Anda di panel atau oleh AI (__any = semua yang sudah diberi label). Bisa digabung dengan filter lain, aiCategory, dan view=summary. Pilihan label ada di view=options (manualLabels)." },
     ],
   },
 ];
@@ -79,7 +79,8 @@ export const FIELDS: [string, string, string][] = [
   ["analysis", "objek | null", "summary, target, score, signals, topics, factors, relevance"],
   ["matchedKeywords", "string[]", "Keyword kunci Anda yang disebut item ini"],
   ["classification", "objek | null", "Hanya untuk kunci dengan kategorisasi AI: category, label, confidence, reason"],
-  ["manualLabel", "string | null", "Hanya untuk kunci dengan pilihan label manual: label yang diberikan tim Anda di panel (terpisah dari kategorisasi AI)"],
+  ["manualLabel", "string | null", "Hanya untuk kunci dengan pilihan label manual: satu label yang diberikan tim Anda di panel (bila lebih dari satu, yang pertama menurut urutan daftar label). Terpisah dari kategorisasi AI"],
+  ["labels", "array", "Hanya untuk kunci dengan pilihan label manual: semua label item, urut daftar label; tiap isi label, source (human | ai) dan score (0-100, null untuk label dari orang)"],
 ];
 
 export const ERRORS: [number, string, string][] = [

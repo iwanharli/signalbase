@@ -1,4 +1,4 @@
-/* "Label manual" settings. --label is a row's colour (the same one the label has on cards). */
+/* "Kustomisasi Label" settings. --label is a row's colour (the same one the label has on cards). */
 .root { display: flex; flex-direction: column; gap: 16px; }
 .note { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--mantine-color-dimmed); }
 
@@ -16,6 +16,14 @@
 .previewBar em { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 99px; font-style: normal; font-size: 12px; font-weight: 700;
   color: var(--label); background: color-mix(in srgb, var(--label) 12%, var(--mantine-color-body)); border: 1px solid color-mix(in srgb, var(--label) 45%, transparent); }
 .previewBar s { width: 7px; height: 7px; border-radius: 50%; background: var(--label); }
+
+.aiLink { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--mantine-color-default-border); }
+.aiLink > svg { flex-shrink: 0; color: var(--mantine-color-violet-6); }
+.aiLink > span { flex: 1; min-width: 160px; display: flex; flex-direction: column; font-size: 13.5px; }
+.aiLink small { font-size: 12px; color: var(--mantine-color-dimmed); }
+/* The usage chart is drawn for the dark AI panel, in either colour scheme. */
+.usage { border-radius: 16px; background: #0d0b1f; }
+.usage:empty { display: none; }
 
 .adder { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 14px;
   border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); transition: border-color 140ms, box-shadow 140ms; }

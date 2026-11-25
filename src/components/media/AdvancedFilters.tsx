@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconTags, IconX } from "@tabler/icons-react";
 import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
-import { ANY_LABEL } from "@/lib/media/manualLabels";
+import { ANY_LABEL, LABEL_FILTER_NAMES } from "@/lib/media/manualLabels";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
@@ -98,7 +98,10 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
               <Section icon={IconTags} title="Label manual">
                 <Field label="Label" wide>
                   <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
-                    data={[{ value: ANY_LABEL, label: "Semua yang sudah diberi label" }, ...manualLabels.map((l) => ({ value: l, label: l }))]}
+                    data={[{ value: ANY_LABEL, label: "Semua yang sudah diberi label" },
+                      // An AI result filter comes from the project page's links; listed only while it is applied.
+                      ...(filters.manualLabel && filters.manualLabel !== ANY_LABEL && LABEL_FILTER_NAMES[filters.manualLabel] ? [{ value: filters.manualLabel, label: LABEL_FILTER_NAMES[filters.manualLabel] }] : []),
+                      ...manualLabels.map((l) => ({ value: l, label: l }))]}
                     onChange={(manualLabel) => onChange({ manualLabel })} />
                 </Field>
               </Section>

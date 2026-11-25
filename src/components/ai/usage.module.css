@@ -24,6 +24,11 @@
 .tick { fill: rgba(255,255,255,.45); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
 .bar { fill: #a78bfa; transition: opacity 150ms; }
 .bar[data-dim] { opacity: .45; }
+.stack[data-dim] { opacity: .45; }
+.swatch { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: rgba(255,255,255,.65); }
+.legend b { color: #fff; font-variant-numeric: tabular-nums; }
+.hint { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,.5); }
 .hoverBand { fill: rgba(255,255,255,.04); }
 .topUp { fill: #34d399; stroke: #0d0b1f; stroke-width: 2; }
 .plot rect[tabindex]:focus { outline: none; }

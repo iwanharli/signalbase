@@ -12,6 +12,9 @@ const MODELS: Record<string, Price> = { "deepseek-chat": FLASH, "deepseek-flash"
 
 export const priceFor = (model: string, fallback: Price): Price => MODELS[model] ?? fallback;
 
+/** USD per web search yang berhasil dan ada hasilnya (api-docs.deepseek.com/quick_start/pricing, 26 Nov 2026: 0,75 per 1.000). */
+export const SEARCH_PRICE = 0.75 / 1000;
+
 /** Biaya USD dari token; `cached` adalah bagian dari `input`. */
 export const tokenCost = (t: { input: number; cached?: number; output: number }, p: Price) =>
   ((t.input - (t.cached ?? 0)) * p.input + (t.cached ?? 0) * p.cached + t.output * p.output) / 1_000_000;

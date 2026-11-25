@@ -1,15 +1,18 @@
 "use client";
-// "Label manual" tab of a project: the label choices people pick from on each post's card. Saved on its own (not part of
+// "Kustomisasi Label" tab of a project: the label choices people pick from on each post's card. Saved on its own (not part of
 // the scope draft). Separate from AI categorisation. Each row shows the label's colour and how many posts carry it;
 // renaming keeps those posts labelled, removing takes the label off them.
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconArrowBackUp, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowBackUp, IconArrowRight, IconEye, IconRobot, IconChevronDown, IconChevronUp, IconDeviceFloppy, IconPlus, IconTag, IconTrash } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
-import { labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
+import type { MediaType } from "@/lib/media/types";
+import { ANY_LABEL, labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, type LabelRename, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
+import { LabelAiProgress } from "./LabelAiProgress";
+import { BalanceUsage } from "../ai/BalanceUsage";
 import c from "./manualLabelSettings.module.css";
 
 type Row = { id: number; original: string | null; name: string; removed: boolean };
@@ -18,14 +21,23 @@ let nextId = 1;
 const rowsFrom = (options: string[]): Row[] => options.map((o) => ({ id: nextId++, original: o, name: o, removed: false }));
 const colorVar = (options: string[], label: string) => `var(--mantine-color-${labelColor(options, label)}-6)`;
 
-export function ManualLabelSettings({ keyId }: { keyId: string }) {
+const REFRESH_MS = 30_000;
+
+export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resultType: MediaType }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   /** A used label waiting for the delete warning to be confirmed. */
   const [confirming, setConfirming] = useState<Row | null>(null);
-  useEffect(() => { if (settings.data) setRows(rowsFrom(settings.data.options)); }, [settings.data]);
+  // Rows follow the saved choices only when those change, so a refresh of the counts leaves edits and focus alone.
+  const savedKey = settings.data ? JSON.stringify(settings.data.options) : null;
+  useEffect(() => { if (savedKey) setRows(rowsFrom(JSON.parse(savedKey) as string[])); }, [savedKey]);
+  const refresh = settings.reload;
+  useEffect(() => {
+    const timer = setInterval(() => { if (!document.hidden) refresh(); }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
   const tidy = (name: string) => name.trim().replace(/\s+/g, " ");
   const kept = rows.filter((r) => !r.removed);
@@ -46,7 +58,7 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
 
   if (!settings.data) return settings.error ? <p className={c.note}>{settings.error}</p> : <Skeleton h={160} radius="md" />;
   const canEdit = settings.data.canEdit;
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const total = settings.data.labelledItems;
 
   const add = (name: string) => {
     const label = name.trim().replace(/\s+/g, " ");
@@ -87,9 +99,11 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
     setBusy(true);
     try {
       const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(options), renames: moves }, "PUT")) as { removed: number; renamed: number };
-      const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} post dilepas dari label yang dihapus`].filter(Boolean);
+      const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} label dilepas dari post`].filter(Boolean);
       notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
       setConfirming(null);
+      // Also when the names end up as they were (one removed and added again), where the effect above would not run.
+      setRows(rowsFrom(normalizeLabels(options)));
       settings.reload();
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -101,6 +115,16 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
   const preview = names.find(Boolean);
   return (
     <div className={c.root}>
+      {canEdit && (
+        <div className={c.aiLink}>
+          <IconRobot size={18} />
+          <span><b>Pelabelan AI</b><small>AI memilih label untuk tiap post secara otomatis</small></span>
+          {/* Every labelled item: the page's default "analysed" and "relevant" filters would hide some, so both are cleared. */}
+          <Button size="sm" variant="secondary" icon={IconEye} href={`/media/${resultType}?key=${keyId}&label=${ANY_LABEL}&analyzed=&relevance=`}>Lihat hasil</Button>
+          <Button size="sm" variant="primary" iconRight={IconArrowRight} href={`/project/${keyId}/labels`}>Pengaturan</Button>
+        </div>
+      )}
+
       <div className={c.stats}>
         <div><b>{saved.length}</b><span>pilihan label</span></div>
         <div><b>{total.toLocaleString("id-ID")}</b><span>post diberi label</span></div>
@@ -173,7 +197,7 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
           <span>
             {problem ?? ([
               renames.length && `${renames.length} ganti nama`,
-              removedRows.length && `${removedRows.length} dihapus${lost ? ` (${lost} post dilepas)` : ""}`,
+              removedRows.length && `${removedRows.length} dihapus${lost ? ` (${lost} label dilepas dari post)` : ""}`,
               rows.filter((r) => !r.original).length && `${rows.filter((r) => !r.original).length} baru`,
             ].filter(Boolean).join(" · ") || "Urutan diubah")}
           </span>
@@ -181,6 +205,10 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
           <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={() => save()} loading={busy} disabled={!!problem}>Simpan label</Button>
         </div>
       )}
+
+      {canEdit && <div className={c.usage}><BalanceUsage keyId={keyId} labelling /></div>}
+
+      {canEdit && <LabelAiProgress keyId={keyId} />}
 
       <Modal opened={!!confirming} onClose={() => !busy && setConfirming(null)} centered radius="lg" size="sm"
         title={<span className={c.warnTitle}><IconAlertTriangle size={18} />Hapus label yang sedang dipakai?</span>}>
@@ -190,7 +218,7 @@ export function ManualLabelSettings({ keyId }: { keyId: string }) {
           return (
             <div className={c.confirm}>
               <span className={c.confirmLabel} style={{ ["--label" as string]: colorVar(saved, confirming.original!) }}><i />{confirming.original}</span>
-              <p><b>{used.toLocaleString("id-ID")} post</b> yang diberi label ini akan <b>kehilangan labelnya</b>. Tindakan ini tidak dapat dibatalkan.</p>
+              <p><b>{used.toLocaleString("id-ID")} post</b> yang diberi label ini akan <b>kehilangan label ini</b> (label lainnya tetap). Tindakan ini tidak dapat dibatalkan.</p>
               <p className={c.note}>Untuk sekadar mengganti nama, batalkan lalu ubah namanya langsung di daftar: post tetap berlabel.{others ? " Perubahan lain yang belum disimpan ikut disimpan." : ""}</p>
               <div className={c.confirmActions}>
                 <Button variant="subtle" onClick={() => setConfirming(null)} disabled={busy}>Batal</Button>

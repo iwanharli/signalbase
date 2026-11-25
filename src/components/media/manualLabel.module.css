@@ -12,16 +12,18 @@
 
 .caption { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mantine-color-dimmed); }
 
-.pill { display: inline-flex; align-items: center; gap: 6px; max-width: 75%; height: 26px; padding: 0 10px; border-radius: 99px; cursor: pointer;
+.pills { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; max-width: 82%; padding: 0;
+  border: 0; background: none; font: inherit; color: var(--mantine-color-dimmed); cursor: pointer; }
+.pills:disabled { cursor: default; }
+.pills:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; border-radius: 99px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 26px; padding: 0 10px; border-radius: 99px; cursor: pointer;
   font: inherit; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-dimmed);
   background: var(--mantine-color-body); border: 1px dashed var(--mantine-color-default-border); transition: border-color 140ms, color 140ms, background 140ms; }
 .pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pill:hover:not(:disabled) { color: var(--mantine-color-violet-6); border-color: var(--mantine-color-violet-4); }
-.pill:disabled { cursor: default; }
+.pills:hover:not(:disabled) .pill { color: var(--mantine-color-violet-6); border-color: var(--mantine-color-violet-4); }
 .pill[data-set] { color: var(--label); border-style: solid; border-color: color-mix(in srgb, var(--label) 45%, transparent);
   background: color-mix(in srgb, var(--label) 12%, var(--mantine-color-body)); }
-.pill[data-set]:hover:not(:disabled) { color: var(--label); border-color: var(--label); }
-.pill:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+.pills:hover:not(:disabled) .pill[data-set] { color: var(--label); border-color: var(--label); }
 .chevron { flex-shrink: 0; opacity: .7; }
 
 .dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--label); box-shadow: 0 0 0 3px color-mix(in srgb, var(--label) 22%, transparent); }
@@ -30,3 +32,10 @@
 :global([data-mantine-color-scheme="dark"]) .bar[data-set] { background: color-mix(in srgb, var(--label) 14%, var(--mantine-color-dark-7)); }
 :global([data-mantine-color-scheme="dark"]) .pill { background: var(--mantine-color-dark-7); }
 :global([data-mantine-color-scheme="dark"]) .pill[data-set] { color: color-mix(in srgb, var(--label) 55%, white); background: color-mix(in srgb, var(--label) 20%, var(--mantine-color-dark-7)); }
+
+.withNotes { display: flex; flex-direction: column; flex-shrink: 0; gap: 6px; }
+.note { --label: var(--mantine-color-gray-5); padding: 8px 12px; border: 1px solid var(--mantine-color-default-border); border-left: 3px solid var(--label); border-radius: 10px; font-size: 12.5px; }
+.note p { margin: 4px 0 0; }
+.note ul { margin: 6px 0 0; padding-left: 16px; }
+.note a { color: var(--mantine-color-anchor); overflow-wrap: anywhere; }
+.note small { color: var(--mantine-color-dimmed); }

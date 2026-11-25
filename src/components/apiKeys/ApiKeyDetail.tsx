@@ -265,7 +265,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     { id: "keywords", label: "Kata kunci", icon: IconTag, summary: scope.keywords.length ? scope.keywords.join(", ") : "Tidak dibatasi kata kunci", badge: keywordsChanged ? "diubah" : undefined },
     { id: "scope", label: "Cakupan data", icon: IconAdjustmentsHorizontal, summary: restrictions.length ? restrictions.join(" · ") : "Tanpa batasan", badge: paramsChanged ? "diubah" : undefined },
     { id: "ai", label: "Kategorisasi AI", icon: IconRobot, summary: aiStatus(data.classifier).text },
-    { id: "labels", label: "Label manual", icon: IconTags, summary: "Pilihan label untuk tiap post" },
+    { id: "labels", label: "Kustomisasi Label", icon: IconTags, summary: "Pilihan label untuk tiap post" },
     { id: "security", label: "Keamanan", icon: IconShieldLock, summary: revoked ? "Proyek sudah dicabut" : "Salin, buat ulang, atau cabut" },
   ] : [];
 
@@ -363,8 +363,8 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "ai" && data.classifier?.enabled && <ClassifierResults keyId={data.id} />}
 
           {tab === "labels" && (
-            <SectionPanel icon={IconTags} title="Label manual" description="Pilihan label yang diberikan orang pada tiap post atau berita proyek ini. Terpisah dari kategorisasi AI.">
-              <ManualLabelSettings keyId={data.id} />
+            <SectionPanel icon={IconTags} title="Kustomisasi Label" description="Pilihan label yang diberikan orang pada tiap post atau berita proyek ini. Terpisah dari kategorisasi AI.">
+              <ManualLabelSettings keyId={data.id} resultType={data.scope.types[0] ?? "social"} />
             </SectionPanel>
           )}
 

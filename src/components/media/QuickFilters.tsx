@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { IconAdjustmentsHorizontal, IconFilterOff, IconSearch, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconSearch, IconX } from "@tabler/icons-react";
 import { activePreset, DATE_PRESETS, presetRange, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
 import { Segmented } from "./controls";
@@ -45,12 +45,10 @@ function useSearchText(search: string, onChange: (patch: Partial<MediaFilters>) 
 }
 
 /** Compact toolbar for search, filters, sort and result layout. */
-export function QuickFilters({ type, filters, onChange, onReset, activeCount, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange }: {
+export function QuickFilters({ type, filters, onChange, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
-  onReset: () => void;
-  activeCount: number;
   advancedCount: number;
   advancedOpen: boolean;
   onToggleAdvanced: () => void;
@@ -92,7 +90,6 @@ export function QuickFilters({ type, filters, onChange, onReset, activeCount, ad
           options={[{ value: "quick", label: "Quick View" }, { value: "asli", label: "Original View" }]} value={source} onChange={onSourceChange} />
       )}
 
-      {activeCount > 0 && <button type="button" className={classes.reset} onClick={onReset}><IconFilterOff size={14} />Reset ke awal · {activeCount}</button>}
     </section>
   );
 }

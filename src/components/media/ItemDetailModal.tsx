@@ -162,7 +162,7 @@ function DetailContent({ item, type, keyName, onClose, correction }: { item: Med
   // Social: the account is the headline; news: the outlet, with the writer (when given) underneath.
   const title = type === "social" ? author ?? publisher : publisher;
   const subtitle = (type === "social" ? [handle, publisher] : [author && author !== publisher ? author : null]).filter(Boolean);
-  const hasSide = item.manualLabel !== undefined || item.classification !== undefined || !!item.analysis || type === "social" || !!(item.category || item.province || item.location);
+  const hasSide = item.manualLabels !== undefined || item.classification !== undefined || !!item.analysis || type === "social" || !!(item.category || item.province || item.location);
   return (
     <div className={classes.shell}>
       <header className={classes.header}>

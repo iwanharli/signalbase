@@ -25,6 +25,9 @@ export function providerLabel(kind: string, baseUrl: string | null | undefined) 
   try { return new URL(baseUrl ?? "").host; } catch { return "Kompatibel OpenAI"; }
 }
 
+/** Grok, the only provider offered for AI labels. */
+export const XAI_BASE_URL = "https://api.x.ai/v1";
+
 /** The AI service a key uses. `apiKey` is required the first time; on later saves empty keeps the stored one. */
 export const providerSchema = z.object({
   kind: z.enum(PROVIDER_KINDS),
