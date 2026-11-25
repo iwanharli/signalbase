@@ -7,6 +7,6 @@ export default async function KeyClassifierPage({ params }: { params: Promise<{ 
   const { id } = await params;
   // Viewers are read-only: no AI categorisation settings.
   const session = await getSession();
-  if (session && roleOf(session) === "viewer") redirect(`/api-keys/${id}`);
+  if (session && roleOf(session) === "viewer") redirect(`/project/${id}`);
   return <KeyClassifier keyId={id} />;
 }

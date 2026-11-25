@@ -1,22 +1,22 @@
 "use client";
 import { ANY_LABEL } from "@/lib/media/manualLabels";
-import { IconX } from "@tabler/icons-react";
+import { IconFilterOff, IconX } from "@tabler/icons-react";
 import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { humanize, POST_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions } from "@/lib/media/types";
-import type { ProjectOption } from "./AdvancedFilters";
 import classes from "./filters.module.css";
 
 type Chip = { key: string; label: string; clear: Partial<MediaFilters> };
-export function ActiveFilters({ filters: f, options, projects, onChange }: {
-  filters: MediaFilters; options: FilterOptions | null; projects: ProjectOption[]; onChange: (patch: Partial<MediaFilters>) => void;
+export function ActiveFilters({ filters: f, options, onChange, onReset, canReset }: {
+  filters: MediaFilters; options: FilterOptions | null; onChange: (patch: Partial<MediaFilters>) => void; onReset: () => void;
+  /** False while every filter is at its default. */
+  canReset: boolean;
 }) {
   const chips: Chip[] = [];
   const add = (key: string, label: string, clear: Partial<MediaFilters>) => chips.push({ key, label, clear });
   if (f.search) add("search", `Pencarian: ${f.search}`, { search: "" });
   if (f.from || f.to) add("date", rangeLabel(f), { from: "", to: "" });
-  if (f.project) add("project", `Proyek: ${projects.find((p) => p.value === f.project)?.label ?? "tidak aktif"}`, { project: null });
   if (f.source) add("source", sourceLabel(f.source), { source: null });
   if (f.mood) add("mood", moodInfo(f.mood).label, { mood: null });
   if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Sudah dianalisis sumber" : "Belum dianalisis sumber", { analyzed: "" });
@@ -29,10 +29,9 @@ export function ActiveFilters({ filters: f, options, projects, onChange }: {
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
   if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
   if (f.manualLabel) add("manualLabel", f.manualLabel === ANY_LABEL ? "Sudah diberi label" : `Label: ${f.manualLabel}`, { manualLabel: null });
-  const visible = chips;
-  if (!visible.length) return null;
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">
-    <span>Filter aktif</span>
-    {visible.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={14} aria-hidden /></button>)}
+    {chips.length > 0 && <span>Filter aktif</span>}
+    {chips.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={14} aria-hidden /></button>)}
+    <button type="button" className={classes.resetAll} onClick={onReset} disabled={!canReset}><IconFilterOff size={14} aria-hidden />Reset filter</button>
   </div>;
 }

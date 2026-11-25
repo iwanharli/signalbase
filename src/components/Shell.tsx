@@ -11,6 +11,7 @@ import { AiProgressDock } from "./AiProgressDock";
 import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
+import { SAVED_FILTERS_PREFIX } from "@/lib/media/filters";
 import classes from "./shell.module.css";
 
 type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[]; /** Active only on this exact path (a sibling lives below it). */ exact?: boolean;
@@ -31,7 +32,7 @@ const NAV: NavItem[] = [
     { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan },
   ] },
   { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
-  { href: "/api-keys", label: "Proyek", icon: IconKey },
+  { href: "/project", label: "Proyek", icon: IconKey },
 ];
 /** Secondary pages: icon buttons on the right and entries in the account menu. */
 const TOOLS = [
@@ -70,7 +71,12 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   const navRef = useRef<HTMLElement>(null);
-  const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); window.location.href = "/login"; };
+  const logout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    // Saved media filters (search words included) must not reach the next account in this browser.
+    try { Object.keys(localStorage).filter((k) => k.startsWith(SAVED_FILTERS_PREFIX)).forEach((k) => localStorage.removeItem(k)); } catch { /* storage unavailable */ }
+    window.location.href = "/login";
+  };
 
   useEffect(() => {
     const onScroll = () => {

@@ -6,7 +6,9 @@ const nextConfig: NextConfig = {
   // Old Indonesian page paths keep working.
   async redirects() {
     return [
-      { source: "/kunci-api", destination: "/api-keys", permanent: true },
+      { source: "/kunci-api", destination: "/project", permanent: true },
+      // Temporary (307) so browsers do not cache it while the new path settles.
+      { source: "/api-keys/:path*", destination: "/project/:path*", permanent: false },
       { source: "/dokumentasi", destination: "/docs", permanent: true },
       { source: "/media/sosial", destination: "/media/social", permanent: true },
     ];

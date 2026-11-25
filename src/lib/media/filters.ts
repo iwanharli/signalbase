@@ -22,15 +22,16 @@ export type MediaFilters = {
   withImage: boolean;
   /** AI category code; only used when browsing through an API key with AI categorisation. */
   aiCategory: string | null;
-  /** API key id of a project: only items mentioning any of its keywords (the server resolves them). */
-  project: string | null;
-  /** Manual label of the project being viewed (?key=), or ANY_LABEL for every labelled item. Not AI categorisation. */
+  /** API key id of the project the bank is viewed as (its whole scope). Page context rather than a filter: reset keeps
+   *  it and it is not counted. */
+  key: string | null;
+  /** Manual label of the project being viewed, or ANY_LABEL for every labelled item. Not AI categorisation. */
   manualLabel: string | null;
 };
 
 export const defaultFilters = (type: MediaType): MediaFilters => ({
   search: "", from: "", to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
-  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, project: null, manualLabel: null,
+  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, key: null, manualLabel: null,
 });
 
 /** Query-string parameters for the API. `search` must already be debounced/trimmed by the caller. */
@@ -51,7 +52,7 @@ export function toSearchParams(f: MediaFilters) {
   set("level", f.minLevel);
   set("image", f.withImage && "yes");
   set("aiCategory", f.aiCategory);
-  set("project", f.project);
+  set("key", f.key);
   set("label", f.manualLabel);
   return p;
 }
@@ -88,7 +89,7 @@ export function countAdvanced(f: MediaFilters, type: MediaType) {
   const d = defaultFilters(type);
   const customRange = !activePreset(f) && (f.from || f.to);
   return [customRange, f.source, f.mood, f.language, f.analyzed !== d.analyzed, f.province, f.category,
-    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance, f.aiCategory, f.project, f.manualLabel].filter(Boolean).length;
+    f.postType, f.minLevel, f.withImage, f.relevance !== d.relevance, f.aiCategory, f.manualLabel].filter(Boolean).length;
 }
 
 /** All filters that differ from their defaults, including the quick ones. */
@@ -113,7 +114,7 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
     sort: pick("sort", ["newest", "oldest"], d.sort), source: p.get("source") || null,
     mood: p.get("mood") || null, analyzed: pick("analyzed", ["", "yes", "no"], d.analyzed),
     language: pick("lang", ["", "id", "other"], d.language), province: p.get("province") || null,
-    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, project: p.get("project") || null, manualLabel: p.get("label") || null,
+    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, key: p.get("key") || null, manualLabel: p.get("label") || null,
     relevance: type === "social" ? pick("relevance", ["", "relevant", "include", "watchlist", "exclude"], d.relevance) : "",
     postType: type === "social" ? pick("postType", ["", "post", "reply", "quote", "repost"], "") : "",
     minLevel: type === "social" ? pick("level", ["", "1", "2", "3", "4", "5"], "") : "",
@@ -121,10 +122,51 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
   };
 }
 
-/** Browser URLs include explicit defaults; API requests can omit empty filters. */
-export function browserFilterParams(f: MediaFilters) {
+/** Browser URLs carry only what differs from the defaults (an absent parameter reads back as the default); an empty
+ *  value stays when it means “Semua” and the default is narrower. API requests (toSearchParams) are not trimmed. */
+export function browserFilterParams(f: MediaFilters, type: MediaType) {
   const p = toSearchParams(f);
-  p.set("analyzed", f.analyzed);
-  p.set("relevance", f.relevance);
+  const d = defaultFilters(type);
+  if (f.sort === d.sort) p.delete("sort");
+  for (const name of ["analyzed", "relevance"] as const) {
+    if (f[name] === d[name]) p.delete(name);
+    else p.set(name, f[name]);
+  }
   return p;
+}
+
+/** Every browser URL parameter that carries a filter (`key`, the project, is page context and not listed). */
+export const FILTER_URL_PARAMS = ["q", "from", "to", "sort", "source", "mood", "analyzed", "lang", "province", "category", "relevance", "postType", "level", "image", "aiCategory", "label"];
+
+/** localStorage keys of the saved filters start with this; one entry per media type and project. */
+export const SAVED_FILTERS_PREFIX = "signalbase.media.filter.";
+export const savedFiltersKey = (type: MediaType, projectId: string | null) => `${SAVED_FILTERS_PREFIX}${type}.${projectId ?? "bank"}`;
+
+/** What to remember of the filters ("" = all defaults). A quick range is kept as its length, so “7 hari” stays the last
+ *  seven days rather than the dates it meant when saved. */
+export function savedFilterValue(f: MediaFilters, type: MediaType) {
+  const p = browserFilterParams({ ...f, key: null }, type);
+  const preset = activePreset(f);
+  if (preset?.days != null) {
+    p.delete("from");
+    p.set("days", String(preset.days));
+  }
+  return p.toString();
+}
+
+/** The browser URL parameters a saved value stands for today. */
+export function savedFilterParams(value: string, type: MediaType) {
+  const saved = new URLSearchParams(value);
+  const preset = DATE_PRESETS.find((p) => p.days != null && String(p.days) === saved.get("days"));
+  const filters = filtersFromSearchParams(saved, type);
+  return browserFilterParams(preset ? { ...filters, ...presetRange(preset) } : filters, type);
+}
+
+/** Takes the filters off an incoming URL (a link from another page, an old bookmark). `saved` is what to remember for
+ *  them ("" = all defaults), or null when the URL names no filter; `rest` is what stays in the address bar. */
+export function splitFilterUrl(url: URLSearchParams, type: MediaType) {
+  const saved = FILTER_URL_PARAMS.some((name) => url.has(name)) ? savedFilterValue(filtersFromSearchParams(url, type), type) : null;
+  const rest = new URLSearchParams(url);
+  for (const name of FILTER_URL_PARAMS) rest.delete(name);
+  return { saved, rest };
 }

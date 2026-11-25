@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
-import { canSeeKey, visibleKeys, type PanelUser } from "./auth";
+import { canSeeKey, type PanelUser } from "./auth";
 import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 import { withImageCodes } from "./media/textSignals";
@@ -13,15 +13,6 @@ export async function resolveScope(keyId: string | null, user: PanelUser): Promi
   const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
   if (!key) return { error: "Proyek tidak ditemukan", status: 404 };
   return { scope: await withImageCodes(key.id, parseKeyScope(key.scope, key.keywords)), keyId: key.id };
-}
-
-/** Keywords of the active project chosen in the media filter (users: only the ones they see); null when it is not available to them. */
-export async function projectKeywords(projectId: string, user: PanelUser): Promise<string[] | null> {
-  const key = await prisma.apiKey.findFirst({
-    where: { id: projectId, revokedAt: null, ...(user.role === "user" ? visibleKeys(user.id) : {}) },
-    select: { keywords: true },
-  });
-  return key?.keywords.length ? key.keywords : null;
 }
 
 /** Who may read issues and through which keywords: users only via their own project and within their plan; admins see all. */

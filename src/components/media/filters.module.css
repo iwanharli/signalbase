@@ -136,6 +136,10 @@
 .activeFilters button svg { flex-shrink: 0; }
 .activeFilters button:hover { background: var(--mantine-color-violet-1); }
 .activeFilters button:focus-visible, .toggle:focus-visible, .reset:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 3px; }
+/* Doubled class: must beat the chip button rules above and in dark mode. */
+.activeFilters button.resetAll.resetAll { margin-left: auto; font-weight: 700; color: #fff; background: var(--mantine-color-red-7); border-color: var(--mantine-color-red-7); }
+.activeFilters button.resetAll.resetAll:hover:not(:disabled) { background: var(--mantine-color-red-8); }
+.activeFilters button.resetAll.resetAll:disabled { opacity: .45; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .quick, .scanline, .toggle b { animation: none !important; } }
 
 .filterGroup { margin: 0; padding: 0; min-width: 0; border: 0; display: flex; flex-direction: column; gap: 14px; }

@@ -21,7 +21,7 @@ const LANGUAGE_OPTIONS = [{ value: "id", label: "Indonesia" }, { value: "other",
 const IMAGE_OPTIONS = [{ value: "", label: "Semua" }, { value: "yes", label: "Hanya bergambar" }] as const;
 const SOURCE_DROPDOWN_LIMIT = 80;
 
-/** An active project with keywords, as a choice for the Proyek filter. */
+/** An active project that covers this media type, as a choice for the Proyek field. */
 export type ProjectOption = { value: string; label: string };
 
 /** Titled group of fields laid out on a two-column grid. */
@@ -46,7 +46,7 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. Choices go into a draft and
  *  only load data when applied ("Terapkan"); closing the drawer drops the draft. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, projects, aiCategories, manualLabels, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, projects, keyLocked, aiCategories, manualLabels, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
@@ -55,6 +55,8 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
   onChange: (patch: Partial<MediaFilters>) => void;
   options: FilterOptions | null;
   projects: ProjectOption[];
+  /** User accounts always browse through a project, so theirs cannot be cleared. */
+  keyLocked: boolean;
   activeCount: number;
   advancedCount: number;
   /** Exact total for the current filters, or null while counting. */
@@ -72,8 +74,10 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
   useEffect(() => setDraft(applied), [open, appliedKey]);
   const onChange = (patch: Partial<MediaFilters>) => setDraft((d) => applyRules({ ...d, ...patch }, patch));
   const changed = (Object.keys(applied) as (keyof MediaFilters)[]).filter((k) => applied[k] !== filters[k]).length;
-  const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort });
+  const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort, key: applied.key });
   const submit = () => { if (changed) apply(filters); onClose(); };
+  // Label and AI category choices are those of the applied project: hidden while the draft points at another one.
+  const sameProject = filters.key === applied.key;
   const social = type === "social";
   const unanalyzed = filters.analyzed === "no";
 
@@ -90,7 +94,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
           </header>
 
           <div className={classes.panelBody}>
-            {!!manualLabels?.length && (
+            {sameProject && !!manualLabels?.length && (
               <Section icon={IconTags} title="Label manual">
                 <Field label="Label" wide>
                   <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
@@ -99,7 +103,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
                 </Field>
               </Section>
             )}
-            {aiCategories && (
+            {sameProject && aiCategories && (
               <Section icon={IconRobot} title="Kategorisasi AI">
                 <Field label="Kategori AI" wide>
                   <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
@@ -132,8 +136,8 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
 
             <Section icon={IconNews} title="Sumber & konten">
               <Field label="Proyek / Isu" wide>
-                <DarkSelect leftSection={<IconBriefcase size={15} />} placeholder="Semua" value={filters.project}
-                  data={projects} onChange={(project) => onChange({ project })} />
+                <DarkSelect leftSection={<IconBriefcase size={15} />} placeholder="Semua" value={filters.key}
+                  clearable={!keyLocked} allowDeselect={!keyLocked} data={projects} onChange={(key) => onChange({ key })} />
               </Field>
               <Field label={SOURCE_KIND_LABEL[type]}>
                 <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}

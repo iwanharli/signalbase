@@ -99,7 +99,7 @@ export function AiProgressDock() {
         <ul className={classes.list}>
           {sortProjects(projects).map((p) => (
             <li key={p.id}>
-              <Link href={`/api-keys/${p.id}/ai`} className={classes.row} title={p.error ?? undefined}>
+              <Link href={`/project/${p.id}/ai`} className={classes.row} title={p.error ?? undefined}>
                 <span className={classes.top}>
                   <b>{p.name}</b>
                   {p.owner && <small>{p.owner}</small>}

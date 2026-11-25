@@ -33,8 +33,8 @@ export function KeyViewBanner({ view, type, canLeave = true }: { view: KeyView; 
         })}
       </nav>
       <div className={classes.actions}>
-        {view.aiEnabled && <Button size="sm" onDark variant="secondary" icon={IconRobot} href={`/api-keys/${view.id}/ai`}>AI</Button>}
-        <Button size="sm" onDark variant="secondary" icon={IconKey} href={`/api-keys/${view.id}`}>Proyek</Button>
+        {view.aiEnabled && <Button size="sm" onDark variant="secondary" icon={IconRobot} href={`/project/${view.id}/ai`}>AI</Button>}
+        <Button size="sm" onDark variant="secondary" icon={IconKey} href={`/project/${view.id}`}>Proyek</Button>
         {canLeave && <Button size="sm" onDark variant="subtle" icon={IconX} href={`/media/${type}`}>Keluar</Button>}
       </div>
     </section>

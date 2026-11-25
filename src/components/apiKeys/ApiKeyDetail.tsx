@@ -43,7 +43,7 @@ function aiStatus(ai: KeyDetail["classifier"]) {
 /** AI tab: status, provider, progress and the provider balance, with links to the full settings. */
 function AiOverview({ detail }: { detail: KeyDetail }) {
   const ai = detail.classifier;
-  const settings = `/api-keys/${detail.id}/ai`;
+  const settings = `/project/${detail.id}/ai`;
   if (!ai) {
     return (
       <div className={classes.aiEmpty}>
@@ -81,7 +81,7 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
   );
 }
 
-/** /api-keys/[id] — a key's overview and settings, grouped in a side sub-menu. */
+/** /project/[id] — a key's overview and settings, grouped in a side sub-menu. */
 export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const router = useRouter();
   const detail = useApi<KeyDetail>(`/api/admin/keys/${keyId}`);
@@ -243,7 +243,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
     try {
       await api(`/api/admin/keys/${keyId}`, { method: "DELETE" });
       notifications.show({ color: "gray", message: `Proyek "${data?.name}" dicabut` });
-      router.push("/api-keys");
+      router.push("/project");
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
       setBusy(false);
@@ -253,7 +253,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   if (detail.error) {
     return (
       <div className={classes.page}>
-        <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+        <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
         <div className={classes.empty}><b>{detail.error}</b></div>
       </div>
     );
@@ -271,7 +271,7 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
 
   return (
     <div className={classes.page} data-dirty={(dirty && !revoked) || undefined}>
-      <Link href="/api-keys" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+      <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
 
       {!ready ? <Skeleton h={120} radius={22} /> : (
         <header className={classes.detailHero}>

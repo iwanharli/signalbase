@@ -170,7 +170,7 @@ export function ClassifierResults({ keyId }: { keyId: string }) {
   );
 }
 
-/** /api-keys/[id]/ai — set up AI categorisation for an existing key and watch its progress. */
+/** /project/[id]/ai — set up AI categorisation for an existing key and watch its progress. */
 export function KeyClassifier({ keyId }: { keyId: string }) {
   const data = useApi<Response>(`/api/admin/keys/${keyId}/classifier`);
   const [draft, setDraft] = useState<ClassifierDraft | null>(null);
@@ -261,7 +261,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
       <ConfirmDialog opened={confirmRemove} onClose={() => setConfirmRemove(false)} onConfirm={remove} loading={busy} icon={IconTrash}
         title="Matikan kategorisasi AI?" confirmLabel="Matikan & hapus"
         description={<>Semua hasil kategorisasi untuk proyek ini ({formatNumber(data.data?.counts.reduce((sum, c) => sum + c.n, 0) ?? 0)} item) dihapus dan pengaturan penyedia AI dilepas. Data di bank sumber tidak berubah.</>} />
-      <Link href={`/api-keys/${keyId}`} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail proyek"}</Link>
+      <Link href={`/project/${keyId}`} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail proyek"}</Link>
       <header className={classes.title}>
         <span className={classes.icon}><IconRobot size={22} /></span>
         <div>
@@ -279,7 +279,7 @@ export function KeyClassifier({ keyId }: { keyId: string }) {
       {key?.revokedAt && <div className={classes.error}><IconAlertTriangle size={16} />Proyek ini sudah dicabut, kategorisasi tidak berjalan.</div>}
 
       {/* Progress and review live on the project page (Kategorisasi AI tab, ClassifierResults); this page is the settings. */}
-      {state?.enabled && <Link href={`/api-keys/${keyId}?tab=ai`} className={classes.resultsLink}><IconChartBar size={15} />Lihat progres dan hasil kategorisasi</Link>}
+      {state?.enabled && <Link href={`/project/${keyId}?tab=ai`} className={classes.resultsLink}><IconChartBar size={15} />Lihat progres dan hasil kategorisasi</Link>}
 
       <div className={classes.layout} data-single={state ? true : undefined}>
         <section className={classes.editorCard}>

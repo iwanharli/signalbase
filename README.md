@@ -192,10 +192,10 @@ npm run dev                   # http://localhost:3100
 | Isu Polisi (tanpa menu) | `/isu?topik=polisi` | Sama dengan Isu Media Online, tetapi hanya isu berjudul polisi/polri/polda; masih bisa dibuka lewat URL. |
 | Isu EWS Sosmed | `/isu/ews` | Alert EWS dari tabel `alerts` (`src/components/ews/`), data dari `GET /api/admin/ontologi?days=1\|3\|7\|14\|30[&key=]`; tata letak sama dengan Isu Media Online. Filter proyek: aktor/target mengandung kata kunci. |
 | Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
-| Kunci API | `/api-keys` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
-| Buat kunci | `/api-keys/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
-| Detail kunci | `/api-keys/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
-| Kategorisasi AI kunci | `/api-keys/[id]/ai` | Penyedia, prompt, kategori, progres, dan sebaran per kategori. |
+| Kunci API | `/project` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
+| Buat kunci | `/project/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
+| Detail kunci | `/project/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
+| Kategorisasi AI kunci | `/project/[id]/ai` | Penyedia, prompt, kategori, progres, dan sebaran per kategori. |
 | Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait
@@ -292,7 +292,7 @@ src/
 │   │   ├── page.tsx              Ringkasan
 │   │   ├── media/[type]/         Media Sosial / Media Online
 │   │   ├── isu/                  Isu berita (submenu Nasional / Polisi lewat ?topik=)
-│   │   ├── api-keys/             Kunci API (daftar) · api-keys/new (buat kunci)
+│   │   ├── project/              Kunci API (daftar) · project/new (buat kunci)
 │   │   └── docs/                 Dokumentasi API
 │   ├── login/                    Halaman login
 │   └── api/
@@ -365,7 +365,7 @@ tests/                            Tes node:test (npm test)
 ## Konvensi
 
 - Nama di kode (fungsi, variabel, tipe, class CSS) memakai **bahasa Inggris**; teks yang tampil ke pengguna memakai **bahasa Indonesia**.
-- Route dan nilai di URL/API juga berbahasa Inggris (`/media/social`, `/api-keys`, `/docs`). URL lama (`/kunci-api`, `/dokumentasi`, `/media/sosial`) dialihkan otomatis, dan API v1 tetap menerima `sosial` sebagai alias `social`.
+- Route dan nilai di URL/API juga berbahasa Inggris (`/media/social`, `/project`, `/docs`). URL lama (`/kunci-api`, `/dokumentasi`, `/media/sosial`) dialihkan otomatis, dan API v1 tetap menerima `sosial` sebagai alias `social`.
 - Satu komponen = satu file; CSS Modules per komponen. Kontrol dan bagian yang dipakai ulang ada di `controls.tsx` / `itemParts.tsx`.
 - Logika domain (aturan filter, pemetaan kolom, label) berada di `lib/`, bukan di komponen.
 - Sebelum commit: `npx tsc --noEmit && npm run lint`.
@@ -376,7 +376,7 @@ tests/                            Tes node:test (npm test)
 
 Setiap kunci API bisa diberi kategorisasi AI: setiap post/berita dalam cakupan kunci mendapat **satu kategori** (atau `none`) yang dikirim lewat API sebagai `classification`, bisa difilter dengan `aiCategory`, dan diringkas di `view=summary`.
 
-1. **Per kunci** — saat membuat kunci (`/api-keys/new`, langkah *Kategorisasi AI*) atau dari halaman AI kunci (`/api-keys/[id]/ai`): pilih penyedia (Claude lewat SDK resmi Anthropic, DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI `/chat/completions`), isi model dan **API key penyedia milik kunci itu sendiri**, lalu prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**). Setiap kunci bisa memakai penyedia dan API key AI yang berbeda.
+1. **Per kunci** — saat membuat kunci (`/project/new`, langkah *Kategorisasi AI*) atau dari halaman AI kunci (`/project/[id]/ai`): pilih penyedia (Claude lewat SDK resmi Anthropic, DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI `/chat/completions`), isi model dan **API key penyedia milik kunci itu sendiri**, lalu prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**). Setiap kunci bisa memakai penyedia dan API key AI yang berbeda.
 2. **Kredensial** — API key penyedia disimpan terenkripsi AES-256-GCM (kunci enkripsi diturunkan dari `AUTH_SECRET`; mengganti `AUTH_SECRET` berarti API key penyedia harus diisi ulang) dan tidak pernah dikembalikan ke browser, hanya empat karakter terakhirnya. Tombol *Uji koneksi* mengirim dua contoh teks memakai isian form (atau API key yang sudah tersimpan bila kolomnya dikosongkan).
 3. **Worker** — proses terpisah `npm run classifier` (PM2 `signalbase-classifier`). Tiap menit, untuk setiap kunci aktif: data baru lebih dulu, lalu mundur ke data lama sampai seluruh cakupan selesai. Item dikirim 20 per permintaan; progres disimpan sebagai cursor sehingga worker bisa dihentikan dan dilanjutkan kapan saja.
 
