@@ -4,7 +4,7 @@ import { providerSchema, QUICK_WIN_PRESET } from "@/lib/ai/classifier";
 import { providerConfig, validationError } from "@/lib/server/ai/admin";
 import { classifyBatch, providerErrorMessage, type ProviderConfig } from "@/lib/server/ai/providers";
 import { adminRoute, keyAccess } from "@/lib/server/auth";
-import { providerNotAllowed } from "@/lib/server/ai/providerPolicy";
+import { aiPlanProblem, isXai, providerNotAllowed } from "@/lib/server/ai/providerPolicy";
 import { NOT_CONFIGURED, platformProvider } from "@/lib/server/ai/platform";
 import { accountPlan } from "@/lib/server/plan";
 import { prisma } from "@/lib/server/db";
@@ -31,6 +31,10 @@ export const POST = adminRoute(async (req: Request, _ctx, _username, user) => {
   const { provider, apiKeyId, slot } = parsed.data;
   const blocked = providerNotAllowed(user, provider);
   if (blocked) return NextResponse.json({ ok: false, ms: 0, error: blocked }, { status: 403 });
+
+  // Grok is only tested for AI labels, so the plan's AI rules apply here: nothing else checks them before the request goes out.
+  const planProblem = isXai(provider) ? await aiPlanProblem(user, { provider, fallback: null }) : null;
+  if (planProblem) return NextResponse.json({ ok: false, ms: 0, error: planProblem }, { status: 403 });
 
   // Signalbase AI is tested against the platform's own provider.
   if (provider.kind === "signalbase") {

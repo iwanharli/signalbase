@@ -113,7 +113,8 @@ async function classifyWithOpenAiCompatible(config: ProviderConfig, apiKey: stri
     signal: AbortSignal.timeout(120_000),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? res.statusText}`);
+  // Most providers answer {error: {message}}; xAI sends the message as a plain string.
+  if (!res.ok) throw new Error(`Penyedia AI menolak (${res.status}): ${body?.error?.message ?? (typeof body?.error === "string" ? body.error : res.statusText)}`);
   if (body?.usage) onUsage?.({ input: Number(body.usage.prompt_tokens) || 0, output: Number(body.usage.completion_tokens) || 0 });
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("Respons penyedia AI tidak berisi teks");
