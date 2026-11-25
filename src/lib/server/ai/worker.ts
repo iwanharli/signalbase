@@ -18,7 +18,11 @@ import { localQw, localQwMin, usesLocalQw } from "./localQw";
 import { providerAccount, runPool, turnGroups } from "./schedule";
 import { imageTextFor, withImageCodes } from "../media/textSignals";
 
+/** Items per AI provider request. */
 const BATCH_SIZE = 20;
+/** Items read from the source and sent to the local model at once: a page of 100 costs about as much as one of 20, and
+ *  the local model runs 32 at a time. What it leaves goes to the provider in requests of BATCH_SIZE, one after another. */
+const PAGE_SIZE = 100;
 /** Batches per classifier per tick, so one large backfill can't starve the other keys. */
 const MAX_BATCHES_PER_TICK = 5;
 /** While a key still has history to label, it gets more batches per tick so a long backfill finishes in hours, not a day. */
@@ -146,7 +150,9 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
     const done = new Set(local.map((l) => l.id));
     toProvider = toProvider.filter((x) => !done.has(x.id));
   }
-  const results = [...local, ...await classifySplitting(job, type, toProvider)];
+  const fromProvider: Labelled[] = [];
+  for (let i = 0; i < toProvider.length; i += BATCH_SIZE) fromProvider.push(...await classifySplitting(job, type, toProvider.slice(i, i + BATCH_SIZE)));
+  const results = [...local, ...fromProvider];
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
     data: results.map((r) => ({
@@ -194,7 +200,7 @@ export async function retryRejected(apiKeyId: string) {
     const codes = cursors[type]?.rejected ?? [];
     if (!codes.length) continue;
     const items = await fetchItemsByCode(type, codes);
-    for (let i = 0; i < items.length; i += BATCH_SIZE) labelled += (await processBatch(job, type, items.slice(i, i + BATCH_SIZE))).labelled;
+    for (let i = 0; i < items.length; i += PAGE_SIZE) labelled += (await processBatch(job, type, items.slice(i, i + PAGE_SIZE))).labelled;
     const done = new Set((await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true } })).map((r) => r.code));
     cursors[type]!.rejected = codes.filter((c) => !done.has(c));
     if (!cursors[type]!.rejected!.length) cursors[type]!.rejectedSince = undefined;
@@ -266,8 +272,9 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   };
 
   try {
-    // Media types share the tick fairly: each first gets an equal part, then any unused part goes to the rest,
-    // so online news fills in alongside a long social backfill instead of waiting for it.
+    // Media types share the tick fairly: each first gets an equal part of the items and of the backfill time (and at least
+    // one backfill page), then any unused part goes to the rest, so online news fills in alongside a long social backfill
+    // instead of waiting for it.
     const types = MEDIA_TYPES.filter((t) => allowsType(job.scope, t));
     const perTick = budget;
     let remaining = perTick;
@@ -283,7 +290,7 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
 
       // 1. Items that arrived since the newest one labelled so far.
       while (budget > 0 && state.newest) {
-        const page = await listItemsFromCursor(type, job.scope, "newer", state.newest, Math.min(BATCH_SIZE, budget));
+        const page = await listItemsFromCursor(type, job.scope, "newer", state.newest, Math.min(PAGE_SIZE, budget));
         if (!page.items.length) break;
         const { labelled, skipped, sent } = await processBatch(job, type, page.items);
         state.newest = page.next!;
@@ -293,8 +300,12 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
       }
 
       // 2. Backfill: walk back through older items until the start date (or the end of the scope).
-      while (budget > 0 && !state.backfillDone && !overtime()) {
-        const page = await listItemsFromCursor(type, job.scope, "older", state.oldest ?? null, Math.min(BATCH_SIZE, budget));
+      const typeStarted = Date.now();
+      const sliceOver = () => round === 0 && types.length > 1 && Date.now() - typeStarted > BACKFILL_MAX_MS / types.length;
+      let typePages = 0;
+      const guaranteed = () => round === 0 && typePages++ === 0; // each type's first backfill page in the first round
+      while (budget > 0 && !state.backfillDone && (guaranteed() || (!overtime() && !sliceOver()))) {
+        const page = await listItemsFromCursor(type, job.scope, "older", state.oldest ?? null, Math.min(PAGE_SIZE, budget));
         if (!page.items.length) { state.backfillDone = true; break; }
         const inRange = job.startFrom ? page.items.filter((i) => new Date(i.publishedAt) >= job.startFrom!) : page.items;
         const { labelled, skipped, sent } = inRange.length ? await processBatch(job, type, inRange) : { labelled: 0, skipped: 0, sent: 0 };
@@ -321,8 +332,8 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
           })).map((r) => r.code));
           const refused = new Set(state.rejected ?? []);
           const missing = inWindow.filter((i) => !labelled.has(i.code) && !refused.has(i.code)).slice(0, budget);
-          for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-            const batch = missing.slice(i, i + BATCH_SIZE);
+          for (let i = 0; i < missing.length; i += PAGE_SIZE) {
+            const batch = missing.slice(i, i + PAGE_SIZE);
             const result = await processBatch(job, type, batch);
             processed += result.labelled; failed += result.skipped; todayCount += result.sent; budget -= result.sent;
             await save();

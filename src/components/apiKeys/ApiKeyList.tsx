@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Modal, Skeleton } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEye, IconKey, IconPencil, IconPlugConnected, IconPlus, IconRobot, IconSearch, IconShieldOff, IconX } from "@tabler/icons-react";
+import { IconEye, IconKey, IconListDetails, IconPlugConnected, IconPlus, IconRobot, IconSearch, IconShieldOff, IconX } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
@@ -79,10 +79,10 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
 
       <div className={classes.actions} role="cell">
         {!revoked && <Button size="sm" variant="secondary" icon={IconEye} href={viewHref(apiKey)}>Data</Button>}
-        {!apiKey.shared && <ButtonGroup>
-          {!revoked && <CopyKeyButton keyId={apiKey.id} copyable={apiKey.copyable} iconOnly />}
-          <Button size="sm" variant="secondary" iconOnly icon={IconPencil} href={href}>{revoked ? "Lihat detail" : "Edit proyek"}</Button>
-          {!revoked && <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut proyek</Button>}
+        {!apiKey.shared && <Button size="sm" variant="secondary" icon={IconListDetails} href={href}>Detail Proyek</Button>}
+        {!apiKey.shared && !revoked && <ButtonGroup>
+          <CopyKeyButton keyId={apiKey.id} copyable={apiKey.copyable} iconOnly />
+          <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut proyek</Button>
         </ButtonGroup>}
       </div>
     </div>

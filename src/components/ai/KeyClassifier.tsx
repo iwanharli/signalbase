@@ -8,6 +8,7 @@ import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { api, post } from "@/lib/api-client";
 import { categoriesForType, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
+import { sharePct } from "@/lib/ai/progress";
 import { formatNumber, MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
@@ -37,7 +38,8 @@ type Response = {
 const REFRESH_MS = 30_000;
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 
-const pct = (n: number, total: number | null) => (total ? Math.min(100, Math.round((n / total) * 100)) : 0);
+// Same rounding as the progress dock (sharePct), so both show the same number.
+const pct = (n: number, total: number | null) => (total ? sharePct(n, total) : 0);
 
 /** The "Progres kategorisasi" card: overall share, counts and the last error. Full width, right under the page title. */
 function OverallProgress({ state, counts, e }: { state: ClassifierState; counts: Response["counts"]; e: Estimate | null }) {

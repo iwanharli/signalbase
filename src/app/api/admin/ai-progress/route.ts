@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { overallProgress, typeProgress, type TypeCursor } from "@/lib/ai/progress";
+import { overallProgress, scopeCountsFor, typeProgress, type TypeCursor } from "@/lib/ai/progress";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { CHECKED, labelTotals } from "@/lib/server/ai/labelProgress";
@@ -25,7 +25,6 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const counts = rows.length
     ? await prisma.classification.groupBy({ by: ["apiKeyId", "type"], where: { apiKeyId: { in: rows.map((r) => r.apiKeyId) } }, _count: true })
     : [];
-  // Owner names for admins, so projects of different clients can be told apart (null = managed by admins).
   const labelRows = user.role === "viewer" ? [] : await prisma.labelAi.findMany({
     where: { enabled: true, apiKey: { revokedAt: null, ...(user.role === "user" ? { ownerId: user.id } : {}) } },
     select: {
@@ -40,6 +39,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
       where: { AND: [CHECKED, { OR: labelRows.map((r) => ({ apiKeyId: r.apiKeyId, ...(r.startFrom ? { publishedAt: { gte: r.startFrom } } : {}) })) }] },
     })
     : [];
+  // Owner names for admins, so projects of different clients can be told apart (null = managed by admins).
   const ownerIds = user.role === "user" ? [] : [...new Set([...rows, ...labelRows].flatMap((r) => (r.apiKey.ownerId ? [r.apiKey.ownerId] : [])))];
   const owners = new Map((ownerIds.length
     ? await prisma.admin.findMany({ where: { id: { in: ownerIds } }, select: { id: true, name: true } }) : []).map((a) => [a.id, a.name]));
@@ -49,12 +49,15 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const categorisation = rows.map((r) => {
     const scope = parseKeyScope(r.apiKey.scope, r.apiKey.keywords);
     const cursors = (r.cursors ?? {}) as Partial<Record<MediaType, TypeCursor>>;
-    const stored = r.scopeCounts as Partial<Record<MediaType, number | null>> | null;
-    const types = MEDIA_TYPES.filter((t) => allowsType(scope, t)).map((type) =>
-      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: stored?.[type] ?? null }));
+    // The counts the project page last made for this range (same numbers, so both show the same percent).
+    const stored = scopeCountsFor(r.scopeCounts, JSON.stringify(scope), r.startFrom ? r.startFrom.toISOString() : "");
+    const allowed = MEDIA_TYPES.filter((t) => allowsType(scope, t));
+    const totals = allowed.map((t) => stored?.[t] ?? null);
+    const types = allowed.map((type, i) =>
+      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: totals[i] }));
     return {
       kind: "category" as const, dailyLimit: null as number | null,
-      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types), types,
+      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: r.todayDate === day ? r.todayCount : 0,
       active: !!r.lastRunAt && now - r.lastRunAt.getTime() < ACTIVE_MS,
@@ -67,17 +70,16 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     const stored = (r.scopeCounts as { counts?: Partial<Record<MediaType, number | null>> } | null)?.counts;
     // Keeps the cached post counts fresh; never waited for, since counting the source is slow.
     labelTotals(r.apiKeyId).catch(() => {});
-    const types = MEDIA_TYPES.filter((t) => allowsType(scope, t)).map((type) => {
-      const done = labelDone.find((c) => c.apiKeyId === r.apiKeyId && c.type === type)?._count ?? 0;
-      const total = stored?.[type] ?? null;
-      const progress = typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done, total });
-      // By posts, as on the project page, once they have been counted; 100 only when history is walked.
-      return progress.state === "backfill" && total ? { ...progress, pct: Math.min(99, Math.floor((done / total) * 100)) } : progress;
-    });
+    const allowed = MEDIA_TYPES.filter((t) => allowsType(scope, t));
+    const totals = allowed.map((t) => stored?.[t] ?? null);
+    const types = allowed.map((type, i) => typeProgress({
+      type, cursor: cursors[type], startFrom: r.startFrom, now, total: totals[i],
+      done: labelDone.find((c) => c.apiKeyId === r.apiKeyId && c.type === type)?._count ?? 0,
+    }));
     const todayCount = r.todayDate === day ? r.todayCount : 0;
     return {
       kind: "label" as const, dailyLimit: todayCount >= r.dailyLimit ? r.dailyLimit : null,
-      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types), types,
+      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: todayCount,
       active: !!r.lastRunAt && now - r.lastRunAt.getTime() < ACTIVE_MS,
