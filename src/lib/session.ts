@@ -12,6 +12,14 @@ export const roleOf = (s: Session): Role => (s.role === "user" ? "user" : s.role
 /** Admins and viewers see the whole bank and every project; users only their own. */
 export const seesAll = (role: Role) => role !== "user";
 
+/** Admin API paths that reveal a stored secret in full: closed to viewers and to accounts a project is only shared with.
+ *  Every new route that returns one belongs here. */
+export function isSecretPath(path: string) {
+  // %XX is decoded first, so an encoded spelling cannot slip past.
+  const plain = path.replace(/%([0-9a-f]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+  return /^\/api\/admin\/keys\/[^/]+\/(secret|classifier\/provider-key)/.test(plain);
+}
+
 export async function signSession(s: Session) {
   return new SignJWT(s).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("12h").sign(secret());
 }

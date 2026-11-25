@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { COOKIE, roleOf, signSession, verifySession, type Role } from "../session";
+import { COOKIE, isSecretPath, roleOf, signSession, verifySession, type Role } from "../session";
 import { prisma } from "./db";
 
 export async function getSession() {
@@ -14,7 +14,6 @@ export type PanelUser = { id: string; username: string; role: Role };
 const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-settings"];
 /** Viewers read like admins but never change anything, see settings, or reveal secrets. */
 const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
-const isSecretPath = (path: string) => /^\/api\/admin\/keys\/[^/]+\/secret/.test(path);
 
 /** A user account still allowed in: active itself, and for a sub-account also its parent. Checked on every request, so
  *  suspending someone (or the client's main account) cuts off an open session at once. */

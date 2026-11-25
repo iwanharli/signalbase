@@ -19,6 +19,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 ## 2026-11-26
 
+### Keamanan
+- `GET /api/admin/keys/[id]/classifier/provider-key` (API key penyedia AI utuh) kini ditolak untuk akun viewer dan akun yang proyeknya hanya dibagikan untuk dilihat; sebelumnya keduanya bisa membacanya. Pemilik proyek dan admin tetap bisa. Aturannya `isSecretPath` di `lib/session.ts`; test `tests/secret-paths.test.ts`.
+
 ### Diubah
 - Tombol **Lihat hasil** di kartu Pelabelan AI membuka halaman media proyek (Sosial; Online bila cakupannya hanya online) dengan filter semua yang berlabel, tanpa filter status analisis dan relevansi; filter ini menimpa filter tersimpan proyek tersebut.
 - Halaman baru `/project/[id]/labels` (**Pengaturan AI label**, dibuka lewat tombol **Pengaturan** di tab **Kustomisasi Label**) berisi rancangan bagian AI (**Prompt**: instruksi bawaan yang disusun dari label proyek (bila label lebih dari satu, AI boleh memilih lebih dari satu; tiap label diminta disertai alasan dan skor keyakinan 0–100%; jawaban diminta berupa JSON `results[].{id, labels[].{label, confidence, reason}}`), bisa diedit atau dibuat ulang; Penyedia AI terkunci Grok/xAI dengan model bawaan `grok-4.7`, aktif/jeda, Rentang data, Tampilkan hanya yang berlabel) untuk pemilik proyek dan admin; viewer dialihkan. **Baru tampilan**: tidak disimpan, API key dan tombol dinonaktifkan, AI belum melabeli apa pun.
