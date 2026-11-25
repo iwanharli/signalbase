@@ -1,13 +1,12 @@
 // Which AI endpoints a panel account may point the server at. Admins may use any endpoint; user accounts only the
 // known public providers, so a user cannot make the server call an internal or arbitrary address (SSRF).
-import { PROVIDER_PRESETS, SIGNALBASE_TIERS, XAI_BASE_URL } from "@/lib/ai/classifier";
+import { PROVIDER_PRESETS, SIGNALBASE_TIERS } from "@/lib/ai/classifier";
 import type { PanelUser } from "../auth";
 import { accountPlan } from "../plan";
 import { NOT_CONFIGURED, platformConfigured } from "./platform";
 
-const ALLOWED_BASE_URLS = new Set<string>([...PROVIDER_PRESETS.map((p) => p.baseUrl).filter(Boolean), XAI_BASE_URL]);
+const ALLOWED_BASE_URLS = new Set<string>(PROVIDER_PRESETS.map((p) => p.baseUrl).filter(Boolean));
 const normalise = (url: string | null | undefined) => (url ?? "").trim().replace(/\/+$/, "");
-export const isXai = (p: { baseUrl?: string | null }) => normalise(p.baseUrl) === XAI_BASE_URL;
 
 type Provider = { kind: string; baseUrl?: string | null } | null | undefined;
 

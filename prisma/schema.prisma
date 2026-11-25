@@ -62,6 +62,7 @@ model ApiKey {
   /// Manual label choices of this project (in order), set by its owner or an admin; people label posts with one of them.
   manualLabels    String[]          @default([])
   itemLabels      ItemLabel[]
+  labelAi         LabelAi?
 }
 
 // AI categorisation settings and progress for one API key.
@@ -311,6 +312,21 @@ model ProjectMember {
 
   @@id([apiKeyId, accountId])
   @@index([accountId])
+}
+
+/// AI labelling settings of one project ("Kustomisasi Label"), with its own provider key.
+model LabelAi {
+  apiKeyId  String    @id
+  apiKey    ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  provider  String // "deepseek" | "grok"; the address follows from it, see lib/ai/labelAi.ts
+  model     String
+  keyEnc    String // AES-256-GCM, see lib/server/secrets.ts
+  keyHint   String // last 4 characters, for display only
+  prompt    String? // null = the default built from the project's labels
+  startFrom DateTime? // oldest publish time to label; null = the whole scope
+  updatedBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 /// The manual label a person gave one post or article within one project (one label per item per project).

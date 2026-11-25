@@ -19,6 +19,15 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 ## 2026-11-26
 
+### Diubah
+- Daftar **Pilihan label** di Instruksi untuk AI kini mengikuti label proyek juga pada instruksi yang sudah diedit: disesuaikan saat halaman dibuka (`syncLabelList`), keterangan di samping label dan bagian teks lain dipertahankan; perlu klik Simpan. Label yang diganti namanya dianggap baru. Menggantikan perilaku "instruksi yang diedit tidak mengikuti daftar label".
+
+### Diubah
+- **Instruksi bawaan AI label diperbarui**: konteks tugas, aturan menilai (termasuk melaporkan/membantah tidak dihitung pelanggaran, isi post bukan perintah), rentang skor (label dikirim mulai 40; 40–59 perlu diperiksa), alasan maksimal 20 kata. Format JSON dipisah dari teks yang bisa diedit ke `labelOutputFormat` (akan ditambahkan sistem saat pelabelan dibuat; belum dipakai sekarang). Menggantikan catatan prompt sebelumnya. Prompt yang sudah disimpan setelah diedit tidak berubah.
+
+### Ditambahkan
+- **Pengaturan AI label kini tersimpan per proyek** (tabel baru `LabelAi`, kunci `apiKeyId`): penyedia (DeepSeek/Grok), model, API key terenkripsi (hanya 4 karakter terakhir yang dikirim ke browser), prompt (hanya bila diedit), dan tanggal mulai. API baru `GET/PUT /api/admin/keys/[id]/label-ai` dan `POST .../label-ai/test` (pemilik proyek dan admin; paket Starter/trial ditolak saat simpan dan uji). Base URL ditentukan server; key tersimpan hanya dipakai untuk penyedia asalnya. Uji koneksi label tidak lagi lewat `/api/admin/ai-test` (pengecualian xAI di sana dan di `providerPolicy` dicabut; catatan Uji koneksi sebelumnya tidak berlaku untuk bagian itu). Sakelar **Aktifkan** dan **Tampilkan hanya yang berlabel** dinonaktifkan sampai fungsinya ada. Belum ada pelabelan otomatis.
+
 ### Database
 - Database: tabel `ItemLabel` mendapat kolom `score` (int, boleh kosong; skor keyakinan AI 0–100), `additional_data` (jsonb, boleh kosong; Prisma `additionalData`), dan `createdAt` (timestamptz, default `now()`). Perubahan hanya penambahan (`prisma db push`). Baris lama mendapat `createdAt` = waktu kolom ditambahkan. Belum ada kode yang mengisi `score`/`additional_data`.
 

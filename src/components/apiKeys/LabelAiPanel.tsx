@@ -1,15 +1,16 @@
 "use client";
-// /project/[id]/labels — AI settings of "Kustomisasi Label": Grok or DeepSeek choosing among the project's labels.
-// shortcut: only "Uji koneksi" works (the key is sent for that test and never stored; nothing is saved and no AI labels anything),
-// until the settings API and the worker exist.
+// /project/[id]/labels — AI settings of "Kustomisasi Label", saved per project.
+// shortcut: settings are only stored and tested; no AI labels anything and both switches stay off until the label worker exists.
 import { useState } from "react";
 import Link from "next/link";
 import { PasswordInput, Skeleton, Switch, Textarea, TextInput } from "@mantine/core";
 import { IconArrowLeft, IconCheck, IconX, IconDeviceFloppy, IconPlayerPlay, IconRefresh, IconRobot, IconShieldLock, IconTags } from "@tabler/icons-react";
-import { defaultLabelPrompt, type LabelSettings } from "@/lib/media/manualLabels";
+import { defaultLabelPrompt, syncLabelList, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
+import { notifications } from "@mantine/notifications";
 import { post } from "@/lib/api-client";
-import { apiKeyProblem, XAI_BASE_URL } from "@/lib/ai/classifier";
+import { apiKeyProblem } from "@/lib/ai/classifier";
+import { LABEL_AI_PROVIDERS, labelAiProvider, type LabelAiSaved, type LabelAiState } from "@/lib/ai/labelAi";
 import { daysAgo, RangeField } from "../ai/ClassifierEditor";
 import { Button } from "../ui/Button";
 import ai from "../ai/ai.module.css";
@@ -18,6 +19,9 @@ import card from "../ai/keyClassifier.module.css";
 export function LabelAiSettings({ keyId }: { keyId: string }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
   const project = useApi<{ key: { name: string } }>(`/api/admin/keys/${keyId}/classifier`);
+  // Only asked for when this account may change them; the server refuses everyone else.
+  const stored = useApi<LabelAiState>(settings.data?.canEdit ? `/api/admin/keys/${keyId}/label-ai` : null);
+  const loadError = settings.error ?? stored.error;
   const back = `/project/${keyId}?tab=labels`;
   const name = project.data?.key.name;
 
@@ -31,50 +35,62 @@ export function LabelAiSettings({ keyId }: { keyId: string }) {
           <p>AI memilih label proyek ini untuk setiap post dan berita.</p>
         </div>
       </header>
-      {!settings.data ? (settings.error ? <p role="alert">{settings.error}</p> : <Skeleton h={320} radius="lg" />)
-        : settings.data.canEdit ? <LabelAiPanel labels={settings.data.options} />
-        : <p>Hanya pemilik proyek atau admin yang dapat mengatur AI label.</p>}
+      {loadError ? <p role="alert">{loadError}</p>
+        : settings.data && !settings.data.canEdit ? <p>Hanya pemilik proyek atau admin yang dapat mengatur AI label.</p>
+        : settings.data && stored.data ? <LabelAiPanel key={keyId} keyId={keyId} labels={settings.data.options} initial={stored.data.saved} />
+        : <Skeleton h={320} radius="lg" />}
     </div>
   );
 }
 
 type TestResult = { ok: boolean; ms: number; error?: string };
 
-/** The providers offered for AI labels, the first one preselected; both speak the OpenAI API and have a fixed address. */
-const PROVIDERS = [
-  { id: "deepseek", label: "DeepSeek", vendor: "DeepSeek", baseUrl: "https://api.deepseek.com", model: "deepseek-flash" },
-  { id: "grok", label: "Grok (xAI)", vendor: "xAI", baseUrl: XAI_BASE_URL, model: "grok-4.7" },
-] as const;
-
-function LabelAiPanel({ labels }: { labels: string[] }) {
-  // null: not edited, so the instruction follows the saved labels.
-  const [edited, setEdited] = useState<string | null>(null);
-  const [provider, setProvider] = useState<(typeof PROVIDERS)[number]>(PROVIDERS[0]);
-  const [model, setModel] = useState<string>(PROVIDERS[0].model);
+function LabelAiPanel({ keyId, labels, initial }: { keyId: string; labels: string[]; initial: LabelAiSaved | null }) {
+  const [saved, setSaved] = useState(initial);
+  // null: not edited, so the whole instruction follows the saved labels. An edited one gets its label list updated on load
+  // (not while typing, which would rewrite lines under the cursor).
+  const [edited, setEdited] = useState<string | null>(() => (initial?.prompt == null ? null : syncLabelList(initial.prompt, labels)));
+  const [provider, setProvider] = useState(() => labelAiProvider(initial?.provider ?? ""));
+  const [model, setModel] = useState<string>(initial?.model ?? provider.model);
   const [apiKey, setApiKey] = useState("");
   const [test, setTest] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [startFrom, setStartFrom] = useState<string | null>(() => (initial ? initial.startFrom : daysAgo(7)));
   const keyProblem = apiKey ? apiKeyProblem("openai_compatible", provider.baseUrl, apiKey) : null;
-  const pickProvider = (next: (typeof PROVIDERS)[number]) => {
+  // A stored key counts only for the provider it was entered for.
+  const storedHint = saved?.provider === provider.id ? saved.apiKeyHint : null;
+  const ready = (!!apiKey || !!storedHint) && !keyProblem && model.trim().length >= 2;
+  const busy = testing || saving;
+
+  const pickProvider = (next: (typeof LABEL_AI_PROVIDERS)[number]) => {
     if (next.id === provider.id) return;
     // The typed key belongs to the previous provider, so it must not be sent to the next one.
-    setProvider(next); setModel(next.model); setApiKey(""); setTest(null);
+    setProvider(next); setModel(saved?.provider === next.id ? saved.model : next.model); setApiKey(""); setTest(null);
   };
   const runTest = async () => {
     setTest(null);
     setTesting(true);
     try {
-      // apiKeyId stays null: the server must never fall back to the categorisation key, which belongs to another provider.
-      setTest(await post("/api/admin/ai-test", { provider: { kind: "openai_compatible", baseUrl: provider.baseUrl, model, apiKey }, apiKeyId: null }) as TestResult);
+      setTest(await post(`/api/admin/keys/${keyId}/label-ai/test`, { provider: provider.id, model, apiKey }) as TestResult);
     } catch (err) {
       setTest({ ok: false, ms: 0, error: (err as Error).message });
     } finally {
       setTesting(false);
     }
   };
-  const [enabled, setEnabled] = useState(false);
-  const [startFrom, setStartFrom] = useState<string | null>(() => daysAgo(7));
-  const [labelledOnly, setLabelledOnly] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom }, "PUT") as LabelAiState).saved!;
+      setSaved(next); setModel(next.model); setEdited(next.prompt); setApiKey("");
+      notifications.show({ color: "teal", message: "Pengaturan AI label disimpan" });
+    } catch (err) {
+      notifications.show({ color: "red", message: (err as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
   const inputs = { input: ai.input, label: ai.label, description: ai.description };
   const switches = { label: ai.switchLabel, description: ai.switchDescription };
 
@@ -82,28 +98,28 @@ function LabelAiPanel({ labels }: { labels: string[] }) {
     <section className={card.editorCard}>
       <div className={ai.editor}>
         <p className={ai.platformNote} role="note">
-          <IconRobot size={15} />Pelabelan otomatis dengan AI <b>segera hadir</b>. Yang sudah berfungsi baru <b>Uji koneksi</b>: isian belum disimpan dan belum ada post yang dilabeli AI.
+          <IconRobot size={15} />Pelabelan otomatis dengan AI <b>segera hadir</b>. Pengaturan sudah bisa disimpan dan diuji, tetapi belum ada post yang dilabeli AI.
         </p>
 
         <div className={ai.provider}>
           <div className={ai.providerHead}><IconRobot size={15} />Penyedia AI<small>DeepSeek atau Grok · khusus proyek ini</small></div>
           <div className={ai.presets}>
-            {PROVIDERS.map((p) => (
-              <button key={p.id} type="button" disabled={testing} aria-pressed={p.id === provider.id} data-active={p.id === provider.id || undefined} onClick={() => pickProvider(p)}>{p.label}</button>
+            {LABEL_AI_PROVIDERS.map((p) => (
+              <button key={p.id} type="button" disabled={busy} aria-pressed={p.id === provider.id} data-active={p.id === provider.id || undefined} onClick={() => pickProvider(p)}>{p.label}</button>
             ))}
           </div>
           <div className={ai.row}>
-            <TextInput classNames={inputs} label="Model" value={model} disabled={testing} onChange={(e) => { setModel(e.currentTarget.value); setTest(null); }} placeholder={provider.model} description={`Nama model sesuai dokumentasi ${provider.vendor}`} />
+            <TextInput classNames={inputs} label="Model" value={model} disabled={busy} onChange={(e) => { setModel(e.currentTarget.value); setTest(null); }} placeholder={provider.model} description={`Nama model sesuai dokumentasi ${provider.vendor}`} />
             <TextInput classNames={inputs} label="Base URL" value={provider.baseUrl} readOnly description="Terkunci" />
           </div>
-          <PasswordInput classNames={{ ...inputs, innerInput: ai.innerInput }} label="API key penyedia AI" value={apiKey} disabled={testing}
-            onChange={(e) => { setApiKey(e.currentTarget.value); setTest(null); }} placeholder={`Tempel API key ${provider.vendor}`}
-            description="Dipakai untuk Uji koneksi saja, belum disimpan." leftSection={<IconShieldLock size={15} />} error={keyProblem}
+          <PasswordInput classNames={{ ...inputs, innerInput: ai.innerInput }} label="API key penyedia AI" value={apiKey} disabled={busy}
+            onChange={(e) => { setApiKey(e.currentTarget.value); setTest(null); }} placeholder={storedHint ? `Tersimpan ••••${storedHint} — kosongkan bila tidak diganti` : `Tempel API key ${provider.vendor}`}
+            description="Disimpan terenkripsi, khusus proyek ini." leftSection={<IconShieldLock size={15} />} error={keyProblem}
             // Not a login field: stop browsers and password managers from filling in the admin password.
             autoComplete="new-password" name="ai-label-api-key" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" />
           <div className={ai.testRow}>
             <Button size="sm" onDark variant="secondary" icon={IconPlayerPlay} onClick={runTest} loading={testing}
-              disabled={!apiKey || !!keyProblem || model.trim().length < 2}>{testing ? "Menguji…" : "Uji koneksi"}</Button>
+              disabled={!ready || saving}>{testing ? "Menguji…" : "Uji koneksi"}</Button>
             {test && (
               <span className={ai.testResult} data-ok={test.ok || undefined} role="status">
                 {test.ok ? <><IconCheck size={14} />Terhubung · {(test.ms / 1000).toFixed(1)} detik · model menjawab JSON</> : <><IconX size={14} />{test.error}</>}
@@ -115,7 +131,9 @@ function LabelAiPanel({ labels }: { labels: string[] }) {
         <div className={ai.provider}>
           <div className={ai.providerHead}><IconTags size={15} />Prompt<small>Panduan untuk AI saat memilih label</small></div>
           <Textarea classNames={inputs} label="Instruksi untuk AI" autosize minRows={3} value={edited ?? defaultLabelPrompt(labels)} onChange={(e) => setEdited(e.currentTarget.value)}
-            description={edited === null ? "Disusun otomatis dari pilihan label proyek ini. Bisa diedit." : "Sudah diedit; tidak lagi mengikuti perubahan daftar label."}
+            description={edited === null ? "Disusun otomatis dari pilihan label proyek ini. Bisa diedit; tambahkan arti tiap label agar AI lebih terarah. Format jawaban diatur sistem." : saved?.prompt != null && edited !== saved.prompt && edited === syncLabelList(saved.prompt, labels)
+              ? "Daftar \"Pilihan label\" disesuaikan dengan label proyek. Klik Simpan agar tersimpan."
+              : "Sudah diedit. Daftar di bawah \"Pilihan label:\" tetap mengikuti label proyek; bagian lain tidak diubah. Format jawaban diatur sistem."}
             placeholder="Tambahkan pilihan label untuk menyusun instruksi bawaan." />
           {edited !== null && (
             <div className={ai.testRow}><Button size="sm" onDark variant="secondary" icon={IconRefresh} onClick={() => setEdited(null)}>Buat ulang dari label</Button></div>
@@ -123,20 +141,19 @@ function LabelAiPanel({ labels }: { labels: string[] }) {
         </div>
 
         <div className={ai.sameToggle}>
-          <Switch checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} color="violet" size="md" label="Aktifkan pelabelan AI"
-            description={enabled ? "AI akan memilih label untuk post dalam rentang data di bawah." : "Dijeda: AI tidak melabeli post."} classNames={switches} />
+          <Switch checked={false} disabled color="violet" size="md" label="Aktifkan pelabelan AI" description="Tersedia setelah proses pelabelan otomatis dibuat." classNames={switches} />
         </div>
 
-        <RangeField value={startFrom} onChange={setStartFrom} defaultChoice="7" />
+        <RangeField value={startFrom} onChange={setStartFrom} defaultChoice={initial ? undefined : "7"} />
 
         <div className={ai.sameToggle}>
-          <Switch checked={labelledOnly} onChange={(e) => setLabelledOnly(e.currentTarget.checked)} color="violet" size="md" label="Tampilkan hanya yang sudah diberi label"
-            description={labelledOnly
-              ? "Hanya post yang punya label yang ditampilkan, di panel proyek ini dan API."
-              : "Semua post dalam cakupan ditampilkan, berlabel maupun belum."} classNames={switches} />
+          <Switch checked={false} disabled color="violet" size="md" label="Tampilkan hanya yang sudah diberi label" description="Tersedia setelah AI bisa memberi label." classNames={switches} />
         </div>
 
-        <div className={ai.testRow}><Button size="sm" variant="primary" icon={IconDeviceFloppy} disabled>Simpan pengaturan AI</Button></div>
+        <div className={ai.testRow}>
+          <Button size="sm" variant="primary" icon={IconDeviceFloppy} onClick={save} loading={saving} disabled={!ready || testing}>{saving ? "Menyimpan…" : "Simpan pengaturan AI"}</Button>
+          {saved && <span className={ai.platformNote}>Terakhir disimpan {new Date(saved.updatedAt).toLocaleString("id-ID")} oleh {saved.updatedBy}</span>}
+        </div>
       </div>
     </section>
   );
