@@ -21,7 +21,6 @@ const KINDS: Record<Kind, { title: string; href: (id: string) => string }> = {
 type Project = {
   kind: Kind;
   /** Labelling: set once today's limit is used up. */
-  dailyLimit: number | null;
   id: string; name: string; owner: string | null; state: ProgressState; pct: number | null; types: TypeProgress[];
   done: number; today: number; active: boolean; lastRunAt: string | null; error: string | null;
 };
@@ -45,7 +44,6 @@ const sortProjects = (ps: Project[]) => [...ps].sort((a, b) => ORDER[a.state] - 
 
 /** One short line under the bar: how far back it has got, or that it is following new posts. */
 function note(p: Project) {
-  if (p.dailyLimit) return `Batas harian tercapai (${formatNumber(p.dailyLimit)}) · lanjut besok`;
   if (p.state === "live") return `Mengikuti data baru · +${formatNumber(p.today)} hari ini`;
   if (p.state === "waiting") return "Menunggu giliran";
   const reached = p.types.map((t) => t.reached).filter((r): r is string => !!r).sort()[0];

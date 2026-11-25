@@ -41,7 +41,7 @@ export async function labelProgress(apiKeyId: string) {
   const cursors = (row.cursors ?? {}) as Partial<Record<MediaType, { backfillDone?: boolean; oldest?: { ts?: string } }>>;
   return {
     enabled: row.enabled, startFrom: row.startFrom?.toISOString() ?? null, lastError: row.lastError, lastRunAt: row.lastRunAt?.toISOString() ?? null,
-    todayCount: row.todayDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) ? row.todayCount : 0, dailyLimit: row.dailyLimit,
+    todayCount: row.todayDate === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) ? row.todayCount : 0,
     failed, review: ai[0]?.review ?? 0, withAiLabel: ai[0]?.all ?? 0, none: empty.reduce((sum, r) => sum + r._count, 0),
     perThousand: everChecked && cost ? (cost / everChecked) * 1000 : null,
     types: types.map((type) => ({

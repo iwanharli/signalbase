@@ -3,7 +3,7 @@
 // The label worker (npm run label-ai) does the labelling; progress is as of page load.
 import { useState } from "react";
 import Link from "next/link";
-import { NumberInput, PasswordInput, Skeleton, Switch, Textarea, TextInput } from "@mantine/core";
+import { PasswordInput, Skeleton, Switch, Textarea, TextInput } from "@mantine/core";
 import { IconArrowLeft, IconCheck, IconX, IconDeviceFloppy, IconPlayerPlay, IconRefresh, IconRobot, IconShieldLock, IconTags } from "@tabler/icons-react";
 import { defaultLabelPrompt, syncLabelList, type LabelSettings } from "@/lib/media/manualLabels";
 import { useApi } from "@/lib/useApi";
@@ -47,7 +47,6 @@ type TestResult = { ok: boolean; ms: number; error?: string };
 
 function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; labels: string[]; initial: LabelAiSaved | null; progress: LabelAiProgress | null }) {
   const [enabled, setEnabled] = useState(initial?.enabled ?? false);
-  const [dailyLimit, setDailyLimit] = useState(initial?.dailyLimit ?? 500);
   const [openedAt] = useState(() => Date.now());
   const [saved, setSaved] = useState(initial);
   // null: not edited, so the whole instruction follows the saved labels. An edited one gets its label list updated on load
@@ -88,8 +87,8 @@ function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; lab
   const save = async () => {
     setSaving(true);
     try {
-      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom, enabled, dailyLimit }, "PUT") as LabelAiState).saved!;
-      setSaved(next); setEnabled(next.enabled); setDailyLimit(next.dailyLimit); setModel(next.model); setEdited(next.prompt); setApiKey("");
+      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom, enabled }, "PUT") as LabelAiState).saved!;
+      setSaved(next); setEnabled(next.enabled); setModel(next.model); setEdited(next.prompt); setApiKey("");
       notifications.show({ color: "teal", message: "Pengaturan AI label disimpan" });
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
@@ -150,9 +149,6 @@ function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; lab
           <Switch checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} disabled={busy} color="violet" size="md" label="Aktifkan pelabelan AI"
             description={`${enabled ? "AI melabeli post dalam rentang data, lalu post baru berkala." : "Mati: tidak ada post baru yang dikirim ke AI."} Berlaku setelah disimpan.`} classNames={switches} />
         </div>
-
-        <NumberInput classNames={inputs} label="Batas post per hari" description="Rem biaya. Percobaan ulang ikut dihitung." min={1} max={20000} allowDecimal={false}
-          value={dailyLimit} onChange={(v) => setDailyLimit(Number(v) || 1)} />
 
         {progress && saved && (
           <div className={ai.provider}>

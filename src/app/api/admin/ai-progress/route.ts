@@ -28,7 +28,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   const labelRows = user.role === "viewer" ? [] : await prisma.labelAi.findMany({
     where: { enabled: true, apiKey: { revokedAt: null, ...(user.role === "user" ? { ownerId: user.id } : {}) } },
     select: {
-      apiKeyId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, dailyLimit: true, lastRunAt: true, lastError: true,
+      apiKeyId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, lastRunAt: true, lastError: true,
       apiKey: { select: { name: true, scope: true, keywords: true, ownerId: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -56,7 +56,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     const types = allowed.map((type, i) =>
       typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: totals[i] }));
     return {
-      kind: "category" as const, dailyLimit: null as number | null,
+      kind: "category" as const,
       id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: r.todayDate === day ? r.todayCount : 0,
@@ -78,7 +78,7 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     }));
     const todayCount = r.todayDate === day ? r.todayCount : 0;
     return {
-      kind: "label" as const, dailyLimit: todayCount >= r.dailyLimit ? r.dailyLimit : null,
+      kind: "label" as const,
       id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.ownerId ? owners.get(r.apiKey.ownerId) ?? null : null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: todayCount,

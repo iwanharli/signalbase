@@ -29,13 +29,12 @@ export const labelAiSchema = z.object({
   /** Oldest publish time to label; null = everything in scope. */
   startFrom: z.string().refine((v) => !Number.isNaN(Date.parse(v)), "Tanggal mulai tidak valid").nullable(),
   enabled: z.boolean().default(false),
-  dailyLimit: z.number().int().min(1, "Batas harian minimal 1").max(20_000, "Batas harian maksimal 20.000").default(500),
 }).refine(keyLooksRight, KEY_MESSAGE)
   .refine((v) => labelAiProvider(v.provider).webSearch, { message: "Penyedia ini belum bisa dipakai: pencarian sumbernya belum tersedia", path: ["provider"] });
 export type LabelAiInput = z.infer<typeof labelAiSchema>;
 
 /** Saved settings as the panel receives them: never the key itself. */
-export type LabelAiSaved = { provider: LabelAiProviderId; model: string; apiKeyHint: string; prompt: string | null; startFrom: string | null; enabled: boolean; dailyLimit: number; updatedBy: string; updatedAt: string };
+export type LabelAiSaved = { provider: LabelAiProviderId; model: string; apiKeyHint: string; prompt: string | null; startFrom: string | null; enabled: boolean; updatedBy: string; updatedAt: string };
 /** What the label worker has done for the project. */
 export type LabelAiProgress = { processed: number; failed: number; todayCount: number; lastError: string | null; lastRunAt: string | null; inputTokens: number; outputTokens: number };
 export type LabelAiState = { saved: LabelAiSaved | null; progress?: LabelAiProgress | null };

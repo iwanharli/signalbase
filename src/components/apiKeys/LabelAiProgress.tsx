@@ -51,7 +51,7 @@ export function LabelAiProgress({ keyId }: { keyId: string }) {
           <b className={classes.overallValue}>{formatNumber(done)}<span> / {inRange === null ? (totals.error ? "—" : "…") : formatNumber(inRange)} post</span></b>
           <span className={classes.meter}><i style={{ width: `${pct(done, inRange)}%` }} /></span>
           <dl className={classes.facts}>
-            <div><dt>Dikirim hari ini</dt><dd>{formatNumber(p.todayCount)} / {formatNumber(p.dailyLimit)}</dd></div>
+            <div><dt>Dikirim hari ini</dt><dd>{formatNumber(p.todayCount)}</dd></div>
             <div><dt>Terlewat</dt><dd data-warn={p.failed > 0 || undefined}>{formatNumber(p.failed)}</dd></div>
             <div><dt>Terakhir jalan</dt><dd>{p.lastRunAt ? dayjs(p.lastRunAt).locale("id").fromNow() : "—"}</dd></div>
             <div><dt>Biaya / 1.000</dt><dd title="Perkiraan dari token dan pencarian yang tercatat">{p.perThousand === null ? "—" : `US$${p.perThousand.toLocaleString("id-ID", { maximumFractionDigits: 4 })}`}</dd></div>
@@ -137,7 +137,7 @@ function Review({ keyId, type, p, onRetried }: { keyId: string; type: MediaType;
       </div>
 
       <Modal opened={open} onClose={() => setOpen(false)} centered size="lg" radius={18} title="Post yang gagal dilabeli AI">
-        <p className={review.note}>Worker mencoba tiap post paling banyak 3 kali. “Coba lagi” memasukkan semuanya ke antrean; worker harus berjalan, dan batas harian tetap berlaku.</p>
+        <p className={review.note}>Worker mencoba tiap post paling banyak 3 kali. “Coba lagi” memasukkan semuanya ke antrean; worker harus berjalan.</p>
         {failed.error ? <p className={review.note}>{failed.error}</p> : !failed.data ? <p className={review.note}>Memuat…</p> : !failed.data.items.length ? (
           <p className={review.empty}>Tidak ada post yang terlewat.</p>
         ) : (

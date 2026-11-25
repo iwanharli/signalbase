@@ -329,7 +329,7 @@ model LabelAi {
   updatedBy String
   savedAt   DateTime  @default(now()) // last save by a person (updatedAt also moves with the worker)
   enabled    Boolean @default(false)
-  dailyLimit Int     @default(500) // posts sent per day (Jakarta)
+  dailyLimit Int     @default(500) // unused since 26 Nov 2026 (no daily cap; the start date bounds the work); kept so db push drops nothing
   // Worker state. Cursors per media type: { social: { newest, oldest, backfillDone, ... } }
   cursors     Json      @default("{}")
   processed   Int       @default(0)

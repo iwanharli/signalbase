@@ -22,7 +22,7 @@ export async function labelAiPlanProblem(user: PanelUser, model: string) {
 
 export const publicLabelAi = (row: LabelAi): LabelAiSaved => ({
   provider: row.provider as LabelAiProviderId, model: row.model, apiKeyHint: row.keyHint, prompt: row.prompt,
-  startFrom: row.startFrom?.toISOString() ?? null, enabled: row.enabled, dailyLimit: row.dailyLimit,
+  startFrom: row.startFrom?.toISOString() ?? null, enabled: row.enabled,
   updatedBy: row.updatedBy, updatedAt: row.savedAt.toISOString(),
 });
 
@@ -39,7 +39,7 @@ export function labelAiConfig(provider: string, model: string, apiKeyEnc: string
 export async function saveLabelAi(apiKeyId: string, input: LabelAiInput, username: string) {
   const data = {
     provider: input.provider, model: input.model, prompt: input.prompt, startFrom: input.startFrom ? new Date(input.startFrom) : null,
-    enabled: input.enabled, dailyLimit: input.dailyLimit, updatedBy: username, savedAt: new Date(),
+    enabled: input.enabled, updatedBy: username, savedAt: new Date(),
     // A save is a person acting on whatever stopped the worker: try again right away.
     lastError: null, errorStreak: 0, retryAfter: null,
   };

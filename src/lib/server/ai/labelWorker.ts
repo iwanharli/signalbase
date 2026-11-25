@@ -431,10 +431,6 @@ export async function runLabelProject(apiKeyId: string) {
   }
   const today = todayInJakarta();
   const todayCount = row.todayDate === today ? row.todayCount : 0;
-  if (todayCount >= row.dailyLimit) {
-    logIdle(apiKeyId, name, `batas harian tercapai (${num(todayCount)}/${num(row.dailyLimit)}), lanjut besok (WIB)`);
-    return void (await beat());
-  }
 
   const instructions = syncLabelList(row.prompt ?? defaultLabelPrompt(options), options);
   const run: Run = {
@@ -443,7 +439,7 @@ export async function runLabelProject(apiKeyId: string) {
     scope: await withImageCodes(apiKeyId, parseKeyScope(row.apiKey.scope, row.apiKey.keywords)),
     system: `${instructions}\n\n${labelOutputFormat(options)}`,
     checkSystem: searchSystem(instructions),
-    budget: Math.min(TICK_BUDGET, row.dailyLimit - todayCount),
+    budget: TICK_BUDGET, // no daily cap: the start date (range) bounds the work
   };
   const cursors = (row.cursors ?? {}) as Cursors;
   const saveCursors = () => prisma.labelAi.updateMany({ where: { apiKeyId }, data: { cursors: cursors as Prisma.InputJsonValue, lastRunAt: new Date() } });
@@ -454,7 +450,7 @@ export async function runLabelProject(apiKeyId: string) {
     const t = run.tally;
     if (!t.sent && !t.calls && !t.waiting && !t.failed) return false;
     quiet.delete(apiKeyId);
-    log(`${name}: ringkasan → ${num(t.sent)} post diproses: ${num(t.labelled)} berlabel, ${num(t.empty)} tanpa label, ${num(t.failed)} gagal, ${num(t.waiting)} menunggu teks${t.human ? `, ${num(t.human)} dilewati` : ""} · ${t.calls} panggilan, token masuk ${num(t.input)} / keluar ${num(t.output)} · hari ini ${num(run.todayCount)}/${num(row.dailyLimit)}`);
+    log(`${name}: ringkasan → ${num(t.sent)} post diproses: ${num(t.labelled)} berlabel, ${num(t.empty)} tanpa label, ${num(t.failed)} gagal, ${num(t.waiting)} menunggu teks${t.human ? `, ${num(t.human)} dilewati` : ""} · ${t.calls} panggilan, token masuk ${num(t.input)} / keluar ${num(t.output)} · hari ini ${num(run.todayCount)}`);
     return true;
   };
   try {
