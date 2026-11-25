@@ -321,7 +321,12 @@ model ItemLabel {
   code      String
   label     String
   setBy     String // username
-  updatedAt DateTime @updatedAt
+  /// AI confidence 0-100; null for a label a person gave.
+  score          Int?
+  additionalData Json?    @map("additional_data")
+  /// Rows older than this column carry the time it was added, not when the label was given.
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt
 
   @@id([apiKeyId, type, code])
   @@index([apiKeyId, label])

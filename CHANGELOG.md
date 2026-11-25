@@ -19,6 +19,9 @@ Semua perubahan penting pada Signalbase dicatat di sini. Format mengikuti [Keep 
 
 ## 2026-11-26
 
+### Database
+- Database: tabel `ItemLabel` mendapat kolom `score` (int, boleh kosong; skor keyakinan AI 0–100), `additional_data` (jsonb, boleh kosong; Prisma `additionalData`), dan `createdAt` (timestamptz, default `now()`). Perubahan hanya penambahan (`prisma db push`). Baris lama mendapat `createdAt` = waktu kolom ditambahkan. Belum ada kode yang mengisi `score`/`additional_data`.
+
 ### Ditambahkan
 - Penyedia AI di Pengaturan AI label kini bisa **DeepSeek** (bawaan sementara, `deepseek-flash`, `https://api.deepseek.com`) atau **Grok (xAI)** (`grok-4.7`); menggantikan keterangan "terkunci Grok". Ganti penyedia mengosongkan API key yang diketik. Belum disimpan; hanya Uji koneksi yang berfungsi.
 - **Uji koneksi** di halaman Pengaturan AI label kini berfungsi (menggantikan keterangan "baru tampilan" untuk tombol ini dan kolom API key): memanggil `/api/admin/ai-test` ke Grok (`https://api.x.ai/v1`) dengan API key yang diketik; key tidak disimpan. Alamat xAI masuk daftar yang boleh dipakai akun pengguna, dan uji ke xAI mengikuti aturan paket (Starter dan trial ditolak). Uji memakai contoh Kategorisasi AI, belum menguji Prompt label. Pesan error xAI kini ikut ditampilkan.
