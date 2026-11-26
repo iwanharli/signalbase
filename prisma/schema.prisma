@@ -254,7 +254,7 @@ model AiSummary {
 model AiUsageLog {
   id           Int      @id @default(autoincrement())
   at           DateTime @default(now())
-  purpose      String // "summary" | "test"
+  purpose      String // "summary" | "report" | "test" | "isu"
   scope        String?
   scopeName    String?
   model        String
@@ -519,4 +519,33 @@ model MediaWorkerState {
   serviceOk   Boolean
   lastError   String?
   lastTick    Json? // { collected, backfilled, analyzed, ms }
+}
+
+/// An issue found by clustering a project's social posts of the last days (worker `isu`, service `signalbase-klaster`).
+/// Rewritten every run; a cluster that carries on keeps its id (and its AI title) when most of its posts are the same.
+model IssueCluster {
+  id        String   @id @default(uuid())
+  apiKeyId  String
+  active    Boolean  @default(true) // false: not found in the latest run (kept for its history, hidden)
+  codes     String[] // member post codes (newest first, capped)
+  posts     Int
+  authors   Int
+  negShare  Float // share of labelled posts that are "menolak" or "marah"
+  growth    Float // posts per day in the last 2 days over the days before
+  score     Float // early-warning score 0-100, for ordering
+  keywords  String[]
+  perDay    Json // { "YYYY-MM-DD": n }
+  moods     Json // [[emotion, n], ...]
+  samples   Json // [{ code, text, author, url, ts }], the clearest examples first
+  title     String?
+  summary   String?
+  actors    String[] @default([])
+  targets   String[] @default([])
+  titledAt  Int      @default(0) // posts when the AI title was written; rewritten when the cluster has doubled
+  firstSeen DateTime
+  lastSeen  DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([apiKeyId, active, score])
 }

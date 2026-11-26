@@ -18,6 +18,7 @@ import { Button } from "../ui/Button";
 import classes from "../issues/issues.module.css";
 import ews from "./ews.module.css";
 import { ActionCalls } from "./ActionCalls";
+import { IssueClusters } from "./IssueClusters";
 
 type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
@@ -178,6 +179,7 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
       </header>
 
       <ActionCalls days={days} keyId={keyId} />
+      <IssueClusters keyId={keyId} />
 
       <div className={classes.toolbar}>
         <Segmented label="Periode alert" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v, issue: null })} />

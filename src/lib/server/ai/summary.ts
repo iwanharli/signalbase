@@ -65,7 +65,7 @@ export async function saveSetting(input: AiSettingInput, username: string) {
 // ---------------------------------------------------------------- usage log
 
 /** Calls the provider and logs tokens, estimated cost and outcome, whether or not the reply is usable. */
-export async function loggedCall(setting: AiSetting, purpose: "summary" | "report" | "test", scope: { id: string; name: string } | null, system: string, user: string, maxTokens?: number) {
+export async function loggedCall(setting: AiSetting, purpose: "summary" | "report" | "test" | "isu", scope: { id: string; name: string } | null, system: string, user: string, maxTokens?: number) {
   let usage: CallUsage = { input: 0, cached: 0, output: 0 };
   const started = Date.now();
   const log = (ok: boolean, error: string | null) => prisma.aiUsageLog.create({

@@ -1,14 +1,16 @@
-// Background worker for AI categorisation, the daily Ringkasan AI and the daily executive reports. Runs as its own process
+// Background worker for AI categorisation, the daily Ringkasan AI, the daily executive reports and the issue clusters. Runs as its own process
 // (PM2 `signalbase-classifier`):
 //   npm run classifier
 import { runDailySummaries } from "../src/lib/server/ai/summary";
 import { runScheduledReports } from "../src/lib/server/report";
 import { runClassifiers } from "../src/lib/server/ai/worker";
+import { runIssueClusters } from "../src/lib/server/isu/worker";
 
 const INTERVAL_MS = 60_000;
 let stopping = false;
 let summarizing = false;
 let reporting = false;
+let clustering = false;
 
 /** Daily summaries run beside labelling (a run can take minutes), never two at once. */
 function summaries() {
@@ -30,12 +32,22 @@ function reports() {
     .finally(() => { reporting = false; });
 }
 
+/** Issue clusters per project (hourly each), beside labelling; the first run of a project can take minutes. */
+function issues() {
+  if (clustering) return;
+  clustering = true;
+  runIssueClusters()
+    .catch((error) => console.error("[isu] run failed:", error))
+    .finally(() => { clustering = false; });
+}
+
 async function loop() {
   console.log("[classifier] started");
   while (!stopping) {
     const started = Date.now();
     summaries();
     reports();
+    issues();
     try {
       const count = await runClassifiers();
       if (count) console.log(`[classifier] tick: ${count} classifier(s), ${Math.round((Date.now() - started) / 1000)}s`);
