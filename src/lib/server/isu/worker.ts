@@ -22,7 +22,7 @@ const MAX_POSTS = 20_000;
 const MIN_POSTS = 15;
 const MAX_CODES = 3_000;
 /** Clusters titled per project per run, largest score first, from this many posts. */
-const TITLES_PER_RUN = 8;
+const TITLES_PER_RUN = 20;
 const TITLE_FROM = 20;
 
 const lastRun = new Map<string, number>();

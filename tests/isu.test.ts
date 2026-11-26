@@ -43,3 +43,11 @@ test("judul AI ditulis bila belum ada atau klaster sudah dua kali lipat", () => 
   assert.equal(needsTitle({ title: "x", titledAt: 40, posts: 70 }), false);
   assert.equal(needsTitle({ title: "x", titledAt: 40, posts: 80 }), true);
 });
+
+test("level EWS dari skor isu klaster", async () => {
+  const { levelOf } = await import("../src/lib/server/isu/ews");
+  assert.equal(levelOf(80), "Critical");
+  assert.equal(levelOf(55), "Critical");
+  assert.equal(levelOf(54.9), "High");
+  assert.equal(levelOf(5), "High");
+});

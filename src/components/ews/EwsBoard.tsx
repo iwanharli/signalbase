@@ -18,7 +18,6 @@ import { Button } from "../ui/Button";
 import classes from "../issues/issues.module.css";
 import ews from "./ews.module.css";
 import { ActionCalls } from "./ActionCalls";
-import { IssueClusters } from "./IssueClusters";
 
 type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
@@ -171,7 +170,9 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconRadar2 size={13} />Radar EWS</span>
           <h1>Isu EWS Sosmed <em>{periodLabel}</em> terakhir</h1>
-          <p>Peringatan dini dari media sosial, diurutkan dari skor tertinggi. Pilih alert untuk melihat aktor, target, reaksi publik, dan post di baliknya.</p>
+          <p>{keyId
+            ? "Isu dari post media sosial proyek ini, dikelompokkan Signalbase tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, dan post di baliknya."
+            : "Peringatan dini dari media sosial, diurutkan dari skor tertinggi. Pilih alert untuk melihat aktor, target, reaksi publik, dan post di baliknya."}</p>
         </div>
         <div className={classes.stats}>
           {stats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{list.data ? formatNumber(s.value) : "—"}</b><span>{s.label}</span></div>)}
@@ -179,7 +180,6 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
       </header>
 
       <ActionCalls days={days} keyId={keyId} />
-      <IssueClusters keyId={keyId} />
 
       <div className={classes.toolbar}>
         <Segmented label="Periode alert" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v, issue: null })} />
