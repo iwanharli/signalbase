@@ -17,6 +17,7 @@ import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
+import { SnaFlowGuide } from "./SnaFlowGuide";
 import { SnaPanel } from "./SnaPanel";
 import { SnaWatchPicker, type SnaWatch } from "./SnaWatches";
 import classes from "./sna.module.css";
@@ -358,6 +359,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
             })}
           </div>
         </div>
+        {issueView && graph && graph.nodes.length > 0 && !picked && <SnaFlowGuide flow={flow} onPick={(v) => go({ flow: v === "langsung" ? null : v })} />}
         {graph && graph.nodes.length > 0 && (
           <div className={classes.tools}>
             <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
