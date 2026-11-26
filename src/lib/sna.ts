@@ -32,11 +32,13 @@ export const TONE_COLOR: Record<Tone, string> = { negative: "#fb7185", neutral: 
 export const TONE_LABEL: Record<Tone, string> = { negative: "Marah / menolak", neutral: "Netral", positive: "Mendukung / puas", unknown: "Tanpa emosi" };
 const TONE_ORDER: Tone[] = ["negative", "positive", "neutral", "unknown"];
 
-export type SnaHub = { username: string; source: string; posts: number };
+export type SnaHub = { username: string; source: string; posts: number; engagement?: number };
 /** One row of the mention query: `n` mentions of `target` by `hub` in posts with this emotion. */
-export type SnaRow = { hub: string; target: string; emotion: string | null; n: number };
+export type SnaRow = { hub: string; target: string; emotion: string | null; n: number; eng?: number };
 
-export type SnaNode = { id: string; kind: "hub" | "child"; posts: number; mentions: number; source?: string };
+/** hub: main account; child: mentioned account; issue: an issue of the project (issue view), linked from the accounts posting in it.
+ *  `engagement`: likes + 2 x comments + 3 x shares of the account's posts in view (node size); `title`: an issue's title. */
+export type SnaNode = { id: string; kind: "hub" | "child" | "issue"; posts: number; mentions: number; source?: string; engagement?: number; title?: string };
 export type SnaLink = { source: string; target: string; n: number; tone: Tone; counts: Record<Tone, number> };
 export type SnaGraph = { nodes: SnaNode[]; links: SnaLink[] };
 
@@ -53,6 +55,7 @@ export function dominantTone(counts: Record<Tone, number>): Tone {
 export function buildGraph(hubs: SnaHub[], rows: SnaRow[], perHub = childrenPerHub(DEFAULT_SNA_LIMIT)): SnaGraph {
   const hubIds = new Set(hubs.map((h) => h.username));
   const pairs = new Map<string, SnaLink>();
+  const reach = new Map<string, number>(); // engagement of the posts mentioning each account, per hub -> target pair
   for (const r of rows) {
     if (!hubIds.has(r.hub) || r.hub === r.target) continue;
     const key = `${r.hub}\u0000${r.target}`;
@@ -60,6 +63,7 @@ export function buildGraph(hubs: SnaHub[], rows: SnaRow[], perHub = childrenPerH
     link.n += r.n;
     link.counts[toneOf(r.emotion)] += r.n;
     pairs.set(key, link);
+    reach.set(key, (reach.get(key) ?? 0) + (r.eng ?? 0));
   }
   const links: SnaLink[] = [];
   for (const hub of hubs) {
@@ -68,16 +72,65 @@ export function buildGraph(hubs: SnaHub[], rows: SnaRow[], perHub = childrenPerH
   }
   const mentions = new Map<string, number>();
   for (const l of links) { mentions.set(l.source, (mentions.get(l.source) ?? 0) + l.n); mentions.set(l.target, (mentions.get(l.target) ?? 0) + l.n); }
-  const nodes: SnaNode[] = hubs.map((h) => ({ id: h.username, kind: "hub", posts: h.posts, mentions: mentions.get(h.username) ?? 0, source: h.source }));
-  for (const id of new Set(links.map((l) => l.target))) if (!hubIds.has(id)) nodes.push({ id, kind: "child", posts: 0, mentions: mentions.get(id) ?? 0 });
+  const childEng = new Map<string, number>();
+  for (const l of links) childEng.set(l.target, (childEng.get(l.target) ?? 0) + (reach.get(`${l.source}\u0000${l.target}`) ?? 0));
+  const nodes: SnaNode[] = hubs.map((h) => ({ id: h.username, kind: "hub", posts: h.posts, mentions: mentions.get(h.username) ?? 0, source: h.source, engagement: h.engagement }));
+  for (const id of new Set(links.map((l) => l.target))) if (!hubIds.has(id)) nodes.push({ id, kind: "child", posts: 0, mentions: mentions.get(id) ?? 0, engagement: childEng.get(id) });
   return { nodes, links };
 }
 
 export const emptyHubs = (): SnaGraph => ({ nodes: [], links: [] });
 
 export const SNA_POSTS = 20;
-export type SnaRole = "hub" | "child";
-export const isSnaRole = (v: string | null): v is SnaRole => v === "hub" || v === "child";
+/** hub: the account's posts that mention someone; child: posts mentioning the account; author: all its posts (issue view). */
+export type SnaRole = "hub" | "child" | "author";
+export const isSnaRole = (v: string | null): v is SnaRole => v === "hub" || v === "child" || v === "author";
+
+/** The two SNA views of a project: accounts around its issues, or who mentions whom. */
+export type SnaView = "isu" | "mention";
+/** Issues drawn in the issue view, and accounts kept per issue (the most engaging ones). */
+export const issuesShown = (limit: number) => (limit <= 25 ? 8 : limit <= 50 ? 12 : 16);
+export const accountsPerIssue = (limit: number) => Math.max(5, Math.round((limit * 2) / issuesShown(limit)));
+
+export type IssueAccountRow = { issue: string; username: string; source: string; emotion: string | null; n: number; eng: number };
+
+/**
+ * Issue view: each issue is a node; the accounts posting in it (its `perIssue` most engaging) link to it, with the emotion of
+ * those posts. An account in several issues is one node linking them. Accounts are sized by the engagement of their posts.
+ */
+export function buildIssueGraph(issues: { id: string; title: string; posts: number }[], rows: IssueAccountRow[], perIssue: number): SnaGraph {
+  const links = new Map<string, SnaLink>();
+  const perAccount = new Map<string, { eng: number; posts: number; source: string }>();
+  const engIn = new Map<string, Map<string, number>>(); // issue -> account -> engagement
+  for (const r of rows) {
+    const key = `${r.username}\u0000${r.issue}`;
+    const link = links.get(key) ?? { source: r.username, target: `issue:${r.issue}`, n: 0, tone: "unknown" as Tone, counts: emptyCounts() };
+    link.n += r.n;
+    link.counts[toneOf(r.emotion)] += r.n;
+    links.set(key, link);
+    const m = engIn.get(r.issue) ?? new Map<string, number>();
+    m.set(r.username, (m.get(r.username) ?? 0) + r.eng);
+    engIn.set(r.issue, m);
+  }
+  const kept = new Set<string>();
+  for (const [issue, m] of engIn) {
+    const top = [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, perIssue);
+    for (const [u] of top) kept.add(`${u}\u0000${issue}`);
+  }
+  const out: SnaLink[] = [];
+  for (const [key, l] of links) if (kept.has(key)) out.push({ ...l, tone: dominantTone(l.counts) });
+  for (const r of rows) {
+    if (!kept.has(`${r.username}\u0000${r.issue}`)) continue;
+    const a = perAccount.get(r.username) ?? { eng: 0, posts: 0, source: r.source };
+    a.eng += r.eng; a.posts += r.n;
+    perAccount.set(r.username, a);
+  }
+  const linkedIssues = new Set(out.map((l) => l.target));
+  const nodes: SnaNode[] = issues.filter((i) => linkedIssues.has(`issue:${i.id}`))
+    .map((i) => ({ id: `issue:${i.id}`, kind: "issue", posts: i.posts, mentions: 0, title: i.title }));
+  for (const [username, a] of perAccount) nodes.push({ id: username, kind: "hub", posts: a.posts, mentions: 0, source: a.source, engagement: a.eng });
+  return { nodes, links: out };
+}
 /** A post shown in the account panel: the account's own post (hub) or one that mentions it (child). */
 export type SnaPost = { code: string; source: string; username: string | null; content: string; url: string | null; ts: string; emotion: string | null };
 /** Latest posts plus how many there were per bucket (hour for 1 day, otherwise day). */
@@ -86,7 +139,7 @@ export type SnaAccount = { posts: SnaPost[]; buckets: { key: string; n: number }
 /** Emotion counts of a node: its own posts (outgoing links) for a hub, the posts mentioning it (incoming) for a child. */
 export function nodeCounts(links: SnaLink[], id: string, role: SnaRole): Record<Tone, number> {
   const c = emptyCounts();
-  for (const l of links) if ((role === "hub" ? l.source : l.target) === id) for (const t of TONE_ORDER) c[t] += l.counts[t];
+  for (const l of links) if ((role === "child" ? l.target : l.source) === id) for (const t of TONE_ORDER) c[t] += l.counts[t];
   return c;
 }
 

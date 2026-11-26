@@ -5,6 +5,10 @@ import { sharedCache } from "./cache";
 import { analyticsPool } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 import type { SnaCodes } from "../snaFilter";
+import { COMMENTS, LIKES, SHARES } from "../ai/summaryInput";
+
+/** Engagement of one post, as in Ringkasan AI: likes + 2 x comments + 3 x shares. */
+export const ENGAGEMENT = `(${LIKES} + 2 * ${COMMENTS} + 3 * ${SHARES})`;
 
 const cache = sharedCache<SnaGraph>("sna", { ttlMs: 60_000, maxEntries: 50, staleWhileRevalidate: true });
 
@@ -22,12 +26,12 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only:
     const from = COLUMNS.social.from;
     const pool = analyticsPool();
     const { rows: hubs } = await pool.query<SnaHub>(
-      `SELECT p.post_username username, mode() WITHIN GROUP (ORDER BY p.post_source) source, count(*)::int posts FROM ${from}
+      `SELECT p.post_username username, mode() WITHIN GROUP (ORDER BY p.post_source) source, count(*)::int posts, sum(${ENGAGEMENT})::float8 engagement FROM ${from}
        WHERE ${where} AND p.post_username <> '' AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)
        GROUP BY 1 ORDER BY 3 DESC LIMIT ${limit}`, values);
     if (!hubs.length) return emptyHubs();
     const { rows } = await pool.query<SnaRow>(
-      `SELECT p.post_username hub, m.username_target target, lower(a.emotion) emotion, count(*)::int n FROM ${from}
+      `SELECT p.post_username hub, m.username_target target, lower(a.emotion) emotion, count(*)::int n, sum(${ENGAGEMENT})::float8 eng FROM ${from}
        JOIN post_mentioned m ON m.post_code = p.post_code
        WHERE ${where} AND p.post_username = ANY($${values.length + 1}::text[]) AND m.username_target <> p.post_username
        GROUP BY 1, 2, 3`, [...values, hubs.map((h) => h.username)]);
@@ -53,8 +57,8 @@ export function snaAccount(username: string, role: SnaRole, days: SnaDays, scope
     const since = new Date(Date.now() - days * 86_400_000).toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" });
     const { where, values } = withCodes(buildWhere("social", new URLSearchParams({ since }), s), only);
     const who = `$${values.length + 1}`;
-    const cond = role === "hub"
-      ? `p.post_username = ${who} AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)`
+    const cond = role === "author" ? `p.post_username = ${who}`
+      : role === "hub" ? `p.post_username = ${who} AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)`
       : `EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code AND m.username_target = ${who})`;
     const from = COLUMNS.social.from, pool = analyticsPool(), args = [...values, username];
     const [posts, buckets] = await Promise.all([

@@ -5,8 +5,10 @@ import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { snaGraph } from "@/lib/server/bank/sna";
 import { overviewView } from "@/lib/server/overviewKey";
 import { snaCodes } from "@/lib/server/snaFilter";
+import { snaIssueGraph } from "@/lib/server/isu/sna";
 
-// SNA page: ?days=1|3|7&limit=25|50|100|200[&key=][&issue=&label=] (only that project's posts of the issue or label). Same key rules as /api/admin/stats (admin: whole bank or one key; user: own key, 403 when the plan expired).
+// SNA page: ?days=1|3|7&limit=25|50|100|200[&key=][&issue=&label=] (only that project's posts of the issue or label)
+// [&view=isu] (with a project: its issues as nodes and the accounts posting in them, instead of who mentions whom). Same key rules as /api/admin/stats (admin: whole bank or one key; user: own key, 403 when the plan expired).
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const q = new URL(req.url).searchParams;
   const days = parseSnaDays(q.get("days"));
@@ -19,6 +21,9 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const only = await snaCodes(q, view.key?.id ?? null);
   if (only instanceof Response) return only;
   try {
+    if (q.get("view") === "isu" && view.key) {
+      return NextResponse.json({ days, ...(await snaIssueGraph(view.key.id, days, limit, only, q.get("issue")?.trim() || null)) });
+    }
     return NextResponse.json({ days, ...(await snaGraph(days, limit, view.scope, only)) });
   } catch (e) {
     return sourceErrorResponse(e, "sna");

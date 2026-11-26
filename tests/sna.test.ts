@@ -70,3 +70,22 @@ test("switching emotions off drops their counts, empty links and accounts left w
   assert.deepEqual(f.nodes.map((n) => n.id), ["a", "b"]);
   assert.deepEqual(filterGraph(g, ["negative", "positive", "neutral", "unknown"]).nodes, []);
 });
+
+test("tampilan isu: isu jadi simpul, akun teratas per isu menurut engagement, akun di dua isu menjadi satu simpul", async () => {
+  const { buildIssueGraph } = await import("../src/lib/sna");
+  const issues = [{ id: "i1", title: "Isu satu", posts: 50 }, { id: "i2", title: "Isu dua", posts: 20 }, { id: "i3", title: "Tanpa akun", posts: 5 }];
+  const rows = [
+    { issue: "i1", username: "a", source: "x", emotion: "marah", n: 3, eng: 900 },
+    { issue: "i1", username: "b", source: "x", emotion: "netral", n: 1, eng: 10 },
+    { issue: "i1", username: "c", source: "x", emotion: "netral", n: 5, eng: 1 },   // banyak post, engagement kecil: tidak masuk 2 teratas
+    { issue: "i2", username: "a", source: "x", emotion: "mendukung", n: 2, eng: 100 },
+  ];
+  const g = buildIssueGraph(issues, rows, 2);
+  assert.deepEqual(g.nodes.filter((n) => n.kind === "issue").map((n) => n.id), ["issue:i1", "issue:i2"]); // isu tanpa akun tidak digambar
+  const a = g.nodes.find((n) => n.id === "a")!;
+  assert.equal(a.kind, "hub");
+  assert.equal(a.engagement, 1000); // dua isu, satu simpul
+  assert.equal(g.nodes.some((n) => n.id === "c"), false);
+  assert.equal(g.links.find((l) => l.source === "a" && l.target === "issue:i1")!.tone, "negative");
+  assert.equal(g.links.length, 3);
+});

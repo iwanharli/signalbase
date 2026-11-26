@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChartDots3, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
+import { IconAlertTriangle, IconChartDots3, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -23,6 +23,7 @@ type Node = SnaNode & SimulationNodeDatum;
 type Edge = Omit<SnaLink, "source" | "target"> & SimulationLinkDatum<Node> & { source: Node; target: Node };
 const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${n} akun teratas` }));
 const PERIOD_OPTIONS = SNA_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
+const VIEW_OPTIONS = [{ value: "isu", label: "Isu" }, { value: "mention", label: "Mention" }] as const;
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
 // Lucide "users" (hub) and "user" (child) glyphs, 24×24.
 const ICON = {
@@ -37,7 +38,22 @@ const CHILD_ICON: Record<Tone, string> = {
   positive: `${FACE}<path d="M8 14s1.5 2 4 2 4-2 4-2"/>`,
   unknown: ICON.user,
 };
-const radius = (n: SnaNode) => (n.kind === "hub" ? 16 + Math.min(18, Math.sqrt(n.posts) * 2) : 5 + Math.min(9, Math.sqrt(n.mentions) * 2));
+// Lucide "flame": an issue.
+const FLAME = '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>';
+/** Engagement spans 0 to hundreds of thousands, so sizes follow its logarithm (10 -> 1, 1,000 -> 3, 100,000 -> 5). */
+const lg = (n = 0) => Math.log10(1 + Math.max(0, n));
+const radius = (n: SnaNode) => n.kind === "issue" ? 30 + Math.min(26, Math.sqrt(n.posts) * 1.6)
+  : n.kind === "hub" ? (n.engagement !== undefined ? 12 + Math.min(24, lg(n.engagement) * 5) : 16 + Math.min(18, Math.sqrt(n.posts) * 2))
+  : n.engagement !== undefined ? 5 + Math.min(12, lg(n.engagement) * 2.6) : 5 + Math.min(9, Math.sqrt(n.mentions) * 2);
+/** An issue title over at most two lines of about 30 characters. */
+function titleLines(title = "") {
+  const words = title.split(/\s+/), lines = [""];
+  for (const w of words) {
+    if ((lines.at(-1)! + " " + w).trim().length > 30 && lines.at(-1)) { if (lines.length === 2) { lines[1] += "…"; break; } lines.push(w); }
+    else lines[lines.length - 1] = (lines.at(-1)! + " " + w).trim();
+  }
+  return lines;
+}
 
 function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id: string | null) => void; picked: string | null; locked: boolean }) {
   const box = useRef<HTMLDivElement>(null);
@@ -65,42 +81,55 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     const toneOfNode = (id: string, kind: SnaNode["kind"] = "child"): Tone => { const c = (kind === "hub" ? outgoing : incoming).get(id); return c ? dominantTone(c) : "unknown"; };
     const root = select(el);
     root.selectAll("*").remove();
+    root.append("defs").html('<radialGradient id="sna-issue" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#5b21b6"/></radialGradient>');
     const view = root.append("g");
+    const issueMode = nodes.some((n) => n.kind === "issue");
     const link = view.append("g").selectAll<SVGLineElement, Edge>("line").data(edges).join("line")
       .attr("stroke", (d) => TONE_COLOR[d.tone]).attr("stroke-width", (d) => 1 + Math.sqrt(d.n)).attr("stroke-opacity", 0.9).attr("stroke-linecap", "round").attr("class", classes.flow);
     const node = view.append("g").selectAll<SVGGElement, Node>("g").data(nodes).join("g").attr("data-id", (d) => d.id).style("cursor", "pointer");
-    node.append("circle").attr("r", radius).attr("fill", (d) => (d.kind === "hub" ? "#ffffff" : "#1e1b4b")).attr("stroke", (d) => (d.kind === "hub" ? TONE_COLOR[toneOfNode(d.id, "hub")] : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", (d) => (d.kind === "hub" ? 4 : 2));
-    node.append("g").attr("fill", "none").attr("stroke", (d) => (d.kind === "hub" ? "#2e1065" : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", 2).attr("stroke-linecap", "round").attr("stroke-linejoin", "round")
-      .attr("transform", (d) => { const k = (radius(d) * (d.kind === "hub" ? 1.15 : toneOfNode(d.id) === "unknown" ? 1.25 : 1.7)) / 24; return `scale(${k}) translate(-12,-12)`; })
-      .style("pointer-events", "none").html((d) => (d.kind === "hub" ? ICON.hub : CHILD_ICON[toneOfNode(d.id)]));
+    // Issue: a big violet disc with a flame, its border the emotion of the posts about it. Account: white disc. Mentioned: dark disc with a face.
+    node.append("circle").attr("r", radius)
+      .attr("fill", (d) => (d.kind === "issue" ? "url(#sna-issue)" : d.kind === "hub" ? "#ffffff" : "#1e1b4b"))
+      .attr("stroke", (d) => TONE_COLOR[toneOfNode(d.id, d.kind)]).attr("stroke-width", (d) => (d.kind === "issue" ? 5 : d.kind === "hub" ? 4 : 2));
+    node.append("g").attr("fill", "none").attr("stroke", (d) => (d.kind === "issue" ? "#ffffff" : d.kind === "hub" ? "#2e1065" : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", 2).attr("stroke-linecap", "round").attr("stroke-linejoin", "round")
+      .attr("transform", (d) => { const k = (radius(d) * (d.kind === "issue" ? 0.95 : d.kind === "hub" ? 1.15 : toneOfNode(d.id) === "unknown" ? 1.25 : 1.7)) / 24; return `scale(${k}) translate(-12,-12)`; })
+      .style("pointer-events", "none").html((d) => (d.kind === "issue" ? FLAME : d.kind === "hub" ? ICON.hub : CHILD_ICON[toneOfNode(d.id)]));
     node.filter((d) => d.kind === "hub").append("text").text((d) => d.id).attr("text-anchor", "middle").attr("dy", (d) => -radius(d) - 6).attr("fill", "#ede9fe").attr("font-size", 12).attr("font-weight", 700).style("pointer-events", "none");
+    node.filter((d) => d.kind === "issue").append("text").attr("text-anchor", "middle").attr("fill", "#ffffff").attr("font-size", 13).attr("font-weight", 800).style("pointer-events", "none")
+      .each((d, i, els) => {
+        const lines = titleLines(d.title);
+        select(els[i]).selectAll("tspan").data(lines).join("tspan").attr("x", 0).attr("dy", (_l, j) => (j === 0 ? -radius(d) - 10 - (lines.length - 1) * 15 : 15)).text((l) => l);
+      });
 
     node.filter((d) => d.kind === "child").append("text").text((d) => d.id).attr("text-anchor", "middle").attr("dy", (d) => radius(d) + 11).attr("fill", "#bae6fd").attr("font-size", 9.5).style("pointer-events", "none");
     // A pill behind each name keeps it readable over the lines.
     node.selectAll<SVGTextElement, Node>("text").each((d, i, els) => {
       const t = els[i], b = t.getBBox();
       select(t.parentNode as SVGGElement).insert("rect", () => t).attr("x", b.x - 4).attr("y", b.y - 1).attr("width", b.width + 8).attr("height", b.height + 2).attr("rx", 5)
-        .attr("fill", d.kind === "hub" ? "rgba(46,16,101,.85)" : "rgba(15,13,36,.78)").style("pointer-events", "none");
+        .attr("fill", d.kind === "issue" ? "rgba(91,33,182,.92)" : d.kind === "hub" ? "rgba(46,16,101,.85)" : "rgba(15,13,36,.78)").style("pointer-events", "none");
     });
     const tipEl = tip.current!;
     const place = (e: MouseEvent) => { const r = wrap.getBoundingClientRect(); tipEl.style.transform = `translate(${e.clientX - r.left + 14}px, ${e.clientY - r.top + 14}px)`; };
     const text = (s: string) => Object.assign(document.createElement("span"), { textContent: s });
     node.on("mousemove", (e: MouseEvent, d) => {
       tipEl.replaceChildren();
-      const b = document.createElement("b"); b.textContent = `@${d.id}`; tipEl.append(b, text(d.kind === "hub" ? `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention` : `Disebut ${formatNumber(d.mentions)}×`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail"));
+      const b = document.createElement("b");
+      const eng = d.engagement !== undefined ? ` · engagement ${formatNumber(Math.round(d.engagement))}` : "";
+      if (d.kind === "issue") { b.textContent = d.title ?? "Isu"; tipEl.append(b, text(`Isu · ${formatNumber(d.posts)} post`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk menyorot akunnya")); }
+      else { b.textContent = `@${d.id}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail")); }
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on).on("click", (e: MouseEvent, d) => { e.stopPropagation(); pickRef.current(d.id); });
     link.on("mousemove", (e: MouseEvent, d) => {
       tipEl.replaceChildren();
-      const b = document.createElement("b"); b.textContent = `@${d.source.id} → @${d.target.id} · ${d.n}×`; tipEl.append(b);
+      const b = document.createElement("b"); b.textContent = d.target.kind === "issue" ? `@${d.source.id} · ${d.n} post di isu ini` : `@${d.source.id} → @${d.target.id} · ${d.n}×`; tipEl.append(b);
       for (const t of TONES) if (d.counts[t]) tipEl.append(text(`${TONE_LABEL[t]}: ${d.counts[t]}`));
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on);
     root.on("click", () => pickRef.current(null));
 
     const sim = forceSimulation<Node>(nodes)
-      .force("link", forceLink<Node, Edge>(edges).id((d) => d.id).distance((d) => 90 + radius(d.source)).strength(0.7))
-      .force("charge", forceManyBody<Node>().strength((d) => (d.kind === "hub" ? -500 : -45)))
+      .force("link", forceLink<Node, Edge>(edges).id((d) => d.id).distance((d) => (issueMode ? 60 + radius(d.target) + radius(d.source) : 90 + radius(d.source))).strength(issueMode ? 0.5 : 0.7))
+      .force("charge", forceManyBody<Node>().strength((d) => (d.kind === "issue" ? -1400 : d.kind === "hub" ? (issueMode ? -160 : -500) : -45)))
       .force("collide", forceCollide<Node>().radius((d) => radius(d) + 6))
       .on("tick", () => paint());
     const paint = () => {
@@ -115,10 +144,15 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     // Pan and zoom so every node is in view (called whenever the layout is rebuilt, e.g. after switching an emotion off).
     const fitView = () => {
       const { width, height } = wrap.getBoundingClientRect();
+      // The filter bar floats over the top and the legend over the bottom: frame the graph in the space between.
+      const stageEl = wrap.closest("section");
+      const top = (stageEl?.querySelector<HTMLElement>("[role=toolbar]")?.offsetHeight ?? 0) + 24;
+      const bottom = (stageEl?.querySelector<HTMLElement>("aside[aria-label=Legenda]")?.offsetHeight ?? 0) + 20;
+      const room = Math.max(120, height - top - bottom);
       const xs = nodes.map((n) => n.x ?? 0), ys = nodes.map((n) => n.y ?? 0);
-      const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 40, y1 = Math.max(...ys) + 40;
-      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), height / (y1 - y0))));
-      root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, height / 2 - (k * (y0 + y1)) / 2).scale(k));
+      const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - (issueMode ? 70 : 40), y1 = Math.max(...ys) + 40;
+      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), room / (y1 - y0))));
+      root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, top + room / 2 - (k * (y0 + y1)) / 2).scale(k));
     };
     // The graph fades in once it is arranged and framed, so nodes do not jump around on screen.
     el.style.transition = "none";
@@ -128,10 +162,12 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     const fit = () => {
       const { width, height } = wrap.getBoundingClientRect();
       // Hubs sit on a ring so their clusters stay apart; children are only pulled loosely to the middle.
-      const hubs = nodes.filter((n) => n.kind === "hub"), ring = Math.min(width, height) * 0.36, cy = height / 2 + 20;
+      // Issue view: the issues are the ring; their accounts gather around them.
+      const hubs = nodes.filter((n) => n.kind === (issueMode ? "issue" : "hub")), ring = Math.min(width, height) * 0.36, cy = height / 2 + 20;
       const at = (d: Node) => { const i = hubs.indexOf(d); const a = (i / hubs.length) * 2 * Math.PI - Math.PI / 2; return i < 0 ? null : [width / 2 + ring * Math.cos(a), cy + ring * Math.sin(a)]; };
-      sim.force("x", forceX<Node>((d) => at(d)?.[0] ?? width / 2).strength((d) => (d.kind === "hub" ? 0.25 : 0.015)))
-        .force("y", forceY<Node>((d) => at(d)?.[1] ?? cy).strength((d) => (d.kind === "hub" ? 0.25 : 0.015))).alpha(0.5);
+      const anchor = (d: Node) => (issueMode ? d.kind === "issue" : d.kind === "hub");
+      sim.force("x", forceX<Node>((d) => at(d)?.[0] ?? width / 2).strength((d) => (anchor(d) ? 0.25 : 0.015)))
+        .force("y", forceY<Node>((d) => at(d)?.[1] ?? cy).strength((d) => (anchor(d) ? 0.25 : 0.015))).alpha(0.5);
       // Locked: settle the layout off-screen so it opens already arranged, then keep it still.
       if (lockedRef.current) { for (let i = 0; i < 300; i++) sim.tick(); paint(); fitView(); reveal(); }
       else { sim.on("end", () => { fitView(); sim.on("end", null); }); sim.restart(); window.clearTimeout(timer); timer = window.setTimeout(() => { fitView(); reveal(); }, 600); }
@@ -173,6 +209,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const issueId = keyId ? params.get("issue") : null;
   const labelName = keyId ? params.get("label") : null;
   const filter = `${issueId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}`;
+  // With a project: issues as nodes and the accounts posting in them (default), or who mentions whom.
+  const issueView = !!keyId && params.get("view") !== "mention";
   const days = parseSnaDays(params.get("days")) ?? DEFAULT_SNA_DAYS;
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
@@ -201,7 +239,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
   const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
-  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}`);
+  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? "&view=isu" : ""}`);
   const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/isu-klaster?key=${encodeURIComponent(keyId)}` : null);
   const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
   const issueOptions = (issues.data?.issues ?? []).map((i) => ({ value: i.id, label: `${i.title ?? i.keywords.slice(0, 3).join(", ")} · ${formatNumber(i.posts)} post` }));
@@ -214,7 +252,11 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const view = useMemo(() => (graph ? filterGraph(graph, [...off, "unknown"]) : null), [graph, off]); // posts without an emotion are never drawn
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
-  const stats = [
+  const stats = issueView ? [
+    { icon: IconFlame, value: (graph?.nodes ?? []).filter((n) => n.kind === "issue").length, label: "isu" },
+    { icon: IconUsers, value: hubs.length, label: "akun" },
+    { icon: IconChartDots3, value: (graph?.links ?? []).reduce((n, l) => n + l.n, 0), label: "post" },
+  ] : [
     { icon: IconUsersGroup, value: hubs.length, label: "akun utama" },
     { icon: IconUsers, value: (graph?.nodes.length ?? 0) - hubs.length, label: "akun disebut" },
     { icon: IconChartDots3, value: (graph?.links ?? []).reduce((n, l) => n + l.n, 0), label: "mention" },
@@ -241,6 +283,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
+          {keyId && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
             comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={LIMIT_OPTIONS} />
@@ -287,7 +330,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
             </Tooltip>
           </div>
         )}
-                {graph && graph.nodes.length === 0 && <p className={classes.empty}>Belum ada post yang menyebut akun lain pada rentang ini.</p>}
+                {graph && graph.nodes.length === 0 && <p className={classes.empty}>{issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
         {view && view.nodes.length > 0 && <Graph graph={view!} picked={picked} onPick={setPicked} locked={locked} />}
         {(res.loading || busy || (!graph && !res.error)) && (
           <div className={classes.loading} data-covering={graph ? "" : undefined} role="status" aria-live="polite">
@@ -299,14 +342,25 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         )}
         {graph && graph.nodes.length > 0 && (
           <aside className={classes.legend} aria-label="Legenda">
-            <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun utama</span>
-            <span><IconMoodSmile size={14} />Akun disebut</span>
-            <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = sering</span>
+            {issueView ? <>
+              <span><i className={classes.issueMark}><IconFlame size={10} /></i>Isu (besar = jumlah post)</span>
+              <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun (besar = engagement)</span>
+              <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = banyak post</span>
+            </> : <>
+              <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun utama</span>
+              <span><IconMoodSmile size={14} />Akun disebut</span>
+              <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = sering</span>
+            </>}
             <span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}Warna = emosi</span>
             <Tooltip multiline w={290} withArrow position="top-start" withinPortal={false} events={{ hover: true, focus: true, touch: true }}
-              label={<>
-                <b>Akun utama</b>: akun yang paling banyak memposting dan menyebut akun lain; warna bingkai = emosi dominan post-nya.<br />
-                <b>Akun disebut</b>: wajah berwarna = emosi dominan post yang menyebutnya.<br />
+              label={issueView ? <>
+                <b>Isu</b>: kelompok post proyek yang membahas hal yang sama (diperbarui tiap jam); makin besar makin banyak post, warna bingkai = emosi dominan.<br />
+                <b>Akun</b>: akun yang memposting di isu itu, paling banyak engagement-nya (suka + 2× komentar + 3× bagikan); makin besar makin tinggi engagement. Akun di beberapa isu menghubungkan isu-isu itu.<br />
+                <b>Garis</b>: dari akun ke isu; makin tebal makin banyak post-nya, warnanya emosi post tersebut.<br />
+                Emosi bisa disembunyikan lewat tombol warna di panel filter.
+              </> : <>
+                <b>Akun utama</b>: akun yang paling banyak memposting dan menyebut akun lain; makin besar makin tinggi engagement post-nya, warna bingkai = emosi dominan.<br />
+                <b>Akun disebut</b>: wajah berwarna = emosi dominan post yang menyebutnya; makin besar makin tinggi engagement post yang menyebutnya.<br />
                 <b>Garis</b>: dari akun utama ke akun yang disebut; makin tebal makin sering disebut, warnanya emosi post tersebut.<br />
                 Emosi bisa disembunyikan lewat tombol warna di panel filter.
               </>}>
@@ -315,7 +369,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </aside>
         )}
         {off.length > 0 && view && view.links.length === 0 && <p className={classes.empty}>Semua emosi disembunyikan.</p>}
-        {picked && node && graph && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} filter={filter} onPick={setPicked} onClose={() => setPicked(null)} />}
+        {picked && node && graph && node.kind !== "issue" && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} filter={filter} authors={issueView} onPick={setPicked} onClose={() => setPicked(null)} />}
       </section>
     </div>
   );
