@@ -133,7 +133,8 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     const { g } = built;
     // Frame the graph between the floating filter bar (top) and the legend (bottom).
     const stage = el.closest("section");
-    el.style.top = `${(stage?.querySelector<HTMLElement>("[role=toolbar]")?.offsetHeight ?? 0) + 12}px`;
+    const bar = stage?.querySelector<HTMLElement>("[role=toolbar]");
+    el.style.top = `${(bar ? bar.offsetTop + bar.offsetHeight : 0) + 12}px`;
     el.style.bottom = `${(stage?.querySelector<HTMLElement>("aside[aria-label=Legenda]")?.offsetHeight ?? 0) + 16}px`;
     const neighbours = (id: string | null) => (id && g.hasNode(id) ? new Set([id, ...g.neighbors(id)]) : null);
     const lit = () => neighbours(hoverRef.current ?? pickedRef.current);

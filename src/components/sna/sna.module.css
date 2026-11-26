@@ -147,8 +147,15 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 /* PC: no page scroll. The shell's main keeps 104px above and 48px below (see shell.module.css), the hero takes its height,
    the canvas the rest. Phones and tablets scroll as before. */
 @media (min-width: 1001px) {
-  .page { height: calc(100dvh - 116px); min-height: 520px; margin-bottom: -36px; }
-  .stage { flex: 1; height: auto; min-height: 0; }
+  /* The whole screen: the canvas runs behind the floating top bar (shell .bar, 14 + 60 px); what floats on the canvas
+     starts under it (--top). In full screen (no top bar) it starts at the edge. */
+  .page { position: fixed; inset: 0; z-index: 1; display: block; }
+  .stage { --top: 84px; position: absolute; inset: 0; height: auto; border-radius: 0; border: 0; box-shadow: none; }
+  .stage:fullscreen { --top: 10px; }
+  .filterBar { top: var(--top); }
+  .panel { top: calc(var(--top) + var(--bar-h, 44px) + 10px); bottom: 12px; right: 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,.12); }
+  .stage[data-panel] .filterBar { right: 12px; }
+  .page > .alert { position: absolute; z-index: 6; top: calc(84px + var(--bar-h, 44px) + 18px); left: 50%; transform: translateX(-50%); }
 }
 .issueMark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; background: radial-gradient(circle at 35% 30%, #a78bfa, #5b21b6); border: 2px solid #c4b5fd; }
 .kindMark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #2e1065; }
@@ -185,7 +192,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .flowNote { color: #c4b5fd; font-weight: 700; }
 
 /* Floating explanation of the issue view's flows, top right under the tools. */
-.flowGuide { position: absolute; z-index: 3; top: calc(var(--bar-h, 44px) + 20px); right: 12px; width: 250px; padding: 10px; border-radius: 16px; color: #e9e5ff;
+.flowGuide { position: absolute; z-index: 3; top: calc(var(--top, 10px) + var(--bar-h, 44px) + 10px); right: 12px; width: 250px; padding: 10px; border-radius: 16px; color: #e9e5ff;
   background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.25); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
   box-shadow: 0 18px 40px -22px rgba(0,0,0,.8); animation: guideIn 320ms cubic-bezier(.2,.9,.25,1.1) both; }
 @keyframes guideIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
@@ -211,7 +218,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 /* Room for the card: the filter bar and the legend stop before it. */
 .stage:has(.flowGuide) .legend { max-width: calc(100% - 250px - 36px); }
 .flowGuide p { margin: 8px 2px 0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); font-size: 11px; line-height: 1.45; color: #c4b5fd; }
-.flowGuidePill { position: absolute; z-index: 3; top: calc(var(--bar-h, 44px) + 20px); right: 12px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; cursor: pointer;
+.flowGuidePill { position: absolute; z-index: 3; top: calc(var(--top, 10px) + var(--bar-h, 44px) + 10px); right: 12px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; cursor: pointer;
   font-size: 12px; font-weight: 700; color: #e9e5ff; background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.3); backdrop-filter: blur(12px); }
 .flowGuidePill svg { color: #a78bfa; }
 .flowGuidePill:hover { border-color: rgba(167,139,250,.6); }
@@ -220,7 +227,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 /* Gephi mode (sigma.js): the canvas sits between the filter bar and the legend; clusters listed bottom right. */
 .gephi { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .gephi canvas { outline: none; }
-.clusters { position: absolute; z-index: 3; left: 12px; top: calc(var(--bar-h, 44px) + 20px); display: flex; flex-direction: column; gap: 5px; width: 230px; padding: 10px 12px; border-radius: 14px;
+.clusters { position: absolute; z-index: 3; left: 12px; top: calc(var(--top, 10px) + var(--bar-h, 44px) + 10px); display: flex; flex-direction: column; gap: 5px; width: 230px; padding: 10px 12px; border-radius: 14px;
   color: #e9e5ff; font-size: 11.5px; background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.22); backdrop-filter: blur(12px); }
 .clusters > b { font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: #c4b5fd; }
 .clusters span { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -243,31 +250,6 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .bridgeNote b { color: #fff; }
 .bridgeNote small { margin-left: auto; color: rgba(233,229,255,.5); font-variant-numeric: tabular-nums; }
 .bridgeNote[data-top] { background: linear-gradient(135deg, rgba(124,58,237,.28), rgba(34,211,238,.12)); border-color: rgba(167,139,250,.4); }
-
-/* Page header: one slim line (icon, title with period, focus, counts). */
-.bar { position: relative; display: flex; align-items: center; gap: 14px; min-height: 54px; padding: 8px 10px; border-radius: 16px; color: #fff; overflow: hidden;
-  background: radial-gradient(60% 180% at 0% 50%, rgba(34,211,238,.22), transparent 70%), radial-gradient(50% 200% at 100% 50%, rgba(124,58,237,.3), transparent 70%), #0d0b1f;
-  border: 1px solid rgba(255,255,255,.08); animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
-.barIcon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee);
-  box-shadow: 0 8px 20px -8px rgba(124,58,237,.9); }
-.barTitle { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex-shrink: 0; }
-.barKicker { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #67e8f9; }
-.bar h1 { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -.3px; white-space: nowrap; }
-.bar h1 em { font-style: normal; background: linear-gradient(90deg, #67e8f9, #a78bfa, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.barFocus { flex: 1; min-width: 0; margin: 0; padding-left: 14px; border-left: 1px solid rgba(255,255,255,.12); font-size: 12.5px; color: rgba(255,255,255,.65);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.barFocus b { color: #fff; font-weight: 700; }
-.barStats { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
-.barStats > div { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 11px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); }
-.barStats svg { color: #67e8f9; }
-.barStats b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.barStats span { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.55); }
-@media (max-width: 760px) {
-  .bar { flex-wrap: wrap; }
-  .barFocus { order: 3; flex-basis: 100%; padding-left: 0; border-left: 0; white-space: normal; }
-  .barStats { margin-left: 0; flex-basis: 100%; }
-  .barStats > div { flex: 1; justify-content: center; }
-}
 
 /* Toolbar end: the Tampilan menu and the canvas tools, pushed to the right. */
 .barEnd { display: flex; align-items: center; gap: 4px; margin-left: auto; padding-left: 6px; border-left: 1px solid rgba(255,255,255,.1); }
@@ -297,3 +279,20 @@ button.tag:hover { background: rgba(124,58,237,.4); }
   .filterBar > :global(.mantine-Select-root), .filterBar > .watchPick { flex: 0 1 auto; min-width: 118px; }
   .watchPick :global(.mantine-Select-root) { flex: 1 1 auto; min-width: 0; width: auto !important; max-width: 190px; }
 }
+
+/* Info chip (bottom right of the canvas): title, period, focus and counts on one small line; above the AI dock. */
+.info { position: absolute; z-index: 3; right: 12px; bottom: calc(12px + var(--ai-dock-space, 0px)); display: flex; align-items: center; gap: 9px; max-width: min(560px, calc(100% - 24px));
+  height: 36px; padding: 0 12px 0 6px; border-radius: 12px; color: #fff; font-size: 12px;
+  background: rgba(15,13,36,.78); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.1); }
+.infoIcon { display: grid; place-items: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #22d3ee); }
+.info h1 { margin: 0; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+.info h1 em { font-style: normal; font-weight: 700; color: #c4b5fd; }
+.infoFocus { min-width: 0; margin: 0; padding-left: 9px; border-left: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.65); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.infoFocus b { color: #fff; }
+.infoStats { display: flex; gap: 10px; flex-shrink: 0; padding-left: 9px; border-left: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.55); white-space: nowrap; }
+.infoStats b { color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stage[data-panel] .info { display: none; } /* the panel takes that corner */
+/* The legend (bottom left) leaves room for the chip. */
+@media (min-width: 1001px) { .legend { max-width: calc(100% - 480px); } }
+@media (max-width: 760px) { .info { left: 12px; right: 12px; bottom: auto; top: calc(var(--top, 10px) + var(--bar-h, 44px) + 10px); height: auto; min-height: 36px; flex-wrap: wrap; row-gap: 4px; padding: 6px 10px 6px 6px; }
+  .infoFocus { display: none; } .infoStats { padding-left: 0; border-left: 0; } }

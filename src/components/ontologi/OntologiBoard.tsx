@@ -96,10 +96,14 @@ function Graph({ graph, issues, onPick, picked, locked }: { graph: OntGraph; iss
     root.call(z);
     const fitView = () => {
       const { width, height } = wrap.getBoundingClientRect();
+      // Frame the graph between the floating toolbar (top) and the legend (bottom).
+      const stageEl = wrap.closest("section"), bar = stageEl?.querySelector<HTMLElement>("[role=toolbar]");
+      const top = (bar ? bar.offsetTop + bar.offsetHeight : 0) + 20;
+      const room = Math.max(120, height - top - ((stageEl?.querySelector<HTMLElement>("aside[aria-label=Legenda]")?.offsetHeight ?? 0) + 24));
       const xs = nodes.map((n) => n.x ?? 0), ys = nodes.map((n) => n.y ?? 0);
       const x0 = Math.min(...xs) - 80, x1 = Math.max(...xs) + 80, y0 = Math.min(...ys) - 40, y1 = Math.max(...ys) + 40;
-      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), height / (y1 - y0))));
-      root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, height / 2 - (k * (y0 + y1)) / 2).scale(k));
+      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), room / (y1 - y0))));
+      root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, top + room / 2 - (k * (y0 + y1)) / 2).scale(k));
     };
     el.style.transition = "none";
     el.style.opacity = "0";
@@ -196,11 +200,11 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
 
   return (
     <div className={classes.page}>
-      <NetworkHeader icon={IconHierarchy2} kicker="Ontologi" title="Isu dan aktor" period={`${periodLabel} terakhir`} stats={stats} ready={ready} />
 
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
+        <NetworkHeader icon={IconHierarchy2} kicker="Ontologi" title="Isu dan aktor" period={`${periodLabel} terakhir`} stats={stats} ready={ready} />
         <div className={classes.filterBar} role="toolbar" aria-label="Filter keterkaitan">
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (

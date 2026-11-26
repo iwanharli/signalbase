@@ -183,7 +183,8 @@ function Graph({ graph, onPick, picked, locked, layout }: { graph: SnaGraph; onP
       const { width, height } = wrap.getBoundingClientRect();
       // The filter bar floats over the top and the legend over the bottom: frame the graph in the space between.
       const stageEl = wrap.closest("section");
-      const top = (stageEl?.querySelector<HTMLElement>("[role=toolbar]")?.offsetHeight ?? 0) + 24;
+      const bar = stageEl?.querySelector<HTMLElement>("[role=toolbar]");
+      const top = (bar ? bar.offsetTop + bar.offsetHeight : 0) + 24;
       const bottom = (stageEl?.querySelector<HTMLElement>("aside[aria-label=Legenda]")?.offsetHeight ?? 0) + 20;
       const room = Math.max(120, height - top - bottom);
       const xs = nodes.map((n) => n.x ?? 0), ys = nodes.map((n) => n.y ?? 0);
@@ -347,13 +348,13 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
   return (
     <div className={classes.page}>
-      <NetworkHeader icon={IconChartDots3} kicker="Analisis jaringan" title="Jaringan sosial" period={`${periodLabel} terakhir`} stats={stats} ready={!!graph}
-        focus={watch ? <>Pantauan <b>{watch.name}</b> · {watch.keywords.join(", ")}{labelName && <> · label <b>{labelName}</b></>}</>
-          : (issueTitle || labelName) ? <>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</> : undefined} />
 
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
+        <NetworkHeader icon={IconChartDots3} kicker="Analisis jaringan" title="Jaringan sosial" period={`${periodLabel} terakhir`} stats={stats} ready={!!graph}
+          focus={watch ? <>Pantauan <b>{watch.name}</b> · {watch.keywords.join(", ")}{labelName && <> · label <b>{labelName}</b></>}</>
+            : (issueTitle || labelName) ? <>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</> : undefined} />
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
           {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
