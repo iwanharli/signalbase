@@ -21,8 +21,9 @@ export function CardSkeleton({ index, type, original }: { index: number; type: M
   const online = type === "online";
   return (
     <div className={c.card} style={{ ["--sweep-delay" as string]: `${(index % 4) * 180}ms` }} aria-hidden>
-      {/* Original View cards open with the "Post asli | Data tersimpan" switch. */}
-      {original && <div className={c.tabs}><span className={c.sk} /><span className={c.sk} /></div>}
+      {/* Original View cards: the AI category / label strip, then post type chips with the Asli | Tersimpan switch. */}
+      {original && <div className={c.strip}><span className={c.sk} /><span className={c.sk} /></div>}
+      {original && <div className={c.tabs}><span className={c.sk} /><span className={c.sk} /><span className={c.sk} data-switch /></div>}
       {(shape.image || online) && <div className={`${c.sk} ${c.image}`} data-short={online && !shape.image || undefined} />}
       <div className={c.body}>
         <div className={c.head}>

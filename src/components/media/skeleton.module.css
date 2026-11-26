@@ -11,9 +11,13 @@
   box-shadow: 0 10px 30px -24px rgba(46,16,101,.35); }
 .card::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%);
   background: linear-gradient(100deg, transparent 25%, var(--shine) 50%, transparent 75%); animation: shine 1.8s ease-in-out var(--sweep-delay, 0ms) infinite; }
-.tabs { display: flex; gap: 6px; padding: 12px 12px 0; }
-.tabs .sk { width: 84px; height: 26px; border-radius: 9px; }
-.tabs .sk:last-child { width: 108px; opacity: .6; }
+.strip { display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px dashed var(--mantine-color-default-border); }
+.strip .sk { width: 128px; height: 22px; border-radius: 99px; }
+.strip .sk:last-child { width: 88px; }
+.tabs { display: flex; align-items: center; gap: 6px; padding: 12px 16px 0; }
+.tabs .sk { width: 38px; height: 18px; border-radius: 5px; }
+.tabs .sk:nth-child(2) { width: 86px; opacity: .7; }
+.tabs .sk[data-switch] { width: 140px; height: 26px; margin-left: auto; border-radius: 8px; }
 .body { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
 .head { display: flex; align-items: center; gap: 10px; }
 .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }

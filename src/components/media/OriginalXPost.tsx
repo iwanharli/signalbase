@@ -1,4 +1,5 @@
 "use client";
+import type { SourceView } from "./SourceSwitch";
 import { useEffect, useState, type ReactNode } from "react";
 import { Tabs } from "@mantine/core";
 import { IconBrandX, IconChevronDown, IconCornerUpLeft, IconDatabase, IconExternalLink } from "@tabler/icons-react";
@@ -76,7 +77,8 @@ function PreviewContent({ post, quoted = false, inCard = false }: { post: XPostP
   </>;
 }
 
-export function OriginalXPost({ id, fallback, onStatus, inCard }: { id: string; fallback: ReactNode; onStatus?: (status: "ready" | "failed") => void; inCard?: boolean }) {
+/** view: the card shows its own "Post asli / Data tersimpan" switch and sets the tab; the list here is then hidden. */
+export function OriginalXPost({ id, fallback, onStatus, inCard, view }: { id: string; fallback: ReactNode; onStatus?: (status: "ready" | "failed") => void; inCard?: boolean; view?: SourceView }) {
   const [post, setPost] = useState<XPostPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -92,11 +94,13 @@ export function OriginalXPost({ id, fallback, onStatus, inCard }: { id: string; 
   }, [id, attempt]);
   useEffect(() => { if (!loading) onStatus?.(post ? "ready" : "failed"); }, [loading, post, onStatus]);
   if (loading || !post) return <StoredPostFallback loading={loading} onRetry={error ? () => setAttempt((value) => value + 1) : undefined}>{fallback}</StoredPostFallback>;
-  return <Tabs defaultValue="original" keepMounted={false} className={classes.root}>
+  return <Tabs defaultValue="original" value={view} keepMounted={false} className={classes.root}>
+    {view === undefined && <>
     <Tabs.List className={classes.tabsList} aria-label="Sumber konten post">
       <Tabs.Tab value="original" className={classes.tab} leftSection={<IconBrandX size={13} aria-hidden />}>Post asli</Tabs.Tab>
       <Tabs.Tab value="stored" className={classes.tab} leftSection={<IconDatabase size={13} aria-hidden />}>Data tersimpan</Tabs.Tab>
     </Tabs.List>
+    </>}
     <Tabs.Panel value="original" className={classes.panel}>
       <PreviewContent post={post} inCard={inCard} />
     </Tabs.Panel>

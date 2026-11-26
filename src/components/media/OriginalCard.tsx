@@ -1,9 +1,9 @@
 "use client";
 // Original View card: the Quick card shows at once; the original post loads quietly behind it and replaces it when ready.
-// A failed or unsupported original leaves the Quick card as is.
+// A failed or unsupported original leaves the Quick card as is, without a note (it only distracted).
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconChevronDown, IconChevronUp, IconEye, IconEyeOff } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
 import { createLimiter } from "@/lib/limiter";
 import { originalOf } from "@/lib/media/original";
 import type { MediaItem, MediaType } from "@/lib/media/types";
@@ -12,6 +12,7 @@ import { CardFooter, ItemCard, PostAuthor, PostMeta } from "./ItemCard";
 import { MoodBadges, moodTone } from "./itemParts";
 import { ManualLabelPicker } from "./ManualLabel";
 import { CardAiCategory } from "./AiCorrection";
+import { SourceSwitch, type SourceView } from "./SourceSwitch";
 import { PostContent } from "./PostContent";
 import classes from "./originalCard.module.css";
 
@@ -51,6 +52,7 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
   const [granted, setGranted] = useState(false);
   const release = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
+  const [view, setView] = useState<SourceView>("original");
 
   const done = useCallback(() => { release.current?.(); release.current = null; }, []);
   const onStatus = useCallback((s: "ready" | "failed") => { setStatus(s); done(); }, [done]);
@@ -84,7 +86,6 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
       <div className={classes.quick} data-hidden={showOriginal || undefined}>
         <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} notice={
           manual && !wanted ? <button type="button" className={classes.chip} onClick={(e) => { stop(e); setWanted(true); }}><IconEye size={13} aria-hidden />Lihat asli</button>
-            : !manual && status === "failed" ? <span className={classes.chip} data-muted title="Tampilan asli tidak tersedia; yang tampil adalah data tersimpan."><IconEyeOff size={13} aria-hidden />Asli tak tersedia</span>
             : null} />
         {!manual && mounted && status === "loading" && <span className={classes.shimmer} role="status" aria-label="Memuat tampilan asli" />}
       </div>
@@ -92,16 +93,20 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
         <div className={classes.original} data-visible={showOriginal || undefined}>
           <article className={classes.shell} data-polarity={item.mood ? moodPolarity(item.mood) : undefined} style={{ ["--tone" as string]: moodTone(item) }}>
             <ManualLabelPicker item={item} bleed leading={item.classification !== undefined ? <CardAiCategory item={item} /> : null} />
+            {/* Right under the AI category and label strip: what kind of post it is, and which version is shown. */}
+            <div className={classes.subbar}>
+              <PostMeta item={item} />
+              {showOriginal && <SourceSwitch value={view} onChange={setView} source={item.source} />}
+            </div>
             <header className={classes.head}>
               <PostAuthor item={item} type={type} />
               <MoodBadges item={item} type={type} />
             </header>
-            <PostMeta item={item} />
             <Clamp>
-              {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} inCard />}
-              {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}
-              {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
-              {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}
+              {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} inCard view={view} />}
+              {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} view={view} />}
+              {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} view={view} />}
+              {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} view={view} />}
             </Clamp>
             <CardFooter item={item} type={type} onOpen={onOpen} />
           </article>
