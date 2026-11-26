@@ -35,7 +35,9 @@ const cache = sharedCache<Insights>("insights", { ttlMs: 5 * 60_000, maxEntries:
 // broad keywords) kept the analytics pool busy and made panel counts queue behind the warmer.
 const longCache = sharedCache<Insights>("insights.long", { ttlMs: 30 * 60_000, maxEntries: 120, staleWhileRevalidate: true });
 
-type Row = { b: number; m: string | null; cat: string | null; hot: boolean; n: number };
+/** b: day window counted back from `now` (calendar days on Beranda); r: 24-hour window back from the real clock, for the
+ *  early warning (null in reports, where b is used). */
+type Row = { b: number; r: number | null; m: string | null; cat: string | null; hot: boolean; n: number };
 
 const jakartaDate = (msAgo: number) => new Date(Date.now() - msAgo).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
 const emptyTotals = (): PeriodTotals => ({ total: 0, labelled: 0, pos: 0, neg: 0 });
@@ -58,13 +60,14 @@ function windowWhere(type: MediaType, scope: KeyScope, days: number, end?: strin
 }
 
 /** Counts per 24-hour window (0 = last 24 hours), mood, category and high intensity, over both periods. */
-async function scan(type: MediaType, scope: KeyScope, period: number, end?: string): Promise<Row[]> {
+async function scan(type: MediaType, scope: KeyScope, period: number, end?: string, live = false): Promise<Row[]> {
   const c = COLUMNS[type];
   const { where, values, now } = windowWhere(type, scope, period * 2, end);
   const hot = type === "social" ? `coalesce(a.emotion_level >= ${INTENSE_LEVEL}, false)` : "false";
+  const rolling = live ? `floor(extract(epoch FROM now() - ${c.timestamp}) / 86400)::int` : "NULL::int";
   return withLongTimeout(REQUEST_TIMEOUT_MS, async (client) => (await client.query<Row>(
-    `SELECT floor(extract(epoch FROM ${now} - ${c.timestamp}) / 86400)::int b, lower(${c.mood}) m, lower(${c.category}) cat, ${hot} hot, count(*)::int n
-     FROM ${c.from} WHERE ${where} GROUP BY 1, 2, 3, 4`, values)).rows);
+    `SELECT floor(extract(epoch FROM ${now} - ${c.timestamp}) / 86400)::int b, ${rolling} r, lower(${c.mood}) m, lower(${c.category}) cat, ${hot} hot, count(*)::int n
+     FROM ${c.from} WHERE ${where} GROUP BY 1, 2, 3, 4, 5`, values)).rows);
 }
 
 /** Per keyword of the key: matches this period, the period before, and negative matches this period. */
@@ -258,8 +261,9 @@ function summarize(rows: Row[], period: number, end?: string) {
       if (cur) entry.n += row.n; else entry.prev += row.n;
       categories.set(row.cat, entry);
     }
-    if (row.b <= BASELINE_DAYS) {
-      const w = recent[row.b];
+    const rb = row.r ?? row.b; // the early warning keeps 24-hour windows from the real clock
+    if (rb >= 0 && rb <= BASELINE_DAYS) {
+      const w = recent[rb];
       w.total += row.n;
       if (side) { w.labelled += row.n; if (side === "neg") { w.neg += row.n; if (row.hot) w.hot += row.n; } }
       if (row.cat) w.cats.set(row.cat, (w.cats.get(row.cat) ?? 0) + row.n);
@@ -276,14 +280,16 @@ function spikes(now: Map<string, number>, baseline: (value: string) => number, s
   });
 }
 
-async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: number, end?: string): Promise<Insights> {
-  const lastDay = end ? shiftDay(end, -1) : jakartaDate(DAY_MS);
+/** live: Beranda. The period is whole calendar days up to today (like the media pages' ranges), while the early warning
+ *  keeps the last 24 hours against the week before. Without it (reports), `end` fixes whole days for both. */
+async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period: number, end?: string, live = false): Promise<Insights> {
+  const lastDay = end && !live ? shiftDay(end, -1) : jakartaDate(DAY_MS);
   const [rows, keywords, tags, latestHot, engaged, accounts, media] = await Promise.all([
-    scan(type, scope, period, end),
+    scan(type, scope, period, end, live),
     scoped ? keywordCounts(type, scope, period, end).catch(() => null) : Promise.resolve(null),
     type === "social" ? hashtags(scope, period, end).catch(() => null) : Promise.resolve(null),
     type === "social"
-      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 }).catch(() => [])
+      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end && !live ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 }).catch(() => [])
       : Promise.resolve([]),
     type === "social" ? engagement(scope, period, end) : Promise.resolve(null),
     type === "social" ? topAccounts(scope, period, end) : Promise.resolve(null),
@@ -327,13 +333,21 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   };
 }
 
+/** The media pages' default view as a scope: analysed only, and (social) not the posts marked not relevant. */
+export const berandaScope = (type: MediaType, scope: KeyScope): KeyScope => ({
+  ...scope, analyzedOnly: true, ...(type === "social" ? { relevance: scope.relevance || "relevant" } : {}),
+});
+
 /**
  * Insights for one media type: the whole bank when `scope` is undefined, else one key's view. null when the key excludes the type.
  * With `day` (YYYY-MM-DD) the period is the `period` whole calendar days ending on that day instead of the hours up to now.
  */
 export function typeInsights(type: MediaType, period: number, scope?: KeyScope, day?: string): Promise<Insights> | null {
   if (scope && !allowsType(scope, type)) return null;
-  const s = scope ?? OPEN_SCOPE;
-  const end = day ? shiftDay(day, 1) : undefined;
-  return (period > 7 ? longCache : cache)(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : ""}`, () => compute(type, s, !!scope, period, end));
+  // Beranda counts what the media pages show by default: analysed posts and articles only, and for social without the
+  // ones marked not relevant; its 7/14/30 days are calendar days up to today. Reports (with `day`) keep their own rules.
+  const live = !day;
+  const s = live ? berandaScope(type, scope ?? OPEN_SCOPE) : scope ?? OPEN_SCOPE;
+  const end = day ? shiftDay(day, 1) : shiftDay(jakartaDate(0), 1);
+  return (period > 7 ? longCache : cache)(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : "|cal"}`, () => compute(type, s, !!scope, period, end, live));
 }

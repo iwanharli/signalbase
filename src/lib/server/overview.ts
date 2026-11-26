@@ -6,7 +6,7 @@ import { countExact, dailyVolume, filterOptions, listItems, moodBreakdown } from
 import { sharedCache } from "./bank/cache";
 import { filterKey } from "./bank/query";
 import { prisma } from "./db";
-import { typeInsights } from "./insights";
+import { berandaScope, typeInsights } from "./insights";
 import { withImageCodes } from "./media/textSignals";
 import { snaGraph } from "./bank/sna";
 import { snaIssueGraph } from "./isu/sna";
@@ -36,7 +36,8 @@ export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Pro
     const [daily, moods, latest] = await Promise.all([
       dailyVolume(type, days ?? 14, scope),
       moodBreakdown(type, new URLSearchParams({ from: weekStart }), s),
-      listItems(type, new URLSearchParams(), s, { limit: LATEST_PER_TYPE, offset: 0 }),
+      // Latest signals as the media pages list them by default (analysed, and for social not marked not relevant).
+      listItems(type, new URLSearchParams(), berandaScope(type, s), { limit: LATEST_PER_TYPE, offset: 0 }),
     ]);
     return { daily, moods, latest };
   });

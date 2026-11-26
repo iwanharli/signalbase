@@ -306,24 +306,20 @@ function Spark({ values }: { values: number[] }) {
 
 /** The four headline numbers of the chosen view and period, each with its change and a daily sparkline. */
 export function Kpis({ data, period, keyId, view }: { data: ViewData | null; period: number; keyId: string | null; view: View }) {
-  // "Teranalisis AI" is about the pipeline, not the topic: staff see it, clients get the three opinion numbers.
-  const staff = useRole() !== "user";
-  if (!data) return <div className={c.kpis} data-count={staff ? 4 : 3}>{Array.from({ length: staff ? 4 : 3 }, (_, i) => <div key={i} className={c.kpi} data-loading />)}</div>;
+  // Beranda counts analysed items only, so an "analysed share" tile would always read 100%: three opinion numbers.
+  if (!data) return <div className={c.kpis} data-count={3}>{[0, 1, 2].map((i) => <div key={i} className={c.kpi} data-loading />)}</div>;
   const { current: now, previous: before, trend } = data;
   const share = (p: { pos: number; neu: number; neg: number }, k: "pos" | "neg") => pct(p[k], p.pos + p.neu + p.neg);
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const type: MediaType = view === "online" ? "online" : "social";
-  const allTiles = [
+  const tiles = [
     { key: "vol", help: "volume" as CardHelpId, label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
       sub: `sebelumnya ${formatNumber(before.total)}`, spark: trend.map((p) => p.total), href: view === "all" ? null : mediaHref(type, keyId, { from }) },
     { key: "neg", help: "negShare" as CardHelpId, label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
       sub: `sebelumnya ${fmtPct(pct(before.neg, before.labelled))}`, spark: trend.map((p) => share(p, "neg")), href: null },
     { key: "pos", help: "posShare" as CardHelpId, label: "Porsi positif", value: fmtPct(pct(now.pos, now.labelled)), delta: <Delta now={pct(now.pos, now.labelled)} before={pct(before.pos, before.labelled)} points goodWhenUp />,
       sub: `sebelumnya ${fmtPct(pct(before.pos, before.labelled))}`, spark: trend.map((p) => share(p, "pos")), href: null },
-    { key: "ai", help: "analysed" as CardHelpId, label: "Teranalisis AI", value: fmtPct(pct(now.labelled, now.total)), delta: null,
-      sub: `${formatNumber(now.labelled)} item`, spark: trend.map((p) => pct(p.pos + p.neu + p.neg, p.total)), href: null },
   ];
-  const tiles = staff ? allTiles : allTiles.filter((t) => t.key !== "ai");
   return (
     <div className={c.kpis} data-count={tiles.length}>
       {tiles.map((t, i) => {

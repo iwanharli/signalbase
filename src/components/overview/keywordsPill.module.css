@@ -1,4 +1,4 @@
-/* "Keyword terdaftar" pill in the Beranda hero (next to the cyan "Beranda · project" pill) and its modal. */
+/* "Keyword terdaftar" pill in the Beranda hero (next to the cyan "Beranda · project" pill) and its right-hand drawer. */
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 27px; padding: 0 10px; border-radius: 99px; cursor: pointer;
   font: inherit; font-size: 12px; font-weight: 700; color: #ddd6fe; background: rgba(139,92,246,.14); border: 1px solid rgba(167,139,250,.32);
   transition: background 160ms, border-color 160ms, transform 160ms; }
@@ -6,22 +6,45 @@
 .pill:hover { background: rgba(139,92,246,.24); border-color: rgba(167,139,250,.6); transform: translateY(-1px); }
 .pill:focus-visible { outline: 2px solid #a5f3fc; outline-offset: 2px; }
 
-.modal { background: #12101f; color: #fff; border: 1px solid rgba(167,139,250,.2); }
-.modalHeader { background: transparent; border-bottom: 1px solid rgba(255,255,255,.07); }
-.modalBody { padding-top: 14px; }
-.title { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; }
-.title svg { color: #c4b5fd; }
-.note { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: #a6a2ba; }
-.foot { margin: 12px 0 0; font-size: 11.5px; color: #8f8aa6; }
-.list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: min(60vh, 520px); overflow-y: auto; }
-.list li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
-.rank { flex-shrink: 0; width: 22px; padding-top: 2px; font-size: 12px; font-weight: 800; color: #8f8aa6; text-align: center; font-variant-numeric: tabular-nums; }
-.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.row code { min-width: 0; font: 600 12.5px ui-monospace, monospace; color: #e9e7f3; overflow-wrap: anywhere; }
-.row b { flex-shrink: 0; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.row b small { font-size: 11px; font-weight: 600; color: #8f8aa6; }
+.drawer { color: #fff; background: radial-gradient(120% 40% at 100% 0%, rgba(139,92,246,.22), transparent 60%), #0f0d1d; border-left: 1px solid rgba(167,139,250,.2); }
+.drawerBody { display: flex; flex-direction: column; height: 100%; padding: 0; }
+
+.head { display: flex; align-items: center; gap: 12px; padding: 18px 18px 14px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.headIcon { flex-shrink: 0; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: #ddd6fe; background: rgba(139,92,246,.2); border: 1px solid rgba(167,139,250,.3); }
+.head div { flex: 1; min-width: 0; }
+.head h2 { margin: 0; font-size: 16px; font-weight: 800; }
+.head p { margin: 2px 0 0; font-size: 12.5px; color: #a6a2ba; }
+.close { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; cursor: pointer; color: #fff; background: rgba(255,255,255,.07); transition: background 160ms; }
+.close:hover { background: rgba(255,255,255,.14); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 18px 0; }
+.stats div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); }
+.stats b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stats small { font-size: 11px; color: #a6a2ba; }
+.scope { margin: 10px 18px 0; font-size: 11.5px; color: #8f8aa6; }
+
+.list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin: 12px 0 0; padding: 0 18px 12px; list-style: none; }
+.list li { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); transition: border-color 160ms; }
+.list li:hover { border-color: rgba(167,139,250,.3); }
+.list li[data-zero] { opacity: .6; }
+.rank { flex-shrink: 0; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; font-size: 11px; font-weight: 800; color: #c4b5fd; background: rgba(139,92,246,.14); font-variant-numeric: tabular-nums; }
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.count { flex-shrink: 0; font-size: 15px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.count small { margin-left: 4px; font-size: 11px; font-weight: 600; color: #8f8aa6; }
 .bar { display: block; height: 5px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; }
-.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #22d3ee); }
+.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #22d3ee); transition: width 400ms ease; }
 .neg { font-size: 11px; font-weight: 600; color: #a6a2ba; }
 .neg[data-high] { color: #fca5a5; }
+
+/* The keyword as written: words, quoted phrases, AND/OR badges and parentheses. */
+.word { font-size: 13.5px; font-weight: 700; color: #f1effa; overflow-wrap: anywhere; }
+.expr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; min-width: 0; line-height: 1.5; }
+.expr .word { font-weight: 600; font-size: 13px; }
+.phrase { padding: 0 6px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: #a5f3fc; background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.22); quotes: none; }
+.op { padding: 0 5px; border-radius: 5px; font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: .5px; line-height: 16px; }
+.op[data-op="and"] { color: #fcd34d; background: rgba(251,191,36,.12); }
+.op[data-op="or"] { color: #c4b5fd; background: rgba(139,92,246,.16); }
+.paren { font-size: 14px; color: #6b6785; }
+
+.foot { padding: 12px 18px 16px; font-size: 11.5px; line-height: 1.5; color: #8f8aa6; border-top: 1px solid rgba(255,255,255,.07); }
