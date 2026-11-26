@@ -121,3 +121,6 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 :global([data-mantine-color-scheme="dark"]) .switch:focus-visible {
     outline: 2px solid hsl(252 45% 30%)
 }
+/* Which issue / label the graph is narrowed to, under the title. */
+.focus { margin: 6px 0 0; font-size: 14px; color: rgba(255,255,255,.7); }
+.focus b { color: #fff; font-weight: 700; }

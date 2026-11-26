@@ -4,6 +4,7 @@ import { adminRoute } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { snaAccount } from "@/lib/server/bank/sna";
 import { overviewView } from "@/lib/server/overviewKey";
+import { snaCodes } from "@/lib/server/snaFilter";
 
 // SNA account panel: ?username=&role=hub|child&days=1|3|7[&key=]. Same key rules as /api/admin/sna.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
@@ -16,8 +17,10 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const view = await overviewView(req, user);
   if (view instanceof Response) return view;
   if (view.noKey) return NextResponse.json({ posts: [], buckets: [] });
+  const only = await snaCodes(q, view.key?.id ?? null);
+  if (only instanceof Response) return only;
   try {
-    return NextResponse.json(await snaAccount(username, role, days, view.scope));
+    return NextResponse.json(await snaAccount(username, role, days, view.scope, only));
   } catch (e) {
     return sourceErrorResponse(e, "sna-account");
   }

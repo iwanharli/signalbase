@@ -14,8 +14,11 @@ const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
 const TABS = [{ id: "summary", label: "Ringkasan" }, { id: "posts", label: "Postingan" }, { id: "mentions", label: "Mention" }] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-export function SnaPanel({ node, graph, days, keyId, onPick, onClose }: {
-  node: SnaNode; graph: SnaGraph; days: number; keyId: string | null; onPick: (id: string) => void; onClose: () => void;
+export function SnaPanel({ node, graph, days, keyId, filter = "", onPick, onClose }: {
+  node: SnaNode; graph: SnaGraph; days: number; keyId: string | null;
+  /** "&issue=…&label=…" of the board, so the account's posts are the same ones the graph is drawn from. */
+  filter?: string;
+  onPick: (id: string) => void; onClose: () => void;
 }) {
   const role: SnaRole = node.kind;
   const [tab, setTab] = useState<Tab>("summary");
@@ -26,7 +29,7 @@ export function SnaPanel({ node, graph, days, keyId, onPick, onClose }: {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const account = useApi<SnaAccount>(`/api/admin/sna/account?username=${encodeURIComponent(node.id)}&role=${role}&days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
+  const account = useApi<SnaAccount>(`/api/admin/sna/account?username=${encodeURIComponent(node.id)}&role=${role}&days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}`);
   const counts = nodeCounts(graph.links, node.id, role);
   const total = TONES.reduce((n, t) => n + counts[t], 0) || 1;
   const related = graph.links.filter((l) => (role === "hub" ? l.source : l.target) === node.id).sort((a, b) => b.n - a.n);

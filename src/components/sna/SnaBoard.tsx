@@ -169,6 +169,10 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const keyId = params.get("key");
+  // Within a project: only the accounts posting about one issue (its clustered posts) and/or posts carrying one label.
+  const issueId = keyId ? params.get("issue") : null;
+  const labelName = keyId ? params.get("label") : null;
+  const filter = `${issueId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}`;
   const days = parseSnaDays(params.get("days")) ?? DEFAULT_SNA_DAYS;
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
@@ -198,11 +202,16 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
   const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
-  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
+  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}`);
+  const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/isu-klaster?key=${encodeURIComponent(keyId)}` : null);
+  const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
+  const issueOptions = (issues.data?.issues ?? []).map((i) => ({ value: i.id, label: `${i.title ?? i.keywords.slice(0, 3).join(", ")} · ${formatNumber(i.posts)} post` }));
+  const labelOptions = (labels.data?.options ?? []).map((l) => ({ value: l, label: `${l} · ${formatNumber(labels.data?.counts[l] ?? 0)}` }));
+  const issueTitle = issueOptions.find((o) => o.value === issueId)?.label.replace(/ · [\d.]+ post$/, "");
   const graph = res.data;
   useEffect(() => setPicked(null), [graph]);
   const hubs = useMemo(() => (graph?.nodes ?? []).filter((n) => n.kind === "hub").sort((a, b) => b.posts - a.posts), [graph]);
-  useEffect(() => setOff([]), [days, limit, keyId]);
+  useEffect(() => setOff([]), [days, limit, keyId, filter]);
   const view = useMemo(() => (graph ? filterGraph(graph, [...off, "unknown"]) : null), [graph, off]); // posts without an emotion are never drawn
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
@@ -220,6 +229,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconTopologyStar3 size={13} />Analisis jaringan</span>
           <h1>Jaringan sosial <em>{periodLabel}</em> terakhir</h1>
+          {(issueTitle || labelName) && (
+            <p className={classes.focus}>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</p>
+          )}
         </div>
         <div className={classes.stats}>
           {stats.map((x) => <div key={x.label}><x.icon size={16} aria-hidden /><b>{graph ? formatNumber(x.value) : "—"}</b><span>{x.label}</span></div>)}
@@ -232,8 +244,20 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={LIMIT_OPTIONS} />
         {(!keyLocked || projects.length > 1) && projects.length > 0 && (
           <Select aria-label="Proyek" w={220} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
+            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null })}
             data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
+        )}
+        {keyId && (
+          <Select aria-label="Isu" w={300} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
+            classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
+            // An issue covers the last 7 days of posts, so its whole network shows on the 7-day view.
+            onChange={(v) => go(v ? { issue: v, days: "7" } : { issue: null })} />
+        )}
+        {keyId && (
+          <Select aria-label="Label" w={200} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
+            classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
         )}
       </div>
 
@@ -291,7 +315,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </aside>
         )}
         {off.length > 0 && view && view.links.length === 0 && <p className={classes.empty}>Semua emosi disembunyikan.</p>}
-        {picked && node && graph && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} onPick={setPicked} onClose={() => setPicked(null)} />}
+        {picked && node && graph && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} filter={filter} onPick={setPicked} onClose={() => setPicked(null)} />}
       </section>
     </div>
   );

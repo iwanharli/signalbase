@@ -4,6 +4,7 @@ import { buildGraph, SNA_POSTS, type SnaAccount, type SnaPost, type SnaRole, chi
 import { sharedCache } from "./cache";
 import { analyticsPool } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
+import type { SnaCodes } from "../snaFilter";
 
 const cache = sharedCache<SnaGraph>("sna", { ttlMs: 60_000, maxEntries: 50, staleWhileRevalidate: true });
 
@@ -12,12 +13,12 @@ const cache = sharedCache<SnaGraph>("sna", { ttlMs: 60_000, maxEntries: 50, stal
  * with the most posts (that mention someone) are the hubs; the accounts they mention are the children; each link's tone is
  * the emotion of the posts carrying the mention. The whole bank, or one key's scope when given.
  */
-export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope) {
+export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only: SnaCodes = null) {
   const s = scope ?? OPEN_SCOPE;
-  return cache(`${days}|${limit}|${filterKey("social", new URLSearchParams(), s)}`, async () => {
-    if (!allowsType(s, "social")) return emptyHubs();
+  return cache(`${days}|${limit}|${filterKey("social", new URLSearchParams(), s)}|${only?.key ?? ""}`, async () => {
+    if (!allowsType(s, "social") || (only && !only.codes.length)) return emptyHubs();
     const since = new Date(Date.now() - days * 86_400_000).toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" });
-    const { where, values } = buildWhere("social", new URLSearchParams({ since }), s);
+    const { where, values } = withCodes(buildWhere("social", new URLSearchParams({ since }), s), only);
     const from = COLUMNS.social.from;
     const pool = analyticsPool();
     const { rows: hubs } = await pool.query<SnaHub>(
@@ -34,17 +35,23 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope) {
   });
 }
 
+/** Limits a WHERE clause to the posts of an issue or label filter (see server/snaFilter.ts). */
+function withCodes(q: { where: string; values: unknown[] }, only: SnaCodes) {
+  if (!only) return q;
+  return { where: `${q.where} AND p.post_code = ANY($${q.values.length + 1}::text[])`, values: [...q.values, only.codes] };
+}
+
 const accountCache = sharedCache<SnaAccount>("sna-account", { ttlMs: 60_000, maxEntries: 200, staleWhileRevalidate: true });
 type PostRow = { code: string; source: string; username: string | null; content: string | null; url: string | null; ts: Date; emotion: string | null };
 const safeUrl = (u: string | null) => (u && /^https?:\/\//i.test(u) ? u : null);
 
 /** The posts behind one node in the window: a hub's own posts that mention someone, or (child) the posts mentioning it. */
-export function snaAccount(username: string, role: SnaRole, days: SnaDays, scope?: KeyScope) {
+export function snaAccount(username: string, role: SnaRole, days: SnaDays, scope?: KeyScope, only: SnaCodes = null) {
   const s = scope ?? OPEN_SCOPE;
-  return accountCache(`${role}|${username}|${days}|${filterKey("social", new URLSearchParams(), s)}`, async () => {
-    if (!allowsType(s, "social")) return { posts: [], buckets: [] };
+  return accountCache(`${role}|${username}|${days}|${filterKey("social", new URLSearchParams(), s)}|${only?.key ?? ""}`, async () => {
+    if (!allowsType(s, "social") || (only && !only.codes.length)) return { posts: [], buckets: [] };
     const since = new Date(Date.now() - days * 86_400_000).toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" });
-    const { where, values } = buildWhere("social", new URLSearchParams({ since }), s);
+    const { where, values } = withCodes(buildWhere("social", new URLSearchParams({ since }), s), only);
     const who = `$${values.length + 1}`;
     const cond = role === "hub"
       ? `p.post_username = ${who} AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)`

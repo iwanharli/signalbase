@@ -3,6 +3,7 @@
 // clusters come back with their keywords and clearest examples. Here they get their numbers and score, carry on the
 // stored cluster they continue (so ids and AI titles stay), and the largest get a title and summary from the AI provider
 // of Pengaturan AI, within its monthly budget. Nothing runs without KLASTER_URL.
+import { request } from "node:http";
 import { z } from "zod";
 import { clip, schemaIssues } from "@/lib/ai/clip";
 import { clusterStats, issueScore, matchClusters, MIN_AUTHORS, needsTitle, type ClusterPost } from "@/lib/isu";
@@ -25,6 +26,28 @@ const TITLES_PER_RUN = 8;
 const TITLE_FROM = 20;
 
 const lastRun = new Map<string, number>();
+/** A project's first run embeds a whole week of posts on the server's CPU (SLOG POLRI: over 5 minutes). */
+const SERVICE_TIMEOUT_MS = 30 * 60_000;
+
+/** POST JSON with plain node:http: fetch gives up after 5 minutes without response headers, whatever its abort signal. */
+function postJson<T>(url: string, body: unknown): Promise<T> {
+  const data = Buffer.from(JSON.stringify(body));
+  return new Promise((resolve, reject) => {
+    const req = request(url, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": data.length }, timeout: SERVICE_TIMEOUT_MS }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => {
+        const text = Buffer.concat(chunks).toString("utf8");
+        if ((res.statusCode ?? 500) >= 400) return reject(new Error(`layanan klaster ${res.statusCode}: ${text.slice(0, 200)}`));
+        try { resolve(JSON.parse(text) as T); } catch { reject(new Error("jawaban layanan klaster bukan JSON")); }
+      });
+      res.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(new Error(`layanan klaster tidak menjawab dalam ${SERVICE_TIMEOUT_MS / 60_000} menit`)));
+    req.on("error", reject);
+    req.end(data);
+  });
+}
 const log = (msg: string) => console.log(`[isu] ${msg}`);
 
 type Row = { code: string; content: string | null; ts: Date; author: string | null; username: string | null; url: string | null; mood: string | null };
@@ -81,13 +104,9 @@ async function runProject(key: { id: string; name: string; scope: unknown; keywo
   const scope = parseKeyScope(key.scope, key.keywords);
   const rows = await projectPosts(scope);
   if (rows.length < MIN_POSTS * 2) return log(`${key.name}: ${rows.length} post, terlalu sedikit untuk klaster`);
-  const res = await fetch(`${url.replace(/\/+$/, "")}/cluster`, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items: rows.map((r) => ({ id: r.code, text: r.content ?? "" })), minCluster: MIN_POSTS, minSamples: 5 }),
-    signal: AbortSignal.timeout(20 * 60_000), // the first run embeds a whole week; later runs only new posts
-  });
-  if (!res.ok) throw new Error(`layanan klaster ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const service = (await res.json()) as Service;
+  // The first run embeds a whole week; later runs only new posts (the service keeps the embeddings).
+  const service = await postJson<Service>(`${url.replace(/\/+$/, "")}/cluster`,
+    { items: rows.map((r) => ({ id: r.code, text: r.content ?? "" })), minCluster: MIN_POSTS, minSamples: 5 });
 
   const byCode = new Map(rows.map((r) => [r.code, r]));
   const days = Array.from({ length: WINDOW_DAYS }, (_, i) => jakartaDay(i - (WINDOW_DAYS - 1)));
