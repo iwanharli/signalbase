@@ -26,6 +26,8 @@ export function applyRules(next: MediaFilters, patch: Partial<MediaFilters>): Me
 
 /** The Quick/Original View choice, remembered in this browser. */
 export const SOURCE_KEY = "signalbase.media.tampilan";
+/** Columns of the media grid the reader chose (1-4), remembered in this browser. */
+export const COLUMNS_KEY = "signalbase.media.kolom";
 
 // Copy for browsers where storage is unavailable, so filters still survive a project switch or a link.
 const memory = new Map<string, string>();

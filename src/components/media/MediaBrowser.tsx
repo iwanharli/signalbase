@@ -23,7 +23,7 @@ import { FlowMasonry } from "./FlowMasonry";
 import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
-import { SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
+import { COLUMNS_KEY, SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
 import { useRole } from "../RoleContext";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
@@ -101,6 +101,21 @@ function ProjectBrowser({ type }: { type: MediaType }) {
   const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
   const feed = useMediaFeed(type, query);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Columns (1-4, remembered). With one or two the cards are wide enough to keep the filter drawer open beside them,
+  // so choosing (or returning to) 1-2 opens it and 3-4 closes it.
+  const [columns, setColumns] = useState(4);
+  useEffect(() => {
+    let saved = 4;
+    try { saved = Number(localStorage.getItem(COLUMNS_KEY)) || 4; } catch { /* storage unavailable */ }
+    const n = Math.min(4, Math.max(1, saved));
+    setColumns(n);
+    if (n <= 2) setDrawerOpen(true);
+  }, []);
+  const changeColumns = (n: number) => {
+    setColumns(n);
+    setDrawerOpen(n <= 2);
+    try { localStorage.setItem(COLUMNS_KEY, String(n)); } catch { /* ignore */ }
+  };
   const [selected, setSelected] = useState<MediaItem | null>(null);
   // ?item=<code> (Beranda's latest signals): open that post or article over the list; closing it drops the parameter.
   const itemCode = searchParams.get("item");
@@ -182,6 +197,8 @@ function ProjectBrowser({ type }: { type: MediaType }) {
           filters={filters}
           onChange={update}
           advancedCount={advancedCount}
+          columns={columns}
+          onColumnsChange={changeColumns}
           advancedOpen={drawerOpen}
           onToggleAdvanced={() => setDrawerOpen((open) => !open)}
           source={original ? "asli" : "quick"}
@@ -199,9 +216,10 @@ function ProjectBrowser({ type }: { type: MediaType }) {
 
         {/* First load (or first page still being prepared): a full grid of placeholders. Next pages: one under each column.
             Cards fill the shortest column; a page being prepared is measured out of sight and placed when shown. */}
-        {!staged.visible && (preparing || (!feed.loaded && !feed.error)) && <SkeletonGrid type={type} original={originalView} />}
+        {!staged.visible && (preparing || (!feed.loaded && !feed.error)) && <SkeletonGrid type={type} original={originalView} columns={columns} />}
         {feed.items.length > 0 && (
           <FlowMasonry
+            maxColumns={columns}
             sentinelRef={sentinel}
             tail={preparing && staged.visible ? (c) => <CardSkeleton index={staged.visible + c} type={type} original={originalView} /> : undefined}
             items={feed.items.map((item, i) => {

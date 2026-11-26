@@ -13,8 +13,10 @@ const GAP = 16;
 
 export type FlowItem = { key: string; node: React.ReactNode; hidden?: boolean };
 
-export function FlowMasonry({ items, tail, sentinelRef }: {
+export function FlowMasonry({ items, tail, sentinelRef, maxColumns = MAX_COLUMNS }: {
   items: FlowItem[];
+  /** Columns the reader chose (1-4); fewer when the screen is too narrow for them. */
+  maxColumns?: number;
   /** Placeholder shown at the bottom of each column (e.g. while the next page loads). */
   tail?: (column: number) => React.ReactNode;
   /** Put at the bottom of the shortest column: infinite scroll fires when the first gap would open, not the last. */
@@ -63,7 +65,7 @@ export function FlowMasonry({ items, tail, sentinelRef }: {
   }, []);
   useLayoutEffect(() => () => { observer.current?.disconnect(); cancelAnimationFrame(frame.current); }, []);
 
-  const columns = width ? Math.min(MAX_COLUMNS, Math.max(1, Math.floor((width + GAP) / (MIN_COLUMN_WIDTH + GAP)))) : 1;
+  const columns = width ? Math.min(maxColumns, MAX_COLUMNS, Math.max(1, Math.floor((width + GAP) / (MIN_COLUMN_WIDTH + GAP)))) : 1;
   const colWidth = width ? (width - GAP * (columns - 1)) / columns : 0;
   if (dealtFor.current !== columns) { columnOf.current = new Map(); dealtFor.current = columns; } // new column count: deal again
 

@@ -40,10 +40,10 @@ export function CardSkeleton({ index, type, original }: { index: number; type: M
 }
 
 /** A full grid of placeholders for the first load. */
-export function SkeletonGrid({ type, count = 8, original }: { type: MediaType; count?: number; original?: boolean }) {
+export function SkeletonGrid({ type, count = 8, original, columns = MAX_COLUMNS }: { type: MediaType; count?: number; original?: boolean; columns?: number }) {
   return (
     <div className={c.grid} role="status" aria-label={type === "social" ? "Memuat post" : "Memuat berita"}>
-      {Array.from({ length: MAX_COLUMNS }, (_, col) => (
+      {Array.from({ length: Math.min(columns, MAX_COLUMNS) }, (_, col) => (
         <div key={col} className={c.column}>
           {Array.from({ length: Math.ceil(count / MAX_COLUMNS) }, (_, row) => <CardSkeleton key={row} index={row * MAX_COLUMNS + col} type={type} original={original} />)}
         </div>

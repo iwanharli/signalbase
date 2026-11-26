@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { IconAdjustmentsHorizontal, IconSearch, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconLayoutColumns, IconSearch, IconX } from "@tabler/icons-react";
 import { activePreset, DATE_PRESETS, presetRange, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
 import { Segmented } from "./controls";
 import classes from "./filters.module.css";
 
 const SORT_OPTIONS = [{ value: "newest", label: "Terbaru" }, { value: "oldest", label: "Terlama" }] as const;
+const COLUMN_OPTIONS = ["1", "2", "3", "4"].map((n) => ({ value: n, label: n }));
 const PRESET_OPTIONS = DATE_PRESETS.map((p) => ({ value: p.label, label: p.label }));
 
 /** "/" focuses search from anywhere outside a form field, like most command bars. */
@@ -45,7 +46,7 @@ function useSearchText(search: string, onChange: (patch: Partial<MediaFilters>) 
 }
 
 /** Compact toolbar for search, filters, sort and result layout. */
-export function QuickFilters({ type, filters, onChange, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange, children }: {
+export function QuickFilters({ type, filters, onChange, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange, columns, onColumnsChange, children }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
@@ -56,6 +57,9 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
   /** Social cards only: the Quick card or the original post. */
   source?: "quick" | "asli";
   onSourceChange?: (source: "quick" | "asli") => void;
+  /** Grid columns (1-4) and how to change them. */
+  columns?: number;
+  onColumnsChange?: (n: number) => void;
   /** A second row under the controls (the active filters). */
   children?: React.ReactNode;
 }) {
@@ -90,6 +94,13 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
       {type === "social" && source && onSourceChange && (
         <Segmented label="Sumber tampilan" className={classes.viewSegmented}
           options={[{ value: "quick", label: "Quick View" }, { value: "asli", label: "Original View" }]} value={source} onChange={onSourceChange} />
+      )}
+
+      {columns && onColumnsChange && (
+        <div className={classes.columns} title="Jumlah kolom kartu">
+          <IconLayoutColumns size={15} aria-hidden />
+          <Segmented label="Jumlah kolom" className={classes.columnsSegmented} options={COLUMN_OPTIONS} value={String(columns)} onChange={(v) => onColumnsChange(Number(v))} />
+        </div>
       )}
       {children}
     </section>
