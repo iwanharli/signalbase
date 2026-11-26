@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChartDots3, IconEye, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
+import { IconAlertTriangle, IconChartDots3, IconEye, IconEyeOff, IconHierarchy2, IconUnlink, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -19,7 +19,9 @@ import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import { SnaFlowGuide } from "./SnaFlowGuide";
-import type { GephiColor } from "./GephiGraph";
+import type { GephiColor, GephiSize } from "./GephiGraph";
+import type { NetworkAnalysis } from "@/lib/snaNetwork";
+import { TREE_COMPACT, TREE_ROOMY, treeLayout, withoutNodes, type TreeLayout } from "@/lib/snaTree";
 import { SnaPanel } from "./SnaPanel";
 import { SnaWatchPicker, type SnaWatch } from "./SnaWatches";
 import classes from "./sna.module.css";
@@ -35,6 +37,7 @@ const PERIOD_OPTIONS = SNA_PERIODS.map((p) => ({ value: String(p.days), label: p
 const GephiGraph = dynamic(() => import("./GephiGraph").then((m) => m.GephiGraph), { ssr: false });
 const STYLE_OPTIONS = [{ value: "klasik", label: "Klasik" }, { value: "gephi", label: "Gephi" }] as const;
 const COLOR_OPTIONS = [{ value: "klaster", label: "Klaster" }, { value: "emosi", label: "Emosi" }] as const;
+const SIZE_OPTIONS = [{ value: "engagement", label: "Engagement" }, { value: "betweenness", label: "Jembatan" }] as const;
 const FLOW_NOTE = { langsung: "", mention: "Anak = akun yang menyebut/membalas akun lebih awal", rantai: "Urut waktu post pertama, dari isu", gelombang: "Anak = gelombang waktu berikutnya" } as const;
 const FLOW_OPTIONS = SNA_FLOWS.map((f) => ({ value: f.value, label: f.label }));
 const VIEW_OPTIONS = [{ value: "isu", label: "Isu" }, { value: "mention", label: "Mention" }] as const;
@@ -77,7 +80,7 @@ function titleLines(title = "") {
   return lines;
 }
 
-function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id: string | null) => void; picked: string | null; locked: boolean }) {
+function Graph({ graph, onPick, picked, locked, layout }: { graph: SnaGraph; onPick: (id: string | null) => void; picked: string | null; locked: boolean; layout: TreeLayout | null }) {
   const box = useRef<HTMLDivElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const tip = useRef<HTMLDivElement>(null);
@@ -192,6 +195,12 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     let timer = 0;
     const reveal = () => requestAnimationFrame(() => { el.style.transition = "opacity 450ms ease"; el.style.opacity = "1"; });
     const fit = () => {
+      // Tree: every node pinned where the tree puts it (dragging still moves one; double-click lets it float).
+      if (layout) {
+        for (const n of nodes) { const p = layout.pos.get(n.id); if (p) { n.x = n.fx = p.x; n.y = n.fy = p.y; } }
+        sim.stop(); paint(); fitView(); reveal();
+        return;
+      }
       const { width, height } = wrap.getBoundingClientRect();
       // Hubs sit on a ring so their clusters stay apart; children are only pulled loosely to the middle.
       // Issue view: the issues are the ring; their accounts gather around them.
@@ -214,7 +223,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       .on("end", (e) => { if (!e.active) sim.alphaTarget(0); }));
     node.on("dblclick.pin", (e, d) => { e.stopPropagation(); d.fx = null; d.fy = null; sim.alpha(0.3).restart(); });
     return () => { window.clearTimeout(timer); sim.stop(); ro.disconnect(); root.on(".zoom", null).selectAll("*").remove(); };
-  }, [graph]);
+  }, [graph, layout]);
 
   // Locked: the layout freezes and pan, zoom and drag are off; unlocking lets it settle again.
   useEffect(() => {
@@ -252,6 +261,10 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   // Drawing style: the classic d3 view, or a Gephi-like map (sigma.js, ForceAtlas2, Louvain clusters).
   const gephi = params.get("gaya") === "gephi";
   const gephiColor: GephiColor = params.get("warna") === "emosi" ? "emosi" : "klaster";
+  const gephiSize: GephiSize = params.get("ukuran") === "betweenness" ? "betweenness" : "engagement";
+  // "Susun pohon": issues in the first row, their accounts as trees below; accounts tied to no issue at the bottom (or hidden).
+  const treeOn = params.get("susun") === "pohon";
+  const hideLoose = params.get("lepas") === "sembunyi";
   // Issues cover the last 7 days, so the issue view opens on 7 days unless a period was chosen.
   const days = (params.get("days") ? parseSnaDays(params.get("days")) : null) ?? (issueView ? 7 : DEFAULT_SNA_DAYS);
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
@@ -294,6 +307,20 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const hubs = useMemo(() => (graph?.nodes ?? []).filter((n) => n.kind === "hub").sort((a, b) => b.posts - a.posts), [graph]);
   useEffect(() => setOff([]), [days, limit, keyId, filter]);
   const view = useMemo(() => (graph ? filterGraph(graph, [...off, "unknown"]) : null), [graph, off]); // posts without an emotion are never drawn
+  // Communities and betweenness of the graph on screen (lib/snaNetwork.ts), for the Gephi view and the account panel.
+  // Loaded on demand so the classic view does not carry graphology.
+  const [network, setNetwork] = useState<{ of: SnaGraph; analysis: NetworkAnalysis } | null>(null);
+  useEffect(() => {
+    if (!view?.nodes.length) return;
+    let stale = false;
+    void import("@/lib/snaNetwork").then((m) => { if (!stale) setNetwork({ of: view, analysis: m.analyzeNetwork(view) }); });
+    return () => { stale = true; };
+  }, [view]);
+  const analysis = network?.of === view ? network.analysis : null;
+  const tree = useMemo(() => (treeOn && view ? treeLayout(view, gephi ? TREE_COMPACT : TREE_ROOMY) : null), [treeOn, view, gephi]);
+  const shown = useMemo(() => (view && tree && hideLoose ? withoutNodes(view, tree.orphans) : view), [view, tree, hideLoose]);
+  const canTree = !!view?.nodes.some((n) => n.kind === "issue");
+  const bridge = analysis && picked ? analysis.bridges.find((b) => b.id === picked) : undefined;
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
   const stats = issueView ? [
@@ -331,6 +358,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
           <Segmented label="Gaya" options={STYLE_OPTIONS} value={gephi ? "gephi" : "klasik"} onChange={(v) => go({ gaya: v === "gephi" ? "gephi" : null })} />
           {gephi && <Segmented label="Warna" options={COLOR_OPTIONS} value={gephiColor} onChange={(v) => go({ warna: v === "emosi" ? "emosi" : null })} />}
+          {gephi && <Segmented label="Ukuran node" options={SIZE_OPTIONS} value={gephiSize} onChange={(v) => go({ ukuran: v === "betweenness" ? "betweenness" : null })} />}
           {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           {issueView && <Segmented label="Alur" options={FLOW_OPTIONS} value={flow} onChange={(v) => go({ flow: v === "langsung" ? null : v })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
@@ -373,6 +401,16 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         {issueView && graph && graph.nodes.length > 0 && !picked && <SnaFlowGuide flow={flow} onPick={(v) => go({ flow: v === "langsung" ? null : v })} />}
         {graph && graph.nodes.length > 0 && (
           <div className={classes.tools}>
+            {canTree && <Tooltip label={treeOn ? "Kembali ke susunan bebas" : "Susun pohon: isu di baris pertama, akunnya di bawah"} withinPortal={false} position="bottom" withArrow>
+            <button type="button" aria-pressed={treeOn} aria-label="Susun pohon" data-active={treeOn || undefined} onClick={() => go({ susun: treeOn ? null : "pohon", lepas: null })}>
+              <IconHierarchy2 size={17} />
+            </button>
+            </Tooltip>}
+            {tree && tree.orphans.size > 0 && <Tooltip label={hideLoose ? `Tampilkan ${tree.orphans.size} akun tak terikat isu (di bagian bawah)` : `Sembunyikan ${tree.orphans.size} akun tak terikat isu`} withinPortal={false} position="bottom" withArrow>
+            <button type="button" aria-pressed={hideLoose} aria-label="Sembunyikan akun tak terikat isu" data-active={hideLoose || undefined} onClick={() => go({ lepas: hideLoose ? null : "sembunyi" })}>
+              {hideLoose ? <IconEyeOff size={17} /> : <IconUnlink size={17} />}
+            </button>
+            </Tooltip>}
             {!gephi && <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
             <button type="button" aria-pressed={locked} aria-label={locked ? "Buka kunci graf" : "Kunci graf"} data-active={locked || undefined} onClick={() => setLocked(!locked)}>
               {locked ? <IconLock size={17} /> : <IconLockOpen size={17} />}
@@ -386,9 +424,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </div>
         )}
                 {graph && graph.nodes.length === 0 && <p className={classes.empty}>{watchId ? "Belum ada post yang menyebut kata kunci pantauan ini pada rentang ini. Coba rentang 7 hari atau periksa kata kuncinya." : issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
-        {view && view.nodes.length > 0 && (gephi
-          ? <GephiGraph graph={view} picked={picked} onPick={setPicked} color={gephiColor} />
-          : <Graph graph={view} picked={picked} onPick={setPicked} locked={locked} />)}
+        {shown && shown.nodes.length > 0 && (gephi
+          ? analysis && <GephiGraph graph={shown} analysis={analysis} picked={picked} onPick={setPicked} color={gephiColor} size={gephiSize} layout={tree} />
+          : <Graph graph={shown} picked={picked} onPick={setPicked} locked={locked} layout={tree} />)}
         {(res.loading || busy || (!graph && !res.error)) && (
           <div className={classes.loading} data-covering={graph ? "" : undefined} role="status" aria-live="polite">
             <div className={classes.ghost} aria-hidden>
@@ -400,9 +438,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         {graph && graph.nodes.length > 0 && (
           <aside className={classes.legend} aria-label="Legenda">
             {gephi ? <>
-              <span><i className={classes.dot} style={{ background: "#a78bfa" }} />Besar = {issueView ? "post (isu) / engagement (akun)" : "engagement dan mention"}</span>
+              <span><i className={classes.dot} style={{ background: "#a78bfa" }} />Besar = {gephiSize === "betweenness" ? "betweenness (jembatan antar-klaster)" : issueView ? "post (isu) / engagement (akun)" : "engagement dan mention"}</span>
               <span>{gephiColor === "klaster" ? "Warna = klaster komunitas (Louvain)" : <><span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}</span>Warna = emosi dominan</>}</span>
-              <span>Tata letak ForceAtlas2 · arahkan kursor untuk menyorot tetangga, seret untuk menata</span>
+              <span>{tree ? "Susunan pohon: isu di baris pertama" : "Tata letak ForceAtlas2"} · arahkan kursor untuk menyorot tetangga, seret untuk menata</span>
             </> : issueView ? <>
               <span><i className={classes.issueMark}>{watchId ? <IconEye size={10} /> : <IconFlame size={10} />}</i>{watchId ? "Pantauan" : "Isu (besar = jumlah post)"}</span>
               <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun (besar = engagement)</span>
@@ -438,7 +476,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </aside>
         )}
         {off.length > 0 && view && view.links.length === 0 && <p className={classes.empty}>Semua emosi disembunyikan.</p>}
-        {picked && node && graph && node.kind !== "issue" && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} filter={filter} authors={issueView} onPick={setPicked} onClose={() => setPicked(null)} />}
+        {picked && node && graph && node.kind !== "issue" && <SnaPanel key={picked} node={node} graph={graph} days={days} keyId={keyId} filter={filter} authors={issueView} onPick={setPicked} onClose={() => setPicked(null)}
+          bridge={analysis ? { rank: bridge?.rank ?? null, of: analysis.accounts, communities: bridge?.communities.length ?? 0, score: bridge?.score ?? 0 } : undefined} />}
       </section>
     </div>
   );

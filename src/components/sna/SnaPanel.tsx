@@ -14,12 +14,14 @@ const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
 const TABS = [{ id: "summary", label: "Ringkasan" }, { id: "posts", label: "Postingan" }, { id: "mentions", label: "Mention" }] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-export function SnaPanel({ node, graph, days, keyId, filter = "", authors = false, onPick, onClose }: {
+export function SnaPanel({ node, graph, days, keyId, filter = "", authors = false, bridge, onPick, onClose }: {
   node: SnaNode; graph: SnaGraph; days: number; keyId: string | null;
   /** Issue view: an account's own posts in the issues (role "author"), not only those mentioning someone. */
   authors?: boolean;
   /** "&issue=…&label=…" of the board, so the account's posts are the same ones the graph is drawn from. */
   filter?: string;
+  /** Betweenness of the account in the graph on screen (lib/snaNetwork.ts): rank among `of` accounts (null: on no shortest path). */
+  bridge?: { rank: number | null; of: number; communities: number; score: number };
   onPick: (id: string) => void; onClose: () => void;
 }) {
   const role: SnaRole = node.kind === "child" ? "child" : authors ? "author" : "hub";
@@ -60,6 +62,14 @@ export function SnaPanel({ node, graph, days, keyId, filter = "", authors = fals
                 ? <><div><b>{formatNumber(node.posts)}</b><span>post</span></div><div><b>{formatNumber(node.mentions)}</b><span>mention</span></div><div><b>{related.length}</b><span>akun disebut</span></div></>
                 : <><div><b>{formatNumber(node.mentions)}</b><span>kali disebut</span></div><div><b>{related.length}</b><span>akun utama</span></div></>}
             </div>
+            {bridge && (
+              <div className={classes.bridgeNote} data-top={(bridge.rank !== null && bridge.rank <= 10) || undefined}
+                title="Betweenness centrality: seberapa sering akun ini berada di jalur terpendek antar-akun lain di graf yang tampil. Tinggi = penghubung antar-kelompok.">
+                {bridge.rank !== null
+                  ? <><b>Jembatan #{bridge.rank}</b> dari {formatNumber(bridge.of)} akun{bridge.communities > 1 ? ` · menghubungkan ${bridge.communities} klaster` : ""}<small>betweenness {bridge.score.toFixed(3)}</small></>
+                  : <>Bukan penghubung: tidak berada di jalur antar-akun lain.</>}
+              </div>
+            )}
             <h4>Emosi {role !== "child" ? "postingannya" : "post yang menyebutnya"}</h4>
             <div className={classes.mix} aria-hidden>{TONES.map((t) => counts[t] > 0 && <i key={t} style={{ width: `${(counts[t] / total) * 100}%`, background: TONE_COLOR[t] }} />)}</div>
             <ul className={classes.mixList}>

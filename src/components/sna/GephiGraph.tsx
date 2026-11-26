@@ -4,17 +4,20 @@
 // Loaded only in the browser (next/dynamic, ssr: false): sigma needs WebGL.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Graph from "graphology";
-import louvain from "graphology-communities-louvain";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
 import { dominantTone, TONE_COLOR, type SnaGraph, type Tone } from "@/lib/sna";
 import { formatNumber } from "@/lib/media/labels";
+import { seeded, type NetworkAnalysis } from "@/lib/snaNetwork";
+import type { TreeLayout } from "@/lib/snaTree";
 import classes from "./sna.module.css";
 
 export type GephiColor = "klaster" | "emosi";
-type NodeAttrs = { label: string; full: string; x: number; y: number; size: number; color: string; community: number; kind: string };
+/** Node size: engagement (posts for issues), or betweenness: the bridges between groups stand out. */
+export type GephiSize = "engagement" | "betweenness";
+type NodeAttrs = { label: string; full: string; x: number; y: number; fx: number; fy: number; size: number; eng: number; btw: number; color: string; community: number; kind: string };
 /** Long issue titles are cut on the map; the whole title shows when the node is lit. */
-const short = (t: string) => (t.length > 42 ? `${t.slice(0, 40).trimEnd()}…` : t);
+const short = (t: string, max = 42) => (t.length > max ? `${t.slice(0, max - 2).trimEnd()}…` : t);
 
 // Distinct cluster colours that read on the dark stage (Gephi-like).
 const PALETTE = ["#a78bfa", "#22d3ee", "#f472b6", "#facc15", "#4ade80", "#fb923c", "#60a5fa", "#f87171", "#2dd4bf", "#c084fc", "#a3e635", "#fbbf24"];
@@ -35,13 +38,11 @@ function drawHover(ctx: CanvasRenderingContext2D, data: { x: number; y: number; 
   ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.fillText(data.label, x, data.y + 0.5);
 }
 
-/** Small seeded random numbers, so the same graph always gets the same layout and clusters. */
-function seeded(seed: number) {
-  let s = seed >>> 0 || 1;
-  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32; };
-}
-
-export function GephiGraph({ graph, picked, onPick, color }: { graph: SnaGraph; picked: string | null; onPick: (id: string | null) => void; color: GephiColor }) {
+export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null }: {
+  graph: SnaGraph; analysis: NetworkAnalysis; picked: string | null; onPick: (id: string | null) => void; color: GephiColor; size: GephiSize;
+  /** "Susun pohon": fixed positions instead of ForceAtlas2. */
+  layout?: TreeLayout | null;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const sigmaRef = useRef<Sigma<NodeAttrs> | null>(null);
   const hoverRef = useRef<string | null>(null);
@@ -63,11 +64,14 @@ export function GephiGraph({ graph, picked, onPick, color }: { graph: SnaGraph; 
     for (const l of graph.links) { addTone(l.source, l.counts); addTone(l.target, l.counts); }
     const weight = (n: SnaGraph["nodes"][number]) => n.kind === "issue" ? n.posts * 40 : (n.engagement ?? 0) + n.posts + n.mentions;
     const maxW = Math.max(1, ...graph.nodes.map(weight));
+    const maxB = Math.max(1e-9, ...analysis.betweenness.values());
     for (const n of graph.nodes) {
-      const size = n.kind === "issue" ? 16 + 10 * Math.log1p(weight(n)) / Math.log1p(maxW) : 3 + 11 * Math.log1p(weight(n)) / Math.log1p(maxW);
+      const eng = n.kind === "issue" ? 16 + 10 * Math.log1p(weight(n)) / Math.log1p(maxW) : 3 + 11 * Math.log1p(weight(n)) / Math.log1p(maxW);
+      // Betweenness on a square-root scale: a few bridges are far above the rest, which would leave everyone else a dot.
+      const btw = 3 + 19 * Math.sqrt((analysis.betweenness.get(n.id) ?? 0) / maxB);
       const a = rand() * Math.PI * 2, r = 10 + rand() * 90;
       const full = n.kind === "issue" ? (n.title ?? "Isu") : `@${n.id}`;
-      g.addNode(n.id, { label: short(full), full, x: Math.cos(a) * r, y: Math.sin(a) * r, size, color: OTHER, community: -1, kind: n.kind });
+      g.addNode(n.id, { label: short(full), full, x: Math.cos(a) * r, y: Math.sin(a) * r, fx: 0, fy: 0, size: eng, eng, btw, color: OTHER, community: analysis.community.get(n.id) ?? -1, kind: n.kind });
     }
     for (const l of graph.links) {
       if (!g.hasNode(l.source) || !g.hasNode(l.target) || l.source === l.target) continue;
@@ -75,10 +79,10 @@ export function GephiGraph({ graph, picked, onPick, color }: { graph: SnaGraph; 
       const w = (g.hasEdge(key) ? (g.getEdgeAttribute(key, "weight") as number) : 0) + l.n;
       g.mergeEdgeWithKey(key, l.source, l.target, { weight: w, tone: dominantTone(l.counts), size: Math.min(4, 0.6 + Math.log1p(w) * 0.6), color: TONE_COLOR[dominantTone(l.counts)] + "55" });
     }
-    if (g.size) louvain.assign(g, { nodeCommunityAttribute: "community", getEdgeWeight: "weight", rng: seeded(42) });
     // ForceAtlas2 like Gephi's defaults for the graph's size, a little more gravity so clusters stay on screen.
     const settings = { ...forceAtlas2.inferSettings(g), gravity: 1.2, scalingRatio: 8, adjustSizes: false, edgeWeightInfluence: 0.6 };
     forceAtlas2.assign(g, { iterations: g.order > 400 ? 250 : 400, settings, getEdgeWeight: "weight" });
+    g.forEachNode((id, a) => g.mergeNodeAttributes(id, { fx: a.x, fy: a.y })); // the ForceAtlas2 places, to go back to
 
     // The biggest communities get palette colours; the rest share one grey.
     const members = new Map<number, string[]>();
@@ -86,11 +90,31 @@ export function GephiGraph({ graph, picked, onPick, color }: { graph: SnaGraph; 
     const ranked = [...members].sort((x, y) => y[1].length - x[1].length);
     const colorOf = new Map<number, string>(ranked.map(([c], i) => [c, i < PALETTE.length && ranked[i][1].length > 1 ? PALETTE[i] : OTHER]));
     const legend = ranked.slice(0, 6).filter(([, ids]) => ids.length > 1).map(([c, ids]) => {
-      const lead = [...ids].sort((x, y) => g.getNodeAttribute(y, "size") - g.getNodeAttribute(x, "size"))[0];
+      const lead = [...ids].sort((x, y) => g.getNodeAttribute(y, "eng") - g.getNodeAttribute(x, "eng"))[0];
       return { color: colorOf.get(c)!, lead: g.getNodeAttribute(lead, "label"), n: ids.length };
     });
     return { g, colorOf, tones, legend };
-  }, [graph]);
+  }, [graph, analysis]);
+
+  // Positions: the tree's (sigma's y axis points up, the tree's down), or back to ForceAtlas2's.
+  useEffect(() => {
+    const { g } = built;
+    g.forEachNode((id, a) => {
+      const p = layout?.pos.get(id);
+      // In the tree the issues stand side by side in one row: their titles are cut shorter so they do not run together.
+      const label = a.kind === "issue" ? short(a.full, layout ? 16 : 42) : a.label;
+      g.mergeNodeAttributes(id, p ? { x: p.x, y: -p.y, label } : { x: a.fx, y: a.fy, label });
+    });
+    sigmaRef.current?.refresh();
+    sigmaRef.current?.getCamera().animatedReset({ duration: 300 });
+  }, [built, layout]);
+
+  // Node sizes follow the chosen measure.
+  useEffect(() => {
+    const { g } = built;
+    g.forEachNode((id, a) => g.setNodeAttribute(id, "size", size === "betweenness" ? a.btw : a.eng));
+    sigmaRef.current?.refresh();
+  }, [built, size]);
 
   // Node colours follow the chosen colouring.
   useEffect(() => {
@@ -170,10 +194,23 @@ export function GephiGraph({ graph, picked, onPick, color }: { graph: SnaGraph; 
   useEffect(() => { pickedRef.current = picked; sigmaRef.current?.refresh({ skipIndexation: true }); }, [picked]);
 
   const stats = useMemo(() => `${formatNumber(built.g.order)} node · ${formatNumber(built.g.size)} hubungan`, [built]);
+  const bridges = analysis.bridges.slice(0, 6);
   return (
     <>
       <div ref={box} className={classes.gephi} role="img" aria-label="Graf jaringan akun, mode Gephi" />
-      {clusters.length > 0 && (
+      {size === "betweenness" ? bridges.length > 0 && (
+        <aside className={classes.clusters} aria-label="Akun jembatan">
+          <b>Akun jembatan</b>
+          {bridges.map((br) => (
+            <button key={br.id} type="button" className={classes.bridgeRow} onClick={() => onPick(br.id)} title={`Betweenness ${br.score.toFixed(3)} · menghubungkan ${br.communities.length} klaster`}>
+              <span className={classes.bridgeRank}>{br.rank}</span>
+              <em>@{br.id}</em>
+              <span className={classes.bridgeDots}>{br.communities.slice(0, 5).map((c) => <i key={c} style={{ background: built.colorOf.get(c) ?? OTHER }} />)}</span>
+            </button>
+          ))}
+          <small>Titik = klaster yang dihubungkan · {stats}</small>
+        </aside>
+      ) : clusters.length > 0 && (
         <aside className={classes.clusters} aria-label="Klaster">
           <b>Klaster komunitas</b>
           {clusters.map((c) => <span key={c.lead}><i style={{ background: c.color }} /><em title={c.lead}>{c.lead}</em><small>{c.n} node</small></span>)}
