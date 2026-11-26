@@ -41,6 +41,8 @@ export type ViewData = {
   now: PulseWindow; avg: PulseWindow; spikes: Spike[]; intense: MediaItem[]; hasSocial: boolean;
   engagement: PlatformEngagement[] | null;
   accounts: TopAccount[] | null; media: TopMedia[] | null;
+  /** Online: outlets that carried the news, this period and the one before. */
+  outlets: { current: number; previous: number } | null;
 };
 
 const TONES: { key: Tone; label: string }[] = [
@@ -70,7 +72,7 @@ const fmtPct = (v: number) => `${v.toLocaleString("id-ID", { maximumFractionDigi
 const topicLabel = (value: string) => capitalize(humanize(value));
 const yesterday = () => dayjs().subtract(1, "day").format("YYYY-MM-DD");
 const sumWindow = (a: PulseWindow, b: PulseWindow): PulseWindow => ({ total: a.total + b.total, labelled: a.labelled + b.labelled, neg: a.neg + b.neg, hot: a.hot + b.hot });
-const sumTotals = (a: PeriodTotals, b: PeriodTotals): PeriodTotals => ({ total: a.total + b.total, labelled: a.labelled + b.labelled, pos: a.pos + b.pos, neg: a.neg + b.neg });
+const sumTotals = (a: PeriodTotals, b: PeriodTotals): PeriodTotals => ({ total: a.total + b.total, labelled: a.labelled + b.labelled, pos: a.pos + b.pos, neg: a.neg + b.neg, hot: (a.hot ?? 0) + (b.hot ?? 0) });
 
 /** Post text without the reply preamble and leading @mentions, which say nothing about the content. */
 function cleanText(item: MediaItem) {
@@ -107,7 +109,7 @@ function viewData(parts: [MediaType, InsightsData][]): ViewData | null {
   return {
     trend: first.trend.map((p, i) => rest.reduce((acc, d) => {
       const q = d.trend[i];
-      return q ? { ...acc, total: acc.total + q.total, pos: acc.pos + q.pos, neu: acc.neu + q.neu, neg: acc.neg + q.neg } : acc;
+      return q ? { ...acc, total: acc.total + q.total, pos: acc.pos + q.pos, neu: acc.neu + q.neu, neg: acc.neg + q.neg, hot: (acc.hot ?? 0) + (q.hot ?? 0) } : acc;
     }, p)),
     current: rest.reduce((acc, d) => sumTotals(acc, d.current), first.current),
     previous: rest.reduce((acc, d) => sumTotals(acc, d.previous), first.previous),
@@ -122,6 +124,7 @@ function viewData(parts: [MediaType, InsightsData][]): ViewData | null {
     engagement: social?.engagement ?? null,
     accounts: social?.accounts ?? null,
     media: parts.find(([t]) => t === "online")?.[1].media ?? null,
+    outlets: parts.find(([t]) => t === "online")?.[1].outlets ?? null,
     hasSocial: !!social,
   };
 }
@@ -304,21 +307,36 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-/** The four headline numbers of the chosen view and period, each with its change and a daily sparkline. */
+/** Likes, comments and shares over all platforms (a metric a platform doesn't record counts as 0). */
+const totalInteractions = (rows: PlatformEngagement[], side: "current" | "previous") => rows.reduce((t, r) => t + interactions(r[side]), 0);
+const signedPoints = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("id-ID", { maximumFractionDigits: 1 })}`;
+
+/** The four headline numbers of the chosen view and period: volume, net sentiment, intense negative posts (news: negative
+ *  articles) and interactions (news: outlets), each with its change and, where there is a daily series, a sparkline. */
 export function Kpis({ data, period, keyId, view }: { data: ViewData | null; period: number; keyId: string | null; view: View }) {
-  // Beranda counts analysed items only, so an "analysed share" tile would always read 100%: three opinion numbers.
-  if (!data) return <div className={c.kpis} data-count={3}>{[0, 1, 2].map((i) => <div key={i} className={c.kpi} data-loading />)}</div>;
+  if (!data) return <div className={c.kpis}>{[0, 1, 2, 3].map((i) => <div key={i} className={c.kpi} data-loading />)}</div>;
   const { current: now, previous: before, trend } = data;
   const share = (p: { pos: number; neu: number; neg: number }, k: "pos" | "neg") => pct(p[k], p.pos + p.neu + p.neg);
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const type: MediaType = view === "online" ? "online" : "social";
+  const social = view !== "online" && data.hasSocial;
+  /** Positive share minus negative share, in percentage points. */
+  const net = (t: PeriodTotals) => pct(t.pos, t.labelled) - pct(t.neg, t.labelled);
   const tiles = [
     { key: "vol", help: "volume" as CardHelpId, label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
       sub: `sebelumnya ${formatNumber(before.total)}`, spark: trend.map((p) => p.total), href: view === "all" ? null : mediaHref(type, keyId, { from }) },
-    { key: "neg", help: "negShare" as CardHelpId, label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
-      sub: `sebelumnya ${fmtPct(pct(before.neg, before.labelled))}`, spark: trend.map((p) => share(p, "neg")), href: null },
-    { key: "pos", help: "posShare" as CardHelpId, label: "Porsi positif", value: fmtPct(pct(now.pos, now.labelled)), delta: <Delta now={pct(now.pos, now.labelled)} before={pct(before.pos, before.labelled)} points goodWhenUp />,
-      sub: `sebelumnya ${fmtPct(pct(before.pos, before.labelled))}`, spark: trend.map((p) => share(p, "pos")), href: null },
+    { key: "net", help: "netSentiment" as CardHelpId, label: "Sentimen bersih", value: `${signedPoints(net(now))} poin`, delta: <Delta now={net(now)} before={net(before)} points goodWhenUp />,
+      sub: `negatif ${fmtPct(pct(now.neg, now.labelled))} · positif ${fmtPct(pct(now.pos, now.labelled))}`, spark: trend.map((p) => share(p, "pos") - share(p, "neg")), href: null, tone: net(now) < 0 ? "bad" : "good" },
+    social
+      ? { key: "hot", help: "intenseNeg" as CardHelpId, label: "Post negatif intens", value: formatNumber(now.hot ?? 0), delta: <Delta now={now.hot ?? 0} before={before.hot ?? 0} goodWhenUp={false} />,
+          sub: `sebelumnya ${formatNumber(before.hot ?? 0)} · intensitas 5/5`, spark: trend.map((p) => p.hot ?? 0), href: mediaHref("social", keyId, { from, level: "5" }) }
+      : { key: "hot", help: "negArticles" as CardHelpId, label: "Berita negatif", value: formatNumber(now.neg), delta: <Delta now={now.neg} before={before.neg} goodWhenUp={false} />,
+          sub: `sebelumnya ${formatNumber(before.neg)}`, spark: trend.map((p) => p.neg), href: null },
+    social && data.engagement
+      ? { key: "eng", help: "interactions" as CardHelpId, label: "Interaksi", value: short(totalInteractions(data.engagement, "current")), delta: <Delta now={totalInteractions(data.engagement, "current")} before={totalInteractions(data.engagement, "previous")} goodWhenUp />,
+          sub: `like, komentar, share · sebelumnya ${short(totalInteractions(data.engagement, "previous"))}`, spark: null, href: null }
+      : { key: "eng", help: "outletCount" as CardHelpId, label: "Media yang memberitakan", value: formatNumber(data.outlets?.current ?? 0), delta: <Delta now={data.outlets?.current ?? 0} before={data.outlets?.previous ?? 0} goodWhenUp={false} />,
+          sub: `portal berita · sebelumnya ${formatNumber(data.outlets?.previous ?? 0)}`, spark: null, href: null },
   ];
   return (
     <div className={c.kpis} data-count={tiles.length}>
@@ -328,12 +346,12 @@ export function Kpis({ data, period, keyId, view }: { data: ViewData | null; per
             <span className={c.kpiLabel}>{t.label}<CardHelp id={t.help} /></span>
             <b className={c.kpiValue}>{t.value}{t.delta}</b>
             <span className={c.kpiSub}>{t.sub}</span>
-            <Spark values={t.spark} />
+            {t.spark && <Spark values={t.spark} />}
           </>
         );
         return t.href
-          ? <Link key={t.key} href={t.href} className={c.kpi} data-kpi={t.key} style={{ animationDelay: `${i * 60}ms` }}>{body}</Link>
-          : <div key={t.key} className={c.kpi} data-kpi={t.key} style={{ animationDelay: `${i * 60}ms` }}>{body}</div>;
+          ? <Link key={t.key} href={t.href} className={c.kpi} data-kpi={t.key} data-tone={"tone" in t ? t.tone : undefined} style={{ animationDelay: `${i * 60}ms` }}>{body}</Link>
+          : <div key={t.key} className={c.kpi} data-kpi={t.key} data-tone={"tone" in t ? t.tone : undefined} style={{ animationDelay: `${i * 60}ms` }}>{body}</div>;
       })}
     </div>
   );

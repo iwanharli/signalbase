@@ -21,7 +21,7 @@
 .kpi { --k: #a78bfa; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; min-height: 132px; padding: 16px 16px 0; border-radius: 18px;
   text-decoration: none; color: #fff; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
   transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms, background 220ms; animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
-.kpi[data-kpi="neg"] { --k: #fb7185; } .kpi[data-kpi="pos"] { --k: #34d399; } .kpi[data-kpi="ai"] { --k: #22d3ee; }
+.kpi[data-kpi="net"][data-tone="bad"], .kpi[data-kpi="hot"] { --k: #fb7185; } .kpi[data-kpi="net"][data-tone="good"] { --k: #34d399; } .kpi[data-kpi="eng"] { --k: #22d3ee; }
 .kpi[data-loading] { background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.08), rgba(255,255,255,.04)) 0 0 / 200% 100%; animation: shimmer 1.4s linear infinite; }
 a.kpi:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--k) 55%, transparent); background: rgba(255,255,255,.08); }
 .kpiLabel { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.62); }

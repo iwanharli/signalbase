@@ -39,6 +39,44 @@ export const CARD_HELP = {
       "Garis kecil adalah porsi positif per hari.",
     ],
   },
+  netSentiment: {
+    title: "Sentimen bersih",
+    short: "Porsi positif dikurangi porsi negatif, dalam poin persentase, dari item yang sudah dianalisis AI.",
+    read: [
+      "Minus berarti lebih banyak nada negatif daripada positif; makin minus, makin buruk.",
+      "Contoh: positif 10% dan negatif 40% = −30 poin.",
+      "Panah membandingkan dengan periode sebelumnya; naik (membaik) ditandai hijau.",
+      "Rincian di bawah angka adalah porsi negatif dan positifnya.",
+    ],
+  },
+  intenseNeg: {
+    title: "Post negatif intens",
+    short: "Jumlah post media sosial bernada negatif dengan intensitas tertinggi (5 dari 5) dalam periode ini.",
+    read: [
+      "Ini sinyal risiko yang paling perlu ditindaklanjuti: kemarahan atau penolakan yang kuat, bukan kritik ringan.",
+      "Panah membandingkan dengan periode sebelumnya; naik ditandai merah.",
+      "Klik untuk membuka post-post itu di halaman Media Sosial.",
+    ],
+  },
+  negArticles: {
+    title: "Berita negatif",
+    short: "Jumlah berita online bernada negatif dalam periode ini.",
+    read: ["Panah membandingkan dengan periode sebelumnya; naik ditandai merah.", "Garis kecil adalah jumlah per hari."],
+  },
+  interactions: {
+    title: "Interaksi",
+    short: "Total like, komentar, dan share pada post media sosial dalam periode ini, di semua platform.",
+    read: [
+      "Menunjukkan seberapa jauh percakapan menyebar, bukan hanya berapa banyak post.",
+      "Angka dicatat saat post diambil, jadi menggambarkan interaksi awal, bukan total akhir.",
+      "Rincian per platform ada di tabel Engagement per platform di bawah.",
+    ],
+  },
+  outletCount: {
+    title: "Media yang memberitakan",
+    short: "Jumlah portal berita yang memuat berita sesuai cakupan dalam periode ini.",
+    read: ["Makin banyak media, makin luas pemberitaan isu ini.", "Media yang tercatat dengan dua kode tetapi bernama sama dihitung satu."],
+  },
   analysed: {
     title: "Teranalisis AI",
     short: "Bagian volume yang sudah diberi sentimen oleh AI. Semua angka porsi, tren opini, dan peringatan dihitung dari bagian ini.",

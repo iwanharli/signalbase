@@ -40,7 +40,7 @@ const longCache = sharedCache<Insights>("insights.long", { ttlMs: 30 * 60_000, m
 type Row = { b: number; r: number | null; m: string | null; cat: string | null; hot: boolean; n: number };
 
 const jakartaDate = (msAgo: number) => new Date(Date.now() - msAgo).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-const emptyTotals = (): PeriodTotals => ({ total: 0, labelled: 0, pos: 0, neg: 0 });
+const emptyTotals = (): PeriodTotals => ({ total: 0, labelled: 0, pos: 0, neg: 0, hot: 0 });
 
 /** The calendar date `offset` days from `day` (YYYY-MM-DD). */
 const shiftDay = (day: string, offset: number) => new Date(Date.parse(`${day}T12:00:00Z`) + offset * DAY_MS).toISOString().slice(0, 10);
@@ -207,7 +207,7 @@ async function topAccounts(scope: KeyScope, period: number, end?: string): Promi
 }
 
 /** The news outlets with the most articles this period, with their previous count and sentiment. */
-async function topMedia(scope: KeyScope, period: number, end?: string): Promise<TopMedia[]> {
+async function topMedia(scope: KeyScope, period: number, end?: string): Promise<{ list: TopMedia[]; outlets: { current: number; previous: number } }> {
   const c = COLUMNS.online;
   const { where, values, now } = windowWhere("online", scope, period * 2, end);
   values.push(period);
@@ -224,11 +224,13 @@ async function topMedia(scope: KeyScope, period: number, end?: string): Promise<
     if (r.cur) { e.n += r.n; e.moods.push({ m: r.m, n: r.n }); e.codes.set(r.src, (e.codes.get(r.src) ?? 0) + r.n); } else e.prev += r.n;
     byOutlet.set(name, e);
   }
-  return [...byOutlet.values()]
+  const outlets = { current: [...byOutlet.values()].filter((e) => e.n > 0).length, previous: [...byOutlet.values()].filter((e) => e.prev > 0).length };
+  const list = [...byOutlet.values()]
     .filter((e) => e.n > 0)
     .sort((a, b) => b.n - a.n)
     .slice(0, TOP_SOURCES)
     .map((e) => ({ source: [...e.codes].sort((a, b) => b[1] - a[1])[0][0], n: e.n, prev: e.prev, ...moodCounts(e.moods) }));
+  return { list, outlets };
 }
 
 function summarize(rows: Row[], period: number, end?: string) {
@@ -237,7 +239,7 @@ function summarize(rows: Row[], period: number, end?: string) {
 
   const trend: TrendPoint[] = Array.from({ length: period }, (_, i) => {
     const b = period - 1 - i;
-    return { day: end ? shiftDay(end, -1 - b) : jakartaDate(b * DAY_MS), total: 0, pos: 0, neu: 0, neg: 0 };
+    return { day: end ? shiftDay(end, -1 - b) : jakartaDate(b * DAY_MS), total: 0, pos: 0, neu: 0, neg: 0, hot: 0 };
   });
   const current = emptyTotals(), previous = emptyTotals();
   const categories = new Map<string, Ranked>();
@@ -250,11 +252,12 @@ function summarize(rows: Row[], period: number, end?: string) {
     const side = row.m ? polarityOf(row.m) : null;
     const totals = cur ? current : previous;
     totals.total += row.n;
-    if (side) { totals.labelled += row.n; if (side === "pos") totals.pos += row.n; if (side === "neg") totals.neg += row.n; }
+    if (side) { totals.labelled += row.n; if (side === "pos") totals.pos += row.n; if (side === "neg") { totals.neg += row.n; if (row.hot) totals.hot! += row.n; } }
     if (cur) {
       const point = trend[period - 1 - row.b];
       point.total += row.n;
       if (side) point[side] += row.n;
+      if (side === "neg" && row.hot) point.hot! += row.n;
     }
     if (row.cat) {
       const entry = categories.get(row.cat) ?? { value: row.cat, n: 0, prev: 0 };
@@ -325,7 +328,7 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   };
 
   return {
-    period, trend, current, previous, pulse, engagement: engaged, accounts, media,
+    period, trend, current, previous, pulse, engagement: engaged, accounts, media: media?.list ?? null, outlets: media?.outlets ?? null,
     categories: categories.slice(0, TOP_CATEGORIES),
     keywords, hashtags: tags, alerts,
     intense: latestHot.filter((item) => item.mood && moodPolarity(item.mood) === "neg").slice(0, INTENSE_SHOWN),
@@ -349,5 +352,5 @@ export function typeInsights(type: MediaType, period: number, scope?: KeyScope, 
   const live = !day;
   const s = live ? berandaScope(type, scope ?? OPEN_SCOPE) : scope ?? OPEN_SCOPE;
   const end = day ? shiftDay(day, 1) : shiftDay(jakartaDate(0), 1);
-  return (period > 7 ? longCache : cache)(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : "|cal"}`, () => compute(type, s, !!scope, period, end, live));
+  return (period > 7 ? longCache : cache)(`${scope ? filterKey(type, new URLSearchParams(), s) : `${type}|bank`}|${period}${day ? `@${day}` : "|cal2"}`, () => compute(type, s, !!scope, period, end, live));
 }
