@@ -72,10 +72,10 @@ test("saved filters: defaults save nothing, the project is not part of them, and
 });
 
 test("saved filters: a quick range is saved as its length and restored relative to today", () => {
-  const week = DATE_PRESETS.find((p) => p.days === 6)!;
-  const value = savedFilterValue({ ...defaultFilters("online"), ...presetRange(week) }, "online");
-  assert.equal(value, "days=6");
-  assert.equal(savedFilterParams(value, "online").get("from"), presetRange(week).from);
+  const month = DATE_PRESETS.find((p) => p.days === 29)!;
+  const value = savedFilterValue({ ...defaultFilters("online"), ...presetRange(month) }, "online");
+  assert.equal(value, "days=29");
+  assert.equal(savedFilterParams(value, "online").get("from"), presetRange(month).from);
   assert.deepEqual(DATE_PRESETS.map((p) => p.days), [0, 6, 29, null]);
   // The former “2 hari” saved in a browser restores as “1 hari”.
   assert.equal(savedFilterParams("days=1", "online").get("from"), presetRange(DATE_PRESETS[0]).from);
@@ -87,4 +87,15 @@ test("an incoming link: filters are taken off the URL and remembered, the projec
   assert.equal(link.saved, "lang=id&category=pemerintahan");
   assert.equal(splitFilterUrl(new URLSearchParams("key=k1"), "social").saved, null);
   assert.equal(splitFilterUrl(new URLSearchParams("analyzed=yes"), "social").saved, "");
+});
+
+test("default range is the last 7 days; Semua is an explicit empty from and survives a reload and a save", () => {
+  const d = defaultFilters("social");
+  assert.equal(d.from, presetRange(DATE_PRESETS.find((p) => p.days === 6)!).from);
+  assert.equal(filtersFromSearchParams(new URLSearchParams(""), "social").from, d.from);
+  const all = { ...d, ...presetRange(DATE_PRESETS.find((p) => p.days === null)!) };
+  assert.equal(browserFilterParams(all, "social").toString(), "from=");
+  assert.equal(filtersFromSearchParams(browserFilterParams(all, "social"), "social").from, "");
+  assert.equal(filtersFromSearchParams(savedFilterParams(savedFilterValue(all, "social"), "social"), "social").from, "");
+  assert.equal(savedFilterValue(d, "social"), "");
 });

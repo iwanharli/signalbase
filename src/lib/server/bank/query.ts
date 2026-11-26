@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { KeyScope } from "@/lib/media/keyScope";
 import { keywordToQuery } from "@/lib/media/keywordExpr";
 import type { MediaType } from "@/lib/media/types";
+import { escapeLike, parseSearch } from "@/lib/media/searchQuery";
 
 /** Table aliases and columns per media type. Social: post_main p + post_analyses a; news: news_main n + news_analyses a. */
 export const COLUMNS = {
@@ -42,8 +43,12 @@ export function keywordQuery(keywords: string[]) {
     .join(" | ");
 }
 
-/** The search box split on the word OR (or "|"): "polisi or polri" finds either. Words inside one part must all match. */
-export const searchTerms = (q: string) => q.split(/(?:^|\s+)or(?:\s+|$)|\s*\|\s*/i).map((t) => t.trim()).filter(Boolean).slice(0, 8);
+/** Who wrote an item, for "@name" in the search box: the handle exactly (any case) or a name containing it. No index on
+ *  these columns, so it narrows what the other conditions (scope keywords, dates) already found. */
+const AUTHOR = {
+  social: (bind: (v: unknown) => string, name: string) => `(p.post_username ILIKE ${bind(escapeLike(name))} OR p.post_author ILIKE ${bind(`%${escapeLike(name)}%`)})`,
+  online: (bind: (v: unknown) => string, name: string) => `n.news_author ILIKE ${bind(`%${escapeLike(name)}%`)}`,
+} as const;
 
 /**
  * A scope for cache keys. The project's image codes are left out on purpose: they grow every few minutes as the media
@@ -102,10 +107,22 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
 
   where.push(...scopeConditions(type, scope, bind));
 
+  // The search box (lib/media/searchQuery.ts): parts are alternatives; words, "phrases" and @accounts in a part all match.
   const search = get("q")?.trim();
-  const terms = search ? searchTerms(search.slice(0, 200)) : [];
-  if (terms.length) {
-    const text = `${c.search} @@ (${terms.map((t) => `plainto_tsquery('indonesian', ${bind(t)})`).join(" || ")})`;
+  const parts = search ? parseSearch(search) : [];
+  if (parts.length) {
+    // One tsquery per part (words && phrases); parts without an account share a single @@, which the GIN index serves.
+    const tsquery = (part: (typeof parts)[number]) => [
+      ...(part.words ? [`plainto_tsquery('indonesian', ${bind(part.words)})`] : []),
+      ...part.phrases.map((phrase) => `phraseto_tsquery('indonesian', ${bind(phrase)})`),
+    ].join(" && ");
+    const plain = parts.filter((p) => !p.accounts.length).map(tsquery);
+    const byAuthor = parts.filter((p) => p.accounts.length).map((part) => {
+      const q = tsquery(part);
+      return [...(q ? [`${c.search} @@ (${q})`] : []), ...part.accounts.map((name) => AUTHOR[type](bind, name))].join(" AND ");
+    });
+    const alternatives = [...(plain.length ? [`${c.search} @@ (${plain.join(" || ")})`] : []), ...byAuthor.map((cond) => `(${cond})`)];
+    const text = alternatives.length === 1 ? alternatives[0] : `(${alternatives.join(" OR ")})`;
     // Items whose image text matches the search (found by the media route in the Signalbase database) count too.
     const byImage = scope.imageSearch?.[type];
     where.push(byImage?.length ? `(${text} OR ${c.code} = ANY(${bind(byImage)}::text[]))` : text);

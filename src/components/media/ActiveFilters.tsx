@@ -1,7 +1,7 @@
 "use client";
 import { LABEL_FILTER_NAMES } from "@/lib/media/manualLabels";
 import { IconFilterOff, IconX } from "@tabler/icons-react";
-import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
+import { DEFAULT_RANGE_DAYS, daysAgo, rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { humanize, POST_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions } from "@/lib/media/types";
@@ -16,7 +16,9 @@ export function ActiveFilters({ filters: f, options, onChange, onReset, canReset
   const chips: Chip[] = [];
   const add = (key: string, label: string, clear: Partial<MediaFilters>) => chips.push({ key, label, clear });
   if (f.search) add("search", `Pencarian: ${f.search}`, { search: "" });
-  if (f.from || f.to) add("date", rangeLabel(f), { from: "", to: "" });
+  // The default range (last 7 days) is not a chip; another range is, and removing it goes back to the default.
+  const defaultFrom = daysAgo(DEFAULT_RANGE_DAYS);
+  if (f.from !== defaultFrom || f.to) add("date", rangeLabel(f), { from: defaultFrom, to: "" });
   if (f.source) add("source", sourceLabel(f.source), { source: null });
   if (f.mood) add("mood", moodInfo(f.mood).label, { mood: null });
   if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Sudah dianalisis sumber" : "Belum dianalisis sumber", { analyzed: "" });

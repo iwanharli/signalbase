@@ -29,8 +29,11 @@ export type MediaFilters = {
   manualLabel: string | null;
 };
 
+/** The media pages open on the last 7 days (today and the 6 before); "Semua" is an explicit empty `from`. */
+export const DEFAULT_RANGE_DAYS = 6;
+
 export const defaultFilters = (type: MediaType): MediaFilters => ({
-  search: "", from: "", to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
+  search: "", from: daysAgo(DEFAULT_RANGE_DAYS), to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
   province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, key: null, manualLabel: null,
 });
 
@@ -95,7 +98,7 @@ export function countAdvanced(f: MediaFilters, type: MediaType) {
 /** All filters that differ from their defaults, including the quick ones. */
 export function countActive(f: MediaFilters, type: MediaType) {
   const preset = activePreset(f);
-  return countAdvanced(f, type) + [f.search, preset && preset.days != null, f.sort !== "newest"].filter(Boolean).length;
+  return countAdvanced(f, type) + [f.search, !!preset && f.from !== defaultFilters(type).from, f.sort !== "newest"].filter(Boolean).length;
 }
 
 /** Explicit empty values preserve “Semua” even when the default is narrower. */
@@ -110,7 +113,7 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
     return /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).isValid() && dayjs(value).format("YYYY-MM-DD") === value ? value : "";
   };
   return {
-    ...d, search: p.get("q") ?? "", from: date("from"), to: date("to"),
+    ...d, search: p.get("q") ?? "", from: p.get("from") === "" ? "" : date("from") || d.from, to: date("to"), // from absent or unreadable: the default range
     sort: pick("sort", ["newest", "oldest"], d.sort), source: p.get("source") || null,
     mood: p.get("mood") || null, analyzed: pick("analyzed", ["", "yes", "no"], d.analyzed),
     language: pick("lang", ["", "id", "other"], d.language), province: p.get("province") || null,
@@ -128,6 +131,9 @@ export function browserFilterParams(f: MediaFilters, type: MediaType) {
   const p = toSearchParams(f);
   const d = defaultFilters(type);
   if (f.sort === d.sort) p.delete("sort");
+  // The default range is left out of the URL; "Semua" (no start) is kept as an empty from=.
+  if (f.from === d.from && !f.to) p.delete("from");
+  else p.set("from", f.from);
   for (const name of ["analyzed", "relevance"] as const) {
     if (f[name] === d[name]) p.delete(name);
     else p.set(name, f[name]);
@@ -149,7 +155,7 @@ export function savedFilterValue(f: MediaFilters, type: MediaType) {
   const preset = activePreset(f);
   if (preset?.days != null) {
     p.delete("from");
-    p.set("days", String(preset.days));
+    if (preset.days !== DEFAULT_RANGE_DAYS) p.set("days", String(preset.days)); // the default range is not saved
   }
   return p.toString();
 }

@@ -6,7 +6,8 @@ import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 import { detectActionCall, keyText, mergeKeyText, narrativeKey, numericClaims, speechLines, splitJoinedText, type OcrLine } from "@/lib/mediaVisual";
 import { wordFreq } from "./kata";
-import { keywordQuery, searchTerms } from "../bank/query";
+import { keywordQuery } from "../bank/query";
+import { imageSearchText, parseSearch } from "@/lib/media/searchQuery";
 import { sharedCache } from "../bank/cache";
 import { prisma } from "../db";
 import { RETENTION_DAYS } from "./projects";
@@ -154,7 +155,7 @@ export function imageSearchCodes(terms: string[]) {
 
 /** A scope plus the items whose image text matches the request's search; unchanged without a search. */
 export async function withImageSearch(scope: KeyScope, q: string | null): Promise<KeyScope> {
-  const terms = q?.trim() ? searchTerms(q.trim().slice(0, 200)) : [];
+  const terms = q?.trim() ? imageSearchText(parseSearch(q.trim())) : [];
   if (!terms.length) return scope;
   try {
     const imageSearch = await imageSearchCodes(terms);

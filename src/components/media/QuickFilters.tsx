@@ -81,7 +81,7 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
       <label className={classes.search}>
         <IconSearch size={16} />
         <input aria-label={type === "social" ? "Cari isi post" : "Cari judul berita"} ref={searchRef} value={searchText} onChange={(e) => changeSearch(e.currentTarget.value)}
-          placeholder={type === "social" ? "Cari isi post…  (pakai OR untuk beberapa kata)" : "Cari judul berita…  (pakai OR untuk beberapa kata)"} />
+          placeholder={type === "social" ? 'Cari isi post…  "frasa persis", @akun, OR' : 'Cari judul berita…  "frasa persis", @penulis, OR'} />
         {searchText
           ? <button type="button" onClick={() => changeSearch("")} aria-label="Hapus pencarian"><IconX size={15} /></button>
           : <kbd>/</kbd>}
