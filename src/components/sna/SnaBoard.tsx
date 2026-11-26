@@ -10,7 +10,7 @@ import { select } from "d3-selection";
 import { zoom, zoomIdentity } from "d3-zoom";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
-import { dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
+import { accountsPerIssue, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
@@ -22,6 +22,8 @@ type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | n
 type Node = SnaNode & SimulationNodeDatum;
 type Edge = Omit<SnaLink, "source" | "target"> & SimulationLinkDatum<Node> & { source: Node; target: Node };
 const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${n} akun teratas` }));
+// Issue view: the same choice is the number of accounts per issue.
+const PER_ISSUE_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${accountsPerIssue(n)} akun per isu` }));
 const PERIOD_OPTIONS = SNA_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const VIEW_OPTIONS = [{ value: "isu", label: "Isu" }, { value: "mention", label: "Mention" }] as const;
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
@@ -211,7 +213,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const filter = `${issueId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}`;
   // With a project: issues as nodes and the accounts posting in them (default), or who mentions whom.
   const issueView = !!keyId && params.get("view") !== "mention";
-  const days = parseSnaDays(params.get("days")) ?? DEFAULT_SNA_DAYS;
+  // Issues cover the last 7 days, so the issue view opens on 7 days unless a period was chosen.
+  const days = (params.get("days") ? parseSnaDays(params.get("days")) : null) ?? (keyId && params.get("view") !== "mention" ? 7 : DEFAULT_SNA_DAYS);
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
   const [locked, setLocked] = useState(true);
@@ -286,7 +289,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           {keyId && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={LIMIT_OPTIONS} />
+            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={issueView ? PER_ISSUE_OPTIONS : LIMIT_OPTIONS} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (
             <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null })}

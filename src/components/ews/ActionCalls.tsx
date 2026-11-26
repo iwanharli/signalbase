@@ -29,7 +29,7 @@ export function ActionCalls({ days, keyId }: { days: number; keyId: string | nul
       <header>
         <span className={c.icon}><IconSpeakerphone size={16} /></span>
         <div>
-          <h3>Rencana aksi dari gambar <em>uji coba</em></h3>
+          <h3>Rencana aksi dari gambar</h3>
           <p>Poster atau gambar berisi ajakan aksi dengan tanggal, jam, atau tempat, dibaca otomatis dari media sosial dan berita.</p>
         </div>
         {posts.length > 0 && <Link href={`/analisis/media?${qs}`} className={c.all}>Lihat semua<IconArrowRight size={14} /></Link>}

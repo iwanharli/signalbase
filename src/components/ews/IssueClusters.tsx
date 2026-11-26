@@ -1,6 +1,6 @@
 "use client";
 // EWS: issues Signalbase finds itself by clustering the selected project's social posts of the last 7 days (worker
-// `isu`, hourly). Shown above the bank's alerts, which rarely name a project's keywords. Trial while it is calibrated.
+// `isu`, hourly). Shown above the bank's alerts, which rarely name a project's keywords.
 import { useState } from "react";
 import { IconChevronDown, IconExternalLink, IconTrendingUp, IconUsers, IconMessages, IconSparkles } from "@tabler/icons-react";
 import dayjs from "dayjs";
@@ -91,7 +91,7 @@ export function IssueClusters({ keyId }: { keyId: string | null }) {
       <header className={c.head}>
         <span className={c.icon}><IconSparkles size={16} /></span>
         <div>
-          <h3>Isu dari klaster post <em>uji coba</em></h3>
+          <h3>Isu dari klaster post</h3>
           <p>Dikelompokkan Signalbase dari post media sosial proyek ini 7 hari terakhir, menurut kemiripan makna. Diperbarui tiap jam{res.data.updatedAt ? `, terakhir ${dayjs(res.data.updatedAt).locale("id").fromNow()}` : ""}.</p>
         </div>
       </header>

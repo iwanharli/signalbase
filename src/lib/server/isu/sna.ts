@@ -1,6 +1,6 @@
 // SNA issue view: the project's issues (IssueCluster) as big nodes, the accounts posting in each around them, sized by the
 // engagement of their posts. One query over the issues' post codes; cached a minute like the mention graph.
-import { accountsPerIssue, buildIssueGraph, emptyHubs, issuesShown, type IssueAccountRow, type SnaDays, type SnaGraph, type SnaLimit } from "@/lib/sna";
+import { accountsPerIssue, buildIssueGraph, emptyHubs, ISSUES_SHOWN, type IssueAccountRow, type SnaDays, type SnaGraph, type SnaLimit } from "@/lib/sna";
 import { sharedCache } from "../bank/cache";
 import { analyticsPool } from "../bank/pool";
 import { ENGAGEMENT } from "../bank/sna";
@@ -13,7 +13,7 @@ const cache = sharedCache<SnaGraph>("sna-isu", { ttlMs: 60_000, maxEntries: 50, 
 export async function snaIssueGraph(keyId: string, days: SnaDays, limit: SnaLimit, only: SnaCodes, issueId: string | null): Promise<SnaGraph> {
   const issues = await prisma.issueCluster.findMany({
     where: { apiKeyId: keyId, active: true, ...(issueId ? { id: issueId } : {}) },
-    orderBy: { score: "desc" }, take: issueId ? 1 : issuesShown(limit),
+    orderBy: { score: "desc" }, take: issueId ? 1 : ISSUES_SHOWN,
     select: { id: true, title: true, keywords: true, posts: true, codes: true, updatedAt: true },
   });
   if (!issues.length) return emptyHubs();

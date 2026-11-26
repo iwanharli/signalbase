@@ -88,9 +88,10 @@ export const isSnaRole = (v: string | null): v is SnaRole => v === "hub" || v ==
 
 /** The two SNA views of a project: accounts around its issues, or who mentions whom. */
 export type SnaView = "isu" | "mention";
-/** Issues drawn in the issue view, and accounts kept per issue (the most engaging ones). */
-export const issuesShown = (limit: number) => (limit <= 25 ? 8 : limit <= 50 ? 12 : 16);
-export const accountsPerIssue = (limit: number) => Math.max(5, Math.round((limit * 2) / issuesShown(limit)));
+/** Issue view: the 10 highest-scoring issues; the limit choice (25/50/100/200) means accounts per issue, the most engaging. */
+export const ISSUES_SHOWN = 10;
+const PER_ISSUE: Record<number, number> = { 25: 10, 50: 25, 100: 50, 200: 100 };
+export const accountsPerIssue = (limit: number) => PER_ISSUE[limit] ?? 10;
 
 export type IssueAccountRow = { issue: string; username: string; source: string; emotion: string | null; n: number; eng: number };
 
