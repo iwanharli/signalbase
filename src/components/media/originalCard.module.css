@@ -3,8 +3,11 @@
 .quick[data-hidden] { display: none; }
 .shimmer { position: absolute; inset: 0 0 auto; z-index: 3; height: 3px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--mantine-color-cyan-5), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: sweep 1.2s ease-in-out infinite; }
 @keyframes sweep { from { background-position: -50% 0; } to { background-position: 150% 0; } }
-.chip { position: absolute; right: 12px; bottom: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-body); color: var(--mantine-color-violet-7); font-size: 11.5px; font-weight: 600; cursor: pointer; }
-.chip[data-muted] { color: var(--mantine-color-dimmed); font-weight: 500; cursor: default; }
+/* In the card footer, next to the time. */
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--mantine-color-violet-6); cursor: pointer; white-space: nowrap; }
+.chip:hover { text-decoration: underline; }
+.chip[data-muted] { color: var(--mantine-color-dimmed); font-weight: 500; cursor: help; }
+.chip[data-muted]:hover { text-decoration: none; }
 /* Loaded behind the Quick card: invisible and out of the layout, but still rendered so the embed really loads. */
 .original { position: absolute; inset: 0 0 auto; height: 0; overflow: hidden; opacity: 0; pointer-events: none; z-index: -1; }
 .original[data-visible] { position: static; height: auto; overflow: visible; opacity: 1; pointer-events: auto; z-index: auto; animation: swap 420ms cubic-bezier(.2, .8, .2, 1) both; }
@@ -20,6 +23,7 @@
 .shell:hover { border-color: color-mix(in srgb, var(--tone) 45%, var(--mantine-color-default-border)); box-shadow: 0 10px 28px -18px color-mix(in srgb, var(--tone) 60%, rgba(46,16,101,.6)); }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .head > * { min-width: 0; }
+.head > :last-child { flex-shrink: 0; } /* the mood badge stays whole; the author name truncates */
 /* The original post sits in its own rounded frame. */
 .clamp { position: relative; min-width: 0; }
 .clampInner { overflow: hidden; border-radius: 14px; }

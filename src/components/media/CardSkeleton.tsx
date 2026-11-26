@@ -20,7 +20,7 @@ export function CardSkeleton({ index, type, original }: { index: number; type: M
   const shape = SHAPES[index % SHAPES.length];
   const online = type === "online";
   return (
-    <div className={c.card} style={{ animationDelay: `${(index % 8) * 70}ms`, ["--sweep-delay" as string]: `${(index % 4) * 180}ms` }} aria-hidden>
+    <div className={c.card} style={{ ["--sweep-delay" as string]: `${(index % 4) * 180}ms` }} aria-hidden>
       {/* Original View cards open with the "Post asli | Data tersimpan" switch. */}
       {original && <div className={c.tabs}><span className={c.sk} /><span className={c.sk} /></div>}
       {(shape.image || online) && <div className={`${c.sk} ${c.image}`} data-short={online && !shape.image || undefined} />}
@@ -47,6 +47,26 @@ export function SkeletonGrid({ type, count = 8, original }: { type: MediaType; c
           {Array.from({ length: Math.ceil(count / MAX_COLUMNS) }, (_, row) => <CardSkeleton key={row} index={row * MAX_COLUMNS + col} type={type} original={original} />)}
         </div>
       ))}
+    </div>
+  );
+}
+
+const bar = (width: number | string, height = 11, extra = "") => <span className={`${c.sk} ${extra}`} style={{ width, height }} />;
+
+/** The whole media page while it loads: summary, toolbar and a grid of cards (the route's loading screen and the page
+ *  before it is ready use the same one, so the switch between them does not show). */
+export function MediaPageSkeleton({ type }: { type: MediaType }) {
+  return (
+    <div className={c.bars} aria-busy>
+      <div className={c.stats}>
+        <div>
+          <div className={c.row}>{bar(34, 34)}{bar(110, 14)}<span style={{ flex: 1 }} />{bar(120, 28)}{bar(48, 28)}</div>
+          <div className={c.row}>{bar(110, 24)}{bar(120, 24)}{bar(110, 24)}{bar(120, 24)}</div>
+        </div>
+        <div>{bar("40%", 12)}{bar("100%", 12)}<div className={c.row}>{bar("19%", 40)}{bar("19%", 40)}{bar("19%", 40)}{bar("19%", 40)}{bar("19%", 40)}</div></div>
+      </div>
+      <div className={c.quick}>{bar(140, 38, c.control)}<span className={`${c.sk} ${c.control}`} style={{ flex: 1 }} />{bar(270, 38, c.control)}{bar(160, 38, c.control)}{bar(210, 38, c.control)}</div>
+      <SkeletonGrid type={type} original={type === "social"} />
     </div>
   );
 }

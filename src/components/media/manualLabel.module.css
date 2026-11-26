@@ -10,7 +10,8 @@
 .bar[data-panel] { flex-shrink: 0; padding: 12px 14px 12px 16px; border: 1px solid var(--mantine-color-default-border); border-radius: 12px; }
 .bar[data-panel][data-set] { border-color: color-mix(in srgb, var(--label) 35%, transparent); }
 
-.bar > :first-child { align-self: center; min-width: 0; }
+/* Left: caption or the AI category (may truncate); right: the labels, which keep room for at least one name. */
+.bar > :first-child { align-self: center; flex: 0 1 auto; min-width: 0; max-width: 62%; }
 .caption { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mantine-color-dimmed); }
 
 .pills { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; max-width: 82%; padding: 0;

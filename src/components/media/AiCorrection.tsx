@@ -4,12 +4,11 @@
 import { createContext, useContext, useState } from "react";
 import { Loader, Menu } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconChevronDown } from "@tabler/icons-react";
+import { IconCheck, IconChevronDown, IconRobot, IconUserCheck } from "@tabler/icons-react";
 import { NO_CATEGORY } from "@/lib/ai/classifier";
 import { post } from "@/lib/api-client";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import type { Correction } from "./ItemDetailModal";
-import { AiCategoryBadge } from "./itemParts";
 import classes from "./item.module.css";
 
 export const AiCorrectionContext = createContext<(Correction & { type: MediaType }) | null>(null);
@@ -22,12 +21,24 @@ export async function saveCategory(correction: Correction, type: MediaType, item
   return label;
 }
 
+/** The card strip's AI category: one pill (robot, code, name), a menu to confirm or correct it when allowed. */
 export function CardAiCategory({ item }: { item: MediaItem }) {
   const correction = useContext(AiCorrectionContext);
   const [busy, setBusy] = useState(false);
-  if (item.classification === undefined) return null;
-  if (!correction) return <AiCategoryBadge item={item} />;
-  const current = item.classification?.category ?? null;
+  const c = item.classification;
+  if (c === undefined) return null;
+  const current = c?.category ?? null;
+  const none = current === NO_CATEGORY;
+  const pill = (open: boolean) => (
+    <span className={classes.aiPill} data-state={!c ? "pending" : none ? "none" : "set"} title={c ? [none ? "Tidak termasuk" : `${c.category} · ${c.label}`, c.reason].filter(Boolean).join("\n") : undefined}>
+      <IconRobot size={13} aria-hidden />
+      {c && !none && <b>{c.category}</b>}
+      <span>{!c ? "Belum dikategorikan" : none ? "Tidak termasuk" : c.label}</span>
+      {c?.manual && <IconUserCheck size={12} aria-label="dikoreksi manual" />}
+      {busy ? <Loader size={11} color="currentColor" /> : open && <IconChevronDown size={13} className={classes.aiPillChevron} aria-hidden />}
+    </span>
+  );
+  if (!correction) return pill(false);
   const choose = async (value: string) => {
     setBusy(true);
     try {
@@ -39,19 +50,16 @@ export function CardAiCategory({ item }: { item: MediaItem }) {
       setBusy(false);
     }
   };
-  const options = [...correction.categories.map((c) => ({ value: c.code, label: c.label })), { value: NO_CATEGORY, label: "Tidak termasuk" }];
+  const options = [...correction.categories.map((o) => ({ value: o.code, label: o.label })), { value: NO_CATEGORY, label: "Tidak termasuk" }];
   // Clicks inside must not open the detail drawer (the menu is portalled, but React events still bubble here).
   return (
     <div className={classes.aiCorrect} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <Menu position="bottom-start" shadow="md" radius="md" width={260} withinPortal>
         <Menu.Target>
-          <button type="button" className={classes.aiCorrectButton} disabled={busy} aria-label="Koreksi kategori AI">
-            <AiCategoryBadge item={item} />
-            {busy ? <Loader size={11} color="currentColor" /> : <IconChevronDown size={13} aria-hidden />}
-          </button>
+          <button type="button" className={classes.aiCorrectButton} disabled={busy} aria-label="Kategori AI, koreksi">{pill(true)}</button>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Label>{item.classification?.manual ? "Kategori (sudah dikoreksi)" : "Benar? Konfirmasi atau koreksi"}</Menu.Label>
+          <Menu.Label>{c?.manual ? "Kategori (sudah dikoreksi)" : "Benar? Konfirmasi atau koreksi"}</Menu.Label>
           {options.map((o) => (
             <Menu.Item key={o.value} onClick={() => choose(o.value)} rightSection={o.value === current ? <IconCheck size={14} /> : null}
               leftSection={o.value === NO_CATEGORY ? null : <b className={classes.aiCorrectCode}>{o.value}</b>}>

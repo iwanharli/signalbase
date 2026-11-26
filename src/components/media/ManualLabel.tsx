@@ -49,19 +49,21 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
 
   const tint = (option: string) => ({ ["--label" as string]: `var(--mantine-color-${colorOf(ctx.options, option)}-6)` });
   const set = values.length > 0;
+  // The chevron (or the spinner while saving) sits inside the last pill, so it reads as one control.
+  const tail = busy ? <Loader size={11} color="currentColor" /> : ctx.canLabel ? <IconChevronDown size={13} className={classes.chevron} /> : null;
   const pill = (
     <button type="button" className={classes.pills} disabled={!ctx.canLabel || busy}
       aria-label={set ? `Label: ${values.map((v) => (item.aiLabels?.[v] ? `${v} (dugaan AI ${item.aiLabels[v].score ?? "?"}%)` : v)).join(", ")}${ctx.canLabel ? ", ubah" : ""}` : "Beri label"}>
-      {set ? values.map((value) => {
+      {set ? values.map((value, n) => {
         const fromAi = item.aiLabels?.[value];
         const unsure = !!fromAi && (fromAi.needsReview ?? (fromAi.score ?? 0) < REVIEW_LABEL_SCORE);
         return (
           <span key={value} className={classes.pill} data-set style={tint(value)} title={fromAi ? `Dugaan AI ${fromAi.score ?? "?"}%${unsure ? " · perlu diperiksa" : ""}${fromAi.reason ? ` — ${fromAi.reason}` : ""}` : undefined}>
             <i className={classes.dot} /><span>{value}{fromAi ? ` · AI ${fromAi.score ?? "?"}%${unsure ? " · periksa" : ""}` : ""}</span>
+            {n === values.length - 1 && tail}
           </span>
         );
-      }) : <span className={classes.pill}><IconTag size={13} /><span>{ctx.canLabel ? "Beri label" : "Belum diberi label"}</span></span>}
-      {busy ? <Loader size={11} color="currentColor" /> : ctx.canLabel && <IconChevronDown size={13} className={classes.chevron} />}
+      }) : <span className={classes.pill}><IconTag size={13} /><span>{ctx.canLabel ? "Beri label" : "Belum diberi label"}</span>{tail}</span>}
     </button>
   );
 

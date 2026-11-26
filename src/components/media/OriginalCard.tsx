@@ -3,7 +3,7 @@
 // A failed or unsupported original leaves the Quick card as is.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconEye, IconEyeOff } from "@tabler/icons-react";
 import { createLimiter } from "@/lib/limiter";
 import { originalOf } from "@/lib/media/original";
 import type { MediaItem, MediaType } from "@/lib/media/types";
@@ -82,10 +82,11 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
   return (
     <div ref={wrap} className={classes.wrap}>
       <div className={classes.quick} data-hidden={showOriginal || undefined}>
-        <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} />
+        <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} notice={
+          manual && !wanted ? <button type="button" className={classes.chip} onClick={(e) => { stop(e); setWanted(true); }}><IconEye size={13} aria-hidden />Lihat asli</button>
+            : !manual && status === "failed" ? <span className={classes.chip} data-muted title="Tampilan asli tidak tersedia; yang tampil adalah data tersimpan."><IconEyeOff size={13} aria-hidden />Asli tak tersedia</span>
+            : null} />
         {!manual && mounted && status === "loading" && <span className={classes.shimmer} role="status" aria-label="Memuat tampilan asli" />}
-        {manual && !wanted && <button type="button" className={classes.chip} onClick={(e) => { stop(e); setWanted(true); }}><IconEye size={13} aria-hidden />Lihat tampilan asli</button>}
-        {!manual && status === "failed" && <span className={classes.chip} data-muted>Tampilan asli tidak tersedia</span>}
       </div>
       {mounted && (
         <div className={classes.original} data-visible={showOriginal || undefined}>

@@ -39,12 +39,23 @@
 .relevance[data-watchlist]::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--mantine-color-yellow-6); }
 
 @media (max-width: 380px) { .factors { grid-template-columns: minmax(0, 1fr); } }
-.aiCorrect { align-self: flex-start; max-width: 100%; }
-.aiCorrectButton { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 6px 0 0; border: 0; border-radius: 99px; background: none; font: inherit; color: var(--mantine-color-dimmed); cursor: pointer; }
-.aiCorrectButton:hover:not(:disabled) .aiCategory { border-color: var(--mantine-color-teal-5); }
-.aiCorrectButton:hover:not(:disabled) { color: var(--mantine-color-teal-6); }
+.aiCorrect { min-width: 0; max-width: 100%; }
+.aiCorrectButton { display: flex; min-width: 0; max-width: 100%; padding: 0; border: 0; border-radius: 99px; background: none; font: inherit; cursor: pointer; }
 .aiCorrectButton:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
 .aiCorrectCode { display: inline-block; min-width: 26px; font: 800 11px ui-monospace, monospace; color: var(--mantine-color-teal-7); }
+/* The card strip's AI category pill; same size as the label pill on the right. */
+.aiPill { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; height: 24px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600;
+  color: var(--mantine-color-teal-8); background: color-mix(in srgb, var(--mantine-color-teal-5) 10%, var(--mantine-color-body)); border: 1px solid color-mix(in srgb, var(--mantine-color-teal-5) 35%, transparent);
+  transition: border-color 140ms, background 140ms; }
+.aiPill > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aiPill > svg { flex-shrink: 0; }
+.aiPill b { flex-shrink: 0; font: 800 10.5px ui-monospace, monospace; padding: 1px 5px; border-radius: 5px; color: #fff; background: var(--mantine-color-teal-7); }
+.aiPill[data-state="none"], .aiPill[data-state="pending"] { color: var(--mantine-color-dimmed); background: var(--mantine-color-body); border: 1px dashed var(--mantine-color-default-border); }
+.aiPillChevron { opacity: .7; }
+.aiCorrectButton:hover:not(:disabled) .aiPill { border-color: var(--mantine-color-teal-5); }
+.aiCorrectButton:hover:not(:disabled) .aiPill[data-state="none"], .aiCorrectButton:hover:not(:disabled) .aiPill[data-state="pending"] { color: var(--mantine-color-violet-6); border-color: var(--mantine-color-violet-4); }
+:global([data-mantine-color-scheme="dark"]) .aiPill { color: var(--mantine-color-teal-2); background: color-mix(in srgb, var(--mantine-color-teal-5) 16%, var(--mantine-color-dark-7)); }
+:global([data-mantine-color-scheme="dark"]) .aiPill[data-state="none"], :global([data-mantine-color-scheme="dark"]) .aiPill[data-state="pending"] { color: var(--mantine-color-dark-1); background: var(--mantine-color-dark-7); }
 .aiCategory[data-pending] { color: var(--mantine-color-dimmed) !important; background: transparent !important; border: 1px dashed var(--mantine-color-default-border) !important; font-weight: 600; }
 
 /* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */

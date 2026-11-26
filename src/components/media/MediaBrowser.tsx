@@ -12,7 +12,7 @@ import type { FilterOptions, MediaItem, MediaType, MoodCount } from "@/lib/media
 import { useApi } from "@/lib/useApi";
 import { ActiveFilters } from "./ActiveFilters";
 import { AdvancedFilters } from "./AdvancedFilters";
-import { CardSkeleton, SkeletonGrid } from "./CardSkeleton";
+import { CardSkeleton, MediaPageSkeleton, SkeletonGrid } from "./CardSkeleton";
 import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { useStagedPages } from "./useStagedPages";
@@ -54,7 +54,8 @@ type KeyView = { id: string; name: string; scope: KeyScope; aiEnabled: boolean }
 export function MediaBrowser(props: { type: MediaType }) {
   const ready = useCleanMediaUrl(props.type);
   const projectId = useSearchParams().get("key") ?? "";
-  if (!ready) return null;
+  // Until the URL is clean, the same placeholder as the route's loading screen, so nothing blinks in between.
+  if (!ready) return <MediaPageSkeleton type={props.type} />;
   // Remounted per project, so nothing loaded for one project (labels, AI categories, open post) carries over.
   return <ProjectBrowser key={projectId} {...props} />;
 }
@@ -198,7 +199,7 @@ function ProjectBrowser({ type }: { type: MediaType }) {
 
         {/* First load (or first page still being prepared): a full grid of placeholders. Next pages: one under each column.
             Cards fill the shortest column; a page being prepared is measured out of sight and placed when shown. */}
-        {!staged.visible && preparing && <SkeletonGrid type={type} original={originalView} />}
+        {!staged.visible && (preparing || (!feed.loaded && !feed.error)) && <SkeletonGrid type={type} original={originalView} />}
         {feed.items.length > 0 && (
           <FlowMasonry
             sentinelRef={sentinel}

@@ -60,7 +60,8 @@ export function PostMeta({ item }: { item: MediaItem }) {
 }
 
 /** Time, place, link to the source and the Detail button. */
-export function CardFooter({ item, type, onOpen, children }: { item: MediaItem; type: MediaType; onOpen: (item: MediaItem) => void; children?: React.ReactNode }) {
+/** notice: a short note next to the time (Original View: the original is unavailable, or a button to load it). */
+export function CardFooter({ item, type, onOpen, children, notice }: { item: MediaItem; type: MediaType; onOpen: (item: MediaItem) => void; children?: React.ReactNode; notice?: React.ReactNode }) {
   const place = item.province ?? item.location;
   const published = dayjs(item.publishedAt).locale("id");
   return (
@@ -70,6 +71,7 @@ export function CardFooter({ item, type, onOpen, children }: { item: MediaItem; 
           <IconClock size={13} aria-hidden />{published.format("D MMM · HH:mm")}
         </time>
         {place && <span className={classes.footerPlace} title={place}><IconMapPin size={13} aria-hidden /><span>{place}</span></span>}
+        {notice}
       </div>
       <div className={classes.footerActions}>
         <SourceLink item={item} type={type} />
@@ -80,7 +82,7 @@ export function CardFooter({ item, type, onOpen, children }: { item: MediaItem; 
   );
 }
 
-export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void }) {
+export function ItemCard({ item, type, delay, onOpen, notice }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void; notice?: React.ReactNode }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const hasImage = !!item.image && item.image !== failedImage;
   const editorial = type === "online" && !hasImage;
@@ -137,7 +139,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           </div>
         )}
         {type === "social" && hasMetrics && <div className={classes.socialMetrics} role="group" aria-label="Interaksi post"><MetricList metrics={item.metrics} compact /></div>}
-        <CardFooter item={item} type={type} onOpen={onOpen}>
+        <CardFooter item={item} type={type} onOpen={onOpen} notice={notice}>
           {type !== "social" && hasMetrics && (
             <div className={classes.footerBottom}>
               <div className={classes.footerMetrics}><MetricList metrics={item.metrics} /></div>

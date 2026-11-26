@@ -8,7 +8,7 @@
 /* One soft light sweeps across the whole card (not each bar on its own), staggered per column. */
 .card { --sk: var(--mantine-color-gray-1); --shine: rgba(255,255,255,.7);
   position: relative; overflow: hidden; border-radius: 18px; background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border);
-  box-shadow: 0 10px 30px -24px rgba(46,16,101,.35); animation: fade 420ms ease both; }
+  box-shadow: 0 10px 30px -24px rgba(46,16,101,.35); }
 .card::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%);
   background: linear-gradient(100deg, transparent 25%, var(--shine) 50%, transparent 75%); animation: shine 1.8s ease-in-out var(--sweep-delay, 0ms) infinite; }
 .tabs { display: flex; gap: 6px; padding: 12px 12px 0; }
@@ -30,8 +30,8 @@
 .title { height: 16px; width: 85%; }
 
 @keyframes shine { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
-@keyframes fade { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .card, .card::after { animation: none; } }
+/* No entrance animation: a placeholder that fades in again on each remount reads as loading twice. */
+@media (prefers-reduced-motion: reduce) { .card::after { animation: none; } }
 
 :global([data-mantine-color-scheme="dark"]) .card { --sk: rgba(255,255,255,.07); --shine: rgba(167,139,250,.10); background: #151326; border-color: rgba(167,139,250,.14); }
 
