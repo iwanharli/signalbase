@@ -1,8 +1,9 @@
 // Choices for the filter dropdowns. Slow to compute (~13 s for social) and barely changing: cached for an hour and served
-// stale while it refreshes, so only the very first look after a restart waits.
+// stale while it refreshes, and warmed first by the overview warmer, so a page rarely waits. Right after a restart, with the
+// warmer's heavy counts running beside it, it took over the pool's 25 s (26 Nov 2026): it has the request limit instead.
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { sharedCache } from "./cache";
-import { bankPool } from "./pool";
+import { REQUEST_TIMEOUT_MS, withLongTimeout } from "./pool";
 
 const cache = sharedCache<FilterOptions>("bank.options", { ttlMs: 60 * 60_000, maxEntries: 4, staleWhileRevalidate: true });
 
@@ -33,13 +34,13 @@ const values = (rows: { value: unknown }[]) => rows.map((r) => r.value).filter((
 export function filterOptions(type: MediaType): Promise<FilterOptions> {
   return cache(type, async () => {
     const queries = QUERIES[type];
-    const pool = bankPool();
-    const [sources, moods, categories, provinces] = await Promise.all([
-      pool.query(queries.sources),
-      queries.moods ? pool.query(queries.moods).then((r) => values(r.rows)) : Promise.resolve(SENTIMENTS),
-      pool.query(queries.categories),
-      pool.query<{ value: string; label: string }>(`SELECT province_code value, name label FROM region_indonesia_provinces ORDER BY name`),
-    ]);
+    // One connection with the longer limit; the four queries run one after another on it.
+    const [sources, moods, categories, provinces] = await withLongTimeout(REQUEST_TIMEOUT_MS, async (pool) => [
+      await pool.query<{ value: unknown }>(queries.sources),
+      queries.moods ? values((await pool.query<{ value: unknown }>(queries.moods)).rows) : SENTIMENTS,
+      await pool.query<{ value: unknown }>(queries.categories),
+      await pool.query<{ value: string; label: string }>(`SELECT province_code value, name label FROM region_indonesia_provinces ORDER BY name`),
+    ] as const);
     return {
       sources: values(sources.rows),
       moods,

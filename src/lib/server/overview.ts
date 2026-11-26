@@ -2,7 +2,7 @@
 // Cached per scope and served stale while it refreshes; warmOverview() keeps the whole bank and every active key ready.
 import { allowsType, OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { DailyCount, MediaItem, MediaType, MoodCount } from "@/lib/media/types";
-import { countExact, dailyVolume, listItems, moodBreakdown } from "./bank";
+import { countExact, dailyVolume, filterOptions, listItems, moodBreakdown } from "./bank";
 import { sharedCache } from "./bank/cache";
 import { filterKey } from "./bank/query";
 import { prisma } from "./db";
@@ -51,6 +51,8 @@ async function step(name: string, run: () => Promise<unknown>) {
  *  Whole bank first, then each active key one at a time (keyword searches are heavy; this keeps the source DB calm).
  *  Each project's SNA (issue view of 7 days and the mention graph of 1 day, as the page opens) is warmed too. */
 async function warmAll() {
+  // Filter choices first: every media page asks for them, and cold they take ~13 s.
+  await step("filter options", () => Promise.all([filterOptions("social"), filterOptions("online")]));
   await step("bank stats", () => Promise.all([typeStats("social"), typeStats("online")]));
   await step("bank insights 7", () => Promise.all([typeInsights("social", 7), typeInsights("online", 7)]));
   await step("bank sna", () => snaGraph(1, DEFAULT_SNA_LIMIT));
