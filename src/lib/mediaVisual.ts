@@ -61,9 +61,11 @@ export function workerProblem(w: VisualWorker, now = Date.now()): string | null 
 }
 /** One bell notification: a call to action (image or speech), a narrative several posts share, or a sensitive image. */
 export type VisualAlert = { kind: "action" | "narrative" | "sensitive"; id: string; text: string; at: string; posts?: number };
-/** Where a notification opens on the Media visual page (last 24 hours, that signal). */
-export function alertHref(a: VisualAlert, keyId?: string | null) {
-  const p = new URLSearchParams({ days: "1", text: "all" });
+/** Windows of the notifications page (days); the bell shows the last 24 hours. */
+export const ALERT_DAYS = [1, 3, 7, 30] as const;
+/** Where a notification opens on the Media visual page (the window it was found in, that signal). */
+export function alertHref(a: VisualAlert, keyId?: string | null, days: number = 1) {
+  const p = new URLSearchParams({ days: String(days), text: "all" });
   if (a.kind === "action") p.set("action", "1");
   else if (a.kind === "sensitive") p.set("sensitive", "1");
   else p.set("narrative", a.id);

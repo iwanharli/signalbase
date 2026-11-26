@@ -4,6 +4,7 @@
 // topics, engagement, top accounts/outlets, the project's keywords and hashtags. Both types are always fetched, so
 // "Semua" is merged in the browser. Loads apart from the rest of the page because the grouped scans take a few seconds
 // when the cache is cold.
+import { TopIssues } from "./TopIssues";
 import { useRole } from "../RoleContext";
 import { useState } from "react";
 import Link from "next/link";
@@ -151,7 +152,7 @@ function Indicator({ icon: Icon, label, value, detail, warn, watch, na, href }: 
     : <div className={c.indicator} data-state={state}>{body}</div>;
 }
 
-function EarlyWarning({ data, view, keyId }: { data: ViewData | null; view: View; keyId: string | null }) {
+function EarlyWarning({ data, view, keyId, period, hasOnline }: { data: ViewData | null; view: View; keyId: string | null; period: number; hasOnline: boolean }) {
   if (!data) {
     return (
       <section className={c.warning}>
@@ -203,6 +204,8 @@ function EarlyWarning({ data, view, keyId }: { data: ViewData | null; view: View
           ))}
         </div>
       )}
+
+      <TopIssues keyId={keyId} period={period} social={view !== "online" && data.hasSocial} online={view !== "social" && hasOnline} />
 
       {intense.length > 0 && (
         <div className={c.posts}>
@@ -696,7 +699,7 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
     <section className={c.section}>
       {error && <MantineAlert color="red">{error}</MantineAlert>}
 
-      <EarlyWarning data={data} view={view} keyId={keyId} />
+      <EarlyWarning data={data} view={view} keyId={keyId} period={period} hasOnline={wanted.includes("online")} />
 
       <div className={c.grid} data-wide-left>
         <Panel icon={IconTrendingUp} title={`Tren opini ${title}`} help="trend" text={`Negatif, netral, dan positif per hari, ${period} hari terakhir`}>

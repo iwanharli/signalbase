@@ -64,7 +64,7 @@ a.kpi:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(
 a.indicator:hover { border-color: color-mix(in srgb, var(--state) 40%, transparent); transform: translateY(-1px); }
 .indTop { display: flex; align-items: center; gap: 8px; }
 .indIcon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: var(--state); background: color-mix(in srgb, var(--state) 14%, transparent); }
-.indLabel { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-dimmed); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indLabel { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: var(--mantine-color-dimmed); overflow-wrap: anywhere; }
 .indStatus { flex-shrink: 0; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; color: var(--state); background: color-mix(in srgb, var(--state) 13%, transparent); }
 .indValue { margin-top: 6px; font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .indDetail { font-size: 12.5px; color: var(--mantine-color-dimmed); }
@@ -89,10 +89,10 @@ a.indicator:hover { border-color: color-mix(in srgb, var(--state) 40%, transpare
 .postAuthor i { flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-style: normal; font-size: 12px; font-weight: 800;
   color: #fff; background: linear-gradient(135deg, var(--mantine-color-red-5), var(--mantine-color-orange-4)); }
 .postAuthor > span { min-width: 0; display: flex; flex-direction: column; }
-.postAuthor b, .postAuthor small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.postAuthor b, .postAuthor small { overflow-wrap: anywhere; }
 .postAuthor b { font-size: 13px; }
 .postAuthor small { font-size: 11.5px; color: var(--mantine-color-dimmed); }
-.post p { margin: 0; font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.post p { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; } /* the whole post: no cut text */
 .postMood { align-self: flex-start; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; color: var(--mantine-color-red-7); background: var(--mantine-color-red-0); }
 @keyframes pulse { 50% { opacity: .3; } }
 
@@ -149,7 +149,7 @@ a.indicator:hover { border-color: color-mix(in srgb, var(--state) 40%, transpare
 .ranked li { animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
 .ranked a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 7px 8px; border-radius: 10px; text-decoration: none; color: inherit; transition: background .15s; }
 .ranked a:hover { background: var(--mantine-color-gray-0); }
-.rankLabel { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankLabel { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
 .rankValue { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rankBar { grid-column: 1 / -1; height: 5px; border-radius: 99px; background: var(--mantine-color-gray-1); overflow: hidden; }
 .rankBar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mantine-color-violet-5), var(--mantine-color-cyan-5)); }
@@ -198,7 +198,7 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 .top li:nth-child(-n+3) .topRank { color: var(--mantine-color-violet-6); }
 .topMark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
 .topName { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.topName b, .topName small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topName b, .topName small { overflow-wrap: anywhere; }
 .topName b { font-size: 13.5px; }
 .topName small { min-height: 15px; font-size: 11.5px; color: var(--mantine-color-dimmed); }
 .topBar { display: block; height: 4px; margin-top: 4px; border-radius: 99px; overflow: hidden; background: var(--mantine-color-gray-1); }
@@ -219,7 +219,7 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 .projectHead > span { flex-shrink: 0; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: #fff;
   background: linear-gradient(135deg, var(--mantine-color-teal-6), var(--mantine-color-cyan-5)); }
 .projectHead > div { flex: 1; min-width: 0; }
-.projectHead h3 { margin: 0; font-size: 15.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projectHead h3 { margin: 0; font-size: 15.5px; font-weight: 800; overflow-wrap: anywhere; }
 .projectHead p { margin: 1px 0 0; font-size: 12px; color: var(--mantine-color-dimmed); }
 .projectEdit { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 99px; font-size: 12px; font-weight: 700;
   text-decoration: none; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); }
@@ -239,7 +239,7 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 .groupChevron { color: var(--mantine-color-dimmed); transition: transform .2s; }
 .group[data-open] .groupChevron { transform: rotate(90deg); color: var(--mantine-color-violet-6); }
 .groupName { min-width: 0; display: flex; flex-direction: column; }
-.groupName b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.groupName b { font-size: 14px; overflow-wrap: anywhere; }
 .groupName small { font-size: 11.5px; color: var(--mantine-color-dimmed); }
 .groupTotal { display: inline-flex; align-items: baseline; gap: 6px; }
 .groupTotal b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -381,3 +381,22 @@ a.topRow:hover { background: var(--mantine-color-gray-0); }
 :global([data-mantine-color-scheme="dark"]) .section {
     --neu: var(--mantine-color-dark-3)
 }
+
+/* Peringatan dini: top issues of social media and online news, side by side. */
+.topIssues { display: grid; grid-template-columns: 1fr; gap: 14px; padding-top: 14px; border-top: 1px dashed var(--mantine-color-default-border); }
+.topIssues[data-cols="2"] { grid-template-columns: 1fr 1fr; }
+.issueCol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.issueColTitle { display: inline-flex; align-items: center; gap: 6px; }
+.issueColTitle svg { color: var(--mantine-color-violet-5); }
+.issueList { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.issueItem { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; text-decoration: none; color: inherit;
+  background: var(--mantine-color-body); border: 1px solid var(--mantine-color-default-border); transition: border-color 160ms, transform 160ms; }
+.issueItem:hover { border-color: var(--mantine-color-violet-4); transform: translateY(-1px); }
+.issueRank { flex-shrink: 0; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; font-size: 12px; font-weight: 800;
+  color: var(--mantine-color-violet-6); background: color-mix(in srgb, var(--mantine-color-violet-5) 12%, transparent); }
+.issueBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.issueBody b { font-size: 13.5px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.issueBody small { font-size: 11.5px; color: var(--mantine-color-dimmed); }
+.issueHot { flex-shrink: 0; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; color: var(--mantine-color-red-6); background: color-mix(in srgb, var(--mantine-color-red-5) 12%, transparent); }
+.issueEmpty { margin: 0; padding: 14px; border-radius: 12px; font-size: 12.5px; color: var(--mantine-color-dimmed); border: 1px dashed var(--mantine-color-default-border); }
+@media (max-width: 900px) { .topIssues[data-cols="2"] { grid-template-columns: 1fr; } }

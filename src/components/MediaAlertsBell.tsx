@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Indicator, Popover } from "@mantine/core";
-import { IconAlertTriangle, IconBell, IconMessages, IconSpeakerphone } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowRight, IconBell, IconMessages, IconSpeakerphone } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -74,6 +74,7 @@ export function MediaAlertsBell() {
             })}
           </ul>
         )}
+        <Link href="/notifikasi" className={classes.alertsAll} onClick={() => setOpen(false)}>Lihat semua notifikasi<IconArrowRight size={14} aria-hidden /></Link>
       </Popover.Dropdown>
     </Popover>
   );

@@ -254,23 +254,24 @@ async function narrativePage(cond: ReturnType<typeof conditions>): Promise<Pick<
 export const ALERT_HOURS = 24;
 const ALERTS_PER_KIND = 6;
 
-/** The bell's items, newest first; `keyIds` limits them to those projects (users), null = the whole bank. */
-export async function mediaAlerts(keyIds: string[] | null): Promise<VisualAlert[]> {
+/** The bell's items, newest first; `keyIds` limits them to those projects (users), null = the whole bank.
+ *  The notifications page asks for a longer window (`hours`) and more of each kind (`perKind`). */
+export async function mediaAlerts(keyIds: string[] | null, { hours = ALERT_HOURS, perKind = ALERTS_PER_KIND } = {}): Promise<VisualAlert[]> {
   if (keyIds && !keyIds.length) return [];
-  const since = new Date(Date.now() - ALERT_HOURS * 3_600_000).toISOString().slice(0, 23);
+  const since = new Date(Date.now() - hours * 3_600_000).toISOString().slice(0, 23);
   const inKeys = keyIds ? Prisma.sql`AND l.keys && ${keyIds}::text[]` : Prisma.empty;
   const base = Prisma.sql`FROM "MediaLink" l JOIN "MediaAsset" a ON a.id = l."assetId"
     WHERE l."publishedAt" >= ${since}::timestamp AND a.status = 'done' AND NOT a.placeholder ${inKeys}`;
   const [actions, narratives, sensitive] = await Promise.all([
     prisma.$queryRaw<{ id: string; text: string; at: Date }[]>`
       SELECT a.id, coalesce(nullif(a."keyText", ''), a.transcript, '') text, max(l."publishedAt") at ${base} AND a."actionCall" IS NOT NULL
-      GROUP BY a.id ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+      GROUP BY a.id ORDER BY at DESC LIMIT ${perKind}`,
     prisma.$queryRaw<{ key: string; posts: number; at: Date }[]>`
       SELECT a.narrative key, count(DISTINCT (l.type, l.code))::int posts, max(l."publishedAt") at ${base} AND a.narrative IS NOT NULL
-      GROUP BY a.narrative HAVING count(DISTINCT (l.type, l.code)) >= ${NARRATIVE_MIN_POSTS} ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+      GROUP BY a.narrative HAVING count(DISTINCT (l.type, l.code)) >= ${NARRATIVE_MIN_POSTS} ORDER BY at DESC LIMIT ${perKind}`,
     prisma.$queryRaw<{ id: string; tags: string[]; at: Date }[]>`
       SELECT a.id, a.sensitive tags, max(l."publishedAt") at ${base} AND cardinality(a.sensitive) > 0
-      GROUP BY a.id ORDER BY at DESC LIMIT ${ALERTS_PER_KIND}`,
+      GROUP BY a.id ORDER BY at DESC LIMIT ${perKind}`,
   ]);
   const iso = (d: Date) => new Date(d).toISOString();
   return [
