@@ -176,9 +176,9 @@ function ProjectBrowser({ type }: { type: MediaType }) {
           source={original ? "asli" : "quick"}
           onSourceChange={changeSource}
           busy={feed.loading}
-        />
-
-        <ActiveFilters filters={filters} options={options.data} onChange={update} onReset={reset} canReset={activeCount > 0} />
+        >
+          <ActiveFilters filters={filters} options={options.data} onChange={update} onReset={reset} canReset={activeCount > 0} />
+        </QuickFilters>
 
         {feed.error && (
           <Alert color="red" mb="md" title="Gagal memuat">

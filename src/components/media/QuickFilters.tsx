@@ -45,7 +45,7 @@ function useSearchText(search: string, onChange: (patch: Partial<MediaFilters>) 
 }
 
 /** Compact toolbar for search, filters, sort and result layout. */
-export function QuickFilters({ type, filters, onChange, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange }: {
+export function QuickFilters({ type, filters, onChange, advancedCount, advancedOpen, onToggleAdvanced, busy, source, onSourceChange, children }: {
   type: MediaType;
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
@@ -56,6 +56,8 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
   /** Social cards only: the Quick card or the original post. */
   source?: "quick" | "asli";
   onSourceChange?: (source: "quick" | "asli") => void;
+  /** A second row under the controls (the active filters). */
+  children?: React.ReactNode;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashToFocus(searchRef);
@@ -67,15 +69,15 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
       <span className={classes.scanline} aria-hidden />
       <button type="button" className={classes.toggle} data-active={advancedOpen || undefined} onClick={onToggleAdvanced}
         aria-label="Filter lanjutan" aria-expanded={advancedOpen} aria-controls="advanced-filters">
-        <IconAdjustmentsHorizontal size={18} />
+        <IconAdjustmentsHorizontal size={16} />
         <span>Filter lanjutan</span>
         {advancedCount > 0 && <b>{advancedCount}</b>}
       </button>
 
       <label className={classes.search}>
-        <IconSearch size={18} />
+        <IconSearch size={16} />
         <input aria-label={type === "social" ? "Cari isi post" : "Cari judul berita"} ref={searchRef} value={searchText} onChange={(e) => changeSearch(e.currentTarget.value)}
-          placeholder={type === "social" ? "Cari isi post… (gunakan OR untuk mencari lebih dari satu kata sekaligus)" : "Cari judul berita… (gunakan OR untuk mencari lebih dari satu kata sekaligus)"} />
+          placeholder={type === "social" ? "Cari isi post…  (pakai OR untuk beberapa kata)" : "Cari judul berita…  (pakai OR untuk beberapa kata)"} />
         {searchText
           ? <button type="button" onClick={() => changeSearch("")} aria-label="Hapus pencarian"><IconX size={15} /></button>
           : <kbd>/</kbd>}
@@ -89,7 +91,7 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
         <Segmented label="Sumber tampilan" className={classes.viewSegmented}
           options={[{ value: "quick", label: "Quick View" }, { value: "asli", label: "Original View" }]} value={source} onChange={onSourceChange} />
       )}
-
+      {children}
     </section>
   );
 }

@@ -29,9 +29,10 @@ export function ActiveFilters({ filters: f, options, onChange, onReset, canReset
   if (f.withImage) add("image", "Hanya bergambar", { withImage: false });
   if (f.aiCategory) add("aiCategory", f.aiCategory === "*" ? "Sudah dikategorikan AI" : f.aiCategory === "~low" ? "Keyakinan AI rendah" : f.aiCategory === "none" ? "Kategori AI: Tidak termasuk" : `Kategori AI: ${f.aiCategory}`, { aiCategory: null });
   if (f.manualLabel) add("manualLabel", LABEL_FILTER_NAMES[f.manualLabel] ?? `Label: ${f.manualLabel}`, { manualLabel: null });
+  if (!chips.length && !canReset) return null;
   return <div className={classes.activeFilters} role="group" aria-label="Filter yang sedang diterapkan">
     {chips.length > 0 && <span>Filter aktif</span>}
-    {chips.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={14} aria-hidden /></button>)}
-    <button type="button" className={classes.resetAll} onClick={onReset} disabled={!canReset}><IconFilterOff size={14} aria-hidden />Reset filter</button>
+    {chips.map((chip) => <button key={chip.key} type="button" onClick={() => onChange(chip.clear)} aria-label={`Hapus filter ${chip.label}`}>{chip.label}<IconX size={12} aria-hidden /></button>)}
+    <button type="button" className={classes.resetAll} onClick={onReset} disabled={!canReset}><IconFilterOff size={13} aria-hidden />Reset</button>
   </div>;
 }
