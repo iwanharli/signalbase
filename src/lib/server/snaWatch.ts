@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { keywordProblem } from "@/lib/media/keywordExpr";
 import { OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
-import { accountsPerIssue, buildIssueGraph, type IssueAccountRow, type SnaDays, type SnaGraph, type SnaLimit } from "@/lib/sna";
+import { accountsPerIssue, buildIssueGraph, type IssueAccountRow, type MentionPair, type SnaDays, type SnaFlow, type SnaGraph, type SnaLimit } from "@/lib/sna";
 import { sharedCache } from "./bank/cache";
 import { REQUEST_TIMEOUT_MS, withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS, scopeKey } from "./bank/query";
@@ -42,16 +42,25 @@ export async function resolveWatch(q: URLSearchParams, view: OverviewView): Prom
 const cache = sharedCache<SnaGraph>("sna-watch", { ttlMs: 60_000, maxEntries: 50, staleWhileRevalidate: true });
 
 /** Issue view of a watch: the watch as the one big node, the accounts posting about it (most engaging) around it. */
-export function snaWatchGraph(watch: WatchRow, scope: KeyScope, days: SnaDays, limit: SnaLimit, only: SnaCodes): Promise<SnaGraph> {
-  return cache(`${watch.id}|${days}|${limit}|${only?.key ?? ""}|${scopeKey(scope)}`, async () => {
+export function snaWatchGraph(watch: WatchRow, scope: KeyScope, days: SnaDays, limit: SnaLimit, only: SnaCodes, flow: SnaFlow = "langsung"): Promise<SnaGraph> {
+  return cache(`${watch.id}|${days}|${limit}|${only?.key ?? ""}|${flow}|${scopeKey(scope)}`, async () => {
     if (only && !only.codes.length) return { nodes: [], links: [] };
     const since = new Date(Date.now() - days * 86_400_000).toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" });
     const { where, values } = withCodes(buildWhere("social", new URLSearchParams({ since }), scope), only);
-    const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (pool) => pool.query<Omit<IssueAccountRow, "issue">>(
-      `SELECT p.post_username username, min(p.post_source) source, lower(a.emotion) emotion, count(*)::int n, sum(${ENGAGEMENT})::float8 eng
-       FROM ${COLUMNS.social.from} WHERE ${where} AND p.post_username <> '' GROUP BY 1, 3`, values));
+    const [{ rows }, pairs] = await withLongTimeout(REQUEST_TIMEOUT_MS, (pool) => Promise.all([
+      pool.query<Omit<IssueAccountRow, "issue">>(
+        `SELECT p.post_username username, min(p.post_source) source, lower(a.emotion) emotion, count(*)::int n, sum(${ENGAGEMENT})::float8 eng,
+                to_char(min(p.post_timestamps), 'YYYY-MM-DD"T"HH24:MI:SS') first
+         FROM ${COLUMNS.social.from} WHERE ${where} AND p.post_username <> '' GROUP BY 1, 3`, values),
+      flow === "mention"
+        ? pool.query<Omit<MentionPair, "issue">>(
+          `SELECT DISTINCT p.post_username source, m.username_target target FROM ${COLUMNS.social.from} JOIN post_mentioned m ON m.post_code = p.post_code
+           WHERE ${where} AND p.post_username <> '' AND m.username_target <> p.post_username`, values).then((r) => r.rows)
+        : Promise.resolve([] as Omit<MentionPair, "issue">[]),
+    ]));
     const posts = rows.reduce((s, r) => s + r.n, 0);
-    const graph = buildIssueGraph([{ id: watch.id, title: watch.name, posts }], rows.map((r) => ({ ...r, issue: watch.id })), accountsPerIssue(limit) * 2);
+    const graph = buildIssueGraph([{ id: watch.id, title: watch.name, posts }], rows.map((r) => ({ ...r, issue: watch.id })), accountsPerIssue(limit) * 2,
+      flow, pairs.map((p) => ({ ...p, issue: watch.id })));
     return withAccountKinds(graph);
   });
 }

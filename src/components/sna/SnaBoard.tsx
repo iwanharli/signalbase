@@ -10,7 +10,9 @@ import { select } from "d3-selection";
 import { zoom, zoomIdentity } from "d3-zoom";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
-import { accountsPerIssue, ACCOUNT_LABEL, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
+import dayjs from "dayjs";
+import "dayjs/locale/id";
+import { accountsPerIssue, ACCOUNT_LABEL, parseSnaFlow, SNA_FLOWS, WAVE_LABEL, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
@@ -26,6 +28,8 @@ const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${n} ak
 // Issue view: the same choice is the number of accounts per issue.
 const PER_ISSUE_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${accountsPerIssue(n)} akun per isu` }));
 const PERIOD_OPTIONS = SNA_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
+const FLOW_NOTE = { langsung: "", mention: "Anak = akun yang menyebut/membalas akun lebih awal", rantai: "Urut waktu post pertama, dari isu", gelombang: "Anak = gelombang waktu berikutnya" } as const;
+const FLOW_OPTIONS = SNA_FLOWS.map((f) => ({ value: f.value, label: f.label }));
 const VIEW_OPTIONS = [{ value: "isu", label: "Isu" }, { value: "mention", label: "Mention" }] as const;
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
 // Lucide "users" (hub) and "user" (child) glyphs, 24×24.
@@ -129,7 +133,10 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       const b = document.createElement("b");
       const eng = d.engagement !== undefined ? ` · engagement ${formatNumber(Math.round(d.engagement))}` : "";
       if (d.kind === "issue") { b.textContent = d.title ?? "Isu"; tipEl.append(b, text(`Isu · ${formatNumber(d.posts)} post`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk menyorot akunnya · seret untuk menata, klik ganda melepas")); }
-      else { b.textContent = `@${d.id}${d.account ? ` · ${ACCOUNT_LABEL[d.account]}` : ""}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail · seret untuk menata, klik ganda melepas")); }
+      else { b.textContent = `@${d.id}${d.account ? ` · ${ACCOUNT_LABEL[d.account]}` : ""}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`));
+        // The stored time is Jakarta wall-clock, shown as is.
+        if (d.first) tipEl.append(text(`Pertama posting: ${dayjs(d.first).locale("id").format("D MMM YYYY, HH:mm")} WIB${d.wave ? ` · ${WAVE_LABEL[d.wave]}` : ""}`));
+        tipEl.append(text("Klik untuk detail · seret untuk menata, klik ganda melepas")); }
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on).on("click", (e: MouseEvent, d) => { e.stopPropagation(); pickRef.current(d.id); });
     link.on("mousemove", (e: MouseEvent, d) => {
@@ -140,9 +147,14 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     }).on("mouseleave", () => delete tipEl.dataset.on);
     root.on("click", () => pickRef.current(null));
 
+    // Issue view with a flow (mention, chain, waves): accounts hang under accounts, so those links are short and tight and
+    // accounts push less, keeping each issue's tree compact.
+    const tree = issueMode && graph.links.some((l) => !l.target.startsWith("issue:"));
     const sim = forceSimulation<Node>(nodes)
-      .force("link", forceLink<Node, Edge>(edges).id((d) => d.id).distance((d) => (issueMode ? 60 + radius(d.target) + radius(d.source) : 90 + radius(d.source))).strength(issueMode ? 0.5 : 0.7))
-      .force("charge", forceManyBody<Node>().strength((d) => (d.kind === "issue" ? -1400 : d.kind === "hub" ? (issueMode ? -160 : -500) : -45)))
+      .force("link", forceLink<Node, Edge>(edges).id((d) => d.id)
+        .distance((d) => (tree && d.target.kind !== "issue" ? 14 + radius(d.target) + radius(d.source) : issueMode ? 60 + radius(d.target) + radius(d.source) : 90 + radius(d.source)))
+        .strength((d) => (tree && d.target.kind !== "issue" ? 0.9 : issueMode ? 0.5 : 0.7)))
+      .force("charge", forceManyBody<Node>().strength((d) => (d.kind === "issue" ? (tree ? -900 : -1400) : d.kind === "hub" ? (issueMode ? (tree ? -70 : -160) : -500) : -45)))
       .force("collide", forceCollide<Node>().radius((d) => radius(d) + 6))
       .on("tick", () => paint());
     const paint = () => {
@@ -151,7 +163,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     };
     simRef.current = sim;
     sim.stop();
-    const z = zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 4]).on("zoom", (e) => view.attr("transform", e.transform.toString()))
+    const z = zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 4]).on("zoom", (e) => view.attr("transform", e.transform.toString()))
       .filter((e) => !lockedRef.current && (!e.target.closest?.("[data-id]") || e.type === "wheel"));
     root.call(z);
     // Pan and zoom so every node is in view (called whenever the layout is rebuilt, e.g. after switching an emotion off).
@@ -164,7 +176,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       const room = Math.max(120, height - top - bottom);
       const xs = nodes.map((n) => n.x ?? 0), ys = nodes.map((n) => n.y ?? 0);
       const x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - (issueMode ? 70 : 40), y1 = Math.max(...ys) + 40;
-      const k = Math.min(1.4, Math.max(0.3, Math.min(width / (x1 - x0), room / (y1 - y0))));
+      const k = Math.min(1.4, Math.max(0.2, Math.min(width / (x1 - x0), room / (y1 - y0))));
       root.call(z.transform, zoomIdentity.translate(width / 2 - (k * (x0 + x1)) / 2, top + room / 2 - (k * (y0 + y1)) / 2).scale(k));
     };
     // The graph fades in once it is arranged and framed, so nodes do not jump around on screen.
@@ -228,6 +240,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const filter = `${issueId && !watchId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}${watchId ? `&watch=${encodeURIComponent(watchId)}` : ""}`;
   // With a project or a watch: issues (or the watch) as nodes and the accounts posting in them (default), or who mentions whom.
   const issueView = (!!keyId || !!watchId) && params.get("view") !== "mention";
+  // Issue view: how the accounts hang together (direct to the issue, by mention, as a time chain, in waves).
+  const flow = parseSnaFlow(params.get("flow"));
   // Issues cover the last 7 days, so the issue view opens on 7 days unless a period was chosen.
   const days = (params.get("days") ? parseSnaDays(params.get("days")) : null) ?? (issueView ? 7 : DEFAULT_SNA_DAYS);
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
@@ -257,7 +271,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
   const keys = useApi<KeyRow[]>("/api/admin/keys");
   const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
-  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? "&view=isu" : ""}`);
+  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? `&view=isu${flow !== "langsung" ? `&flow=${flow}` : ""}` : ""}`);
   const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/isu-klaster?key=${encodeURIComponent(keyId)}` : null);
   const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
   const issueOptions = (issues.data?.issues ?? []).map((i) => ({ value: i.id, label: `${i.title ?? i.keywords.slice(0, 3).join(", ")} · ${formatNumber(i.posts)} post` }));
@@ -306,6 +320,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
           {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
+          {issueView && <Segmented label="Alur" options={FLOW_OPTIONS} value={flow} onChange={(v) => go({ flow: v === "langsung" ? null : v })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
             comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={issueView ? PER_ISSUE_OPTIONS : LIMIT_OPTIONS} />
@@ -373,6 +388,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
               <span><i className={classes.issueMark}>{watchId ? <IconEye size={10} /> : <IconFlame size={10} />}</i>{watchId ? "Pantauan" : "Isu (besar = jumlah post)"}</span>
               <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun (besar = engagement)</span>
               <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = banyak post</span>
+              {flow !== "langsung" && <span className={classes.flowNote}>{FLOW_NOTE[flow]}</span>}
             </> : <>
               <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun utama</span>
               <span><IconMoodSmile size={14} />Akun disebut</span>
@@ -387,7 +403,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
                   ? <><b>Pantauan</b>: semua post yang menyebut salah satu kata kunci pantauan; warna bingkai = emosi dominan.<br /></>
                   : <><b>Isu</b>: kelompok post proyek yang membahas hal yang sama (diperbarui tiap jam); makin besar makin banyak post, warna bingkai = emosi dominan.<br /></>}
                 <b>Akun</b>: akun yang memposting di isu itu, paling banyak engagement-nya (suka + 2× komentar + 3× bagikan); makin besar makin tinggi engagement. Akun di beberapa isu menghubungkan isu-isu itu.<br />
-                <b>Garis</b>: dari akun ke isu; makin tebal makin banyak post-nya, warnanya emosi post tersebut.<br />
+                <b>Garis</b>: dari akun ke isu{flow !== "langsung" && " atau ke akun induknya"}; makin tebal makin banyak post-nya, warnanya emosi post tersebut.<br />
+                <b>Alur</b>: <i>Langsung</i> = semua akun ke isu. Pada <i>Mention</i>, <i>Rantai waktu</i>, dan <i>Gelombang</i> yang terhubung ke isu adalah akun yang paling awal memposting; akun berikutnya jadi anak: akun lebih awal yang ia sebut/balas (Mention), akun sebelumnya menurut waktu post (Rantai), atau akun paling berpengaruh di gelombang waktu sebelumnya (Gelombang: jam pertama, 1–6 jam, 6–24 jam, 1–3 hari, &gt; 3 hari).<br />
                 Emosi bisa disembunyikan lewat tombol warna di panel filter.
               </> : <>
                 <b>Akun utama</b>: akun yang paling banyak memposting dan menyebut akun lain; makin besar makin tinggi engagement post-nya, warna bingkai = emosi dominan.<br />

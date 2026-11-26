@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildGraph, dominantTone, emptyHubs, parseSnaDays, toneOf } from "../src/lib/sna";
+import { buildGraph, buildIssueGraph, dominantTone, emptyHubs, parseSnaDays, toneOf } from "../src/lib/sna";
 
 test("only 1, 3 and 7 days are accepted, and 1 day is the default", () => {
   assert.equal(parseSnaDays(null), 1);
@@ -88,4 +88,46 @@ test("tampilan isu: isu jadi simpul, akun teratas per isu menurut engagement, ak
   assert.equal(g.nodes.some((n) => n.id === "c"), false);
   assert.equal(g.links.find((l) => l.source === "a" && l.target === "issue:i1")!.tone, "negative");
   assert.equal(g.links.length, 3);
+});
+
+// Flows of the issue view: who links to the issue is decided by the time of the first post.
+const flowRows = [
+  { issue: "a", username: "awal", source: "x", emotion: "netral", n: 2, eng: 5, first: "2026-11-26T08:00:00" },
+  { issue: "a", username: "kedua", source: "x", emotion: "marah", n: 1, eng: 50, first: "2026-11-26T08:30:00" },
+  { issue: "a", username: "ketiga", source: "x", emotion: "netral", n: 3, eng: 1, first: "2026-11-26T12:00:00" },
+  { issue: "a", username: "akhir", source: "x", emotion: "mendukung", n: 1, eng: 9, first: "2026-11-28T09:00:00" },
+];
+const issueA = [{ id: "a", title: "Isu A", posts: 7 }];
+const parentOf = (g: ReturnType<typeof buildIssueGraph>) => Object.fromEntries(g.links.map((l) => [l.source, l.target]));
+
+test("alur langsung: semua akun ke isu", () => {
+  assert.deepEqual(parentOf(buildIssueGraph(issueA, flowRows, 10)), { awal: "issue:a", kedua: "issue:a", ketiga: "issue:a", akhir: "issue:a" });
+});
+
+test("alur rantai: urut waktu post pertama, yang paling awal ke isu", () => {
+  const g = buildIssueGraph(issueA, flowRows, 10, "rantai");
+  assert.deepEqual(parentOf(g), { awal: "issue:a", kedua: "awal", ketiga: "kedua", akhir: "ketiga" });
+  assert.equal(g.nodes.find((n) => n.id === "awal")?.first, "2026-11-26T08:00:00");
+});
+
+test("alur mention: anak dari akun lebih awal yang disebut, selain itu ke isu; tidak pernah mundur waktu", () => {
+  const pairs = [
+    { issue: "a", source: "ketiga", target: "@Awal" }, // case and @ ignored
+    { issue: "a", source: "awal", target: "akhir" }, // mentions a later account: stays under the issue
+    { issue: "a", source: "akhir", target: "kedua" },
+  ];
+  assert.deepEqual(parentOf(buildIssueGraph(issueA, flowRows, 10, "mention", pairs)), { awal: "issue:a", kedua: "issue:a", ketiga: "awal", akhir: "kedua" });
+});
+
+test("alur gelombang: gelombang pertama ke isu, berikutnya ke akun paling berpengaruh di gelombang sebelumnya", () => {
+  const g = buildIssueGraph(issueA, flowRows, 10, "gelombang");
+  // awal and kedua: first hour (wave 1); ketiga: 4 h later (wave 2); akhir: 2 days later (wave 4).
+  assert.deepEqual(parentOf(g), { awal: "issue:a", kedua: "issue:a", ketiga: "kedua", akhir: "ketiga" });
+  assert.deepEqual(g.nodes.filter((n) => n.kind === "hub").map((n) => [n.id, n.wave]), [["awal", 1], ["kedua", 1], ["ketiga", 2], ["akhir", 4]]);
+});
+
+test("alur selain langsung menjaga akun paling awal walau engagement-nya kecil", () => {
+  const ids = (g: ReturnType<typeof buildIssueGraph>) => g.nodes.filter((n) => n.kind === "hub").map((n) => n.id).sort();
+  assert.deepEqual(ids(buildIssueGraph(issueA, flowRows, 2)), ["akhir", "kedua"]);
+  assert.deepEqual(ids(buildIssueGraph(issueA, flowRows, 2, "rantai")), ["awal", "kedua"]);
 });

@@ -206,3 +206,5 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .watchRow button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; cursor: pointer; color: var(--mantine-color-dimmed); background: transparent; }
 .watchRow button:hover { color: #e11d48; background: rgba(225,29,72,.1); }
 @media (max-width: 1000px) { .watchPick { flex: 1 1 calc(50% - 6px); } .watchPick :global(.mantine-Select-root) { flex: 1; width: auto !important; } }
+
+.flowNote { color: #c4b5fd; font-weight: 700; }

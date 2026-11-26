@@ -42,6 +42,8 @@ export type SnaNode = {
   id: string; kind: "hub" | "child" | "issue"; posts: number; mentions: number; source?: string; engagement?: number; title?: string;
   /** What runs the account (lib/ai/accountKind.ts): a news outlet, an institution, or the public. Set by the server. */
   account?: "media" | "institusi" | "publik";
+  /** Issue view: the account's first post in the issue (Jakarta wall-clock, YYYY-MM-DDTHH:MM:SS); `wave` its wave (flow "gelombang"). */
+  first?: string; wave?: number;
 };
 export const ACCOUNT_LABEL = { media: "Media berita", institusi: "Institusi", publik: "Akun publik" } as const;
 export type SnaLink = { source: string; target: string; n: number; tone: Tone; counts: Record<Tone, number> };
@@ -98,45 +100,108 @@ export const ISSUES_SHOWN = 10;
 const PER_ISSUE: Record<number, number> = { 25: 10, 50: 25, 100: 50, 200: 100 };
 export const accountsPerIssue = (limit: number) => PER_ISSUE[limit] ?? 10;
 
-export type IssueAccountRow = { issue: string; username: string; source: string; emotion: string | null; n: number; eng: number };
+/** `first`: the account's first post in the issue with this emotion (Jakarta wall-clock, YYYY-MM-DDTHH:MM:SS). */
+export type IssueAccountRow = { issue: string; username: string; source: string; emotion: string | null; n: number; eng: number; first?: string };
+/** In an issue's posts, `source` mentions or replies to `target`. */
+export type MentionPair = { issue: string; source: string; target: string };
+
+/** How the accounts of an issue hang together in the issue view (see buildIssueGraph). */
+export const SNA_FLOWS = [
+  { value: "langsung", label: "Langsung" }, { value: "mention", label: "Mention" },
+  { value: "rantai", label: "Rantai waktu" }, { value: "gelombang", label: "Gelombang" },
+] as const;
+export type SnaFlow = (typeof SNA_FLOWS)[number]["value"];
+export const parseSnaFlow = (raw: string | null): SnaFlow => SNA_FLOWS.find((f) => f.value === raw)?.value ?? "langsung";
+/** Wave limits in hours since the issue's first post: ≤ 1 h, ≤ 6 h, ≤ 24 h, ≤ 3 days, later. */
+export const WAVE_HOURS = [1, 6, 24, 72] as const;
+export const WAVE_LABEL = ["", "Gelombang 1 · jam pertama", "Gelombang 2 · 1–6 jam", "Gelombang 3 · 6–24 jam", "Gelombang 4 · 1–3 hari", "Gelombang 5 · > 3 hari"];
 
 /**
- * Issue view: each issue is a node; the accounts posting in it (its `perIssue` most engaging) link to it, with the emotion of
- * those posts. An account in several issues is one node linking them. Accounts are sized by the engagement of their posts.
+ * Issue view: each issue is a node with the accounts posting in it. `flow` says how they hang together:
+ * - langsung: every account links to the issue (its `perIssue` most engaging);
+ * - mention: an account hangs under the earlier account it mentions or replies to in the issue, else under the issue;
+ * - rantai: in order of their first post: the first links to the issue, each next one to the one before;
+ * - gelombang: by waves of time since the issue's first post; the first wave links to the issue, each later account to the
+ *   most engaging account of the wave before.
+ * In the three flows, who links to the issue is decided by time: the earliest posters (the first third of the accounts kept
+ * are the earliest ones, the rest the most engaging). An account in several issues is one node. Sized by engagement.
  */
-export function buildIssueGraph(issues: { id: string; title: string; posts: number }[], rows: IssueAccountRow[], perIssue: number): SnaGraph {
+export function buildIssueGraph(issues: { id: string; title: string; posts: number }[], rows: IssueAccountRow[], perIssue: number, flow: SnaFlow = "langsung", mentions: MentionPair[] = []): SnaGraph {
+  type Acc = { username: string; source: string; n: number; eng: number; first: string; counts: Record<Tone, number> };
+  const byIssue = new Map<string, Map<string, Acc>>();
+  for (const r of rows) {
+    const m = byIssue.get(r.issue) ?? new Map<string, Acc>();
+    const a = m.get(r.username) ?? { username: r.username, source: r.source, n: 0, eng: 0, first: r.first ?? "", counts: emptyCounts() };
+    a.n += r.n; a.eng += r.eng; a.counts[toneOf(r.emotion)] += r.n;
+    if (r.first && (!a.first || r.first < a.first)) a.first = r.first;
+    m.set(r.username, a);
+    byIssue.set(r.issue, m);
+  }
+  const byFirst = (a: Acc, b: Acc) => (a.first < b.first ? -1 : a.first > b.first ? 1 : a.username.localeCompare(b.username));
+  const mentioned = new Map<string, Set<string>>(); // issue + poster (lower case) -> mentioned accounts (lower case)
+  for (const p of mentions) {
+    const key = `${p.issue}\u0000${norm(p.source)}`;
+    mentioned.set(key, (mentioned.get(key) ?? new Set()).add(norm(p.target)));
+  }
+
   const links = new Map<string, SnaLink>();
-  const perAccount = new Map<string, { eng: number; posts: number; source: string }>();
-  const engIn = new Map<string, Map<string, number>>(); // issue -> account -> engagement
-  for (const r of rows) {
-    const key = `${r.username}\u0000${r.issue}`;
-    const link = links.get(key) ?? { source: r.username, target: `issue:${r.issue}`, n: 0, tone: "unknown" as Tone, counts: emptyCounts() };
-    link.n += r.n;
-    link.counts[toneOf(r.emotion)] += r.n;
-    links.set(key, link);
-    const m = engIn.get(r.issue) ?? new Map<string, number>();
-    m.set(r.username, (m.get(r.username) ?? 0) + r.eng);
-    engIn.set(r.issue, m);
+  const shown = new Map<string, { source: string; posts: number; eng: number; first: string; wave?: number }>();
+  const link = (from: Acc, to: string) => {
+    const key = `${from.username}\u0000${to}`;
+    const l = links.get(key) ?? { source: from.username, target: to, n: 0, tone: "unknown" as Tone, counts: emptyCounts() };
+    l.n += from.n;
+    for (const t of TONE_ORDER) l.counts[t] += from.counts[t];
+    links.set(key, l);
+  };
+  for (const [issue, m] of byIssue) {
+    const all = [...m.values()];
+    const byEng = [...all].sort((a, b) => b.eng - a.eng || a.username.localeCompare(b.username));
+    let kept: Acc[];
+    if (flow === "langsung") kept = byEng.slice(0, perIssue);
+    else {
+      const early = [...all].sort(byFirst).slice(0, Math.ceil(perIssue / 3));
+      const pick = new Set(early);
+      for (const a of byEng) { if (pick.size >= perIssue) break; pick.add(a); }
+      kept = [...pick];
+    }
+    kept.sort(byFirst);
+    const issueNode = `issue:${issue}`;
+    const start = kept[0]?.first ? Date.parse(`${kept[0].first}+07:00`) : NaN;
+    const waveOf = (a: Acc) => { const h = (Date.parse(`${a.first}+07:00`) - start) / 3_600_000; const i = WAVE_HOURS.findIndex((x) => h <= x); return Number.isFinite(h) ? (i < 0 ? WAVE_HOURS.length : i) + 1 : 1; };
+    const lower = new Map(kept.map((a) => [norm(a.username), a]));
+    kept.forEach((a, i) => {
+      let parent = issueNode;
+      if (flow === "rantai" && i > 0) parent = kept[i - 1].username;
+      if (flow === "mention") {
+        // The earliest account it mentions that posted in the issue before it (so the tree always runs forward in time).
+        const targets = [...(mentioned.get(`${issue}\u0000${norm(a.username)}`) ?? [])].map((t) => lower.get(t)).filter((t): t is Acc => !!t && t !== a && byFirst(t, a) < 0);
+        if (targets.length) parent = targets.sort(byFirst)[0].username;
+      }
+      if (flow === "gelombang") {
+        const w = waveOf(a);
+        const before = kept.filter((b) => waveOf(b) < w);
+        if (before.length) {
+          const last = Math.max(...before.map(waveOf));
+          parent = before.filter((b) => waveOf(b) === last).sort((x, y) => y.eng - x.eng || x.username.localeCompare(y.username))[0].username;
+        }
+      }
+      link(a, parent);
+      const node = shown.get(a.username) ?? { source: a.source, posts: 0, eng: 0, first: a.first };
+      node.posts += a.n; node.eng += a.eng;
+      if (a.first && (!node.first || a.first <= node.first)) { node.first = a.first; if (flow === "gelombang") node.wave = waveOf(a); }
+      shown.set(a.username, node);
+    });
   }
-  const kept = new Set<string>();
-  for (const [issue, m] of engIn) {
-    const top = [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, perIssue);
-    for (const [u] of top) kept.add(`${u}\u0000${issue}`);
-  }
-  const out: SnaLink[] = [];
-  for (const [key, l] of links) if (kept.has(key)) out.push({ ...l, tone: dominantTone(l.counts) });
-  for (const r of rows) {
-    if (!kept.has(`${r.username}\u0000${r.issue}`)) continue;
-    const a = perAccount.get(r.username) ?? { eng: 0, posts: 0, source: r.source };
-    a.eng += r.eng; a.posts += r.n;
-    perAccount.set(r.username, a);
-  }
+  const out = [...links.values()].map((l) => ({ ...l, tone: dominantTone(l.counts) }));
   const linkedIssues = new Set(out.map((l) => l.target));
   const nodes: SnaNode[] = issues.filter((i) => linkedIssues.has(`issue:${i.id}`))
     .map((i) => ({ id: `issue:${i.id}`, kind: "issue", posts: i.posts, mentions: 0, title: i.title }));
-  for (const [username, a] of perAccount) nodes.push({ id: username, kind: "hub", posts: a.posts, mentions: 0, source: a.source, engagement: a.eng });
+  for (const [username, a] of shown) nodes.push({ id: username, kind: "hub", posts: a.posts, mentions: 0, source: a.source, engagement: a.eng, ...(a.first ? { first: a.first } : {}), ...(a.wave ? { wave: a.wave } : {}) });
   return { nodes, links: out };
 }
+
+const norm = (u: string) => u.trim().replace(/^@/, "").toLowerCase();
+
 /** A post shown in the account panel: the account's own post (hub) or one that mentions it (child). */
 export type SnaPost = { code: string; source: string; username: string | null; content: string; url: string | null; ts: string; emotion: string | null };
 /** Latest posts plus how many there were per bucket (hour for 1 day, otherwise day). */
