@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { IconAdjustmentsHorizontal, IconLayoutColumns, IconSearch, IconX } from "@tabler/icons-react";
+import { Menu } from "@mantine/core";
+import { IconAdjustmentsHorizontal, IconCheck, IconLayoutColumns, IconSearch, IconX } from "@tabler/icons-react";
 import { activePreset, DATE_PRESETS, presetRange, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
 import { Segmented } from "./controls";
 import classes from "./filters.module.css";
 
 const SORT_OPTIONS = [{ value: "newest", label: "Terbaru" }, { value: "oldest", label: "Terlama" }] as const;
-const COLUMN_OPTIONS = ["1", "2", "3", "4"].map((n) => ({ value: n, label: n }));
 const PRESET_OPTIONS = DATE_PRESETS.map((p) => ({ value: p.label, label: p.label }));
 
 /** "/" focuses search from anywhere outside a form field, like most command bars. */
@@ -97,10 +97,22 @@ export function QuickFilters({ type, filters, onChange, advancedCount, advancedO
       )}
 
       {columns && onColumnsChange && (
-        <div className={classes.columns} title="Jumlah kolom kartu">
-          <IconLayoutColumns size={15} aria-hidden />
-          <Segmented label="Jumlah kolom" className={classes.columnsSegmented} options={COLUMN_OPTIONS} value={String(columns)} onChange={(v) => onColumnsChange(Number(v))} />
-        </div>
+        <Menu position="bottom-end" width={196} offset={6} withinPortal>
+          <Menu.Target>
+            <button type="button" className={classes.columnsButton} aria-label={`Jumlah kolom: ${columns}. Ganti`} title="Jumlah kolom">
+              <IconLayoutColumns size={16} aria-hidden /><b>{columns}</b>
+            </button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Jumlah kolom</Menu.Label>
+            {[1, 2, 3, 4].map((n) => (
+              <Menu.Item key={n} onClick={() => onColumnsChange(n)} rightSection={n === columns ? <IconCheck size={14} /> : null}
+                leftSection={<span className={classes.columnsPreview} aria-hidden>{Array.from({ length: n }, (_, i) => <i key={i} />)}</span>}>
+                {n} kolom{n <= 2 ? " + filter" : ""}
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
       )}
       {children}
     </section>
