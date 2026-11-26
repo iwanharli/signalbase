@@ -182,7 +182,8 @@
 }
 
 /* Media visual notifications (MediaAlertsBell); the bell stays visible on phones. */
-.bellLink { position: relative; }
+.bellLink { position: relative; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; } /* a <button>, unlike the other icon links: drop the browser's own look */
+.bellLink[data-expanded], .bellLink[aria-expanded="true"] { color: #fff; background: rgba(255,255,255,.08); }
 .alertsDrop { padding: 10px; max-height: min(480px, 70vh); overflow: auto; }
 .alertsHead { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; padding: 2px 6px 8px; }
 .alertsEmpty { margin: 0; padding: 6px; font-size: 13px; opacity: .75; }

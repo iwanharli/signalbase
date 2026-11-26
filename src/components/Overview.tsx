@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, Skeleton } from "@mantine/core";
-import { IconArrowRight, IconBook2, IconEdit, IconKey, IconMessages, IconPlugConnected, IconSearch, IconWorldWww } from "@tabler/icons-react";
+import { IconArrowRight, IconMail, IconEdit, IconKey, IconMessages, IconPlugConnected, IconSearch, IconWorldWww } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -68,22 +68,21 @@ function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items:
   );
 }
 
-/** A user account without any key: nothing to show until they choose keywords. */
+/** A client with no project yet: the admin sets projects and keywords up (from the topics given at sign-up). */
 function Onboarding({ name }: { name: string }) {
   const steps = [
-    { icon: IconKey, title: "Buat proyek", text: "Beri nama aplikasi Anda dan tentukan keyword yang ingin dipantau." },
+    { icon: IconKey, title: "Admin menyiapkan proyek", text: "Tim Signalbase membuat proyek dan keyword sesuai topik yang Anda sampaikan saat mendaftar." },
     { icon: IconSearch, title: "Lihat sinyalnya", text: "Beranda dan halaman media menampilkan post dan berita yang menyebut keyword itu." },
-    { icon: IconPlugConnected, title: "Hubungkan aplikasi", text: "Ambil data yang sama lewat API dengan kunci API proyek tersebut." },
+    { icon: IconPlugConnected, title: "Pantau dan laporkan", text: "Ikuti isu, peringatan dini, dan unduh laporan dari menu Laporan." },
   ];
   return (
     <section className={classes.onboard}>
       <span className={classes.live}><i />Selamat datang, {name}</span>
-      <h1>Mulai dengan <em>keyword</em> Anda.</h1>
-      <p>Beranda masih kosong karena belum ada proyek. Data hanya muncul untuk keyword yang Anda pilih.</p>
+      <h1>Proyek Anda sedang <em>disiapkan</em>.</h1>
+      <p>Beranda masih kosong karena belum ada proyek untuk akun ini. Begitu admin memberikannya, data langsung muncul di sini.</p>
       <ol>{steps.map((s, i) => <li key={s.title} style={{ animationDelay: `${i * 90}ms` }}><span><s.icon size={20} /></span><b>{i + 1}. {s.title}</b><small>{s.text}</small></li>)}</ol>
       <div className={classes.onboardActions}>
-        <Link href="/project/new" className={classes.primaryLink}><IconKey size={16} />Buat proyek & atur keyword</Link>
-        <Link href="/docs" className={classes.more}><IconBook2 size={14} />Baca dokumentasi API</Link>
+        <Link href="/kontak" className={classes.primaryLink}><IconMail size={16} />Hubungi admin Signalbase</Link>
       </div>
     </section>
   );
@@ -127,8 +126,9 @@ export function Overview({ name, role }: { name: string; role: Role }) {
             {key ? <>
               <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
               <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
-              <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
-                <Link href={`/project/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link></div>
+              {/* The project's keywords are an admin's business: clients don't see them, only admins edit them. */}
+              {!own && <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
+                {role === "admin" && <Link href={`/project/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link>}</div>}
             </> : <>
               {/* The date waits for the client data, so a server in another time zone can't render a different day. */}
               <span className={classes.live}><i />{data ? dayjs().locale("id").format("dddd, D MMMM YYYY") : "Ringkasan"}</span>

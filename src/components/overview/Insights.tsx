@@ -4,6 +4,7 @@
 // topics, engagement, top accounts/outlets, the project's keywords and hashtags. Both types are always fetched, so
 // "Semua" is merged in the browser. Loads apart from the rest of the page because the grouped scans take a few seconds
 // when the cache is cold.
+import { useRole } from "../RoleContext";
 import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton, Tooltip } from "@mantine/core";
@@ -575,6 +576,7 @@ function useProjectData(projectId: string, types: MediaType[], period: InsightPe
 function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
   project: ProjectSummary; viewed: boolean; data: ViewData | null | undefined; open: boolean; onToggle: () => void; keywordHref: (row: Row) => string;
 }) {
+  const admin = useRole() === "admin"; // only admins change a project's keywords
   const share = data ? pct(data.current.neg, data.current.labelled) : 0;
   const level = share >= 50 ? "high" : share >= 25 ? "mid" : "low";
   return (
@@ -601,7 +603,7 @@ function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
           )}
           <div className={c.groupLinks}>
             {!viewed && <Link href={`/dashboard?key=${project.id}`}>Lihat Ringkasan proyek <IconArrowRight size={12} /></Link>}
-            <Link href={`/project/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>
+            {admin && <Link href={`/project/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>}
           </div>
         </div>
       )}
@@ -613,6 +615,7 @@ function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
 function ProjectCard({ project, others, data, types, period, from }: {
   project: ProjectSummary; others: ProjectSummary[]; data: ViewData | null; types: MediaType[]; period: InsightPeriod; from: string;
 }) {
+  const admin = useRole() === "admin";
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set([project.id]));
   const toggle = (id: string) => setOpenIds((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const hrefFor = (projectId: string) => (row: Row) => mediaHref(row.t, projectId, { from, q: row.value });
@@ -621,7 +624,7 @@ function ProjectCard({ project, others, data, types, period, from }: {
       <header className={c.projectHead}>
         <span><IconPlugConnected size={16} /></span>
         <div><h3>Keyword per proyek<CardHelp id="projectKeywords" /></h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
-        <Link href="/project" className={c.projectEdit}>Kelola</Link>
+        {admin && <Link href="/project" className={c.projectEdit}>Kelola</Link>}
       </header>
       <div className={c.groups}>
         <ProjectGroup project={project} viewed data={data ?? undefined} open={openIds.has(project.id)} onToggle={() => toggle(project.id)} keywordHref={hrefFor(project.id)} />
