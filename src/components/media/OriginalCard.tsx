@@ -3,11 +3,13 @@
 // A failed or unsupported original leaves the Quick card as is.
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconEye } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
 import { createLimiter } from "@/lib/limiter";
 import { originalOf } from "@/lib/media/original";
 import type { MediaItem, MediaType } from "@/lib/media/types";
-import { ItemCard } from "./ItemCard";
+import { moodPolarity } from "@/lib/media/mood";
+import { CardFooter, ItemCard, PostAuthor, PostMeta } from "./ItemCard";
+import { MoodBadges, moodTone } from "./itemParts";
 import { ManualLabelPicker } from "./ManualLabel";
 import { PostContent } from "./PostContent";
 import classes from "./originalCard.module.css";
@@ -86,17 +88,50 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
       </div>
       {mounted && (
         <div className={classes.original} data-visible={showOriginal || undefined}>
-          <div className={classes.shell}>
+          <article className={classes.shell} data-polarity={item.mood ? moodPolarity(item.mood) : undefined} style={{ ["--tone" as string]: moodTone(item) }}>
             <ManualLabelPicker item={item} bleed />
-            {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} />}
-            {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}
-            {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
-            {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}
-            <footer className={classes.foot}>
-              <button type="button" onClick={() => onOpen(item)}>Detail</button>
-            </footer>
-          </div>
+            <header className={classes.head}>
+              <PostAuthor item={item} type={type} />
+              <MoodBadges item={item} type={type} />
+            </header>
+            <PostMeta item={item} />
+            <Clamp>
+              {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} />}
+              {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}
+              {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
+              {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}
+            </Clamp>
+            <CardFooter item={item} type={type} onOpen={onOpen} />
+          </article>
         </div>
+      )}
+    </div>
+  );
+}
+
+// A very long original (a Threads thread, a long caption) is cut at this height so the feed's columns stay even.
+const CLAMP_PX = 640;
+
+/** Cuts a tall original to CLAMP_PX with a fade and a button to show all of it (and to fold it again). */
+function Clamp({ children }: { children: React.ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null);
+  const [long, setLong] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const el = inner.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setLong(el.scrollHeight > CLAMP_PX + 80)); // a little over is not worth a button
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const clamped = long && !open;
+  return (
+    <div className={classes.clamp} data-clamped={clamped || undefined}>
+      <div ref={inner} className={classes.clampInner} style={clamped ? { maxHeight: CLAMP_PX } : undefined}>{children}</div>
+      {long && (
+        <button type="button" className={classes.more} aria-expanded={open} onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
+          {open ? <><IconChevronUp size={14} aria-hidden />Ringkas</> : <><IconChevronDown size={14} aria-hidden />Tampilkan semua</>}
+        </button>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 // Bottom-right dock: AI categorisation and AI labelling progress of the projects the account can see, on every panel
 // page. It sits in the shell, outside the page, so it stays put and keeps its data while moving between pages.
 // Shown: a small card, one line per project. Hidden: only a progress ring. The choice is kept in this browser.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Tooltip } from "@mantine/core";
 import { IconAlertTriangle, IconCheck, IconMinus, IconX } from "@tabler/icons-react";
@@ -97,6 +97,17 @@ export function AiProgressDock() {
     });
   }, [all]);
 
+  // Other bottom-right buttons (the media page's back-to-top) sit above the dock: its height, gap included, as a CSS variable.
+  const dockObserver = useRef<ResizeObserver | null>(null);
+  const dockRef = useCallback((el: HTMLElement | null) => {
+    const root = document.documentElement;
+    dockObserver.current?.disconnect();
+    dockObserver.current = null;
+    if (!el) { root.style.removeProperty("--ai-dock-space"); return; }
+    dockObserver.current = new ResizeObserver(() => root.style.setProperty("--ai-dock-space", `${el.offsetHeight + 12}px`));
+    dockObserver.current.observe(el);
+  }, []);
+
   const projects = all?.filter((p) => !(done(p) && dismissed.includes(rowKey(p))));
   if (!projects?.length) return null;
   const dismiss = (p: Project) => setDismissed((list) => {
@@ -115,7 +126,7 @@ export function AiProgressDock() {
 
   if (hidden) {
     return (
-      <aside className={classes.dock} aria-label="Progres proses AI">
+      <aside ref={dockRef} className={classes.dock} aria-label="Progres proses AI">
         <Tooltip label={ringLabel} position="left" withArrow openDelay={200}>
           <button type="button" className={classes.ringButton} onClick={toggle} aria-label={`${ringLabel}. Tampilkan`} data-warn={hasError || undefined} data-working={working.some((p) => p.active) || undefined}>
             <Ring pct={ringPct} live={allLive} />
@@ -127,7 +138,7 @@ export function AiProgressDock() {
   }
 
   return (
-    <aside className={classes.dock} aria-label="Progres proses AI">
+    <aside ref={dockRef} className={classes.dock} aria-label="Progres proses AI">
       <div className={classes.card} data-working={working.some((p) => p.active) || undefined}>
         <header className={classes.head}>
           <span><i className={classes.dot} data-live={allLive || undefined} aria-hidden />Proses AI</span>

@@ -549,3 +549,17 @@ model IssueCluster {
 
   @@index([apiKeyId, active, score])
 }
+
+/// An ad hoc SNA watch ("pantauan"): a named set of keywords, e.g. "Listyo makar" = listyo, makar, sadap. Within a
+/// project (apiKeyId) it reads that project's posts that also match one of its keywords; without (admins) the whole bank.
+model SnaWatch {
+  id        String   @id @default(uuid())
+  apiKeyId  String? // null = whole bank (admins only)
+  name      String
+  keywords  String[] // same rules as project keywords: words, phrases or AND / OR expressions; any one matches
+  createdBy String // username
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([apiKeyId])
+}

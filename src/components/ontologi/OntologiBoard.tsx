@@ -74,7 +74,7 @@ function Graph({ graph, issues, onPick, picked, locked }: { graph: OntGraph; iss
       const b = document.createElement("b"); b.textContent = short(d.label, 80);
       if (d.kind === "issue") { const i = issues.get(d.id.slice(2)); tipEl.append(b, line(`${d.level} · skor ${d.score} · ${formatNumber(d.count)} post`), line(i?.location ? `Lokasi: ${i.location}` : "Isu")); }
       else tipEl.append(b, line(`${d.kind === "actor" ? "Aktor" : "Target"} · ${d.count} isu`));
-      tipEl.append(line("Klik untuk detail"));
+      tipEl.append(line("Klik untuk detail · seret untuk menata, klik ganda melepas"));
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on).on("click", (e: MouseEvent, d) => { e.stopPropagation(); pickRef.current(d.id); });
     root.on("click", () => pickRef.current(null));
@@ -120,7 +120,9 @@ function Graph({ graph, issues, onPick, picked, locked }: { graph: OntGraph; iss
     node.call(drag<SVGGElement, Node>().filter(() => !lockedRef.current)
       .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
       .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+      // A dragged node stays where it is dropped (tidying by hand); double-click frees it again.
+      .on("end", (e) => { if (!e.active) sim.alphaTarget(0); }));
+    node.on("dblclick.pin", (e, d) => { e.stopPropagation(); d.fx = null; d.fy = null; sim.alpha(0.3).restart(); });
     return () => { window.clearTimeout(timer); sim.stop(); ro.disconnect(); root.on(".zoom", null).selectAll("*").remove(); };
   }, [graph, issues]);
 

@@ -29,16 +29,63 @@ function AnalysisPreview({ analysis }: { analysis: Analysis }) {
   );
 }
 
+const authorName = (item: MediaItem) => item.author?.name?.trim().replace(/^[-–—.\s]+$/, "") || null; // some outlets send "-" for no byline
+
+/** A social post's platform, author and handle (shared by the Quick and Original View cards). */
+export function PostAuthor({ item, type }: { item: MediaItem; type: MediaType }) {
+  const author = authorName(item);
+  const publisher = sourceLabel(item.source);
+  const handle = item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
+  return (
+    <div className={classes.platformName}>
+      {type === "social" && <PlatformIcon source={item.source} />}
+      {author ? <div className={classes.authorName}>
+        <Text fz={12.5} fw={800} truncate title={author}>{author}</Text>
+        <Text className={classes.sourceName} fz={11} fw={600} truncate>{[handle, publisher].filter(Boolean).join(" · ")}</Text>
+      </div> : <Text className={classes.sourceName} fz={12.5} fw={800} truncate>{publisher}</Text>}
+    </div>
+  );
+}
+
+/** Post type and category chips of a social post. */
+export function PostMeta({ item }: { item: MediaItem }) {
+  if (!item.postType && !item.category) return null;
+  return (
+    <div className={classes.postMeta}>
+      {item.postType && <PostTypeBadge value={item.postType} />}
+      {item.category && <span className={classes.postCategory} title={humanize(item.category)}>{humanize(item.category)}</span>}
+    </div>
+  );
+}
+
+/** Time, place, link to the source and the Detail button. */
+export function CardFooter({ item, type, onOpen, children }: { item: MediaItem; type: MediaType; onOpen: (item: MediaItem) => void; children?: React.ReactNode }) {
+  const place = item.province ?? item.location;
+  const published = dayjs(item.publishedAt).locale("id");
+  return (
+    <div className={classes.footer}>
+      <div className={classes.footerMeta}>
+        <time dateTime={item.publishedAt} title={published.format("D MMMM YYYY, HH:mm")}>
+          <IconClock size={13} aria-hidden />{published.format("D MMM · HH:mm")}
+        </time>
+        {place && <span className={classes.footerPlace} title={place}><IconMapPin size={13} aria-hidden /><span>{place}</span></span>}
+      </div>
+      <div className={classes.footerActions}>
+        <SourceLink item={item} type={type} />
+        <button type="button" className={classes.detailHint} aria-label={`Lihat detail: ${item.title || item.content?.slice(0, 100) || sourceLabel(item.source)}`} onClick={(event) => { event.stopPropagation(); onOpen(item); }}>Detail <IconArrowRight size={13} aria-hidden /></button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const hasImage = !!item.image && item.image !== failedImage;
   const editorial = type === "online" && !hasImage;
   const publisher = sourceLabel(item.source);
-  const author = item.author?.name?.trim().replace(/^[-–—.\s]+$/, "") || null; // some outlets send "-" for no byline
-  const handle = item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
-  const place = item.province ?? item.location;
+  const author = authorName(item);
   const hasMetrics = Object.values(item.metrics).some((value) => value != null);
-  const published = dayjs(item.publishedAt).locale("id");
   const open = () => onOpen(item);
   const online = type === "online";
   // News: the category and the AI topics share one chip row (the topics are not hashtags of the article).
@@ -72,21 +119,10 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
                 <small title={author ?? undefined}>{author ? `oleh ${author}` : "Media online"}</small>
               </div>
             </div>
-          ) : <div className={classes.platformName}>
-            {type === "social" && <PlatformIcon source={item.source} />}
-            {author ? <div className={classes.authorName}>
-              <Text fz={12.5} fw={800} truncate title={author}>{author}</Text>
-              <Text className={classes.sourceName} fz={11} fw={600} truncate>{[handle, publisher].filter(Boolean).join(" · ")}</Text>
-            </div> : <Text className={classes.sourceName} fz={12.5} fw={800} truncate>{publisher}</Text>}
-          </div>}
+          ) : <PostAuthor item={item} type={type} />}
           <MoodBadges item={item} type={type} />
         </div>
-        {type === "social" && (item.postType || item.category) && (
-          <div className={classes.postMeta}>
-            {item.postType && <PostTypeBadge value={item.postType} />}
-            {item.category && <span className={classes.postCategory} title={humanize(item.category)}>{humanize(item.category)}</span>}
-          </div>
-        )}
+        {type === "social" && <PostMeta item={item} />}
         {item.title && <Text className={classes.headline} lineClamp={3}>{item.title}</Text>}
         {item.content && (
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
@@ -101,23 +137,13 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           </div>
         )}
         {type === "social" && hasMetrics && <div className={classes.socialMetrics} role="group" aria-label="Interaksi post"><MetricList metrics={item.metrics} compact /></div>}
-        <div className={classes.footer}>
-          <div className={classes.footerMeta}>
-            <time dateTime={item.publishedAt} title={published.format("D MMMM YYYY, HH:mm")}>
-              <IconClock size={13} aria-hidden />{published.format("D MMM · HH:mm")}
-            </time>
-            {place && <span className={classes.footerPlace} title={place}><IconMapPin size={13} aria-hidden /><span>{place}</span></span>}
-          </div>
-          <div className={classes.footerActions}>
-            <SourceLink item={item} type={type} />
-            <button type="button" className={classes.detailHint} aria-label={`Lihat detail: ${item.title || item.content?.slice(0, 100) || publisher}`} onClick={(event) => { event.stopPropagation(); open(); }}>Detail <IconArrowRight size={13} aria-hidden /></button>
-          </div>
+        <CardFooter item={item} type={type} onOpen={onOpen}>
           {type !== "social" && hasMetrics && (
             <div className={classes.footerBottom}>
               <div className={classes.footerMetrics}><MetricList metrics={item.metrics} /></div>
             </div>
           )}
-        </div>
+        </CardFooter>
       </div>
     </article>
   );

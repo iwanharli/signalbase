@@ -72,6 +72,9 @@ function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown
   if (keywordTs) where.push(imageCodes?.length
     ? `(${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)}) OR ${c.code} = ANY(${bind(imageCodes)}::text[]))`
     : `${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`);
+  // A second keyword set on top (an SNA watch within a project): items must match one of these as well.
+  const alsoTs = scope.alsoKeywords?.length ? keywordQuery(scope.alsoKeywords) : "";
+  if (alsoTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(alsoTs)})`);
   if (scope.analyzedOnly) where.push(`${c.mood} IS NOT NULL AND ${c.mood} <> ''`);
   if (scope.language === "id") where.push(`${c.language} = 'id'`);
   else if (scope.language === "other") where.push(`${c.language} IS DISTINCT FROM 'id'`);

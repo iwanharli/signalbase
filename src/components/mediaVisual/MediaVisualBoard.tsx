@@ -3,8 +3,7 @@
 // tags, possibly sensitive content and re-shared pictures. Click an image for its details and the posts that use it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Modal, Select, Skeleton, Tooltip } from "@mantine/core";
-import { useReducedMotion } from "@mantine/hooks";
+import { Select, Skeleton, Tooltip } from "@mantine/core";
 import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessages, IconSpeakerphone, IconChevronRight, IconCopy, IconEye, IconEyeOff, IconFileText, IconLanguage, IconLetterCase, IconPhoto, IconPhotoOff, IconPhotoScan, IconRefresh, IconSearch, IconStack2, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -23,9 +22,10 @@ import { Masonry } from "../media/Masonry";
 import { OcrText } from "./OcrText";
 import { Twins } from "./Twins";
 import { NarrativeCard, SignalBadges, SignalSections } from "./Signals";
-import { AnalysisNote, collageRatio, DETAIL_MODAL_SIZE, PostCard, PostModal, Summary, Transcript } from "./PostViews";
+import { AnalysisNote, collageRatio, PostCard, PostModal, Summary, Transcript } from "./PostViews";
 import { Button } from "../ui/Button";
 import m from "../media/modal.module.css";
+import { DetailDrawer } from "../media/DetailDrawer";
 import classes from "../issues/issues.module.css";
 import c from "./mediaVisual.module.css";
 
@@ -268,18 +268,13 @@ function AssetCard({ asset, onOpen }: { asset: VisualAsset; onOpen: () => void }
 /** Same look as the post detail modal (media/modal.module.css): dark header, image and text on the left, tags and uses on the right. */
 function AssetModal({ asset, onClose, onZoom, onPost, onNarrative, highlight }: { asset: VisualAsset | null; onClose: () => void; onZoom: () => void; onPost: (u: VisualUse) => void; onNarrative: (key: string) => void; highlight?: string }) {
   const [last, setLast] = useState<VisualAsset | null>(asset);
-  const reducedMotion = useReducedMotion();
   useEffect(() => { if (asset) setLast(asset); }, [asset]);
   const a = asset ?? last;
   const tone = a?.sensitive.length ? "var(--mantine-color-orange-6)" : "var(--mantine-color-violet-6)";
   return (
-    <Modal.Root opened={!!asset} onClose={onClose} size={DETAIL_MODAL_SIZE} radius={20} padding={0} centered yOffset={16} xOffset={12}
-      transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
-      <Modal.Overlay backgroundOpacity={0.48} blur={3} />
-      <Modal.Content className={m.content} aria-label="Detail gambar" style={{ ["--tone" as string]: tone }}>
-        <Modal.Body>{a && <AssetDetail key={a.id} asset={a} onClose={onClose} onZoom={onZoom} onPost={onPost} onNarrative={onNarrative} highlight={highlight} />}</Modal.Body>
-      </Modal.Content>
-    </Modal.Root>
+    <DetailDrawer opened={!!asset} onClose={onClose} label="Detail gambar" tone={tone}>
+      {a && <AssetDetail key={a.id} asset={a} onClose={onClose} onZoom={onZoom} onPost={onPost} onNarrative={onNarrative} highlight={highlight} />}
+    </DetailDrawer>
   );
 }
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChartDots3, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
+import { IconAlertTriangle, IconChartDots3, IconEye, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -16,6 +16,7 @@ import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import { SnaPanel } from "./SnaPanel";
+import { SnaWatchPicker, type SnaWatch } from "./SnaWatches";
 import classes from "./sna.module.css";
 
 type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
@@ -127,8 +128,8 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       tipEl.replaceChildren();
       const b = document.createElement("b");
       const eng = d.engagement !== undefined ? ` · engagement ${formatNumber(Math.round(d.engagement))}` : "";
-      if (d.kind === "issue") { b.textContent = d.title ?? "Isu"; tipEl.append(b, text(`Isu · ${formatNumber(d.posts)} post`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk menyorot akunnya")); }
-      else { b.textContent = `@${d.id}${d.account ? ` · ${ACCOUNT_LABEL[d.account]}` : ""}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail")); }
+      if (d.kind === "issue") { b.textContent = d.title ?? "Isu"; tipEl.append(b, text(`Isu · ${formatNumber(d.posts)} post`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk menyorot akunnya · seret untuk menata, klik ganda melepas")); }
+      else { b.textContent = `@${d.id}${d.account ? ` · ${ACCOUNT_LABEL[d.account]}` : ""}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail · seret untuk menata, klik ganda melepas")); }
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on).on("click", (e: MouseEvent, d) => { e.stopPropagation(); pickRef.current(d.id); });
     link.on("mousemove", (e: MouseEvent, d) => {
@@ -190,7 +191,9 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     node.call(drag<SVGGElement, Node>().filter(() => !lockedRef.current)
       .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
       .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+      // A dragged node stays where it is dropped (tidying by hand); double-click frees it again.
+      .on("end", (e) => { if (!e.active) sim.alphaTarget(0); }));
+    node.on("dblclick.pin", (e, d) => { e.stopPropagation(); d.fx = null; d.fy = null; sim.alpha(0.3).restart(); });
     return () => { window.clearTimeout(timer); sim.stop(); ro.disconnect(); root.on(".zoom", null).selectAll("*").remove(); };
   }, [graph]);
 
@@ -220,11 +223,13 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   // Within a project: only the accounts posting about one issue (its clustered posts) and/or posts carrying one label.
   const issueId = keyId ? params.get("issue") : null;
   const labelName = keyId ? params.get("label") : null;
-  const filter = `${issueId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}`;
-  // With a project: issues as nodes and the accounts posting in them (default), or who mentions whom.
-  const issueView = !!keyId && params.get("view") !== "mention";
+  // A watch ("pantauan"): only posts that also mention one of its keywords; it takes the place of the issue filter.
+  const watchId = params.get("watch");
+  const filter = `${issueId && !watchId ? `&issue=${encodeURIComponent(issueId)}` : ""}${labelName ? `&label=${encodeURIComponent(labelName)}` : ""}${watchId ? `&watch=${encodeURIComponent(watchId)}` : ""}`;
+  // With a project or a watch: issues (or the watch) as nodes and the accounts posting in them (default), or who mentions whom.
+  const issueView = (!!keyId || !!watchId) && params.get("view") !== "mention";
   // Issues cover the last 7 days, so the issue view opens on 7 days unless a period was chosen.
-  const days = (params.get("days") ? parseSnaDays(params.get("days")) : null) ?? (keyId && params.get("view") !== "mention" ? 7 : DEFAULT_SNA_DAYS);
+  const days = (params.get("days") ? parseSnaDays(params.get("days")) : null) ?? (issueView ? 7 : DEFAULT_SNA_DAYS);
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
   const [locked, setLocked] = useState(true);
@@ -257,7 +262,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
   const issueOptions = (issues.data?.issues ?? []).map((i) => ({ value: i.id, label: `${i.title ?? i.keywords.slice(0, 3).join(", ")} · ${formatNumber(i.posts)} post` }));
   const labelOptions = (labels.data?.options ?? []).map((l) => ({ value: l, label: `${l} · ${formatNumber(labels.data?.counts[l] ?? 0)}` }));
-  const issueTitle = issueOptions.find((o) => o.value === issueId)?.label.replace(/ · [\d.]+ post$/, "");
+  const issueTitle = watchId ? undefined : issueOptions.find((o) => o.value === issueId)?.label.replace(/ · [\d.]+ post$/, "");
+  const watches = useApi<{ watches: SnaWatch[]; canManage: boolean }>(`/api/admin/sna/watches${keyId ? `?key=${encodeURIComponent(keyId)}` : ""}`);
+  const watch = watches.data?.watches.find((w) => w.id === watchId) ?? null;
   const graph = res.data;
   useEffect(() => setPicked(null), [graph]);
   const hubs = useMemo(() => (graph?.nodes ?? []).filter((n) => n.kind === "hub").sort((a, b) => b.posts - a.posts), [graph]);
@@ -266,7 +273,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
   const stats = issueView ? [
-    { icon: IconFlame, value: (graph?.nodes ?? []).filter((n) => n.kind === "issue").length, label: "isu" },
+    { icon: watchId ? IconEye : IconFlame, value: (graph?.nodes ?? []).filter((n) => n.kind === "issue").length, label: watchId ? "pantauan" : "isu" },
     { icon: IconUsers, value: hubs.length, label: "akun" },
     { icon: IconChartDots3, value: (graph?.links ?? []).reduce((n, l) => n + l.n, 0), label: "post" },
   ] : [
@@ -283,7 +290,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconTopologyStar3 size={13} />Analisis jaringan</span>
           <h1>Jaringan sosial <em>{periodLabel}</em> terakhir</h1>
-          {(issueTitle || labelName) && (
+          {watch ? (
+            <p className={classes.focus}>Pantauan <b>{watch.name}</b> · {watch.keywords.join(", ")}{labelName && <> · label <b>{labelName}</b></>}</p>
+          ) : (issueTitle || labelName) && (
             <p className={classes.focus}>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</p>
           )}
         </div>
@@ -296,16 +305,21 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
-          {keyId && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
+          {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
             comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={issueView ? PER_ISSUE_OPTIONS : LIMIT_OPTIONS} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (
             <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null })}
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null, watch: null })}
               data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
-          {keyId && (
+          {watches.data && (
+            <SnaWatchPicker keyId={keyId} watches={watches.data.watches} canManage={watches.data.canManage} value={watchId} onChanged={() => void watches.reload()}
+              // A watch's network shows on 7 days by default, like an issue.
+              onChange={(v) => go(v ? { watch: v, issue: null, view: null, ...(params.get("days") ? {} : { days: "7" }) } : { watch: null })} />
+          )}
+          {keyId && !watchId && (
             <Select aria-label="Isu" w={260} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
@@ -343,7 +357,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
             </Tooltip>
           </div>
         )}
-                {graph && graph.nodes.length === 0 && <p className={classes.empty}>{issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
+                {graph && graph.nodes.length === 0 && <p className={classes.empty}>{watchId ? "Belum ada post yang menyebut kata kunci pantauan ini pada rentang ini. Coba rentang 7 hari atau periksa kata kuncinya." : issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
         {view && view.nodes.length > 0 && <Graph graph={view!} picked={picked} onPick={setPicked} locked={locked} />}
         {(res.loading || busy || (!graph && !res.error)) && (
           <div className={classes.loading} data-covering={graph ? "" : undefined} role="status" aria-live="polite">
@@ -356,7 +370,7 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         {graph && graph.nodes.length > 0 && (
           <aside className={classes.legend} aria-label="Legenda">
             {issueView ? <>
-              <span><i className={classes.issueMark}><IconFlame size={10} /></i>Isu (besar = jumlah post)</span>
+              <span><i className={classes.issueMark}>{watchId ? <IconEye size={10} /> : <IconFlame size={10} />}</i>{watchId ? "Pantauan" : "Isu (besar = jumlah post)"}</span>
               <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun (besar = engagement)</span>
               <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = banyak post</span>
             </> : <>
@@ -369,7 +383,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
             <span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}Warna = emosi</span>
             <Tooltip multiline w={290} withArrow position="top-start" withinPortal={false} events={{ hover: true, focus: true, touch: true }}
               label={issueView ? <>
-                <b>Isu</b>: kelompok post proyek yang membahas hal yang sama (diperbarui tiap jam); makin besar makin banyak post, warna bingkai = emosi dominan.<br />
+                {watchId
+                  ? <><b>Pantauan</b>: semua post yang menyebut salah satu kata kunci pantauan; warna bingkai = emosi dominan.<br /></>
+                  : <><b>Isu</b>: kelompok post proyek yang membahas hal yang sama (diperbarui tiap jam); makin besar makin banyak post, warna bingkai = emosi dominan.<br /></>}
                 <b>Akun</b>: akun yang memposting di isu itu, paling banyak engagement-nya (suka + 2× komentar + 3× bagikan); makin besar makin tinggi engagement. Akun di beberapa isu menghubungkan isu-isu itu.<br />
                 <b>Garis</b>: dari akun ke isu; makin tebal makin banyak post-nya, warnanya emosi post tersebut.<br />
                 Emosi bisa disembunyikan lewat tombol warna di panel filter.

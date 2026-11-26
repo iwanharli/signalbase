@@ -1,11 +1,10 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { CopyButton, Modal, Select, Tooltip } from "@mantine/core";
+import { CopyButton, Select, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { post } from "@/lib/api-client";
 import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
-import { useReducedMotion } from "@mantine/hooks";
 import { IconCheck, IconClock, IconCopy, IconDatabase, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
 import { humanize, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { metaPost } from "@/lib/media/metaPost";
@@ -16,6 +15,7 @@ import { formatWibDate, languageLabel, uniqueTags } from "@/lib/media/presentati
 import type { Analysis, ItemClassification, MediaItem, MediaType } from "@/lib/media/types";
 import { AiCategoryBadge, FactorGrid, MoodBadges, moodTone, numericFactors, ScoreMeter, Tags, TargetTag } from "./itemParts";
 import { Button } from "../ui/Button";
+import { DetailDrawer } from "./DetailDrawer";
 import { Lightbox } from "./Lightbox";
 import { ManualLabelPicker } from "./ManualLabel";
 import { PostContent } from "./PostContent";
@@ -157,8 +157,8 @@ function DetailContent({ item, type, keyName, onClose, correction }: { item: Med
   const meta = type === "social" ? metaPost(item.socialMetadata?.sourceUrl) : null;
   const storedContent = <PostContent text={item.content} title={item.title} metrics={item.metrics} />;
   const publisher = sourceLabel(item.source);
-  const author = item.author?.name || (item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null);
-  const handle = item.author?.name && item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
+  const author = item.author?.name?.trim().replace(/^[-–—.\s]+$/, "") || (item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null);
+  const handle = author && item.author?.name && item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
   // Social: the account is the headline; news: the outlet, with the writer (when given) underneath.
   const title = type === "social" ? author ?? publisher : publisher;
   const subtitle = (type === "social" ? [handle, publisher] : [author && author !== publisher ? author : null]).filter(Boolean);
@@ -222,17 +222,12 @@ function DetailContent({ item, type, keyName, onClose, correction }: { item: Med
 
 export function ItemDetailModal({ item, type, onClose, keyName, correction }: { item: MediaItem | null; type: MediaType; onClose: () => void; keyName?: string; correction?: Correction }) {
   const [lastItem, setLastItem] = useState<MediaItem | null>(item);
-  const reducedMotion = useReducedMotion();
   useEffect(() => { if (item) setLastItem(item); }, [item]);
   const shown = item ?? lastItem;
   const label = shown ? `Detail ${type === "social" ? "post" : "berita"} ${sourceLabel(shown.source)}: ${(shown.title || shown.content || shown.code).slice(0, 100)}` : "Detail media";
   return (
-    <Modal.Root opened={!!item} onClose={onClose} size={1100} radius={20} padding={0} centered yOffset={16} xOffset={12}
-      transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
-      <Modal.Overlay backgroundOpacity={0.48} blur={3} />
-      <Modal.Content className={classes.content} aria-label={label} style={{ ["--tone" as string]: shown ? moodTone(shown) : undefined }}>
-        <Modal.Body>{shown && <DetailContent key={`${type}:${shown.code}`} item={shown} type={type} keyName={keyName} onClose={onClose} correction={correction} />}</Modal.Body>
-      </Modal.Content>
-    </Modal.Root>
+    <DetailDrawer opened={!!item} onClose={onClose} label={label} tone={shown ? moodTone(shown) : undefined}>
+      {shown && <DetailContent key={`${type}:${shown.code}`} item={shown} type={type} keyName={keyName} onClose={onClose} correction={correction} />}
+    </DetailDrawer>
   );
 }

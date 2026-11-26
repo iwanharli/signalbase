@@ -3,8 +3,6 @@
 // with their text and tags merged; the modal shows every image with its own text and tags. Images that match the
 // filters come first (the server sorts them).
 import { useEffect, useState, type ReactNode } from "react";
-import { Modal } from "@mantine/core";
-import { useReducedMotion } from "@mantine/hooks";
 import { IconAlertTriangle, IconCopy, IconExternalLink, IconEyeOff, IconFileText, IconMicrophone, IconPhoto, IconPhotoScan, IconStack2, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -12,6 +10,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { tagLabel, videoFrame, VISUAL_KINDS, type VisualPost } from "@/lib/mediaVisual";
 import m from "../media/modal.module.css";
+import { DetailDrawer } from "../media/DetailDrawer";
 import c from "./mediaVisual.module.css";
 import { Marked, OcrText } from "./OcrText";
 import { VisualImage } from "./VisualImage";
@@ -87,18 +86,13 @@ type Open = (item: MediaItem, type: MediaType) => void;
 
 export function PostModal({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrative, highlight }: { post: VisualPost | null; onClose: () => void; onZoom: (index: number) => void; onOpenItem: () => void; onOpenOther: Open; onNarrative: (key: string) => void; highlight?: string }) {
   const [last, setLast] = useState<VisualPost | null>(post);
-  const reducedMotion = useReducedMotion();
   useEffect(() => { if (post) setLast(post); }, [post]);
   const p = post ?? last;
   const tone = p?.sensitive.length ? "var(--mantine-color-orange-6)" : "var(--mantine-color-violet-6)";
   return (
-    <Modal.Root opened={!!post} onClose={onClose} size={DETAIL_MODAL_SIZE} radius={20} padding={0} centered yOffset={16} xOffset={12}
-      transitionProps={{ transition: "fade", duration: reducedMotion ? 0 : 160 }}>
-      <Modal.Overlay backgroundOpacity={0.48} blur={3} />
-      <Modal.Content className={m.content} aria-label="Detail media post" style={{ ["--tone" as string]: tone }}>
-        <Modal.Body>{p && <PostDetail key={p.key} post={p} onClose={onClose} onZoom={onZoom} onOpenItem={onOpenItem} onOpenOther={onOpenOther} onNarrative={onNarrative} highlight={highlight} />}</Modal.Body>
-      </Modal.Content>
-    </Modal.Root>
+    <DetailDrawer opened={!!post} onClose={onClose} label="Detail media post" tone={tone}>
+      {p && <PostDetail key={p.key} post={p} onClose={onClose} onZoom={onZoom} onOpenItem={onOpenItem} onOpenOther={onOpenOther} onNarrative={onNarrative} highlight={highlight} />}
+    </DetailDrawer>
   );
 }
 
@@ -173,7 +167,6 @@ function PostDetail({ post, onClose, onZoom, onOpenItem, onOpenOther, onNarrativ
 }
 
 /** Width of the two detail modals: wide enough for a tall screenshot beside its text. */
-export const DETAIL_MODAL_SIZE = "min(1440px, calc(100vw - 24px))";
 
 /** Top of the side column: the image's tags and signals at a glance (scores on hover). */
 export function Summary({ tags, sensitive, action, claims, unread }: { tags: { tag: string; score: number }[]; sensitive: string[]; action: boolean; claims: number; unread: boolean }) {

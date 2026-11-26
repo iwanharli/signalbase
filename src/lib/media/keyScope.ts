@@ -30,6 +30,8 @@ export type KeyScope = z.infer<typeof keyScopeSchema> & {
   imageCodes?: Partial<Record<MediaType, string[]>>;
   /** Server only: items whose image text matches the request's search (?q=), which count as matching it. */
   imageSearch?: Partial<Record<MediaType, string[]>>;
+  /** Server only: a second keyword set items must also match (one of them), e.g. an SNA watch within a project. */
+  alsoKeywords?: string[];
 };
 
 /** No restriction at all: used by the admin panel, which sees the whole bank. */

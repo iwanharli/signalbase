@@ -138,3 +138,10 @@
 :global([data-mantine-color-scheme="dark"]) .contentSource {
     color: var(--mantine-color-dark-2)
 }
+
+/* Detail as a drawer from the right (DetailDrawer): full height, rounded on the left, the columns scroll on their own. */
+.drawer { overflow: hidden; border-radius: 22px 0 0 22px; border-left: 1px solid color-mix(in srgb, var(--tone, #7c3aed) 40%, var(--mantine-color-default-border));
+  box-shadow: -30px 0 90px -30px rgba(15,10,40,.6); }
+.drawerBody { height: 100%; padding: 0; }
+.drawerBody > .shell { height: 100vh; height: 100dvh; max-height: none; }
+@media (max-width: 860px) { .drawer { border-radius: 0; border-left: 0; } }

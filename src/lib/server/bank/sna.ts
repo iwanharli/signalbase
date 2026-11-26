@@ -48,7 +48,7 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only:
 }
 
 /** Limits a WHERE clause to the posts of an issue or label filter (see server/snaFilter.ts). */
-function withCodes(q: { where: string; values: unknown[] }, only: SnaCodes) {
+export function withCodes(q: { where: string; values: unknown[] }, only: SnaCodes) {
   if (!only) return q;
   return { where: `${q.where} AND p.post_code = ANY($${q.values.length + 1}::text[])`, values: [...q.values, only.codes] };
 }
