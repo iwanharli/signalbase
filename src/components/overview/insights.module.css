@@ -17,6 +17,7 @@
 
 /* KPI tiles in the hero (always on a dark background) */
 .kpis { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpis[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kpi { --k: #a78bfa; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; min-height: 132px; padding: 16px 16px 0; border-radius: 18px;
   text-decoration: none; color: #fff; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
   transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms, background 220ms; animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
@@ -34,8 +35,8 @@ a.kpi:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(
 .sparkArea { fill: currentColor; opacity: .14; }
 .sparkLine { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
 @keyframes shimmer { to { background-position: -200% 0; } }
-@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 420px) { .kpis { grid-template-columns: 1fr; } .kpi { min-height: 112px; } }
+@media (max-width: 1000px) { .kpis, .kpis[data-count="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .kpis, .kpis[data-count="3"] { grid-template-columns: 1fr; } .kpi { min-height: 112px; } }
 
 /* Early warning board */
 .warning { display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 22px; background: var(--mantine-color-body);

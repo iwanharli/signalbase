@@ -1,4 +1,5 @@
 "use client";
+import { KeywordsPill } from "./overview/KeywordsPill";
 import type { Role } from "@/lib/session";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -124,7 +125,10 @@ export function Overview({ name, role }: { name: string; role: Role }) {
         <div className={classes.heroTop}>
           <div className={classes.heroText}>
             {key ? <>
-              <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
+              <div className={classes.heroPills}>
+                <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
+                <KeywordsPill name={key.name} keywords={key.keywords} data={insights.data} period={period} scope={scope} />
+              </div>
               <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
               {/* The project's keywords are an admin's business: clients don't see them, only admins edit them. */}
               {!own && <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
@@ -150,14 +154,13 @@ export function Overview({ name, role }: { name: string; role: Role }) {
 
       {data && <AiSummary keyId={key?.id ?? null} admin={role === "admin"} />}
 
-      {data && <Insights keyId={key?.id ?? null} view={view} period={period} data={insights.data} error={insights.error} wanted={insights.wanted} projects={data.keys} />}
-
-      {data && (hasSocial || hasOnline) && (
-        <div className={classes.two} data-single={!both || undefined}>
-          {hasSocial && <LatestFeed type="social" items={data.social!.latest} keyQuery={keyQuery} scoped={!!key} />}
-          {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} />}
-        </div>
-      )}
+      {data && <Insights keyId={key?.id ?? null} view={view} period={period} data={insights.data} error={insights.error} wanted={insights.wanted} projects={data.keys}
+        latest={(hasSocial || hasOnline) && (
+          <div className={classes.two} data-single={!both || undefined}>
+            {hasSocial && <LatestFeed type="social" items={data.social!.latest} keyQuery={keyQuery} scoped={!!key} />}
+            {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} />}
+          </div>
+        )} />}
     </div>
   );
 }

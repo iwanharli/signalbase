@@ -8,6 +8,7 @@ import type {
   Alert, EngagementMetrics, Insights, PeriodTotals, PlatformEngagement, Ranked, TopAccount, TopMedia, TrendPoint,
 } from "@/lib/media/insights";
 import { moodPolarity, type Polarity } from "@/lib/media/mood";
+import { sourceLabel } from "@/lib/media/labels";
 import type { MediaType } from "@/lib/media/types";
 import { listItems } from "./bank";
 import { cleanName, profileLink } from "./bank/items";
@@ -211,17 +212,20 @@ async function topMedia(scope: KeyScope, period: number, end?: string): Promise<
   const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<{ src: string; m: string | null; cur: boolean; n: number }>(
     `SELECT ${c.source} src, lower(${c.mood}) m, ${cur} cur, count(*)::int n FROM ${c.from}
      WHERE ${where} AND ${c.source} IS NOT NULL GROUP BY 1, 2, 3`, values));
-  const bySource = new Map<string, { n: number; prev: number; moods: { m: string | null; n: number }[] }>();
+  // One outlet can sit under two source codes that read as the same name (two "Detik"): counted as one, before the top 10
+  // is cut, and named (and linked) by its busiest code.
+  const byOutlet = new Map<string, { n: number; prev: number; moods: { m: string | null; n: number }[]; codes: Map<string, number> }>();
   for (const r of rows) {
-    const e = bySource.get(r.src) ?? { n: 0, prev: 0, moods: [] };
-    if (r.cur) { e.n += r.n; e.moods.push({ m: r.m, n: r.n }); } else e.prev += r.n;
-    bySource.set(r.src, e);
+    const name = sourceLabel(r.src).toLowerCase();
+    const e = byOutlet.get(name) ?? { n: 0, prev: 0, moods: [] as { m: string | null; n: number }[], codes: new Map<string, number>() };
+    if (r.cur) { e.n += r.n; e.moods.push({ m: r.m, n: r.n }); e.codes.set(r.src, (e.codes.get(r.src) ?? 0) + r.n); } else e.prev += r.n;
+    byOutlet.set(name, e);
   }
-  return [...bySource]
-    .filter(([, e]) => e.n > 0)
-    .sort((a, b) => b[1].n - a[1].n)
+  return [...byOutlet.values()]
+    .filter((e) => e.n > 0)
+    .sort((a, b) => b.n - a.n)
     .slice(0, TOP_SOURCES)
-    .map(([source, e]) => ({ source, n: e.n, prev: e.prev, ...moodCounts(e.moods) }));
+    .map((e) => ({ source: [...e.codes].sort((a, b) => b[1] - a[1])[0][0], n: e.n, prev: e.prev, ...moodCounts(e.moods) }));
 }
 
 function summarize(rows: Row[], period: number, end?: string) {

@@ -18,6 +18,7 @@
   background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.28); }
 .live i { width: 7px; height: 7px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 10px #22d3ee; animation: blink 1.6s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .25; } }
+.heroPills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* Panels */
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -41,7 +42,7 @@
 .feedIcon[data-t="online"] { background: linear-gradient(135deg, #0891b2, #22d3ee); }
 .feedBody { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .feedText { font-size: 13.5px; font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.feedMeta { font-size: 12px; color: var(--mantine-color-dimmed); text-transform: capitalize; }
+.feedMeta { font-size: 12px; color: var(--mantine-color-dimmed); }
 .feedMeta em { font-style: normal; font-weight: 700; }
 
 /* Keys */

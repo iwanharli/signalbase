@@ -306,12 +306,14 @@ function Spark({ values }: { values: number[] }) {
 
 /** The four headline numbers of the chosen view and period, each with its change and a daily sparkline. */
 export function Kpis({ data, period, keyId, view }: { data: ViewData | null; period: number; keyId: string | null; view: View }) {
-  if (!data) return <div className={c.kpis}>{[0, 1, 2, 3].map((i) => <div key={i} className={c.kpi} data-loading />)}</div>;
+  // "Teranalisis AI" is about the pipeline, not the topic: staff see it, clients get the three opinion numbers.
+  const staff = useRole() !== "user";
+  if (!data) return <div className={c.kpis} data-count={staff ? 4 : 3}>{Array.from({ length: staff ? 4 : 3 }, (_, i) => <div key={i} className={c.kpi} data-loading />)}</div>;
   const { current: now, previous: before, trend } = data;
   const share = (p: { pos: number; neu: number; neg: number }, k: "pos" | "neg") => pct(p[k], p.pos + p.neu + p.neg);
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const type: MediaType = view === "online" ? "online" : "social";
-  const tiles = [
+  const allTiles = [
     { key: "vol", help: "volume" as CardHelpId, label: "Volume", value: formatNumber(now.total), delta: <Delta now={now.total} before={before.total} />,
       sub: `sebelumnya ${formatNumber(before.total)}`, spark: trend.map((p) => p.total), href: view === "all" ? null : mediaHref(type, keyId, { from }) },
     { key: "neg", help: "negShare" as CardHelpId, label: "Porsi negatif", value: fmtPct(pct(now.neg, now.labelled)), delta: <Delta now={pct(now.neg, now.labelled)} before={pct(before.neg, before.labelled)} points goodWhenUp={false} />,
@@ -321,8 +323,9 @@ export function Kpis({ data, period, keyId, view }: { data: ViewData | null; per
     { key: "ai", help: "analysed" as CardHelpId, label: "Teranalisis AI", value: fmtPct(pct(now.labelled, now.total)), delta: null,
       sub: `${formatNumber(now.labelled)} item`, spark: trend.map((p) => pct(p.pos + p.neu + p.neg, p.total)), href: null },
   ];
+  const tiles = staff ? allTiles : allTiles.filter((t) => t.key !== "ai");
   return (
-    <div className={c.kpis}>
+    <div className={c.kpis} data-count={tiles.length}>
       {tiles.map((t, i) => {
         const body = (
           <>
@@ -663,10 +666,14 @@ export function useInsights(keyId: string | null, hasSocial: boolean, hasOnline:
   return { data, error: wanted.map((t) => sources[t].error).find(Boolean), wanted };
 }
 
-export function Insights({ keyId, view, period, data, error, wanted, projects = [] }: {
+export function Insights({ keyId, view, period, data, error, wanted, projects = [], latest }: {
   keyId: string | null; view: View; period: InsightPeriod; data: ViewData | null; error?: string | null; wanted: MediaType[]; projects?: ProjectSummary[];
+  /** The latest posts and articles, placed right after trend and topics (what a reader checks first). */
+  latest?: React.ReactNode;
 }) {
-  const project = keyId ? projects.find((p) => p.id === keyId) ?? null : null;
+  const staff = useRole() !== "user";
+  // Clients read their keywords in the hero's "Keyword terdaftar" pill; the per-project card is for staff.
+  const project = keyId && staff ? projects.find((p) => p.id === keyId) ?? null : null;
   const from = dayjs().subtract(period - 1, "day").format("YYYY-MM-DD");
   const href = (row: Row, params: Record<string, string>) => mediaHref(row.t, keyId, { from, ...params });
   const title = view === "all" ? "semua media" : MEDIA_TYPE_LABEL[view];
@@ -686,12 +693,7 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
         </Panel>
       </div>
 
-      {view !== "online" && (
-        <Panel icon={IconHeart} title="Engagement per platform" help="engagement" text={`Like, komentar, share, dan penayangan media sosial, ${period} hari terakhir`}>
-          {data ? (data.engagement ? <Engagement rows={data.engagement} href={(source) => mediaHref("social", keyId, { source, from })} /> : <p className={c.empty}>Tidak ada data media sosial dalam cakupan ini.</p>)
-            : <Skeleton h={260} radius="md" />}
-        </Panel>
-      )}
+      {latest}
 
       <div className={c.grid} data-cols={view === "all" ? 2 : 1}>
         {view !== "online" && (
@@ -725,6 +727,13 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
             </Panel>
           )}
         </div>
+      )}
+
+      {view !== "online" && (
+        <Panel icon={IconHeart} title="Engagement per platform" help="engagement" text={`Like, komentar, share, dan penayangan media sosial, ${period} hari terakhir`}>
+          {data ? (data.engagement ? <Engagement rows={data.engagement} href={(source) => mediaHref("social", keyId, { source, from })} /> : <p className={c.empty}>Tidak ada data media sosial dalam cakupan ini.</p>)
+            : <Skeleton h={260} radius="md" />}
+        </Panel>
       )}
     </section>
   );
