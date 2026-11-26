@@ -89,25 +89,26 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
           </header>
 
           <div className={classes.panelBody}>
-            {!!manualLabels?.length && (
-              <Section icon={IconTags} title="Label manual">
-                <Field label="Label" wide>
-                  <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
-                    data={[{ value: ANY_LABEL, label: "Semua yang sudah diberi label" },
-                      // An AI result filter comes from the project page's links; listed only while it is applied.
-                      ...(filters.manualLabel && filters.manualLabel !== ANY_LABEL && LABEL_FILTER_NAMES[filters.manualLabel] ? [{ value: filters.manualLabel, label: LABEL_FILTER_NAMES[filters.manualLabel] }] : []),
-                      ...manualLabels.map((l) => ({ value: l, label: l }))]}
-                    onChange={(manualLabel) => onChange({ manualLabel })} />
-                </Field>
-              </Section>
-            )}
-            {aiCategories && (
-              <Section icon={IconRobot} title="Kategorisasi AI">
-                <Field label="Kategori AI" wide>
-                  <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
-                    data={[{ value: ANY_CATEGORY, label: "Semua yang sudah dikategorikan" }, { value: LOW_CONFIDENCE_FILTER, label: "Keyakinan rendah (< 60%), belum dikoreksi" }, ...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
-                    onChange={(aiCategory) => onChange({ aiCategory })} />
-                </Field>
+            {/* The project's own sorting of posts: its manual labels and its AI categories, in one card. */}
+            {(!!manualLabels?.length || aiCategories) && (
+              <Section icon={IconTags} title="Label & kategori AI">
+                {!!manualLabels?.length && (
+                  <Field label="Label" wide>
+                    <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
+                      data={[{ value: ANY_LABEL, label: "Semua yang sudah diberi label" },
+                        // An AI result filter comes from the project page's links; listed only while it is applied.
+                        ...(filters.manualLabel && filters.manualLabel !== ANY_LABEL && LABEL_FILTER_NAMES[filters.manualLabel] ? [{ value: filters.manualLabel, label: LABEL_FILTER_NAMES[filters.manualLabel] }] : []),
+                        ...manualLabels.map((l) => ({ value: l, label: l }))]}
+                      onChange={(manualLabel) => onChange({ manualLabel })} />
+                  </Field>
+                )}
+                {aiCategories && (
+                  <Field label="Kategori AI" wide>
+                    <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
+                      data={[{ value: ANY_CATEGORY, label: "Semua yang sudah dikategorikan" }, { value: LOW_CONFIDENCE_FILTER, label: "Keyakinan rendah (< 60%), belum dikoreksi" }, ...aiCategories.map((c) => ({ value: c.code, label: `${c.code} · ${c.label}` })), { value: NO_CATEGORY, label: "Tidak termasuk" }]}
+                      onChange={(aiCategory) => onChange({ aiCategory })} />
+                  </Field>
+                )}
               </Section>
             )}
             <fieldset className={classes.filterGroup}>
