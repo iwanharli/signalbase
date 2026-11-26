@@ -16,11 +16,13 @@ const SHAPES = [
   { image: false, lines: [88, 64] },
 ];
 
-export function CardSkeleton({ index, type }: { index: number; type: MediaType }) {
+export function CardSkeleton({ index, type, original }: { index: number; type: MediaType; original?: boolean }) {
   const shape = SHAPES[index % SHAPES.length];
   const online = type === "online";
   return (
-    <div className={c.card} style={{ animationDelay: `${(index % 8) * 70}ms` }} aria-hidden>
+    <div className={c.card} style={{ animationDelay: `${(index % 8) * 70}ms`, ["--sweep-delay" as string]: `${(index % 4) * 180}ms` }} aria-hidden>
+      {/* Original View cards open with the "Post asli | Data tersimpan" switch. */}
+      {original && <div className={c.tabs}><span className={c.sk} /><span className={c.sk} /></div>}
       {(shape.image || online) && <div className={`${c.sk} ${c.image}`} data-short={online && !shape.image || undefined} />}
       <div className={c.body}>
         <div className={c.head}>
@@ -37,12 +39,12 @@ export function CardSkeleton({ index, type }: { index: number; type: MediaType }
 }
 
 /** A full grid of placeholders for the first load. */
-export function SkeletonGrid({ type, count = 8 }: { type: MediaType; count?: number }) {
+export function SkeletonGrid({ type, count = 8, original }: { type: MediaType; count?: number; original?: boolean }) {
   return (
     <div className={c.grid} role="status" aria-label={type === "social" ? "Memuat post" : "Memuat berita"}>
       {Array.from({ length: MAX_COLUMNS }, (_, col) => (
         <div key={col} className={c.column}>
-          {Array.from({ length: Math.ceil(count / MAX_COLUMNS) }, (_, row) => <CardSkeleton key={row} index={row * MAX_COLUMNS + col} type={type} />)}
+          {Array.from({ length: Math.ceil(count / MAX_COLUMNS) }, (_, row) => <CardSkeleton key={row} index={row * MAX_COLUMNS + col} type={type} original={original} />)}
         </div>
       ))}
     </div>
