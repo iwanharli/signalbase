@@ -8,6 +8,8 @@ const SENTIMENTS: Record<string, { label: string; color: string }> = {
 
 // The bank's main emotions each get their own colour so they never blend in charts.
 const EMOTION_COLORS: Record<string, string> = { menolak: "orange", marah: "red", mendukung: "teal", puas: "lime", netral: "blue" };
+/** The five emotions the bank labels posts with; rarer labels (e.g. "dukungan") are left out of the emotion bar. */
+export const MAIN_EMOTIONS = Object.keys(EMOTION_COLORS);
 
 // Fallback for less common emotions, matched by Indonesian word stems.
 const POSITIVE = /dukung|harap|apresia|senang|bangga|puas|percaya|terima kasih|syukur|bahagia|optimis|simpati|empati|kagum/;

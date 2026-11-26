@@ -3,7 +3,7 @@ import { Loader, Skeleton, Tooltip } from "@mantine/core";
 import { IconInfoCircle, IconMessages, IconWorldWww } from "@tabler/icons-react";
 import { rangeLabel, type MediaFilters } from "@/lib/media/filters";
 import { formatNumber, MEDIA_TYPE_LABEL, MOOD_KIND_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
-import { moodColorVar, moodInfo } from "@/lib/media/mood";
+import { MAIN_EMOTIONS, moodColorVar, moodInfo } from "@/lib/media/mood";
 import type { MediaType, MoodCount } from "@/lib/media/types";
 import classes from "./stats.module.css";
 import { Tip } from "../ui/Tip";
@@ -21,9 +21,11 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function MoodBreakdown({ type, moods, selected, onSelect }: {
+function MoodBreakdown({ type, moods: all, selected, onSelect }: {
   type: MediaType; moods: MoodCount[] | null; selected: string | null; onSelect: (mood: string | null) => void;
 }) {
+  // Social: only the five main emotions, and the percentages are of those (they add up to 100).
+  const moods = all && type === "social" ? all.filter((m) => MAIN_EMOTIONS.includes(m.value)) : all;
   const total = (moods ?? []).reduce((sum, m) => sum + m.n, 0);
   const dominant = moods?.[0];
   const toggle = (value: string) => onSelect(selected === value ? null : value);
