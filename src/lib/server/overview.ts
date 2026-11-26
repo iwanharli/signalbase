@@ -12,6 +12,7 @@ import { withImageCodes } from "./media/textSignals";
 import { snaGraph } from "./bank/sna";
 import { snaIssueGraph } from "./isu/sna";
 import { DEFAULT_SNA_LIMIT } from "@/lib/sna";
+import { KEYWORD_RANGES, keywordCounts } from "./keywordCounts";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
@@ -64,7 +65,11 @@ async function warmAll() {
     await step(`${name} stats`, () => Promise.all([typeStats("social", scope), typeStats("online", scope)]));
     await step(`${name} insights 7`, () => Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]));
     await step(`${name} media`, () => warmMediaPages(scope, keys[i].ownerId));
-    await step(`${name} sna`, () => Promise.all([snaIssueGraph(keys[i].id, 7, DEFAULT_SNA_LIMIT, null, null), snaGraph(1, DEFAULT_SNA_LIMIT, scope)]));
+    // SNA as the page opens it (issue view: 10 and 25 accounts per issue; mention view: 1, 3 and 7 days).
+    for (const limit of [25, 50] as const) await step(`${name} sna isu ${limit}`, () => snaIssueGraph(keys[i].id, 7, limit, null, null));
+    for (const days of [1, 3, 7] as const) await step(`${name} sna mention ${days}`, () => snaGraph(days, DEFAULT_SNA_LIMIT, scope));
+    // The Kata kunci tab's counts per keyword.
+    for (const days of KEYWORD_RANGES) await step(`${name} kata kunci ${days}`, () => keywordCounts(keys[i].id, days));
   }
   for (const period of [30, 14]) {
     for (const [i, scope] of [undefined, ...scopes].entries()) {
@@ -73,17 +78,31 @@ async function warmAll() {
   }
 }
 
-/** A project's Media Sosial/Online as its owner first opens them: the first page, the exact total and the mood bar. Broad
- *  keywords make the total and the moods take 10–50 s cold; their caches refresh in the background, so this only waits
- *  for real work when they are missing. The owner's plan may limit history, which changes the query, so it is applied. */
+/** Jakarta date `days` before today, as the media page's quick ranges send it (YYYY-MM-DD). */
+const jakartaDaysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+/** The media page's quick ranges (lib/media/filters DATE_PRESETS): Semua, 1 hari, 7 hari, 30 hari. */
+const RANGE_DAYS = [null, 0, 6, 29] as const;
+
+/** A project's Media Sosial/Online as they are opened: the first page, the exact total and the mood bar, for every quick
+ *  range, with exactly the parameters the page sends (its default filters: analysed only, and relevant only for social),
+ *  so the warmed caches are the ones it reads. Broad keywords make the all-time total and moods take 10–50 s cold; caches
+ *  refresh in the background, so this only waits for real work when they are missing. The owner's plan may limit history,
+ *  which changes the query, so it is applied as the API applies it. */
 async function warmMediaPages(scope: KeyScope, ownerId: string | null) {
-  const params = ownerId ? clampHistory(new URLSearchParams(), (await accountPlan(ownerId)).limits.historyDays) : new URLSearchParams();
+  const history = ownerId ? (await accountPlan(ownerId)).limits.historyDays : null;
   for (const type of ["social", "online"] as const) {
     if (!allowsType(scope, type)) continue;
-    // Separate steps: one slow count (a broad project's all-time mood) does not leave the others cold.
-    await step(`media ${type} list`, () => listItems(type, params, scope, { limit: MEDIA_FIRST_PAGE, offset: 0 }));
-    await step(`media ${type} count`, () => countExact(type, params, scope));
-    await step(`media ${type} moods`, () => moodBreakdown(type, params, scope));
+    for (const days of RANGE_DAYS) {
+      const base = new URLSearchParams({ analyzed: "yes", ...(type === "social" ? { relevance: "relevant" } : {}), ...(days === null ? {} : { from: jakartaDaysAgo(days) }) });
+      const params = history ? clampHistory(base, history) : base;
+      const list = new URLSearchParams(params);
+      list.set("sort", "newest");
+      const label = `media ${type} ${days === null ? "semua" : `${days + 1} hari`}`;
+      // Separate steps: one slow count (a broad project's all-time mood) does not leave the others cold.
+      await step(`${label} list`, () => listItems(type, list, scope, { limit: MEDIA_FIRST_PAGE, offset: 0 }));
+      await step(`${label} count`, () => countExact(type, params, scope));
+      await step(`${label} moods`, () => moodBreakdown(type, params, scope));
+    }
   }
 }
 
