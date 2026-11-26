@@ -21,7 +21,7 @@ import classes from "./sna.module.css";
 type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 type Node = SnaNode & SimulationNodeDatum;
 type Edge = Omit<SnaLink, "source" | "target"> & SimulationLinkDatum<Node> & { source: Node; target: Node };
-const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `Maks. ${n} akun top poster` }));
+const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${n} akun teratas` }));
 const PERIOD_OPTIONS = SNA_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
 // Lucide "users" (hub) and "user" (child) glyphs, 24×24.
@@ -177,6 +177,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
+  // On a phone the open legend would cover most of the graph: start it closed there.
+  useEffect(() => { if (window.matchMedia("(max-width: 760px)").matches) setLegendOpen(false); }, []);
   const [locked, setLocked] = useState(true);
   const [off, setOff] = useState<Tone[]>([]);
   const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after an emotion toggle
@@ -238,32 +240,31 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         </div>
       </header>
 
-      <div className={classes.toolbar}>
-        <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-        <Select aria-label="Maksimal akun top poster" w={250} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-          comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={LIMIT_OPTIONS} />
-        {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-          <Select aria-label="Proyek" w={220} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null })}
-            data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-        )}
-        {keyId && (
-          <Select aria-label="Isu" w={300} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
-            classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
-            // An issue covers the last 7 days of posts, so its whole network shows on the 7-day view.
-            onChange={(v) => go(v ? { issue: v, days: "7" } : { issue: null })} />
-        )}
-        {keyId && (
-          <Select aria-label="Label" w={200} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
-            classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
-        )}
-      </div>
-
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
+        <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
+          <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
+          <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={LIMIT_OPTIONS} />
+          {(!keyLocked || projects.length > 1) && projects.length > 0 && (
+            <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null })}
+              data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
+          )}
+          {keyId && (
+            <Select aria-label="Isu" w={260} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
+              classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
+              // An issue covers the last 7 days of posts, so its whole network shows on the 7-day view.
+              onChange={(v) => go(v ? { issue: v, days: "7" } : { issue: null })} />
+          )}
+          {keyId && (
+            <Select aria-label="Label" w={160} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
+              classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
+          )}
+        </div>
         {graph && graph.nodes.length > 0 && (
           <div className={classes.tools}>
             <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
