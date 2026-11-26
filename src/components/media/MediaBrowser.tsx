@@ -2,6 +2,7 @@
 import { categoriesForType } from "@/lib/ai/classifier";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { api } from "@/lib/api-client";
 import { Alert, Button, Text } from "@mantine/core";
 import { IconArrowUp } from "@tabler/icons-react";
 import type { Category } from "@/lib/ai/classifier";
@@ -10,7 +11,7 @@ import type { FilterOptions, MediaItem, MediaType, MoodCount } from "@/lib/media
 import { useApi } from "@/lib/useApi";
 import { ActiveFilters } from "./ActiveFilters";
 import { AdvancedFilters } from "./AdvancedFilters";
-import { CardSkeleton, MAX_COLUMNS, SkeletonGrid } from "./CardSkeleton";
+import { CardSkeleton, SkeletonGrid } from "./CardSkeleton";
 import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { useStagedPages } from "./useStagedPages";
@@ -18,7 +19,7 @@ import { ItemDetailModal } from "./ItemDetailModal";
 import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
 import { ManualLabelContext } from "./ManualLabel";
 import type { LabelSettings } from "@/lib/media/manualLabels";
-import { Masonry } from "./Masonry";
+import { FlowMasonry } from "./FlowMasonry";
 import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
@@ -88,6 +89,24 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
   const feed = useMediaFeed(type, query);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<MediaItem | null>(null);
+  // ?item=<code> (Beranda's latest signals): open that post or article over the list; closing it drops the parameter.
+  const itemCode = searchParams.get("item");
+  useEffect(() => {
+    if (!itemCode) return;
+    let stale = false;
+    api<{ items: MediaItem[] }>(`/api/admin/media/${type}?item=${encodeURIComponent(itemCode)}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`)
+      .then((r) => { if (!stale && r.items[0]) setSelected(r.items[0]); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [itemCode, type, keyId]);
+  const closeItem = () => {
+    setSelected(null);
+    if (itemCode) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("item");
+      window.history.replaceState(null, "", `${window.location.pathname}${next.size ? `?${next}` : ""}`);
+    }
+  };
 
   const options = useApi<FilterOptions>(`/api/admin/media/${type}?view=options`);
   // Active projects that cover this media type; the list is already limited to the account's own projects for users.
@@ -107,7 +126,8 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
   // Original View: a fetched page stays hidden until its originals have loaded, and the next one is asked for ~3 screens
   // ahead, so at a normal pace each page is ready before the reader reaches it. One page is prepared at a time.
   const staged = useStagedPages(feed.items, originalView);
-  const sentinel = useInfiniteScroll(feed.hasMore && !feed.loading && !feed.error && !staged.staging, feed.loadMore, originalView ? "3000px" : undefined);
+  // The sentinel sits at the bottom of the shortest column (FlowMasonry), and the next page is asked for this far ahead.
+  const sentinel = useInfiniteScroll(feed.hasMore && !feed.loading && !feed.error && !staged.staging, feed.loadMore, originalView ? "4500px" : "3000px");
   const preparing = feed.loading || staged.staging;
 
   return (
@@ -170,36 +190,32 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
         )}
 
         {/* First load (or first page still being prepared): a full grid of placeholders. Next pages: one under each column.
-            Staged cards keep the same wrapper when shown, so their embeds are not loaded again. */}
-        {!staged.visible && preparing && <SkeletonGrid type={type} />}
+            Cards fill the shortest column; a page being prepared is measured out of sight and placed when shown. */}
+        {!staged.visible && preparing && <SkeletonGrid type={type} original={originalView} />}
         {feed.items.length > 0 && (
-          <Masonry>
-            {[
-              ...feed.items.map((item, i) => {
-                const hidden = staged.isStaged(i);
-                return (
-                  <div key={item.code} className={classes.stage} data-staged={hidden || undefined} aria-hidden={hidden || undefined}>
-                    {originalView
-                      ? <OriginalCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} eager={hidden} onSettled={staged.onSettled} />
-                      : <ItemCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />}
-                  </div>
-                );
-              }),
-              ...(preparing && staged.visible ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={staged.visible + i} type={type} />) : []),
-            ]}
-          </Masonry>
+          <FlowMasonry
+            sentinelRef={sentinel}
+            tail={preparing && staged.visible ? (c) => <CardSkeleton index={staged.visible + c} type={type} original={originalView} /> : undefined}
+            items={feed.items.map((item, i) => {
+              const hidden = staged.isStaged(i);
+              return {
+                key: item.code, hidden,
+                node: originalView
+                  ? <OriginalCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} eager={hidden} onSettled={staged.onSettled} />
+                  : <ItemCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />,
+              };
+            })} />
         )}
 
         {feed.loaded && !feed.items.length && !feed.loading && (
           <div className={classes.emptyState}><b>Tidak ada hasil yang cocok</b><p>Coba kata pencarian lain atau hapus sebagian filter di atas.</p><Button variant="light" onClick={reset}>Kembalikan filter awal</Button><Button variant="subtle" onClick={() => update({ analyzed: "", relevance: "", search: "", from: "", to: "", mood: null, source: null, province: null, category: null, language: "", postType: "", minLevel: "", withImage: false, aiCategory: null, manualLabel: null })}>Lihat semua dalam cakupan ini</Button></div>
         )}
-        <div ref={sentinel} />
         {feed.loaded && !feed.hasMore && feed.items.length > 0 && <Text ta="center" fz={12.5} c="dimmed" py="xl">Semua data sudah ditampilkan.</Text>}
 
         </>)}
 
         <ScrollTopButton />
-        <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={() => setSelected(null)}
+        <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={closeItem}
           correction={view && aiCategories ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
             // The card shares this object with the feed, so updating it in place refreshes both.
             const target = feed.items.find((i) => i.code === code);

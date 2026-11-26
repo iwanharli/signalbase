@@ -68,7 +68,13 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     }
 
     let items, hasMore;
-    if (manualLabel) {
+    const one = query.get("item")?.trim();
+    if (one) {
+      // One item (a link from Beranda's latest signals): only when it is within the scope the caller may read.
+      const inScope = await filterCodes(type, new URLSearchParams(), scope, [one]);
+      items = inScope.length ? await fetchItemsByCode(type, inScope) : [];
+      hasMore = false;
+    } else if (manualLabel) {
       const { total, codes } = await labelPage(keyId!, type, manualLabel, query, scope, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }, aiCategory);
       items = await fetchItemsByCode(type, codes);
       hasMore = page * PAGE_SIZE < total;

@@ -50,7 +50,7 @@ function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items:
         {items?.map((item, i) => {
           const mood = item.mood ? moodInfo(item.mood) : null;
           return (
-            <Link key={item.code} href={`/media/${type}${keyQuery}`} className={classes.feedItem} style={{ animationDelay: `${i * 60}ms` }}>
+            <Link key={item.code} href={`/media/${type}${keyQuery}${keyQuery ? "&" : "?"}item=${encodeURIComponent(item.code)}`} className={classes.feedItem} style={{ animationDelay: `${i * 60}ms` }}>
               <span className={classes.feedIcon} data-t={type}><Icon size={16} /></span>
               <span className={classes.feedBody}>
                 <span className={classes.feedText}>{item.title ?? item.content}</span>
