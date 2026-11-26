@@ -17,8 +17,8 @@ const OriginalPublicVideo = dynamic(() => import("./OriginalPublicVideo").then((
 const OriginalThreadsPost = dynamic(() => import("./OriginalThreadsPost").then((m) => m.OriginalThreadsPost));
 const OriginalMetaPost = dynamic(() => import("./OriginalMetaPost").then((m) => m.OriginalMetaPost));
 
-// Third-party embeds are heavy: at most this many load at once, and only for cards near the screen.
-const limiter = createLimiter(4);
+// Third-party embeds are heavy: at most this many load at once, for cards near the screen or of the page being prepared.
+const limiter = createLimiter(6);
 const GIVE_UP_MS = 30_000;
 
 function useNearScreen(ref: React.RefObject<HTMLElement | null>) {
@@ -33,7 +33,13 @@ function useNearScreen(ref: React.RefObject<HTMLElement | null>) {
   return near;
 }
 
-export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void }) {
+export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
+  item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void;
+  /** Load the original now, not when the card nears the screen (the feed prepares the next page out of sight). */
+  eager?: boolean;
+  /** Called once the card looks final: original shown, original failed, or there is none to load (quick card). */
+  onSettled?: (code: string) => void;
+}) {
   const original = originalOf(item);
   const wrap = useRef<HTMLDivElement>(null);
   const near = useNearScreen(wrap);
@@ -46,7 +52,10 @@ export function OriginalCard({ item, type, delay, onOpen }: { item: MediaItem; t
   const done = useCallback(() => { release.current?.(); release.current = null; }, []);
   const onStatus = useCallback((s: "ready" | "failed") => { setStatus(s); done(); }, [done]);
 
-  const start = !!original && !manual && near;
+  const start = !!original && !manual && (near || !!eager);
+  // Nothing to wait for (no original, or Meta which the user opens by hand), or the original has settled.
+  const settled = !original || manual || status !== "loading";
+  useEffect(() => { if (settled) onSettled?.(item.code); }, [settled, onSettled, item.code]);
   useEffect(() => {
     if (!start || granted) return;
     let cancelled = false;

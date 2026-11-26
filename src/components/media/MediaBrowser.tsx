@@ -13,6 +13,7 @@ import { AdvancedFilters } from "./AdvancedFilters";
 import { CardSkeleton, MAX_COLUMNS, SkeletonGrid } from "./CardSkeleton";
 import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
+import { useStagedPages } from "./useStagedPages";
 import { ItemDetailModal } from "./ItemDetailModal";
 import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
 import { ManualLabelContext } from "./ManualLabel";
@@ -103,7 +104,11 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
   const total = count.data && !count.loading ? count.data.total : null;
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const sentinel = useInfiniteScroll(feed.hasMore && !feed.loading && !feed.error, feed.loadMore);
+  // Original View: a fetched page stays hidden until its originals have loaded, and the next one is asked for ~3 screens
+  // ahead, so at a normal pace each page is ready before the reader reaches it. One page is prepared at a time.
+  const staged = useStagedPages(feed.items, originalView);
+  const sentinel = useInfiniteScroll(feed.hasMore && !feed.loading && !feed.error && !staged.staging, feed.loadMore, originalView ? "3000px" : undefined);
+  const preparing = feed.loading || staged.staging;
 
   return (
     <div className={classes.layout}>
@@ -139,7 +144,7 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
           filters={filters}
           total={total}
           totalError={!!count.error}
-          shown={feed.items.length}
+          shown={staged.visible}
           moods={moods.data?.moods ?? null}
           busy={feed.loading}
           onMoodChange={(mood) => update({ mood })}
@@ -164,15 +169,23 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
           </Alert>
         )}
 
-        {/* First load: a full grid of card-shaped placeholders. Next pages: one placeholder under each column. */}
-        {feed.loading && !feed.items.length ? <SkeletonGrid type={type} /> : (
+        {/* First load (or first page still being prepared): a full grid of placeholders. Next pages: one under each column.
+            Staged cards keep the same wrapper when shown, so their embeds are not loaded again. */}
+        {!staged.visible && preparing && <SkeletonGrid type={type} />}
+        {feed.items.length > 0 && (
           <Masonry>
             {[
               ...feed.items.map((item, i) => {
-                const Card = originalView ? OriginalCard : ItemCard;
-                return <Card key={item.code} item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />;
+                const hidden = staged.isStaged(i);
+                return (
+                  <div key={item.code} className={classes.stage} data-staged={hidden || undefined} aria-hidden={hidden || undefined}>
+                    {originalView
+                      ? <OriginalCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} eager={hidden} onSettled={staged.onSettled} />
+                      : <ItemCard item={item} type={type} delay={(i % PAGE_SIZE) * CARD_STAGGER_MS} onOpen={setSelected} />}
+                  </div>
+                );
               }),
-              ...(feed.loading ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={feed.items.length + i} type={type} />) : []),
+              ...(preparing && staged.visible ? Array.from({ length: MAX_COLUMNS }, (_, i) => <CardSkeleton key={`skeleton-${i}`} index={staged.visible + i} type={type} />) : []),
             ]}
           </Masonry>
         )}
