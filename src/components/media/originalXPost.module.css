@@ -61,7 +61,8 @@
 .videoPlayer { display: block; width: 100%; min-height: 200px; aspect-ratio: 16 / 9; border: 0; border-radius: 10px; background: var(--mantine-color-gray-0); }
 .videoPlayer[data-platform="tiktok"] { max-width: 360px; aspect-ratio: 9 / 16; max-height: 620px; margin-inline: auto; }
 
-.threadsPlayer { display: block; width: 100%; max-width: 658px; min-width: 0; margin-inline: auto; border: 0; border-radius: 12px; background: #fff; }
+/* No scrollbar of its own: the frame is as tall as Threads reports (the card clips very long posts). */
+.threadsPlayer { display: block; overflow: hidden; width: 100%; max-width: 658px; min-width: 0; margin-inline: auto; border: 0; border-radius: 12px; background: #fff; }
 
 .fallbackStatus { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--mantine-color-gray-6); font-size: 10.5px; }
 .fallbackStatus > span { display: inline-flex; align-items: center; gap: 6px; }

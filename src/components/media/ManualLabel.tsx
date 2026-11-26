@@ -59,7 +59,9 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
         const unsure = !!fromAi && (fromAi.needsReview ?? (fromAi.score ?? 0) < REVIEW_LABEL_SCORE);
         return (
           <span key={value} className={classes.pill} data-set style={tint(value)} title={fromAi ? `Dugaan AI ${fromAi.score ?? "?"}%${unsure ? " · perlu diperiksa" : ""}${fromAi.reason ? ` — ${fromAi.reason}` : ""}` : undefined}>
-            <i className={classes.dot} /><span>{value}{fromAi ? ` · AI ${fromAi.score ?? "?"}%${unsure ? " · periksa" : ""}` : ""}</span>
+            <i className={classes.dot} /><span>{value}</span>
+            {/* AI guess: a small tag with its score; dashed when it still needs a person to check it. */}
+            {fromAi && <small className={classes.aiTag} data-unsure={unsure || undefined}>AI {fromAi.score ?? "?"}%</small>}
             {n === values.length - 1 && tail}
           </span>
         );

@@ -48,7 +48,7 @@ export function OriginalThreadsPost({ post, fallback, onStatus, view }: { post: 
     </>}
     <Tabs.Panel value="original" className={classes.panel}>
           {!rendered && <div className={classes.loading} role="status"><Loader size={12} color="cyan" />Menyiapkan pratinjau Threads…</div>}
-          <iframe key={attempt} ref={frame} src={threadsEmbedUrl(post)} title="Post asli Threads" className={classes.threadsPlayer} style={{ height }} allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onError={() => setState('failed')} />
+          <iframe key={attempt} ref={frame} src={threadsEmbedUrl(post)} title="Post asli Threads" className={classes.threadsPlayer} style={{ height: height + 2 }} scrolling="no" allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" onError={() => setState('failed')} />
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>{fallback}</Tabs.Panel>
   </Tabs>;
