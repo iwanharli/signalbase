@@ -142,3 +142,28 @@ button.tag:hover { background: rgba(124,58,237,.4); }
   .tools { top: auto; bottom: 12px; }
 }
 
+/* Emotion toggles in the filter bar: a coloured dot per emotion; off = dimmed and struck through. */
+.tones { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); }
+.tones button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 9px; cursor: pointer; white-space: nowrap;
+  font: inherit; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85); background: rgba(255,255,255,.06); transition: background 160ms, opacity 160ms; }
+.tones button:hover { background: rgba(255,255,255,.12); }
+.tones button i { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+.tones button[data-off] { opacity: .45; text-decoration: line-through; background: transparent; }
+.tones button[data-off] i { filter: grayscale(1); box-shadow: none; }
+.tones button:focus-visible, .legendInfo:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+
+/* Legend: one small line at the bottom left; the full explanation is in the (i) tooltip. */
+.legend { position: absolute; z-index: 3; left: 12px; bottom: 12px; max-width: calc(100% - 120px); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  padding: 7px 8px 7px 12px; border-radius: 12px; font-size: 11.5px; color: rgba(255,255,255,.75);
+  background: rgba(15,13,36,.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.12); }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.hubMark { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: #1e1b4b; background: #fff; border: 2px solid #a78bfa; }
+.lineMark { display: inline-block; width: 12px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.7); }
+.lineMark[data-thick] { height: 4px; }
+.legendTones i { width: 8px; height: 8px; border-radius: 50%; margin-right: -3px; }
+.legendTones i:last-of-type { margin-right: 2px; }
+.legendInfo { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 8px; cursor: help; color: rgba(255,255,255,.7); background: rgba(255,255,255,.08); }
+.legendInfo:hover { color: #fff; background: rgba(124,58,237,.45); }
+.stage[data-panel] .legend { max-width: calc(100% - 372px - 24px); }
+@media (max-width: 760px) { .legend { right: 12px; max-width: none; } .legend > span:nth-child(3) { display: none; } }
+

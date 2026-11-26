@@ -57,10 +57,11 @@ switch_to() {
   pm2 describe signalbase-label-ai >/dev/null 2>&1 \
     && pm2 restart signalbase-label-ai --update-env >/dev/null \
     || pm2 start npm --name signalbase-label-ai --cwd "$APP_DIR" -- run label-ai >/dev/null
-  # Media visual worker and the local analysis services, and the issue clustering service (each set up once on the
-  # server, see docs teknis Deployment).
+  # Media visual worker and the local analysis services (set up once on the server, see docs teknis Deployment).
+  # The issue clustering service (signalbase-klaster) is left running: a restart drops its embedding cache and cuts a run
+  # in progress. Restart it by hand only after scripts/klaster/layanan_klaster.py changes.
   # Restarted without --update-env so the service keeps its model folder and port.
-  for p in signalbase-media signalbase-media-ai signalbase-media-asr signalbase-klaster; do pm2 describe "$p" >/dev/null 2>&1 && pm2 restart "$p" >/dev/null; done
+  for p in signalbase-media signalbase-media-ai signalbase-media-asr; do pm2 describe "$p" >/dev/null 2>&1 && pm2 restart "$p" >/dev/null; done
   true
 }
 healthy() {

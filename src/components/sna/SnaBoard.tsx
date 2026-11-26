@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChartDots3, IconChevronDown, IconChevronUp, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
+import { IconAlertTriangle, IconChartDots3, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -176,9 +176,6 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const days = parseSnaDays(params.get("days")) ?? DEFAULT_SNA_DAYS;
   const limit = parseSnaLimit(params.get("limit")) ?? DEFAULT_SNA_LIMIT;
   const [picked, setPicked] = useState<string | null>(null);
-  const [legendOpen, setLegendOpen] = useState(true);
-  // On a phone the open legend would cover most of the graph: start it closed there.
-  useEffect(() => { if (window.matchMedia("(max-width: 760px)").matches) setLegendOpen(false); }, []);
   const [locked, setLocked] = useState(true);
   const [off, setOff] = useState<Tone[]>([]);
   const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after an emotion toggle
@@ -264,6 +261,17 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
           )}
+          <div className={classes.tones} role="group" aria-label="Emosi yang ditampilkan">
+            {TONES.filter((t) => t !== "unknown").map((t) => {
+              const on = !off.includes(t);
+              return (
+                <button key={t} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan ${TONE_LABEL[t].toLowerCase()}` : `Tampilkan ${TONE_LABEL[t].toLowerCase()}`}
+                  onClick={() => { setOff(on ? [...off, t] : off.filter((x) => x !== t)); setBusy(true); }}>
+                  <i style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
+                </button>
+              );
+            })}
+          </div>
         </div>
         {graph && graph.nodes.length > 0 && (
           <div className={classes.tools}>
@@ -290,29 +298,20 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           </div>
         )}
         {graph && graph.nodes.length > 0 && (
-          <aside className={classes.legendBox} data-open={legendOpen || undefined}>
-            <button type="button" className={classes.legendToggle} aria-expanded={legendOpen} onClick={() => setLegendOpen(!legendOpen)}>
-              <IconInfoCircle size={15} />Legenda{legendOpen ? <IconChevronDown size={14} /> : <IconChevronUp size={14} />}
-            </button>
-            {legendOpen && (
-              <ul>
-                <li className={classes.legendHead}>Warna = emosi postingan (klik toggle untuk menyembunyikan)</li>
-                {TONES.filter((t) => t !== "unknown").map((t) => {
-                  const on = !off.includes(t);
-                  return (
-                    <li key={t} data-off={!on || undefined}>
-                      <i className={classes.swatch} style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
-                      <button type="button" role="switch" aria-checked={on} aria-label={`Tampilkan ${TONE_LABEL[t]}`} className={classes.switch} onClick={() => { setOff(on ? [...off, t] : off.filter((x) => x !== t)); setBusy(true); }} />
-                    </li>
-                  );
-                })}
-                <li className={classes.legendHead}>Simpul</li>
-                <li className={classes.legendNote}><IconUsers size={16} /><span><b>Akun top poster</b>: lingkaran putih, border = emosi dominan postingannya.</span></li>
-                <li className={classes.legendNote}><IconMoodSmile size={16} /><span><b>Akun yang disebut</b>: wajah = emosi dominan post yang menyebutnya.</span></li>
-                <li className={classes.legendHead}>Garis</li>
-                <li className={classes.legendNote}><span>Makin tebal = makin sering disebut. Garis bergerak dari top poster ke akun yang disebut.</span></li>
-              </ul>
-            )}
+          <aside className={classes.legend} aria-label="Legenda">
+            <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun utama</span>
+            <span><IconMoodSmile size={14} />Akun disebut</span>
+            <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = sering</span>
+            <span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}Warna = emosi</span>
+            <Tooltip multiline w={290} withArrow position="top-start" withinPortal={false} events={{ hover: true, focus: true, touch: true }}
+              label={<>
+                <b>Akun utama</b>: akun yang paling banyak memposting dan menyebut akun lain; warna bingkai = emosi dominan post-nya.<br />
+                <b>Akun disebut</b>: wajah berwarna = emosi dominan post yang menyebutnya.<br />
+                <b>Garis</b>: dari akun utama ke akun yang disebut; makin tebal makin sering disebut, warnanya emosi post tersebut.<br />
+                Emosi bisa disembunyikan lewat tombol warna di panel filter.
+              </>}>
+              <button type="button" className={classes.legendInfo} aria-label="Penjelasan legenda"><IconInfoCircle size={14} /></button>
+            </Tooltip>
           </aside>
         )}
         {off.length > 0 && view && view.links.length === 0 && <p className={classes.empty}>Semua emosi disembunyikan.</p>}
