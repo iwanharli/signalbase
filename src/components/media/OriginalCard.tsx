@@ -90,15 +90,12 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
       {mounted && (
         <div className={classes.original} data-visible={showOriginal || undefined}>
           <article className={classes.shell} data-polarity={item.mood ? moodPolarity(item.mood) : undefined} style={{ ["--tone" as string]: moodTone(item) }}>
-            <ManualLabelPicker item={item} bleed />
+            <ManualLabelPicker item={item} bleed leading={item.classification !== undefined ? <CardAiCategory item={item} /> : null} />
             <header className={classes.head}>
               <PostAuthor item={item} type={type} />
               <MoodBadges item={item} type={type} />
             </header>
-            <div className={classes.tags}>
-              <PostMeta item={item} />
-              <CardAiCategory item={item} />
-            </div>
+            <PostMeta item={item} />
             <Clamp>
               {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} inCard />}
               {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}

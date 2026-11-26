@@ -18,13 +18,16 @@ export const ManualLabelContext = createContext<ManualLabelContextValue | null>(
 
 
 /** bleed: inside a padded box (the Original View shell), pulled out to its edges like the strip on a Quick card.
- *  panel: a rounded box of its own (the detail modal's side panel). */
-export function ManualLabelPicker({ item, bleed, panel }: { item: MediaItem; bleed?: boolean; panel?: boolean }) {
+ *  panel: a rounded box of its own (the detail modal's side panel).
+ *  leading: shown on the left in place of the "Label" caption (cards: the AI category), and alone when the project has no labels. */
+export function ManualLabelPicker({ item, bleed, panel, leading }: { item: MediaItem; bleed?: boolean; panel?: boolean; leading?: React.ReactNode }) {
   const ctx = useContext(ManualLabelContext);
   const [values, setValues] = useState<string[]>(item.manualLabels ?? []);
   const [busy, setBusy] = useState(false);
   useEffect(() => setValues(item.manualLabels ?? []), [item.manualLabels]);
-  if (!ctx || !ctx.options.length) return null;
+  if (!ctx || !ctx.options.length) {
+    return leading ? <div className={classes.bar} data-bleed={bleed || undefined} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{leading}</div> : null;
+  }
 
   /** Puts one label on or takes it off; null clears them all. The server answers with the item's labels. */
   const change = async (label: string | null, on = false) => {
@@ -69,7 +72,7 @@ export function ManualLabelPicker({ item, bleed, panel }: { item: MediaItem; ble
   const bar = (
     <div className={classes.bar} data-set={set || undefined} data-bleed={bleed || undefined} data-panel={panel || undefined} style={set ? tint(values[0]) : undefined}
       onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <span className={classes.caption}>Label</span>
+      {leading ?? <span className={classes.caption}>Label</span>}
       {ctx.canLabel ? (
         <Menu position="bottom-start" shadow="md" radius="md" width={220} withinPortal closeOnItemClick={false}>
           <Menu.Target>{pill}</Menu.Target>

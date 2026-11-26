@@ -102,7 +102,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
       onClick={open}
       style={{ animationDelay: `${delay}ms`, ["--tone" as string]: moodTone(item) }}
     >
-      <ManualLabelPicker item={item} />
+      <ManualLabelPicker item={item} leading={item.classification !== undefined ? <CardAiCategory item={item} /> : null} />
       {hasImage && (
         <div className={classes.media}>
           {/* Remote images from many news hosts; next/image would need every domain allow-listed. */}
@@ -129,7 +129,6 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
         {item.matchedByImage && <span className={classes.imageMatch} title="Kata kunci proyek ada di teks gambar post ini, bukan di teks post-nya"><IconPhotoScan size={12} />Kata kunci di gambar</span>}
-        <CardAiCategory item={item} />
         {!online && item.analysis && <AnalysisPreview analysis={item.analysis} />}
         {online && (item.category || topics.length > 0) && (
           <div className={classes.chips}>
