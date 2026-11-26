@@ -89,6 +89,28 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
           </header>
 
           <div className={classes.panelBody}>
+            <fieldset className={classes.filterGroup}>
+            <Section icon={IconSparkles} title="Analisis AI">
+              <Field label={social ? "Label emosi" : "Label sentimen"} wide>
+                <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
+              </Field>
+              {social && (
+                <Field label="Relevansi" wide>
+                  <Segmented full options={RELEVANCE_OPTIONS} value={filters.relevance} onChange={(relevance) => onChange({ relevance })} />
+                </Field>
+              )}
+              <Field label={MOOD_KIND_LABEL[type]} wide={!social}>
+                <DarkSelect leftSection={<IconMoodSmile size={15} />} placeholder="Semua" disabled={unanalyzed} value={filters.mood}
+                  data={(options?.moods ?? []).map((v) => ({ value: v, label: moodInfo(v).label }))} onChange={(mood) => onChange({ mood })} />
+              </Field>
+              {social && (
+                <Field label="Intensitas min.">
+                  <DarkSelect leftSection={<IconFlame size={15} />} placeholder="Semua" disabled={unanalyzed} searchable={false} value={filters.minLevel || null}
+                    data={LEVEL_OPTIONS} onChange={(level) => onChange({ minLevel: level ?? "" })} />
+                </Field>
+              )}
+            </Section>
+
             {/* The project's own sorting of posts: its manual labels and its AI categories, in one card. */}
             {(!!manualLabels?.length || aiCategories) && (
               <Section icon={IconTags} title="Label & kategori AI">
@@ -111,27 +133,6 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
                 )}
               </Section>
             )}
-            <fieldset className={classes.filterGroup}>
-            <Section icon={IconSparkles} title="Analisis AI">
-              <Field label={social ? "Label emosi" : "Label sentimen"} wide>
-                <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
-              </Field>
-              {social && (
-                <Field label="Relevansi" wide>
-                  <Segmented full options={RELEVANCE_OPTIONS} value={filters.relevance} onChange={(relevance) => onChange({ relevance })} />
-                </Field>
-              )}
-              <Field label={MOOD_KIND_LABEL[type]} wide={!social}>
-                <DarkSelect leftSection={<IconMoodSmile size={15} />} placeholder="Semua" disabled={unanalyzed} value={filters.mood}
-                  data={(options?.moods ?? []).map((v) => ({ value: v, label: moodInfo(v).label }))} onChange={(mood) => onChange({ mood })} />
-              </Field>
-              {social && (
-                <Field label="Intensitas min.">
-                  <DarkSelect leftSection={<IconFlame size={15} />} placeholder="Semua" disabled={unanalyzed} searchable={false} value={filters.minLevel || null}
-                    data={LEVEL_OPTIONS} onChange={(level) => onChange({ minLevel: level ?? "" })} />
-                </Field>
-              )}
-            </Section>
 
             <Section icon={IconNews} title="Sumber & konten">
               <Field label={SOURCE_KIND_LABEL[type]}>
