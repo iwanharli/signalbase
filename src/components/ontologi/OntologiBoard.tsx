@@ -15,6 +15,7 @@ import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
+import { NetworkHeader } from "../sna/NetworkHeader";
 import classes from "../sna/sna.module.css";
 import { OntologiPanel } from "./OntologiPanel";
 
@@ -195,17 +196,7 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
 
   return (
     <div className={classes.page}>
-      <header className={classes.hero}>
-        <div className={classes.heroGrid} aria-hidden />
-        <IconHierarchy2 className={classes.heroIcon} size={150} stroke={1} aria-hidden />
-        <div className={classes.heroText}>
-          <span className={classes.badge}><IconHierarchy2 size={13} />Ontologi</span>
-          <h1>Isu dan aktor <em>{periodLabel}</em> terakhir</h1>
-        </div>
-        <div className={classes.stats}>
-          {stats.map((x) => <div key={x.label}><x.icon size={16} aria-hidden /><b>{ready ? formatNumber(x.value) : "—"}</b><span>{x.label}</span></div>)}
-        </div>
-      </header>
+      <NetworkHeader icon={IconHierarchy2} kicker="Ontologi" title="Isu dan aktor" period={`${periodLabel} terakhir`} stats={stats} ready={ready} />
 
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
@@ -228,21 +219,21 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
               );
             })}
           </div>
+          {issues.length > 0 && (
+            <div className={classes.barEnd}>
+              <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-pressed={locked} aria-label={locked ? "Buka kunci graf" : "Kunci graf"} data-active={locked || undefined} onClick={() => setLocked(!locked)}>
+                  {locked ? <IconLock size={16} /> : <IconLockOpen size={16} />}
+                </button>
+              </Tooltip>
+              <Tooltip label={full ? "Keluar layar penuh" : "Layar penuh"} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-label={full ? "Keluar layar penuh" : "Layar penuh"} onClick={toggleFull}>
+                  {full ? <IconMinimize size={16} /> : <IconMaximize size={16} />}
+                </button>
+              </Tooltip>
+            </div>
+          )}
         </div>
-        {issues.length > 0 && (
-          <div className={classes.tools}>
-            <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
-              <button type="button" aria-pressed={locked} aria-label={locked ? "Buka kunci graf" : "Kunci graf"} data-active={locked || undefined} onClick={() => setLocked(!locked)}>
-                {locked ? <IconLock size={17} /> : <IconLockOpen size={17} />}
-              </button>
-            </Tooltip>
-            <Tooltip label={full ? "Keluar layar penuh" : "Layar penuh"} withinPortal={false} position="bottom" withArrow>
-              <button type="button" aria-label={full ? "Keluar layar penuh" : "Layar penuh"} onClick={toggleFull}>
-                {full ? <IconMinimize size={17} /> : <IconMaximize size={17} />}
-              </button>
-            </Tooltip>
-          </div>
-        )}
         {ready && graph.nodes.length === 0 && <p className={classes.empty}>{issues.length ? "Semua level disembunyikan." : "Belum ada isu yang melibatkan aktor atau target proyek ini pada rentang ini."}</p>}
         {graph.nodes.length > 0 && <Graph graph={graph} issues={byId} picked={picked} onPick={setPicked} locked={locked} />}
         {(res.loading || busy || (!ready && !res.error)) && (

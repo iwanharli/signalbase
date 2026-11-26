@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChartDots3, IconEye, IconEyeOff, IconHierarchy2, IconUnlink, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconTopologyStar3, IconUsers, IconUsersGroup } from "@tabler/icons-react";
+import { IconAlertTriangle, IconChartDots3, IconEye, IconEyeOff, IconHierarchy2, IconUnlink, IconFlame, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconMoodSmile, IconUsers, IconUsersGroup } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -19,6 +19,8 @@ import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import { SnaFlowGuide } from "./SnaFlowGuide";
+import { NetworkHeader } from "./NetworkHeader";
+import { MenuRow, ViewMenu } from "./ViewMenu";
 import type { GephiColor, GephiSize } from "./GephiGraph";
 import type { NetworkAnalysis } from "@/lib/snaNetwork";
 import { TREE_COMPACT, TREE_ROOMY, treeLayout, withoutNodes, type TreeLayout } from "@/lib/snaTree";
@@ -284,6 +286,14 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
     document.addEventListener("fullscreenchange", on);
     return () => document.removeEventListener("fullscreenchange", on);
   }, []);
+  // The toolbar may wrap to two rows on narrow screens: what floats under it (the flow guide) follows its height.
+  useEffect(() => {
+    const el = stage.current, bar = el?.querySelector<HTMLElement>("[role=toolbar]");
+    if (!el || !bar) return;
+    const ro = new ResizeObserver(() => el.style.setProperty("--bar-h", `${bar.offsetHeight}px`));
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
   const toggleFull = () => { if (document.fullscreenElement) void document.exitFullscreen(); else void stage.current?.requestFullscreen(); };
 
   const go = useCallback((patch: Record<string, string | null>) => {
@@ -320,6 +330,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   const tree = useMemo(() => (treeOn && view ? treeLayout(view, gephi ? TREE_COMPACT : TREE_ROOMY) : null), [treeOn, view, gephi]);
   const shown = useMemo(() => (view && tree && hideLoose ? withoutNodes(view, tree.orphans) : view), [view, tree, hideLoose]);
   const canTree = !!view?.nodes.some((n) => n.kind === "issue");
+  // Display settings away from their defaults (badge on the Tampilan button).
+  const changed = [gephi, gephi && gephiColor !== "klaster", gephi && gephiSize !== "engagement", issueView && flow !== "langsung", limit !== DEFAULT_SNA_LIMIT, off.length > 0].filter(Boolean).length;
   const bridge = analysis && picked ? analysis.bridges.find((b) => b.id === picked) : undefined;
   const node = graph?.nodes.find((n) => n.id === picked) ?? null;
   const periodLabel = SNA_PERIODS.find((p) => p.days === days)!.label;
@@ -335,37 +347,18 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
 
   return (
     <div className={classes.page}>
-      <header className={classes.hero}>
-        <div className={classes.heroGrid} aria-hidden />
-        <IconChartDots3 className={classes.heroIcon} size={150} stroke={1} aria-hidden />
-        <div className={classes.heroText}>
-          <span className={classes.badge}><IconTopologyStar3 size={13} />Analisis jaringan</span>
-          <h1>Jaringan sosial <em>{periodLabel}</em> terakhir</h1>
-          {watch ? (
-            <p className={classes.focus}>Pantauan <b>{watch.name}</b> · {watch.keywords.join(", ")}{labelName && <> · label <b>{labelName}</b></>}</p>
-          ) : (issueTitle || labelName) && (
-            <p className={classes.focus}>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</p>
-          )}
-        </div>
-        <div className={classes.stats}>
-          {stats.map((x) => <div key={x.label}><x.icon size={16} aria-hidden /><b>{graph ? formatNumber(x.value) : "—"}</b><span>{x.label}</span></div>)}
-        </div>
-      </header>
+      <NetworkHeader icon={IconChartDots3} kicker="Analisis jaringan" title="Jaringan sosial" period={`${periodLabel} terakhir`} stats={stats} ready={!!graph}
+        focus={watch ? <>Pantauan <b>{watch.name}</b> · {watch.keywords.join(", ")}{labelName && <> · label <b>{labelName}</b></>}</>
+          : (issueTitle || labelName) ? <>Akun yang membahas {issueTitle && <>isu <b>{issueTitle}</b></>}{issueTitle && labelName && " dengan "}{labelName && <>label <b>{labelName}</b></>}</> : undefined} />
 
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
-          <Segmented label="Gaya" options={STYLE_OPTIONS} value={gephi ? "gephi" : "klasik"} onChange={(v) => go({ gaya: v === "gephi" ? "gephi" : null })} />
-          {gephi && <Segmented label="Warna" options={COLOR_OPTIONS} value={gephiColor} onChange={(v) => go({ warna: v === "emosi" ? "emosi" : null })} />}
-          {gephi && <Segmented label="Ukuran node" options={SIZE_OPTIONS} value={gephiSize} onChange={(v) => go({ ukuran: v === "betweenness" ? "betweenness" : null })} />}
           {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
-          {issueView && <Segmented label="Alur" options={FLOW_OPTIONS} value={flow} onChange={(v) => go({ flow: v === "langsung" ? null : v })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-          <Select aria-label="Maksimal akun top poster" w={150} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={String(limit)} onChange={(v) => go({ limit: v })} data={issueView ? PER_ISSUE_OPTIONS : LIMIT_OPTIONS} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-            <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+            <Select aria-label="Proyek" w={160} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null, watch: null })}
               data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
@@ -375,55 +368,58 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
               onChange={(v) => go(v ? { watch: v, issue: null, view: null, ...(params.get("days") ? {} : { days: "7" }) } : { watch: null })} />
           )}
           {keyId && !watchId && (
-            <Select aria-label="Isu" w={260} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
+            <Select aria-label="Isu" w={220} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
               // An issue covers the last 7 days of posts, so its whole network shows on the 7-day view.
               onChange={(v) => go(v ? { issue: v, days: "7" } : { issue: null })} />
           )}
           {keyId && (
-            <Select aria-label="Label" w={160} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
+            <Select aria-label="Label" w={150} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
           )}
-          <div className={classes.tones} role="group" aria-label="Emosi yang ditampilkan">
-            {TONES.filter((t) => t !== "unknown").map((t) => {
-              const on = !off.includes(t);
-              return (
-                <button key={t} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan ${TONE_LABEL[t].toLowerCase()}` : `Tampilkan ${TONE_LABEL[t].toLowerCase()}`}
-                  onClick={() => { setOff(on ? [...off, t] : off.filter((x) => x !== t)); setBusy(true); }}>
-                  <i style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
-                </button>
-              );
-            })}
+          <div className={classes.barEnd}>
+            <ViewMenu changed={changed}>
+              <MenuRow label="Gaya"><Segmented label="Gaya" options={STYLE_OPTIONS} value={gephi ? "gephi" : "klasik"} onChange={(v) => go({ gaya: v === "gephi" ? "gephi" : null })} /></MenuRow>
+              {gephi && <MenuRow label="Warna node"><Segmented label="Warna" options={COLOR_OPTIONS} value={gephiColor} onChange={(v) => go({ warna: v === "emosi" ? "emosi" : null })} /></MenuRow>}
+              {gephi && <MenuRow label="Ukuran node"><Segmented label="Ukuran node" options={SIZE_OPTIONS} value={gephiSize} onChange={(v) => go({ ukuran: v === "betweenness" ? "betweenness" : null })} /></MenuRow>}
+              {issueView && <MenuRow label="Alur"><Segmented label="Alur" options={FLOW_OPTIONS} value={flow} onChange={(v) => go({ flow: v === "langsung" ? null : v })} /></MenuRow>}
+              <MenuRow label={issueView ? "Akun per isu" : "Akun teratas"}>
+                <Segmented label="Jumlah akun" options={(issueView ? PER_ISSUE_OPTIONS : LIMIT_OPTIONS).map((o) => ({ ...o, label: o.label.replace(/ (akun teratas|akun per isu)$/, "") }))} value={String(limit)} onChange={(v) => go({ limit: v })} />
+              </MenuRow>
+              <MenuRow label="Emosi">
+                <div className={classes.tones} role="group" aria-label="Emosi yang ditampilkan">
+                  {TONES.filter((t) => t !== "unknown").map((t) => {
+                    const on = !off.includes(t);
+                    return (
+                      <button key={t} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan ${TONE_LABEL[t].toLowerCase()}` : `Tampilkan ${TONE_LABEL[t].toLowerCase()}`}
+                        onClick={() => { setOff(on ? [...off, t] : off.filter((x) => x !== t)); setBusy(true); }}>
+                        <i style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </MenuRow>
+            </ViewMenu>
+            {graph && graph.nodes.length > 0 && <>
+              {canTree && <Tooltip label={treeOn ? "Kembali ke susunan bebas" : "Susun pohon: isu di baris pertama, akunnya di bawah"} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-pressed={treeOn} aria-label="Susun pohon" data-active={treeOn || undefined} onClick={() => go({ susun: treeOn ? null : "pohon", lepas: null })}><IconHierarchy2 size={16} /></button>
+              </Tooltip>}
+              {tree && tree.orphans.size > 0 && <Tooltip label={hideLoose ? `Tampilkan ${tree.orphans.size} akun tak terikat isu (di bagian bawah)` : `Sembunyikan ${tree.orphans.size} akun tak terikat isu`} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-pressed={hideLoose} aria-label="Sembunyikan akun tak terikat isu" data-active={hideLoose || undefined} onClick={() => go({ lepas: hideLoose ? null : "sembunyi" })}>{hideLoose ? <IconEyeOff size={16} /> : <IconUnlink size={16} />}</button>
+              </Tooltip>}
+              {!gephi && <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-pressed={locked} aria-label={locked ? "Buka kunci graf" : "Kunci graf"} data-active={locked || undefined} onClick={() => setLocked(!locked)}>{locked ? <IconLock size={16} /> : <IconLockOpen size={16} />}</button>
+              </Tooltip>}
+              <Tooltip label={full ? "Keluar layar penuh" : "Layar penuh"} withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={classes.tool} aria-label={full ? "Keluar layar penuh" : "Layar penuh"} onClick={toggleFull}>{full ? <IconMinimize size={16} /> : <IconMaximize size={16} />}</button>
+              </Tooltip>
+            </>}
           </div>
         </div>
         {issueView && graph && graph.nodes.length > 0 && !picked && <SnaFlowGuide flow={flow} onPick={(v) => go({ flow: v === "langsung" ? null : v })} />}
-        {graph && graph.nodes.length > 0 && (
-          <div className={classes.tools}>
-            {canTree && <Tooltip label={treeOn ? "Kembali ke susunan bebas" : "Susun pohon: isu di baris pertama, akunnya di bawah"} withinPortal={false} position="bottom" withArrow>
-            <button type="button" aria-pressed={treeOn} aria-label="Susun pohon" data-active={treeOn || undefined} onClick={() => go({ susun: treeOn ? null : "pohon", lepas: null })}>
-              <IconHierarchy2 size={17} />
-            </button>
-            </Tooltip>}
-            {tree && tree.orphans.size > 0 && <Tooltip label={hideLoose ? `Tampilkan ${tree.orphans.size} akun tak terikat isu (di bagian bawah)` : `Sembunyikan ${tree.orphans.size} akun tak terikat isu`} withinPortal={false} position="bottom" withArrow>
-            <button type="button" aria-pressed={hideLoose} aria-label="Sembunyikan akun tak terikat isu" data-active={hideLoose || undefined} onClick={() => go({ lepas: hideLoose ? null : "sembunyi" })}>
-              {hideLoose ? <IconEyeOff size={17} /> : <IconUnlink size={17} />}
-            </button>
-            </Tooltip>}
-            {!gephi && <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
-            <button type="button" aria-pressed={locked} aria-label={locked ? "Buka kunci graf" : "Kunci graf"} data-active={locked || undefined} onClick={() => setLocked(!locked)}>
-              {locked ? <IconLock size={17} /> : <IconLockOpen size={17} />}
-            </button>
-            </Tooltip>}
-            <Tooltip label={full ? "Keluar layar penuh" : "Layar penuh"} withinPortal={false} position="bottom" withArrow>
-            <button type="button" aria-label={full ? "Keluar layar penuh" : "Layar penuh"} onClick={toggleFull}>
-              {full ? <IconMinimize size={17} /> : <IconMaximize size={17} />}
-            </button>
-            </Tooltip>
-          </div>
-        )}
-                {graph && graph.nodes.length === 0 && <p className={classes.empty}>{watchId ? "Belum ada post yang menyebut kata kunci pantauan ini pada rentang ini. Coba rentang 7 hari atau periksa kata kuncinya." : issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
+{graph && graph.nodes.length === 0 && <p className={classes.empty}>{watchId ? "Belum ada post yang menyebut kata kunci pantauan ini pada rentang ini. Coba rentang 7 hari atau periksa kata kuncinya." : issueView ? "Belum ada isu dengan post pada rentang ini. Isu dihitung tiap jam; coba rentang 7 hari atau tampilan Mention." : "Belum ada post yang menyebut akun lain pada rentang ini."}</p>}
         {shown && shown.nodes.length > 0 && (gephi
           ? analysis && <GephiGraph graph={shown} analysis={analysis} picked={picked} onPick={setPicked} color={gephiColor} size={gephiSize} layout={tree} />
           : <Graph graph={shown} picked={picked} onPick={setPicked} locked={locked} layout={tree} />)}
@@ -439,8 +435,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           <aside className={classes.legend} aria-label="Legenda">
             {gephi ? <>
               <span><i className={classes.dot} style={{ background: "#a78bfa" }} />Besar = {gephiSize === "betweenness" ? "betweenness (jembatan antar-klaster)" : issueView ? "post (isu) / engagement (akun)" : "engagement dan mention"}</span>
-              <span>{gephiColor === "klaster" ? "Warna = klaster komunitas (Louvain)" : <><span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}</span>Warna = emosi dominan</>}</span>
-              <span>{tree ? "Susunan pohon: isu di baris pertama" : "Tata letak ForceAtlas2"} · arahkan kursor untuk menyorot tetangga, seret untuk menata</span>
+              <span>{gephiColor === "klaster" ? "Warna = klaster (Louvain)" : <><span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}</span>Warna = emosi dominan</>}</span>
+              <span title="Arahkan kursor untuk menyorot tetangga, seret node untuk menata">{tree ? "Susunan pohon" : "Tata letak ForceAtlas2"}</span>
             </> : issueView ? <>
               <span><i className={classes.issueMark}>{watchId ? <IconEye size={10} /> : <IconFlame size={10} />}</i>{watchId ? "Pantauan" : "Isu (besar = jumlah post)"}</span>
               <span><i className={classes.hubMark}><IconUsers size={10} /></i>Akun (besar = engagement)</span>

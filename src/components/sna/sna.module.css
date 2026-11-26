@@ -1,26 +1,9 @@
-.page { display: flex; flex-direction: column; gap: 12px; }
+.page { display: flex; flex-direction: column; gap: 10px; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-.hero { position: relative; overflow: hidden; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 10px 18px; border-radius: 18px; color: #fff;
-  background: radial-gradient(90% 140% at 0% 0%, rgba(34,211,238,.34), transparent 60%), radial-gradient(80% 120% at 100% 100%, rgba(124,58,237,.4), transparent 60%), #0d0b1f;
-  box-shadow: 0 30px 70px -36px rgba(46,16,101,.9), inset 0 1px 0 rgba(255,255,255,.08); animation: rise 600ms cubic-bezier(.2,.8,.2,1) both; }
-.heroGrid { position: absolute; inset: 0; pointer-events: none; opacity: .6; mask-image: radial-gradient(ellipse at 20% 30%, #000, transparent 70%);
-  background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 28px 28px; }
-.heroIcon { position: absolute; right: -18px; top: -26px; color: rgba(103,232,249,.16); transform: rotate(12deg); pointer-events: none; }
-.heroText { position: relative; max-width: 560px; }
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 99px; font-size: 11.5px; font-weight: 800; letter-spacing: .6px;
-  color: #a5f3fc; background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.35); }
-.hero h1 { margin: 6px 0 0; font-size: clamp(20px, 2.1vw, 25px); line-height: 1.1; font-weight: 800; letter-spacing: -1px; }
-.hero h1 em { font-style: normal; background: linear-gradient(90deg, #67e8f9, #a78bfa, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero p { margin: 0; color: rgba(255,255,255,.68); font-size: 13px; line-height: 1.45; }
-.stats { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
-.stats > div { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; min-width: 104px; padding: 6px 12px; border-radius: 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
-.stats svg { grid-row: span 2; color: #67e8f9; }
-.stats b { font-size: 18px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.stats span { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.58); }
 .alert { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; color: #b91c1c; background: #fef2f2; }
 /* The graph gets the rest of the screen; filters float on it. */
-.stage { position: relative; height: max(560px, calc(100vh - 190px)); border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 40%, #1e1b4b, #0f0d24 70%); }
+.stage { position: relative; height: max(560px, calc(100vh - 190px)); border-radius: 18px; overflow: hidden; background: radial-gradient(circle at 50% 40%, #1e1b4b, #0f0d24 70%);
+  border: 1px solid rgba(255,255,255,.07); box-shadow: 0 24px 60px -34px rgba(46,16,101,.9); }
 .canvas { position: absolute; inset: 0; }
 .canvas svg { width: 100%; height: 100%; display: block; cursor: grab; }
 .empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: rgba(255,255,255,.6); }
@@ -51,13 +34,8 @@
 .legendBox ul { display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 2px 12px 12px; list-style: none; font-size: 12px; color: rgba(255,255,255,.78); }
 .legendBox li { display: flex; align-items: center; gap: 8px; }
 .swatch { flex-shrink: 0; width: 18px; height: 4px; border-radius: 99px; }
-.tools { position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; gap: 6px; }
-.tools button { display: grid; place-items: center; width: 36px; height: 36px; cursor: pointer; color: #fff; border-radius: 12px; background: rgba(15,13,36,.82); border: 1px solid rgba(255,255,255,.14); transition: background 200ms; }
-.tools button:hover { background: rgba(124,58,237,.5); }
-.tools button[data-active] { background: #7c3aed; border-color: transparent; }
 .stage:fullscreen { border-radius: 0; }
 
-.stage[data-panel] .tools { right: 372px; }
 .panel { position: absolute; z-index: 4; top: 0; right: 0; bottom: 0; width: 360px; max-width: 92%; display: flex; flex-direction: column; color: #fff; background: rgba(21,19,38,.96); border-left: 1px solid rgba(255,255,255,.12);
   box-shadow: -18px 0 40px -20px rgba(0,0,0,.6); animation: slideIn 260ms cubic-bezier(.2,.8,.2,1) both; }
 @keyframes slideIn { from { transform: translateX(100%); } }
@@ -122,24 +100,21 @@ button.tag:hover { background: rgba(124,58,237,.4); }
     outline: 2px solid hsl(252 45% 30%)
 }
 /* Which issue / label the graph is narrowed to, under the title. */
-.focus { margin: 6px 0 0; font-size: 14px; color: rgba(255,255,255,.7); }
-.focus b { color: #fff; font-weight: 700; }
 
 /* Filters floating on the canvas (top left), glass like the tools; they wrap when the canvas is narrow. */
-.filterBar { --segment-height: 28px; --control-height: 34px; position: absolute; z-index: 3; top: 12px; left: 12px; max-width: calc(100% - 120px);
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: 16px; color: #fff;
-  background: rgba(15,13,36,.72); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 34px -18px rgba(0,0,0,.8); animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
-.filterBar :global(.mantine-Select-input) { font-size: 13px; }
-.stage[data-panel] .filterBar { max-width: calc(100% - 372px - 24px); }
+.filterBar { --segment-height: 26px; --control-height: 32px; position: absolute; z-index: 5; top: 10px; left: 10px; right: 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px; border-radius: 14px; color: #fff;
+  background: rgba(15,13,36,.78); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255,255,255,.1); box-shadow: 0 12px 34px -18px rgba(0,0,0,.8); animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
+.filterBar :global(.mantine-Select-input) { font-size: 12.5px; }
+.filterBar :global([role=group]) button { font-size: 12.5px; }
+.stage[data-panel] .filterBar { right: 372px; }
 @media (max-width: 760px) {
-  .filterBar { right: 12px; max-width: none; }
   /* Two controls per row, each taking its share of the bar. */
   .filterBar > *, .filterBar :global(.mantine-Select-root) { flex: 1 1 calc(50% - 6px); width: auto !important; min-width: 0; }
   .filterBar > [role="group"] { flex-basis: 100%; }
   .filterBar > [role="group"] button { flex: 1; }
   .stage { height: max(520px, calc(100vh - 160px)); }
-  .tools { top: auto; bottom: 12px; }
 }
 
 /* Emotion toggles in the filter bar: a coloured dot per emotion; off = dimmed and struck through. */
@@ -172,7 +147,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 /* PC: no page scroll. The shell's main keeps 104px above and 48px below (see shell.module.css), the hero takes its height,
    the canvas the rest. Phones and tablets scroll as before. */
 @media (min-width: 1001px) {
-  .page { height: calc(100dvh - 152px); min-height: 520px; }
+  .page { height: calc(100dvh - 116px); min-height: 520px; margin-bottom: -36px; }
   .stage { flex: 1; height: auto; min-height: 0; }
 }
 .issueMark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; background: radial-gradient(circle at 35% 30%, #a78bfa, #5b21b6); border: 2px solid #c4b5fd; }
@@ -210,7 +185,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .flowNote { color: #c4b5fd; font-weight: 700; }
 
 /* Floating explanation of the issue view's flows, top right under the tools. */
-.flowGuide { position: absolute; z-index: 3; top: 60px; right: 12px; width: 250px; padding: 10px; border-radius: 16px; color: #e9e5ff;
+.flowGuide { position: absolute; z-index: 3; top: calc(var(--bar-h, 44px) + 20px); right: 12px; width: 250px; padding: 10px; border-radius: 16px; color: #e9e5ff;
   background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.25); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
   box-shadow: 0 18px 40px -22px rgba(0,0,0,.8); animation: guideIn 320ms cubic-bezier(.2,.9,.25,1.1) both; }
 @keyframes guideIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
@@ -234,9 +209,9 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .flowGuide li button { align-items: center; }
 .flowGuide li button[data-active] { align-items: flex-start; }
 /* Room for the card: the filter bar and the legend stop before it. */
-.stage:has(.flowGuide) .filterBar, .stage:has(.flowGuide) .legend { max-width: calc(100% - 250px - 36px); }
+.stage:has(.flowGuide) .legend { max-width: calc(100% - 250px - 36px); }
 .flowGuide p { margin: 8px 2px 0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); font-size: 11px; line-height: 1.45; color: #c4b5fd; }
-.flowGuidePill { position: absolute; z-index: 3; top: 60px; right: 12px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; cursor: pointer;
+.flowGuidePill { position: absolute; z-index: 3; top: calc(var(--bar-h, 44px) + 20px); right: 12px; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; cursor: pointer;
   font-size: 12px; font-weight: 700; color: #e9e5ff; background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.3); backdrop-filter: blur(12px); }
 .flowGuidePill svg { color: #a78bfa; }
 .flowGuidePill:hover { border-color: rgba(167,139,250,.6); }
@@ -245,7 +220,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 /* Gephi mode (sigma.js): the canvas sits between the filter bar and the legend; clusters listed bottom right. */
 .gephi { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .gephi canvas { outline: none; }
-.clusters { position: absolute; z-index: 3; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 5px; width: 230px; padding: 10px 12px; border-radius: 14px;
+.clusters { position: absolute; z-index: 3; left: 12px; top: calc(var(--bar-h, 44px) + 20px); display: flex; flex-direction: column; gap: 5px; width: 230px; padding: 10px 12px; border-radius: 14px;
   color: #e9e5ff; font-size: 11.5px; background: rgba(15,13,36,.82); border: 1px solid rgba(167,139,250,.22); backdrop-filter: blur(12px); }
 .clusters > b { font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: #c4b5fd; }
 .clusters span { display: flex; align-items: center; gap: 7px; min-width: 0; }
@@ -253,7 +228,6 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .clusters span small { margin-left: auto; flex-shrink: 0; color: rgba(233,229,255,.55); }
 .clusters span em { flex: 1; min-width: 0; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .clusters > small { padding-top: 4px; border-top: 1px solid rgba(255,255,255,.08); color: rgba(233,229,255,.5); }
-.stage:has(.clusters) .legend { max-width: calc(100% - 230px - 36px); }
 @media (max-width: 760px) { .clusters { display: none; } }
 .bridgeRow { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 3px 4px; margin: 0 -4px; border: 0; border-radius: 7px; cursor: pointer; text-align: left;
   font: inherit; color: inherit; background: transparent; }
@@ -269,3 +243,57 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .bridgeNote b { color: #fff; }
 .bridgeNote small { margin-left: auto; color: rgba(233,229,255,.5); font-variant-numeric: tabular-nums; }
 .bridgeNote[data-top] { background: linear-gradient(135deg, rgba(124,58,237,.28), rgba(34,211,238,.12)); border-color: rgba(167,139,250,.4); }
+
+/* Page header: one slim line (icon, title with period, focus, counts). */
+.bar { position: relative; display: flex; align-items: center; gap: 14px; min-height: 54px; padding: 8px 10px; border-radius: 16px; color: #fff; overflow: hidden;
+  background: radial-gradient(60% 180% at 0% 50%, rgba(34,211,238,.22), transparent 70%), radial-gradient(50% 200% at 100% 50%, rgba(124,58,237,.3), transparent 70%), #0d0b1f;
+  border: 1px solid rgba(255,255,255,.08); animation: rise 500ms cubic-bezier(.2,.8,.2,1) both; }
+.barIcon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee);
+  box-shadow: 0 8px 20px -8px rgba(124,58,237,.9); }
+.barTitle { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex-shrink: 0; }
+.barKicker { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #67e8f9; }
+.bar h1 { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -.3px; white-space: nowrap; }
+.bar h1 em { font-style: normal; background: linear-gradient(90deg, #67e8f9, #a78bfa, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.barFocus { flex: 1; min-width: 0; margin: 0; padding-left: 14px; border-left: 1px solid rgba(255,255,255,.12); font-size: 12.5px; color: rgba(255,255,255,.65);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barFocus b { color: #fff; font-weight: 700; }
+.barStats { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.barStats > div { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 11px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.09); }
+.barStats svg { color: #67e8f9; }
+.barStats b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.barStats span { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.55); }
+@media (max-width: 760px) {
+  .bar { flex-wrap: wrap; }
+  .barFocus { order: 3; flex-basis: 100%; padding-left: 0; border-left: 0; white-space: normal; }
+  .barStats { margin-left: 0; flex-basis: 100%; }
+  .barStats > div { flex: 1; justify-content: center; }
+}
+
+/* Toolbar end: the Tampilan menu and the canvas tools, pushed to the right. */
+.barEnd { display: flex; align-items: center; gap: 4px; margin-left: auto; padding-left: 6px; border-left: 1px solid rgba(255,255,255,.1); }
+.tool { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer; color: rgba(255,255,255,.85); border-radius: 10px;
+  background: transparent; border: 1px solid transparent; transition: background 160ms, color 160ms; }
+.tool:hover { color: #fff; background: rgba(255,255,255,.08); }
+.tool[data-active] { color: #fff; background: linear-gradient(135deg, #7c3aed, #6d28d9); border-color: rgba(167,139,250,.5); }
+.tool:focus-visible, .menuButton:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+.menuButton { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: #fff;
+  border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); transition: background 160ms, border-color 160ms; }
+.menuButton:hover, .menuButton[data-open] { background: rgba(124,58,237,.35); border-color: rgba(167,139,250,.5); }
+.menuBadge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; font-size: 10.5px; font-weight: 800; background: linear-gradient(135deg, #7c3aed, #22d3ee); }
+.menuChevron { opacity: .6; transition: transform 160ms; }
+.menuButton[data-open] .menuChevron { transform: rotate(180deg); }
+.menu { display: flex; flex-direction: column; gap: 12px; width: 340px; max-width: calc(100vw - 32px); padding: 14px !important; color: #fff;
+  background: rgba(15,13,36,.96) !important; border: 1px solid rgba(167,139,250,.25) !important; backdrop-filter: blur(16px); }
+.menuRow { display: flex; flex-direction: column; gap: 6px; }
+.menuRow > span { font-size: 10.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: rgba(233,229,255,.55); }
+.menuRow > [role=group] { --segment-height: 28px; align-self: stretch; }
+.menuRow .tones { align-self: flex-start; }
+@media (max-width: 760px) { .barEnd { margin-left: 0; border-left: 0; padding-left: 0; flex-basis: 100%; justify-content: flex-end; } }
+
+/* Wide screens: the toolbar stays on one row; the selects give way first (down to a readable width). */
+@media (min-width: 1101px) {
+  .filterBar { flex-wrap: nowrap; }
+  .filterBar > *, .barEnd > * { flex-shrink: 0; }
+  .filterBar > :global(.mantine-Select-root), .filterBar > .watchPick { flex: 0 1 auto; min-width: 118px; }
+  .watchPick :global(.mantine-Select-root) { flex: 1 1 auto; min-width: 0; width: auto !important; max-width: 190px; }
+}
