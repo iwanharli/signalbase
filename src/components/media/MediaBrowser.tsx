@@ -1,4 +1,5 @@
 "use client";
+import { AiCorrectionContext } from "./AiCorrection";
 import { categoriesForType } from "@/lib/ai/classifier";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -15,7 +16,7 @@ import { CardSkeleton, SkeletonGrid } from "./CardSkeleton";
 import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { useStagedPages } from "./useStagedPages";
-import { ItemDetailModal } from "./ItemDetailModal";
+import { ItemDetailModal, type Correction } from "./ItemDetailModal";
 import { ManualLabelContext } from "./ManualLabel";
 import type { LabelSettings } from "@/lib/media/manualLabels";
 import { FlowMasonry } from "./FlowMasonry";
@@ -59,7 +60,7 @@ export function MediaBrowser(props: { type: MediaType }) {
 }
 
 function ProjectBrowser({ type }: { type: MediaType }) {
-  const role = useRole(); // only admins correct AI categories; clients and viewers read
+  const role = useRole(); // viewers only read
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
   // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
@@ -86,6 +87,14 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     setLabelVersion((v) => v + 1);
   } } : null;
   const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
+  // Admins, and clients the project is given to, correct AI categories (on the card and in the detail panel); viewers read.
+  const correction: Correction | null = view && aiCategories && role !== "viewer" ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
+    // The card shares this object with the feed, so updating it in place refreshes both.
+    const target = feed.items.find((i) => i.code === code);
+    if (target) target.classification = classification;
+    setSelected((s) => (s && s.code === code ? { ...s, classification } : s));
+    setLabelVersion((v) => v + 1);
+  } } : null;
   const blocked = !!view && !allowsType(view.scope, type);
 
   const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
@@ -148,6 +157,7 @@ function ProjectBrowser({ type }: { type: MediaType }) {
       />
 
       <ManualLabelContext.Provider value={labelContext}>
+      <AiCorrectionContext.Provider value={correction && { ...correction, type }}>
       <div className={classes.content}>
         {keyInfo.error && <Alert color="red" mb="md" title="Proyek tidak bisa dimuat">{keyInfo.error}</Alert>}
         {blocked ? (
@@ -213,13 +223,9 @@ function ProjectBrowser({ type }: { type: MediaType }) {
 
         <ScrollTopButton />
         <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={closeItem}
-          correction={view && aiCategories && role === "admin" ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
-            // The card shares this object with the feed, so updating it in place refreshes both.
-            const target = feed.items.find((i) => i.code === code);
-            if (target) target.classification = classification;
-            setSelected((s) => (s && s.code === code ? { ...s, classification } : s));
-          } } : undefined} />
+          correction={correction ?? undefined} />
       </div>
+      </AiCorrectionContext.Provider>
       </ManualLabelContext.Provider>
     </div>
   );

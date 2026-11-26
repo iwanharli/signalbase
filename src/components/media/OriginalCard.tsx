@@ -11,6 +11,7 @@ import { moodPolarity } from "@/lib/media/mood";
 import { CardFooter, ItemCard, PostAuthor, PostMeta } from "./ItemCard";
 import { MoodBadges, moodTone } from "./itemParts";
 import { ManualLabelPicker } from "./ManualLabel";
+import { CardAiCategory } from "./AiCorrection";
 import { PostContent } from "./PostContent";
 import classes from "./originalCard.module.css";
 
@@ -94,9 +95,12 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
               <PostAuthor item={item} type={type} />
               <MoodBadges item={item} type={type} />
             </header>
-            <PostMeta item={item} />
+            <div className={classes.tags}>
+              <PostMeta item={item} />
+              <CardAiCategory item={item} />
+            </div>
             <Clamp>
-              {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} />}
+              {original.kind === "x" && <OriginalXPost id={original.id} fallback={fallback} onStatus={onStatus} inCard />}
               {original.kind === "video" && <OriginalPublicVideo video={original.video} storedText={item.content} fallback={fallback} onStatus={onStatus} />}
               {original.kind === "threads" && <OriginalThreadsPost post={original.post} fallback={fallback} onStatus={onStatus} />}
               {original.kind === "meta" && <OriginalMetaPost post={original.post} fallback={fallback} />}

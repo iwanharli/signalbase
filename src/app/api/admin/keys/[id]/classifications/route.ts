@@ -8,7 +8,7 @@ import { prisma } from "@/lib/server/db";
 type Context = { params: Promise<{ id: string }> };
 const correctionSchema = z.object({ type: z.enum(["social", "online"]), code: z.string().min(1).max(100), category: z.string().min(1).max(20) });
 
-// Sets an item's category by hand. Marked manual, so the worker and restarts keep it.
+// Sets an item's category by hand (admins, and clients the project is given to). Marked manual, so the worker and restarts keep it.
 export const PUT = adminRoute(async (req: Request, { params }: Context, user) => {
   const { id } = await params;
   const parsed = correctionSchema.safeParse(await req.json().catch(() => null));

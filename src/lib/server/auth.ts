@@ -16,6 +16,9 @@ export type PanelUser = { id: string; username: string; role: Role };
 const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-settings", "/api/admin/billing"];
 /** Viewers read like admins but never change anything, see settings, or reveal secrets. */
 const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
+/** The only writes a client may make, on a project given to them: label a post, correct its AI category. */
+const CLIENT_CORRECTIONS = /^\/api\/admin\/keys\/[^/]+\/(item-labels|classifications)$/;
+export const clientMayWrite = (method: string, path: string) => method === "PUT" && CLIENT_CORRECTIONS.test(path);
 
 /** A client ("user") account still allowed in: approved and not suspended. Checked on every request, so suspending a
  *  client cuts off an open session at once. */
@@ -42,8 +45,8 @@ export async function canSeeKey(user: PanelUser, keyId: string) {
 }
 
 // Wraps panel route handlers; middleware already guards sign-in, this is defence in depth.
-// Client ("user") accounts read only: the account must be active and its subscription running, nothing may be changed
-// (any method but GET/HEAD is refused), admin-only APIs are blocked, and /api/admin/keys/<id>/… only answers for a project
+// Client ("user") accounts mostly read: the account must be active and its subscription running, nothing may be changed
+// except labels and AI category corrections of their projects (clientMayWrite), admin-only APIs are blocked, and /api/admin/keys/<id>/… only answers for a project
 // given to the client and never its secrets. So every route is covered in one place.
 export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, user: PanelUser) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -59,8 +62,8 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       const account = await prisma.admin.findUnique({ where: { id: user.id }, select: { status: true, planExpiresAt: true } });
       if (account?.status !== "active") return NextResponse.json({ error: "Akun tidak aktif" }, { status: 401 });
       if (isExpired(account.planExpiresAt)) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
-      if (req.method !== "GET" && req.method !== "HEAD") return NextResponse.json({ error: "Akun klien hanya dapat melihat data" }, { status: 403 });
       const path = new URL(req.url).pathname;
+      if (req.method !== "GET" && req.method !== "HEAD" && !clientMayWrite(req.method, path)) return NextResponse.json({ error: "Akun klien hanya dapat melihat data" }, { status: 403 });
       if (ADMIN_ONLY.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
       const keyId = path.match(/^\/api\/admin\/keys\/([^/]+)/)?.[1];
       if (keyId && !(await keyAccess(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });

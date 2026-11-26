@@ -20,7 +20,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
     options: key.manualLabels,
     canEdit: access === "full" && !key.revokedAt,
     // Only admins label posts: viewers and clients read.
-    canLabel: user.role === "admin" && !key.revokedAt,
+    canLabel: user.role !== "viewer" && !key.revokedAt, // clients get here only for their own projects
   };
   return NextResponse.json(settings);
 });

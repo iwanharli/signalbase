@@ -24,3 +24,13 @@ test("AI proyek dijeda hanya bila proyek punya klien dan tidak ada satu pun yang
   assert.equal(aiPausedFor([ended, active]), false, "satu klien aktif cukup");
   assert.equal(aiPausedFor([noEnd]), false);
 });
+
+test("clientMayWrite: klien hanya boleh mengoreksi label dan kategori AI", async () => {
+  const { clientMayWrite } = await import("../src/lib/server/auth");
+  assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/item-labels"));
+  assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/classifications"));
+  assert.ok(!clientMayWrite("POST", "/api/admin/keys/abc/item-labels"));
+  assert.ok(!clientMayWrite("PUT", "/api/admin/keys/abc/labels"));
+  assert.ok(!clientMayWrite("PATCH", "/api/admin/keys/abc"));
+  assert.ok(!clientMayWrite("PUT", "/api/admin/keys/abc/item-labels/x"));
+});

@@ -17,8 +17,8 @@ const bodySchema = z.object({
   on: z.boolean().default(true),
 });
 
-// Label one post or article within this project. Owners, admins and sub-accounts the project is shared with may label
-// (adminRoute lets sub-accounts through for this path only); viewers are read-only. Answers with the item's labels.
+// Label one post or article within this project. Admins, and clients the project is given to, may label
+// (adminRoute lets clients through for this path only); viewers are read-only. Answers with the item's labels.
 export const PUT = adminRoute(async (req: Request, { params }: Context, username) => {
   const { id } = await params;
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

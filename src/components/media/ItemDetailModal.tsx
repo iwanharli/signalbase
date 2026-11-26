@@ -1,9 +1,9 @@
 "use client";
+import { saveCategory } from "./AiCorrection";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { CopyButton, Select, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { post } from "@/lib/api-client";
 import { NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { IconCheck, IconClock, IconCopy, IconDatabase, IconRobot, IconSparkles, IconX } from "@tabler/icons-react";
 import { humanize, RELEVANCE_LABEL, sourceLabel } from "@/lib/media/labels";
@@ -125,9 +125,7 @@ function CorrectionField({ item, type, correction }: { item: MediaItem; type: Me
     if (!value) return;
     setBusy(true);
     try {
-      const res = await post(`/api/admin/keys/${correction.keyId}/classifications`, { type, code: item.code, category: value }, "PUT") as { category: string; correctedBy: string; reason: string | null };
-      const label = value === NO_CATEGORY ? "Tidak termasuk" : correction.categories.find((c) => c.code === value)?.label ?? value;
-      correction.onSaved(item.code, { ...(item.classification ?? {}), category: res.category, label, confidence: null, reason: res.reason, manual: true, correctedBy: res.correctedBy });
+      await saveCategory(correction, type, item, value);
       notifications.show({ color: "teal", message: value === current ? "Kategori dikonfirmasi" : `Kategori diubah ke ${value === NO_CATEGORY ? "Tidak termasuk" : value}` });
     } catch (e) {
       notifications.show({ color: "red", message: (e as Error).message });

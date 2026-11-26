@@ -39,6 +39,12 @@
 .relevance[data-watchlist]::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--mantine-color-yellow-6); }
 
 @media (max-width: 380px) { .factors { grid-template-columns: minmax(0, 1fr); } }
+.aiCorrect { align-self: flex-start; max-width: 100%; }
+.aiCorrectButton { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 6px 0 0; border: 0; border-radius: 99px; background: none; font: inherit; color: var(--mantine-color-dimmed); cursor: pointer; }
+.aiCorrectButton:hover:not(:disabled) .aiCategory { border-color: var(--mantine-color-teal-5); }
+.aiCorrectButton:hover:not(:disabled) { color: var(--mantine-color-teal-6); }
+.aiCorrectButton:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
+.aiCorrectCode { display: inline-block; min-width: 26px; font: 800 11px ui-monospace, monospace; color: var(--mantine-color-teal-7); }
 .aiCategory[data-pending] { color: var(--mantine-color-dimmed) !important; background: transparent !important; border: 1px dashed var(--mantine-color-default-border) !important; font-weight: 600; }
 
 /* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */

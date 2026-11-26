@@ -37,7 +37,8 @@ function ReplyContext({ reply }: { reply: NonNullable<XPostPreview["replyTo"]> }
   </details>;
 }
 
-function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?: boolean }) {
+/** inCard: the card above already names the author, so the post starts with its text. */
+function PreviewContent({ post, quoted = false, inCard = false }: { post: XPostPreview; quoted?: boolean; inCard?: boolean }) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   // The post's images open in a lightbox (videos play in place).
   // The generic fallback alt ("Media dari post X") is not shown as a caption; real alt text written by the poster is.
@@ -55,7 +56,7 @@ function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?:
   return <>
     <article className={quoted ? classes.quote : classes.post} data-focused={(!quoted && !!post.replyTo) || undefined}>
     {!quoted && post.replyTo && <span className={classes.focusLabel}>Reply</span>}
-    <PostContent text={post.text} header={author} textClassName={quoted ? undefined : classes.xText} metrics={{ likes: post.likes, comments: post.replies, shares: null, views: null }}>
+    <PostContent text={post.text} header={inCard && !quoted ? undefined : author} textClassName={quoted ? undefined : classes.xText} metrics={{ likes: post.likes, comments: post.replies, shares: null, views: null }}>
     {post.isTruncated && <p className={classes.note}>Post panjang mungkin terpotong. <a href={post.url} target="_blank" rel="noopener noreferrer">Baca selengkapnya di X</a>.</p>}
     {!!post.media.length && <div className={classes.media}>
       {post.media.map((media, position) => media.kind === "video"
@@ -75,7 +76,7 @@ function PreviewContent({ post, quoted = false }: { post: XPostPreview; quoted?:
   </>;
 }
 
-export function OriginalXPost({ id, fallback, onStatus }: { id: string; fallback: ReactNode; onStatus?: (status: "ready" | "failed") => void }) {
+export function OriginalXPost({ id, fallback, onStatus, inCard }: { id: string; fallback: ReactNode; onStatus?: (status: "ready" | "failed") => void; inCard?: boolean }) {
   const [post, setPost] = useState<XPostPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -97,7 +98,7 @@ export function OriginalXPost({ id, fallback, onStatus }: { id: string; fallback
       <Tabs.Tab value="stored" className={classes.tab} leftSection={<IconDatabase size={13} aria-hidden />}>Data tersimpan</Tabs.Tab>
     </Tabs.List>
     <Tabs.Panel value="original" className={classes.panel}>
-      <PreviewContent post={post} />
+      <PreviewContent post={post} inCard={inCard} />
     </Tabs.Panel>
     <Tabs.Panel value="stored" className={classes.panel}>
       {fallback}

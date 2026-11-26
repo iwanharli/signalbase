@@ -1,4 +1,5 @@
 "use client";
+import { CardAiCategory } from "./AiCorrection";
 import { useState } from "react";
 import { Text } from "@mantine/core";
 import { IconArrowRight, IconClock, IconCategory, IconMapPin, IconPhotoScan, IconSparkles } from "@tabler/icons-react";
@@ -8,7 +9,7 @@ import { humanize, sourceLabel } from "@/lib/media/labels";
 import { uniqueTags } from "@/lib/media/presentation";
 import type { Analysis, MediaItem, MediaType } from "@/lib/media/types";
 import { moodPolarity } from "@/lib/media/mood";
-import { AiCategoryBadge, MetricList, MoodBadges, moodTone, Tags } from "./itemParts";
+import { MetricList, MoodBadges, moodTone, Tags } from "./itemParts";
 import { ManualLabelPicker } from "./ManualLabel";
 import { PostText } from "./PostText";
 import { PlatformIcon } from "./PlatformIcon";
@@ -128,7 +129,7 @@ export function ItemCard({ item, type, delay, onOpen }: { item: MediaItem; type:
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
         )}
         {item.matchedByImage && <span className={classes.imageMatch} title="Kata kunci proyek ada di teks gambar post ini, bukan di teks post-nya"><IconPhotoScan size={12} />Kata kunci di gambar</span>}
-        <AiCategoryBadge item={item} />
+        <CardAiCategory item={item} />
         {!online && item.analysis && <AnalysisPreview analysis={item.analysis} />}
         {online && (item.category || topics.length > 0) && (
           <div className={classes.chips}>
