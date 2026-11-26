@@ -279,7 +279,7 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
     scoped ? keywordCounts(type, scope, period, end).catch(() => null) : Promise.resolve(null),
     type === "social" ? hashtags(scope, period, end).catch(() => null) : Promise.resolve(null),
     type === "social"
-      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 })
+      ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 }).catch(() => [])
       : Promise.resolve([]),
     type === "social" ? engagement(scope, period, end) : Promise.resolve(null),
     type === "social" ? topAccounts(scope, period, end) : Promise.resolve(null),

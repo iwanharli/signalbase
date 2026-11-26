@@ -3,7 +3,7 @@ import { decodeTextEntities } from "@/lib/media/text";
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { Analysis, Author, MediaItem, MediaType, Relevance } from "@/lib/media/types";
 import { sharedCache } from "./cache";
-import { bankPool } from "./pool";
+import { bankPool, REQUEST_TIMEOUT_MS, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS } from "./query";
 import { cleanSummary } from "./summary";
 
@@ -135,7 +135,9 @@ export async function listItems(type: MediaType, params: URLSearchParams, scope:
   const { where, values } = buildWhere(type, params, scope);
   const direction = params.get("sort") === "oldest" ? "ASC" : "DESC";
   const sql = `SELECT ${c.code} code FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} ${direction} LIMIT ${Math.floor(limit)} OFFSET ${Math.floor(offset)}`;
-  const codes = await pageCodesCache(`${type}|${sql}|${JSON.stringify(values)}`, async () => (await bankPool().query<{ code: string }>(sql, values)).rows.map((r) => r.code));
+  // A broad project's first page can take longer than the pool's 25 s when the source database is busy: the page's limit.
+  const codes = await pageCodesCache(`${type}|${sql}|${JSON.stringify(values)}`, async () =>
+    (await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<{ code: string }>(sql, values))).rows.map((r) => r.code));
   return fetchItemsByCode(type, codes);
 }
 
