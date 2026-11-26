@@ -12,7 +12,7 @@ import type { MediaType } from "@/lib/media/types";
 import { listItems } from "./bank";
 import { cleanName, profileLink } from "./bank/items";
 import { sharedCache } from "./bank/cache";
-import { analyticsPool, REQUEST_TIMEOUT_MS, withLongTimeout } from "./bank/pool";
+import { REQUEST_TIMEOUT_MS, withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS, filterKey, keywordQuery } from "./bank/query";
 
 const DAY_MS = 86_400_000;
@@ -96,13 +96,14 @@ async function hashtags(scope: KeyScope, period: number, end?: string): Promise<
   const { where, values, now } = windowWhere("social", scope, period * 2, end);
   values.push(period);
   const split = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
-  const { rows } = await analyticsPool().query<{ cur: boolean; tag: string; n: number }>(
+  // The longer limit, like the other insight scans: on the 25 s pool default a broad project timed out cold (SLOG POLRI).
+  const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<{ cur: boolean; tag: string; n: number }>(
     `SELECT s.cur, lower(r.m[1]) tag, count(*)::int n FROM (
        (SELECT true cur, p.post_content FROM ${c.from} WHERE ${where} AND ${split} ORDER BY ${c.timestamp} DESC LIMIT ${HASHTAG_SAMPLE})
        UNION ALL
        (SELECT false cur, p.post_content FROM ${c.from} WHERE ${where} AND NOT (${split}) ORDER BY ${c.timestamp} DESC LIMIT ${HASHTAG_SAMPLE})
      ) s CROSS JOIN LATERAL regexp_matches(s.post_content, '#([[:alnum:]_]{2,40})', 'g') r(m)
-     GROUP BY 1, 2`, values);
+     GROUP BY 1, 2`, values));
   const byTag = new Map<string, Ranked>();
   for (const row of rows) {
     const entry = byTag.get(row.tag) ?? { value: row.tag, n: 0, prev: 0 };
@@ -275,8 +276,8 @@ async function compute(type: MediaType, scope: KeyScope, scoped: boolean, period
   const lastDay = end ? shiftDay(end, -1) : jakartaDate(DAY_MS);
   const [rows, keywords, tags, latestHot, engaged, accounts, media] = await Promise.all([
     scan(type, scope, period, end),
-    scoped ? keywordCounts(type, scope, period, end) : Promise.resolve(null),
-    type === "social" ? hashtags(scope, period, end) : Promise.resolve(null),
+    scoped ? keywordCounts(type, scope, period, end).catch(() => null) : Promise.resolve(null),
+    type === "social" ? hashtags(scope, period, end).catch(() => null) : Promise.resolve(null),
     type === "social"
       ? listItems(type, new URLSearchParams({ level: String(INTENSE_LEVEL), from: lastDay, ...(end ? { to: lastDay } : {}) }), scope, { limit: 12, offset: 0 })
       : Promise.resolve([]),

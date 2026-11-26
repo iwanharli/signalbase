@@ -2,7 +2,7 @@ import { allowsType, OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
 import { decodeTextEntities } from "@/lib/media/text";
 import { buildGraph, SNA_POSTS, type SnaAccount, type SnaPost, type SnaRole, childrenPerHub, emptyHubs, type SnaDays, type SnaLimit, type SnaGraph, type SnaHub, type SnaRow } from "@/lib/sna";
 import { sharedCache } from "./cache";
-import { analyticsPool } from "./pool";
+import { REQUEST_TIMEOUT_MS, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 import type { SnaCodes } from "../snaFilter";
 import { brands, COMMENTS, LIKES, SHARES } from "../ai/summaryInput";
@@ -31,7 +31,7 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only:
     const since = new Date(Date.now() - days * 86_400_000).toLocaleString("sv-SE", { timeZone: "Asia/Jakarta" });
     const { where, values } = withCodes(buildWhere("social", new URLSearchParams({ since }), s), only);
     const from = COLUMNS.social.from;
-    const pool = analyticsPool();
+    return withLongTimeout(REQUEST_TIMEOUT_MS, async (pool) => {
     const { rows: hubs } = await pool.query<SnaHub>(
       `SELECT p.post_username username, mode() WITHIN GROUP (ORDER BY p.post_source) source, count(*)::int posts, sum(${ENGAGEMENT})::float8 engagement FROM ${from}
        WHERE ${where} AND p.post_username <> '' AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)
@@ -43,6 +43,7 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only:
        WHERE ${where} AND p.post_username = ANY($${values.length + 1}::text[]) AND m.username_target <> p.post_username
        GROUP BY 1, 2, 3`, [...values, hubs.map((h) => h.username)]);
     return withAccountKinds(buildGraph(hubs, rows, childrenPerHub(limit)));
+    });
   });
 }
 
@@ -67,14 +68,14 @@ export function snaAccount(username: string, role: SnaRole, days: SnaDays, scope
     const cond = role === "author" ? `p.post_username = ${who}`
       : role === "hub" ? `p.post_username = ${who} AND EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code)`
       : `EXISTS (SELECT 1 FROM post_mentioned m WHERE m.post_code = p.post_code AND m.username_target = ${who})`;
-    const from = COLUMNS.social.from, pool = analyticsPool(), args = [...values, username];
-    const [posts, buckets] = await Promise.all([
+    const from = COLUMNS.social.from, args = [...values, username];
+    const [posts, buckets] = await withLongTimeout(REQUEST_TIMEOUT_MS, (pool) => Promise.all([
       pool.query<PostRow>(
         `SELECT p.post_code code, p.post_source source, p.post_username username, left(p.post_content, 280) content, p.post_url url, p.post_timestamps ts, lower(a.emotion) emotion
          FROM ${from} WHERE ${where} AND ${cond} ORDER BY p.post_timestamps DESC LIMIT ${SNA_POSTS}`, args),
       pool.query<{ key: string; n: number }>(
         `SELECT to_char(p.post_timestamps, '${days === 1 ? "YYYY-MM-DD HH24" : "YYYY-MM-DD"}') key, count(*)::int n FROM ${from} WHERE ${where} AND ${cond} GROUP BY 1 ORDER BY 1`, args),
-    ]);
+    ]));
     return {
       posts: posts.rows.map((r): SnaPost => ({ code: r.code, source: r.source, username: r.username, content: decodeTextEntities(r.content ?? ""), url: safeUrl(r.url), ts: new Date(r.ts).toISOString(), emotion: r.emotion })),
       buckets: buckets.rows,
