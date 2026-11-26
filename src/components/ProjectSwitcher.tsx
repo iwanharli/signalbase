@@ -48,11 +48,11 @@ export function ProjectSwitcher({ role }: { role: Role }) {
   const chip = (open: boolean) => (
     <>
       <span className={classes.icon}>{active || !staff ? <IconFolder size={14} /> : <IconDatabase size={14} />}</span>
-      <span className={classes.text}><small>Proyek</small><b>{label}</b></span>
+      <span className={classes.text}>{label}</span>
       {open && <IconChevronDown size={14} className={classes.chevron} />}
     </>
   );
-  if (!staff && projects.length < 2) return <div className={classes.chip} title="Proyek aktif">{chip(false)}</div>;
+  if (!staff && projects.length < 2) return <div className={classes.chip} title={`Proyek aktif: ${label}`}>{chip(false)}</div>;
 
   return (
     <Menu position="bottom-end" width={260} offset={12} transitionProps={{ transition: "pop-top-right", duration: 160 }}>

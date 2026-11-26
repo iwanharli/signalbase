@@ -102,17 +102,20 @@ export function Shell({ name, username, role, children }: { name: string; userna
       <div className={classes.backdrop} aria-hidden><span /><span /><span /></div>
 
       {!bare && <header className={classes.bar} data-scrolled={scrolled || undefined}>
-        <div className={classes.frame}>
-          <Link href="/dashboard" className={classes.brand} aria-label="Signalbase">
-            <span className={classes.mark}><LogoMark size={32} /></span>
-            <span className={classes.brandText}>Signal<b>base</b></span>
-          </Link>
+        <div className={classes.frame} data-crowded={role !== "user" || undefined}>
+          <div className={classes.start}>
+            <Link href="/dashboard" className={classes.brand} aria-label="Signalbase">
+              <span className={classes.mark}><LogoMark size={32} /></span>
+              <span className={classes.brandText}>Signal<b>base</b></span>
+            </Link>
+            <ProjectSwitcher role={role} />
+          </div>
 
           <nav ref={navRef} className={classes.nav}>
             {pill && <span className={classes.pill} style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
             {nav.map((i) => {
               const link = (
-                <Link key={i.href} href={i.href} className={classes.link} aria-label={i.label} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined}>
+                <Link key={i.href} href={i.href} className={classes.link} aria-label={i.label} title={i.label} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined}>
                   <i.icon size={17} stroke={1.8} /><span>{i.label}</span>
                 </Link>
               );
@@ -132,7 +135,6 @@ export function Shell({ name, username, role, children }: { name: string; userna
           </nav>
 
           <div className={classes.right}>
-            <ProjectSwitcher role={role} />
             {role === "admin" && <MediaWorkerAlert />}
             <MediaAlertsBell />
             {barTools.filter((t) => !("inMenu" in t)).map((t) => (

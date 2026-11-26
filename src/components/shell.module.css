@@ -45,6 +45,7 @@
 @keyframes spin { to { --a: 360deg; } }
 @keyframes sweep { 0%, 60% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
+.start { display: flex; align-items: center; gap: 12px; justify-self: start; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; justify-self: start; }
 .mark { position: relative; display: grid; }
 .mark i { position: absolute; inset: -4px; border-radius: 13px; border: 1px solid rgba(34,211,238,.6); animation: ping 2.6s cubic-bezier(0,0,.2,1) infinite; }
@@ -79,7 +80,11 @@
 .main { padding: 104px 12px 48px; animation: rise 500ms cubic-bezier(.2,.8,.2,1) backwards; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 
-@media (max-width: 1200px) { .link { padding: 8px 9px; font-size: 13px; } .live { display: none; } }
+@media (max-width: 1560px) { .link { padding: 8px 9px; font-size: 13px; } }
+/* Narrow screens: links other than the current page show only their icon (staff have more links, so sooner). */
+@media (max-width: 1480px) { .frame[data-crowded] .link:not([data-active]) span { display: none; } }
+@media (max-width: 1200px) { .live { display: none; } .link:not([data-active]) span { display: none; } }
+@media (max-width: 1100px) { .brandText { display: none; } }
 @media (max-width: 1000px) {
   .nav, .live { display: none; }
   .frame { grid-template-columns: 1fr auto; }
