@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Skeleton } from "@mantine/core";
 import { IconExternalLink, IconUser, IconUsers, IconX } from "@tabler/icons-react";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
-import { dominantTone, nodeCounts, TONE_COLOR, TONE_LABEL, toneOf, type SnaAccount, type SnaGraph, type SnaNode, type SnaRole, type Tone } from "@/lib/sna";
+import { ACCOUNT_LABEL, dominantTone, nodeCounts, TONE_COLOR, TONE_LABEL, toneOf, type SnaAccount, type SnaGraph, type SnaNode, type SnaRole, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "../apiKeys/shared";
 import classes from "./sna.module.css";
@@ -43,7 +43,7 @@ export function SnaPanel({ node, graph, days, keyId, filter = "", authors = fals
     <aside className={classes.panel} aria-label={`Detail @${node.id}`}>
       <header>
         <span className={classes.panelIcon}>{role !== "child" ? <IconUsers size={18} /> : <IconUser size={18} />}</span>
-        <div><b>@{node.id}</b><small>{role !== "child" ? `${authors ? "Akun dalam isu" : "Akun top poster"}${node.source ? ` · ${sourceLabel(node.source)}` : ""}` : "Akun yang disebut"}</small></div>
+        <div><b>@{node.id}</b><small>{node.account && node.account !== "publik" ? `${ACCOUNT_LABEL[node.account]} · ` : ""}{role !== "child" ? `${authors ? "Akun dalam isu" : "Akun top poster"}${node.source ? ` · ${sourceLabel(node.source)}` : ""}` : "Akun yang disebut"}</small></div>
         <button type="button" onClick={onClose} aria-label="Tutup panel"><IconX size={17} /></button>
       </header>
       <div className={classes.tabs} role="tablist">

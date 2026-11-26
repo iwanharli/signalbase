@@ -5,7 +5,14 @@ import { sharedCache } from "./cache";
 import { analyticsPool } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 import type { SnaCodes } from "../snaFilter";
-import { COMMENTS, LIKES, SHARES } from "../ai/summaryInput";
+import { brands, COMMENTS, LIKES, SHARES } from "../ai/summaryInput";
+import { accountKind } from "@/lib/ai/accountKind";
+
+/** Marks each account node as a news outlet, an institution or the public, by its username (as Ringkasan AI does). */
+export async function withAccountKinds(g: SnaGraph): Promise<SnaGraph> {
+  const known = await brands().catch(() => [] as string[]);
+  return { ...g, nodes: g.nodes.map((n) => (n.kind === "issue" ? n : { ...n, account: accountKind(n.id, known) })) };
+}
 
 /** Engagement of one post, as in Ringkasan AI: likes + 2 x comments + 3 x shares. */
 export const ENGAGEMENT = `(${LIKES} + 2 * ${COMMENTS} + 3 * ${SHARES})`;
@@ -35,7 +42,7 @@ export function snaGraph(days: SnaDays, limit: SnaLimit, scope?: KeyScope, only:
        JOIN post_mentioned m ON m.post_code = p.post_code
        WHERE ${where} AND p.post_username = ANY($${values.length + 1}::text[]) AND m.username_target <> p.post_username
        GROUP BY 1, 2, 3`, [...values, hubs.map((h) => h.username)]);
-    return buildGraph(hubs, rows, childrenPerHub(limit));
+    return withAccountKinds(buildGraph(hubs, rows, childrenPerHub(limit)));
   });
 }
 

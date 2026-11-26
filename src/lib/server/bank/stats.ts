@@ -2,7 +2,7 @@
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { DailyCount, MediaType, MoodCount } from "@/lib/media/types";
 import { sharedCache } from "./cache";
-import { analyticsPool, bankPool, withLongTimeout } from "./pool";
+import { analyticsPool, bankPool, REQUEST_TIMEOUT_MS, withLongTimeout } from "./pool";
 import { buildWhere, COLUMNS, filterKey } from "./query";
 
 /** Upper bound for the fast (capped) count the public API returns with every list. */
@@ -21,7 +21,7 @@ const moodCache = sharedCache<MoodCount[]>("bank.mood", { ttlMs: 10 * 60_000, ma
 export function countExact(type: MediaType, params: URLSearchParams, scope: KeyScope) {
   return exactCountCache(filterKey(type, params, scope), () => {
     const { where, values } = buildWhere(type, params, scope);
-    return withLongTimeout(90_000, async (client) => {
+    return withLongTimeout(REQUEST_TIMEOUT_MS, async (client) => {
       const { rows } = await client.query<{ n: string }>(`SELECT count(*) n FROM ${COLUMNS[type].from} WHERE ${where}`, values);
       return Number(rows[0].n);
     });
@@ -52,7 +52,7 @@ export function moodBreakdown(type: MediaType, params: URLSearchParams, scope: K
            SELECT lower(${c.mood}) value FROM ${c.from} WHERE ${where} ORDER BY ${c.timestamp} DESC LIMIT ${Math.floor(sample)}
          ) t WHERE value IS NOT NULL AND value <> '' GROUP BY 1 ORDER BY 2 DESC`
       : `SELECT lower(${c.mood}) value, count(*)::int n FROM ${c.from} WHERE ${where} AND ${labelled} GROUP BY 1 ORDER BY 2 DESC`;
-    const { rows } = await withLongTimeout(120_000, (client) => client.query<MoodCount>(sql,
+    const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<MoodCount>(sql,
       values,
     ));
     return rows;

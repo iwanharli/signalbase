@@ -176,3 +176,7 @@ button.tag:hover { background: rgba(124,58,237,.4); }
   .stage { flex: 1; height: auto; min-height: 0; }
 }
 .issueMark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; background: radial-gradient(circle at 35% 30%, #a78bfa, #5b21b6); border: 2px solid #c4b5fd; }
+.kindMark { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #2e1065; }
+.kindMark[data-kind="media"] { background: #fef3c7; border: 2px solid #fbbf24; }
+.kindMark[data-kind="institusi"] { background: #dbeafe; border: 2px solid #60a5fa; }
+

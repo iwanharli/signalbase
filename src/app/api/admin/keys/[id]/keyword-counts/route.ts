@@ -3,7 +3,7 @@ import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { adminRoute } from "@/lib/server/auth";
 import { createCache } from "@/lib/server/bank/cache";
-import { withLongTimeout } from "@/lib/server/bank/pool";
+import { REQUEST_TIMEOUT_MS, withLongTimeout } from "@/lib/server/bank/pool";
 import { buildWhere, COLUMNS, keywordQuery } from "@/lib/server/bank/query";
 import { prisma } from "@/lib/server/db";
 
@@ -26,7 +26,7 @@ async function countType(type: MediaType, scope: KeyScope, from: string) {
     values.push(q);
     return `count(*) FILTER (WHERE ${c.search} @@ to_tsquery('indonesian', $${values.length}))::int`;
   });
-  const { rows } = await withLongTimeout(120_000, (client) => client.query<{ counts: (number | null)[]; total: number }>(
+  const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<{ counts: (number | null)[]; total: number }>(
     `SELECT ARRAY[${columns.join(", ") || "NULL::int"}] counts, count(*)::int total FROM ${c.from} WHERE ${where}`, values));
   return rows[0];
 }

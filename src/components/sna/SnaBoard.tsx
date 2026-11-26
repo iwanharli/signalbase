@@ -10,7 +10,7 @@ import { select } from "d3-selection";
 import { zoom, zoomIdentity } from "d3-zoom";
 import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
-import { accountsPerIssue, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
+import { accountsPerIssue, ACCOUNT_LABEL, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
@@ -40,6 +40,14 @@ const CHILD_ICON: Record<Tone, string> = {
   positive: `${FACE}<path d="M8 14s1.5 2 4 2 4-2 4-2"/>`,
   unknown: ICON.user,
 };
+// Lucide "newspaper" (news outlet) and "landmark" (institution) for accounts that are not the public.
+const KIND_ICON = {
+  media: '<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
+  institusi: '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+};
+/** A main account's disc: white for the public, a light tint for outlets (amber) and institutions (blue). */
+const HUB_FILL = { publik: "#ffffff", media: "#fef3c7", institusi: "#dbeafe" };
+const special = (n: SnaNode) => n.account === "media" || n.account === "institusi";
 // Lucide "flame": an issue.
 const FLAME = '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>';
 /** Engagement spans 0 to hundreds of thousands, so sizes follow its logarithm (10 -> 1, 1,000 -> 3, 100,000 -> 5). */
@@ -91,11 +99,13 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
     const node = view.append("g").selectAll<SVGGElement, Node>("g").data(nodes).join("g").attr("data-id", (d) => d.id).style("cursor", "pointer");
     // Issue: a big violet disc with a flame, its border the emotion of the posts about it. Account: white disc. Mentioned: dark disc with a face.
     node.append("circle").attr("r", radius)
-      .attr("fill", (d) => (d.kind === "issue" ? "url(#sna-issue)" : d.kind === "hub" ? "#ffffff" : "#1e1b4b"))
+      .attr("fill", (d) => (d.kind === "issue" ? "url(#sna-issue)" : d.kind === "hub" ? HUB_FILL[d.account ?? "publik"] : "#1e1b4b"))
       .attr("stroke", (d) => TONE_COLOR[toneOfNode(d.id, d.kind)]).attr("stroke-width", (d) => (d.kind === "issue" ? 5 : d.kind === "hub" ? 4 : 2));
     node.append("g").attr("fill", "none").attr("stroke", (d) => (d.kind === "issue" ? "#ffffff" : d.kind === "hub" ? "#2e1065" : TONE_COLOR[toneOfNode(d.id)])).attr("stroke-width", 2).attr("stroke-linecap", "round").attr("stroke-linejoin", "round")
-      .attr("transform", (d) => { const k = (radius(d) * (d.kind === "issue" ? 0.95 : d.kind === "hub" ? 1.15 : toneOfNode(d.id) === "unknown" ? 1.25 : 1.7)) / 24; return `scale(${k}) translate(-12,-12)`; })
-      .style("pointer-events", "none").html((d) => (d.kind === "issue" ? FLAME : d.kind === "hub" ? ICON.hub : CHILD_ICON[toneOfNode(d.id)]));
+      .attr("transform", (d) => { const k = (radius(d) * (d.kind === "issue" ? 0.95 : special(d) ? 1.05 : d.kind === "hub" ? 1.15 : toneOfNode(d.id) === "unknown" ? 1.25 : 1.7)) / 24; return `scale(${k}) translate(-12,-12)`; })
+      .style("pointer-events", "none")
+      // Outlets and institutions show their own glyph (a newspaper, a building); public accounts keep the people / face icons.
+      .html((d) => (d.kind === "issue" ? FLAME : special(d) ? KIND_ICON[d.account as "media" | "institusi"] : d.kind === "hub" ? ICON.hub : CHILD_ICON[toneOfNode(d.id)]));
     node.filter((d) => d.kind === "hub").append("text").text((d) => d.id).attr("text-anchor", "middle").attr("dy", (d) => -radius(d) - 6).attr("fill", "#ede9fe").attr("font-size", 12).attr("font-weight", 700).style("pointer-events", "none");
     node.filter((d) => d.kind === "issue").append("text").attr("text-anchor", "middle").attr("fill", "#ffffff").attr("font-size", 13).attr("font-weight", 800).style("pointer-events", "none")
       .each((d, i, els) => {
@@ -118,7 +128,7 @@ function Graph({ graph, onPick, picked, locked }: { graph: SnaGraph; onPick: (id
       const b = document.createElement("b");
       const eng = d.engagement !== undefined ? ` · engagement ${formatNumber(Math.round(d.engagement))}` : "";
       if (d.kind === "issue") { b.textContent = d.title ?? "Isu"; tipEl.append(b, text(`Isu · ${formatNumber(d.posts)} post`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk menyorot akunnya")); }
-      else { b.textContent = `@${d.id}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail")); }
+      else { b.textContent = `@${d.id}${d.account ? ` · ${ACCOUNT_LABEL[d.account]}` : ""}`; tipEl.append(b, text(d.kind === "hub" ? (issueMode ? `${formatNumber(d.posts)} post di isu${eng}` : `Top poster · ${formatNumber(d.posts)} post · ${formatNumber(d.mentions)} mention${eng}`) : `Disebut ${formatNumber(d.mentions)}×${eng}`), text(`Emosi dominan: ${TONE_LABEL[toneOfNode(d.id, d.kind)]}`), text("Klik untuk detail")); }
       tipEl.dataset.on = "1"; place(e);
     }).on("mouseleave", () => delete tipEl.dataset.on).on("click", (e: MouseEvent, d) => { e.stopPropagation(); pickRef.current(d.id); });
     link.on("mousemove", (e: MouseEvent, d) => {
@@ -354,6 +364,8 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
               <span><IconMoodSmile size={14} />Akun disebut</span>
               <span><i className={classes.lineMark} data-thick /><i className={classes.lineMark} />Tebal = sering</span>
             </>}
+            <span><i className={classes.kindMark} data-kind="media" dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2">${KIND_ICON.media}</svg>` }} />Media berita</span>
+            <span><i className={classes.kindMark} data-kind="institusi" dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2">${KIND_ICON.institusi}</svg>` }} />Institusi</span>
             <span className={classes.legendTones}>{TONES.filter((t) => t !== "unknown").map((t) => <i key={t} style={{ background: TONE_COLOR[t] }} />)}Warna = emosi</span>
             <Tooltip multiline w={290} withArrow position="top-start" withinPortal={false} events={{ hover: true, focus: true, touch: true }}
               label={issueView ? <>

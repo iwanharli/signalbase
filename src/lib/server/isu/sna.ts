@@ -3,7 +3,7 @@
 import { accountsPerIssue, buildIssueGraph, emptyHubs, ISSUES_SHOWN, type IssueAccountRow, type SnaDays, type SnaGraph, type SnaLimit } from "@/lib/sna";
 import { sharedCache } from "../bank/cache";
 import { analyticsPool } from "../bank/pool";
-import { ENGAGEMENT } from "../bank/sna";
+import { ENGAGEMENT, withAccountKinds } from "../bank/sna";
 import { prisma } from "../db";
 import type { SnaCodes } from "../snaFilter";
 
@@ -31,6 +31,6 @@ export async function snaIssueGraph(keyId: string, days: SnaDays, limit: SnaLimi
        WHERE p.post_username <> '' AND p.post_timestamps >= $3::timestamp
        GROUP BY 1, 2, 4`, [ids, codes, since]);
     const shown = issues.map((i) => ({ id: i.id, title: i.title ?? i.keywords.slice(0, 4).join(", "), posts: i.posts }));
-    return buildIssueGraph(shown, rows, accountsPerIssue(limit));
+    return withAccountKinds(buildIssueGraph(shown, rows, accountsPerIssue(limit)));
   });
 }

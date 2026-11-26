@@ -38,7 +38,12 @@ export type SnaRow = { hub: string; target: string; emotion: string | null; n: n
 
 /** hub: main account; child: mentioned account; issue: an issue of the project (issue view), linked from the accounts posting in it.
  *  `engagement`: likes + 2 x comments + 3 x shares of the account's posts in view (node size); `title`: an issue's title. */
-export type SnaNode = { id: string; kind: "hub" | "child" | "issue"; posts: number; mentions: number; source?: string; engagement?: number; title?: string };
+export type SnaNode = {
+  id: string; kind: "hub" | "child" | "issue"; posts: number; mentions: number; source?: string; engagement?: number; title?: string;
+  /** What runs the account (lib/ai/accountKind.ts): a news outlet, an institution, or the public. Set by the server. */
+  account?: "media" | "institusi" | "publik";
+};
+export const ACCOUNT_LABEL = { media: "Media berita", institusi: "Institusi", publik: "Akun publik" } as const;
 export type SnaLink = { source: string; target: string; n: number; tone: Tone; counts: Record<Tone, number> };
 export type SnaGraph = { nodes: SnaNode[]; links: SnaLink[] };
 

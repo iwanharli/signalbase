@@ -12,7 +12,7 @@ import type { MediaType } from "@/lib/media/types";
 import { listItems } from "./bank";
 import { cleanName, profileLink } from "./bank/items";
 import { sharedCache } from "./bank/cache";
-import { analyticsPool, withLongTimeout } from "./bank/pool";
+import { analyticsPool, REQUEST_TIMEOUT_MS, withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS, filterKey, keywordQuery } from "./bank/query";
 
 const DAY_MS = 86_400_000;
@@ -61,7 +61,7 @@ async function scan(type: MediaType, scope: KeyScope, period: number, end?: stri
   const c = COLUMNS[type];
   const { where, values, now } = windowWhere(type, scope, period * 2, end);
   const hot = type === "social" ? `coalesce(a.emotion_level >= ${INTENSE_LEVEL}, false)` : "false";
-  return withLongTimeout(90_000, async (client) => (await client.query<Row>(
+  return withLongTimeout(REQUEST_TIMEOUT_MS, async (client) => (await client.query<Row>(
     `SELECT floor(extract(epoch FROM ${now} - ${c.timestamp}) / 86400)::int b, lower(${c.mood}) m, lower(${c.category}) cat, ${hot} hot, count(*)::int n
      FROM ${c.from} WHERE ${where} GROUP BY 1, 2, 3, 4`, values)).rows);
 }
@@ -77,7 +77,7 @@ async function keywordCounts(type: MediaType, scope: KeyScope, period: number, e
     return `count(*) FILTER (WHERE ${c.search} @@ to_tsquery('indonesian', $${values.length}))::int k${i}`;
   });
   values.push(period);
-  const { rows } = await withLongTimeout(90_000, (client) => client.query<Record<string, number | string | boolean | null>>(
+  const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<Record<string, number | string | boolean | null>>(
     `SELECT lower(${c.mood}) m, ${c.timestamp} >= ${now} - make_interval(days => $${values.length}) cur, ${columns.join(", ")}
      FROM ${c.from} WHERE ${where} GROUP BY 1, 2`, values));
   return keywords.map((value, i) => {
@@ -142,7 +142,7 @@ async function engagement(scope: KeyScope, period: number, end?: string): Promis
       `count(${num})::int ${name}_n`,
     ];
   });
-  const { rows } = await withLongTimeout(90_000, (client) => client.query<Record<string, string | number | null>>(
+  const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<Record<string, string | number | null>>(
     `SELECT ${c.source} src, count(*) FILTER (WHERE ${cur})::int posts, ${cols.join(", ")} FROM ${c.from} WHERE ${where} GROUP BY 1`, values));
   const pick = (row: Record<string, string | number | null>, which: "cur" | "prev"): EngagementMetrics => {
     const out = { likes: null, comments: null, shares: null, views: null } as EngagementMetrics;
@@ -175,7 +175,7 @@ async function topAccounts(scope: KeyScope, period: number, end?: string): Promi
   values.push(period);
   const cur = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
   const like = `CASE WHEN p.additional_data->>'like' ~ '^[0-9]{1,7}$' AND (${c.source} <> 'facebook' OR (p.additional_data->>'like')::bigint < ${FACEBOOK_MAX}) THEN (p.additional_data->>'like')::bigint END`;
-  return withLongTimeout(90_000, async (client) => {
+  return withLongTimeout(REQUEST_TIMEOUT_MS, async (client) => {
     // The top accounts overall and the top accounts of each platform (for the platform tabs), in one scan.
     const top = (await client.query<{ src: string; u: string; name: string | null; n: number; prev: number; likes: number | null }>(
       `WITH accounts AS (
@@ -207,7 +207,7 @@ async function topMedia(scope: KeyScope, period: number, end?: string): Promise<
   const { where, values, now } = windowWhere("online", scope, period * 2, end);
   values.push(period);
   const cur = `${c.timestamp} >= ${now} - make_interval(days => $${values.length})`;
-  const { rows } = await withLongTimeout(90_000, (client) => client.query<{ src: string; m: string | null; cur: boolean; n: number }>(
+  const { rows } = await withLongTimeout(REQUEST_TIMEOUT_MS, (client) => client.query<{ src: string; m: string | null; cur: boolean; n: number }>(
     `SELECT ${c.source} src, lower(${c.mood}) m, ${cur} cur, count(*)::int n FROM ${c.from}
      WHERE ${where} AND ${c.source} IS NOT NULL GROUP BY 1, 2, 3`, values));
   const bySource = new Map<string, { n: number; prev: number; moods: { m: string | null; n: number }[] }>();

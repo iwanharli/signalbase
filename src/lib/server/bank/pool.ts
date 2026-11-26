@@ -35,6 +35,10 @@ export const bankPool = () => pool("main");
 export const analyticsPool = () => pool("analytics");
 
 /** Runs `fn` on one analytics connection with a longer statement timeout. */
+/** Longest a query run for a page request may take: under Cloudflare's 100 s origin limit, so a slow one still gets a
+ *  JSON error (and the page its message) instead of the proxy's error page. Background jobs may wait longer. */
+export const REQUEST_TIMEOUT_MS = 85_000;
+
 export async function withLongTimeout<T>(ms: number, fn: (client: PoolClient) => Promise<T>) {
   const client = await analyticsPool().connect();
   try {
