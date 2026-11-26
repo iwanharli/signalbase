@@ -1,14 +1,10 @@
-/* Manual label strip at the top of a card. --label is the chosen label's colour. Quiet until a label is set; then the
-   strip takes a light wash of that colour with an accent line, so labelled cards stand out in the grid. */
+/* Strip at the top of a card (AI category and manual labels): always one neutral colour; only the label pills carry
+   their label's colour (--label). */
 .bar { --label: var(--mantine-color-gray-5); position: relative; z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 6px 10px 6px 14px; border-bottom: 1px dashed var(--mantine-color-default-border); background: var(--mantine-color-gray-0); }
-.bar[data-set] { border-bottom-style: solid; border-bottom-color: color-mix(in srgb, var(--label) 30%, transparent);
-  background: color-mix(in srgb, var(--label) 9%, var(--mantine-color-body)); }
-.bar[data-set]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--label); }
+  padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--mantine-color-default-border); background: var(--mantine-color-gray-0); }
 
 .bar[data-bleed] { margin: -14px -16px 0; border-radius: 18px 18px 0 0; }
 .bar[data-panel] { flex-shrink: 0; padding: 12px 14px 12px 16px; border: 1px solid var(--mantine-color-default-border); border-radius: 12px; }
-.bar[data-panel][data-set] { border-color: color-mix(in srgb, var(--label) 35%, transparent); }
 
 /* Left: caption or the AI category (may truncate); right: the labels, which keep room for at least one name. */
 .bar > :first-child { align-self: center; flex: 0 1 auto; min-width: 0; max-width: 62%; }
@@ -31,7 +27,6 @@
 .dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--label); box-shadow: 0 0 0 3px color-mix(in srgb, var(--label) 22%, transparent); }
 
 :global([data-mantine-color-scheme="dark"]) .bar { background: color-mix(in srgb, var(--mantine-color-dark-6) 60%, transparent); }
-:global([data-mantine-color-scheme="dark"]) .bar[data-set] { background: color-mix(in srgb, var(--label) 14%, var(--mantine-color-dark-7)); }
 :global([data-mantine-color-scheme="dark"]) .pill { background: var(--mantine-color-dark-7); }
 :global([data-mantine-color-scheme="dark"]) .pill[data-set] { color: color-mix(in srgb, var(--label) 55%, white); background: color-mix(in srgb, var(--label) 20%, var(--mantine-color-dark-7)); }
 

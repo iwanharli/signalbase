@@ -29,7 +29,8 @@
 @keyframes drop { from { opacity: 0; transform: translate(-50%, -40px) scale(.96); filter: blur(6px); } }
 
 .frame { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; height: 60px; padding: 0 10px; border-radius: 20px;
-  background: rgba(13, 11, 31, .78); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  /* Same surface as the sticky page bars below it (media summary), so the two read as one layer when scrolled. */
+  background: rgba(17, 15, 34, .9); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
   box-shadow: 0 18px 50px -18px rgba(46, 16, 101, .65), inset 0 1px 0 rgba(255,255,255,.08); transition: height 260ms ease, box-shadow 260ms ease; }
 .bar[data-scrolled] .frame { height: 54px; box-shadow: 0 14px 40px -16px rgba(46, 16, 101, .8), inset 0 1px 0 rgba(255,255,255,.08); }
 /* Rotating neon rim */

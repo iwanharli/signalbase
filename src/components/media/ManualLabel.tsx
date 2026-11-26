@@ -1,7 +1,7 @@
 "use client";
 // Strip at the top of each card to give a post or article one or more of the project's labels (not AI categorisation).
 // MediaBrowser provides the project's choices through ManualLabelContext; without a project, or without choices, nothing shows.
-// Each choice keeps one colour (by its position in the project's list), so labelled cards are easy to spot in the grid; the strip takes the first one's colour.
+// Each choice keeps one colour (by its position in the project's list) on its pill; the strip itself stays one neutral colour.
 import { createContext, useContext, useEffect, useState } from "react";
 import { Loader, Menu } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -72,7 +72,7 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
 
   // Clicks inside (the menu is portalled, but React events still bubble here) must not open the detail modal.
   const bar = (
-    <div className={classes.bar} data-set={set || undefined} data-bleed={bleed || undefined} data-panel={panel || undefined} style={set ? tint(values[0]) : undefined}
+    <div className={classes.bar} data-set={set || undefined} data-bleed={bleed || undefined} data-panel={panel || undefined}
       onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {leading ?? <span className={classes.caption}>Label</span>}
       {ctx.canLabel ? (
