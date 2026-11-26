@@ -105,6 +105,8 @@ export function ItemCard({ item, type, delay, onOpen, notice }: { item: MediaIte
       style={{ animationDelay: `${delay}ms`, ["--tone" as string]: moodTone(item) }}
     >
       <ManualLabelPicker item={item} leading={item.classification !== undefined ? <CardAiCategory item={item} /> : null} />
+      {/* Like the Original View card: post type and topic right under the AI category and label strip. */}
+      {type === "social" && (item.postType || item.category) && <div className={classes.subbar}><PostMeta item={item} /></div>}
       {hasImage && (
         <div className={classes.media}>
           {/* Remote images from many news hosts; next/image would need every domain allow-listed. */}
@@ -125,7 +127,6 @@ export function ItemCard({ item, type, delay, onOpen, notice }: { item: MediaIte
           ) : <PostAuthor item={item} type={type} />}
           <MoodBadges item={item} type={type} />
         </div>
-        {type === "social" && <PostMeta item={item} />}
         {item.title && <Text className={classes.headline} lineClamp={3}>{item.title}</Text>}
         {item.content && (
           <Text fz={13.5} lh={1.55} c={item.title ? "dimmed" : undefined} lineClamp={type === "social" ? 5 : item.title ? 2 : 7} className={classes.content}>{type === "social" ? <PostText text={item.content} /> : item.content}</Text>
