@@ -21,6 +21,7 @@ import { typeInsights } from "./insights";
 import { typeStats } from "./overview";
 import { withImageCodes } from "./media/textSignals";
 import { wellFormed } from "@/lib/ai/clip";
+import { pausedProjects } from "./projectAccess";
 
 export const BANK_SCOPE = "bank";
 const BANK_NAME = "Seluruh data";
@@ -72,9 +73,11 @@ export async function reportSection(scope: KeyScope | undefined, project: Report
 
 type ScopeRef = { id: string; name: string; scope: KeyScope | undefined; project: ReportSection["project"] };
 
-/** The bank and every active project: the scopes that get archive reports. */
+/** The bank and every active project with an active client (or none): the scopes that get archive reports. */
 export async function reportScopes(): Promise<ScopeRef[]> {
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } });
+  const paused = await pausedProjects(); // their reports carry AI narratives: none while no client is active
+  const keys = (await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
+    .filter((k) => !paused.has(k.id));
   return [
     { id: BANK_SCOPE, name: BANK_NAME, scope: undefined, project: null },
     ...await Promise.all(keys.map(async (k) => ({ id: k.id, name: k.name, scope: await withImageCodes(k.id, parseKeyScope(k.scope, k.keywords)), project: { name: k.name, keywords: k.keywords } }))),

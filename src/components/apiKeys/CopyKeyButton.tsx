@@ -8,8 +8,10 @@ import { Button } from "../ui/Button";
 
 const COPIED_MS = 1600;
 
-export function CopyKeyButton({ keyId, copyable, size = "sm", onDark, iconOnly, label = "Salin" }: {
+export function CopyKeyButton({ keyId, secretUrl, copyable, size = "sm", onDark, iconOnly, label = "Salin" }: {
   keyId: string;
+  /** Where the full value comes from; default the project's own (internal) key. */
+  secretUrl?: string;
   /** False for keys created before encrypted storage; those must be rotated once. */
   copyable: boolean;
   size?: "sm" | "md";
@@ -22,7 +24,7 @@ export function CopyKeyButton({ keyId, copyable, size = "sm", onDark, iconOnly, 
   const copy = async () => {
     setState("loading");
     try {
-      const { key } = await api<{ key: string }>(`/api/admin/keys/${keyId}/secret`, { cache: "no-store" });
+      const { key } = await api<{ key: string }>(secretUrl ?? `/api/admin/keys/${keyId}/secret`, { cache: "no-store" });
       await navigator.clipboard.writeText(key);
       setState("copied");
       setTimeout(() => setState("idle"), COPIED_MS);

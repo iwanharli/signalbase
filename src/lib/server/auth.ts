@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { COOKIE, isSecretPath, roleOf, signSession, verifySession, type Role } from "../session";
+import { isExpired } from "../plans";
 import { prisma } from "./db";
+import { EXPIRED_MESSAGE } from "./plan";
 
 export async function getSession() {
   return verifySession((await cookies()).get(COOKIE)?.value);
@@ -10,29 +12,28 @@ export async function getSession() {
 /** The signed-in panel account as route handlers see it. */
 export type PanelUser = { id: string; username: string; role: Role };
 
-/** Panel APIs only admins may call. */
-const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-settings"];
+/** Panel APIs only admins may call (clients see neither money, plans, usage nor other accounts). */
+const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-settings", "/api/admin/billing"];
 /** Viewers read like admins but never change anything, see settings, or reveal secrets. */
 const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
 
-/** A user account still allowed in: active itself, and for a sub-account also its parent. Checked on every request, so
- *  suspending someone (or the client's main account) cuts off an open session at once. */
+/** A client ("user") account still allowed in: approved and not suspended. Checked on every request, so suspending a
+ *  client cuts off an open session at once. */
 export async function isActiveAccount(id: string) {
-  const account = await prisma.admin.findUnique({ where: { id }, select: { status: true, parent: { select: { status: true } } } });
-  return account?.status === "active" && (!account.parent || account.parent.status === "active");
+  const account = await prisma.admin.findUnique({ where: { id }, select: { status: true } });
+  return account?.status === "active";
 }
 
-/** Projects a user account sees: the ones it owns, and (sub-accounts) the ones shared with it. */
-export const visibleKeys = (accountId: string) => ({ OR: [{ ownerId: accountId }, { members: { some: { accountId } } }] });
+/** Projects a client account sees: the ones an admin gave it. */
+export const visibleKeys = (accountId: string) => ({ members: { some: { accountId } } });
 
-/** What the account may do with this project: "full" (admins, the owner), "read" (viewers, a sub-account it is shared
- *  with), or null when it may not see it at all. */
+/** What the account may do with this project: "full" (admins), "read" (viewers, and clients it was given to), or null
+ *  when it may not see it at all. */
 export async function keyAccess(user: PanelUser, keyId: string): Promise<"full" | "read" | null> {
   if (user.role === "admin") return "full";
   if (user.role === "viewer") return "read";
-  const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { ownerId: true, members: { where: { accountId: user.id }, select: { accountId: true } } } });
-  if (!key) return null;
-  return key.ownerId === user.id ? "full" : key.members.length ? "read" : null;
+  const member = await prisma.projectMember.findUnique({ where: { apiKeyId_accountId: { apiKeyId: keyId, accountId: user.id } }, select: { accountId: true } });
+  return member ? "read" : null;
 }
 
 /** True when the account may see this project (and browse the bank through it). */
@@ -41,10 +42,9 @@ export async function canSeeKey(user: PanelUser, keyId: string) {
 }
 
 // Wraps panel route handlers; middleware already guards sign-in, this is defence in depth.
-// For "user" accounts it also checks the account is still active, blocks admin-only APIs, and blocks any
-// /api/admin/keys/<id>/… on a key they don't own (a project shared with a sub-account: reading and labelling posts only,
-// never its secret),
-// so every per-key route is covered in one place.
+// Client ("user") accounts read only: the account must be active and its subscription running, nothing may be changed
+// (any method but GET/HEAD is refused), admin-only APIs are blocked, and /api/admin/keys/<id>/… only answers for a project
+// given to the client and never its secrets. So every route is covered in one place.
 export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, user: PanelUser) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
     const session = await getSession();
@@ -56,19 +56,14 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       if (VIEWER_BLOCKED.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Tidak tersedia untuk akun viewer" }, { status: 403 });
     }
     if (user.role === "user") {
-      if (!(await isActiveAccount(user.id))) return NextResponse.json({ error: "Akun tidak aktif" }, { status: 401 });
+      const account = await prisma.admin.findUnique({ where: { id: user.id }, select: { status: true, planExpiresAt: true } });
+      if (account?.status !== "active") return NextResponse.json({ error: "Akun tidak aktif" }, { status: 401 });
+      if (isExpired(account.planExpiresAt)) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
+      if (req.method !== "GET" && req.method !== "HEAD") return NextResponse.json({ error: "Akun klien hanya dapat melihat data" }, { status: 403 });
       const path = new URL(req.url).pathname;
-      if (ADMIN_ONLY.some((p) => path.startsWith(p))) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
+      if (ADMIN_ONLY.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
       const keyId = path.match(/^\/api\/admin\/keys\/([^/]+)/)?.[1];
-      if (keyId) {
-        const access = await keyAccess(user, decodeURIComponent(keyId));
-        if (!access) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
-        // Sub-accounts read a shared project; the one thing they may write is labels on its posts.
-        const labelling = /^\/api\/admin\/keys\/[^/]+\/item-labels$/.test(path);
-        if (access === "read" && !labelling && ((req.method !== "GET" && req.method !== "HEAD") || isSecretPath(path))) {
-          return NextResponse.json({ error: "Proyek ini dibagikan untuk dilihat saja" }, { status: 403 });
-        }
-      }
+      if (keyId && !(await keyAccess(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     }
     return handler(req, ctx, session.username, user);
   };

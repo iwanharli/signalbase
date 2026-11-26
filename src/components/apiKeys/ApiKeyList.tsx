@@ -22,7 +22,8 @@ const viewHref = (key: ApiKeyRow) => `/media/${key.scope.types[0] ?? "social"}?k
 function AiCell({ apiKey }: { apiKey: ApiKeyRow }) {
   const ai = apiKey.classifier;
   if (!ai) return <span className={classes.muted}>—</span>;
-  const autoPaused = !ai.enabled && !!ai.lastError?.startsWith("Dijeda otomatis");
+  // Paused by the system (e.g. no active client), whether or not the switch is on.
+  const autoPaused = !!ai.lastError?.startsWith("Dijeda otomatis");
   const tone = autoPaused ? "warning" : ai.lastError ? "danger" : ai.enabled ? "success" : "warning";
   return (
     <Tip label={ai.lastError ?? `${ai.providerName} · ${formatNumber(ai.processed)} item`}>
@@ -44,15 +45,10 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
     <div className={classes.row} role="row" data-revoked={revoked || undefined}>
       <div className={classes.nameCell} role="cell">
         <span className={classes.icon} data-live={(!revoked && recent) || undefined}><IconPlugConnected size={17} /></span>
-        {apiKey.shared ? (
-          // Shared with a sub-account: data only, no settings or key.
-          <span className={classes.name}><b>{apiKey.name}</b><code>dibagikan · lihat saja</code></span>
-        ) : (
-          <Link href={href} className={classes.name}>
-            <b>{apiKey.name}</b>
-            <code>{apiKey.prefix}••••</code>
-          </Link>
-        )}
+        <Link href={href} className={classes.name}>
+          <b>{apiKey.name}</b>
+          <code>{apiKey.prefix}••••</code>
+        </Link>
       </div>
 
       <div className={classes.cell} role="cell" data-label="Kata kunci">
@@ -67,8 +63,15 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
 
       <div className={classes.cell} role="cell" data-label="AI"><AiCell apiKey={apiKey} /></div>
 
-      <div className={classes.cell} role="cell" data-label="Pembuat">
-        {apiKey.createdBy ? <span className={classes.creator} title={apiKey.createdBy}><i>{apiKey.createdBy[0].toUpperCase()}</i><span>{apiKey.createdBy}</span></span> : <span className={classes.muted}>—</span>}
+      <div className={classes.cell} role="cell" data-label="Klien">
+        {apiKey.clients?.length
+          ? <Tip label={apiKey.clients.map((c) => `${c.name}${c.active ? "" : " (tidak aktif)"}`).join(", ")}>
+              <span className={classes.chips}>
+                {apiKey.clients.slice(0, 2).map((c) => <span key={c.id} className={classes.chip} data-off={!c.active || undefined}>{c.name}</span>)}
+                {apiKey.clients.length > 2 && <span className={classes.more}>+{apiKey.clients.length - 2}</span>}
+              </span>
+            </Tip>
+          : <span className={classes.muted}>Belum ada</span>}
       </div>
 
       <div className={classes.cell} role="cell" data-label="Terakhir dipakai">
@@ -79,8 +82,8 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
 
       <div className={classes.actions} role="cell">
         {!revoked && <Button size="sm" variant="secondary" icon={IconEye} href={viewHref(apiKey)}>Data</Button>}
-        {!apiKey.shared && <Button size="sm" variant="secondary" icon={IconListDetails} href={href}>Detail Proyek</Button>}
-        {!apiKey.shared && !revoked && <ButtonGroup>
+        <Button size="sm" variant="secondary" icon={IconListDetails} href={href}>Detail Proyek</Button>
+        {!revoked && <ButtonGroup>
           <CopyKeyButton keyId={apiKey.id} copyable={apiKey.copyable} iconOnly />
           <Button size="sm" variant="dangerOutline" iconOnly icon={IconShieldOff} onClick={() => onRevoke(apiKey)}>Cabut proyek</Button>
         </ButtonGroup>}
@@ -108,8 +111,8 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
   );
 }
 
-/** Today's API calls (/api/admin/usage). limit is set for user accounts with a plan. */
-type Usage = { day: string; perKey: Record<string, number>; used: number | null; limit: number | null; plan: string | null; ai?: { used: number; limit: number | null } };
+/** Today's API calls per project (/api/admin/usage). */
+type Usage = { day: string; perKey: Record<string, number> };
 
 /** /project — every key as a row; creating and editing happen on their own pages. */
 export function ApiKeyList() {
@@ -154,17 +157,13 @@ export function ApiKeyList() {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconKey size={13} />Pemantauan & API</span>
           <h1>Pro<em>yek</em></h1>
-          <p>Setiap proyek punya keyword, cakupan data, kategorisasi AI, dan kunci API sendiri untuk menghubungkan aplikasi. Proyek bisa dicabut sewaktu-waktu.</p>
+          <p>Proyek dibuat dan diatur admin: keyword, cakupan data, dan kategorisasi AI. Berikan proyek ke klien di halaman Pengguna; tiap klien mendapat kunci API sendiri. Kunci di sini adalah kunci internal proyek.</p>
         </div>
         <div className={classes.heroSide}>
           <div className={classes.stats}>
             <div><b>{keys.data ? active.length : "—"}</b><span>Aktif</span></div>
-            {usage.data?.limit != null
-              ? <div><b>{formatNumber(usage.data.used ?? 0)}</b><span>dari {formatNumber(usage.data.limit)} panggilan hari ini</span></div>
-              : <div><b>{keys.data ? usedToday : "—"}</b><span>Dipakai 24 jam</span></div>}
-            {usage.data?.ai?.limit
-              ? <div><b>{formatNumber(usage.data.ai.used)}</b><span>dari {formatNumber(usage.data.ai.limit)} post AI bulan ini</span></div>
-              : <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>}
+            <div><b>{keys.data ? usedToday : "—"}</b><span>Dipakai 24 jam</span></div>
+            <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>
           </div>
           {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/project/new">Buat proyek</Button>}
         </div>
@@ -188,7 +187,7 @@ export function ApiKeyList() {
 
         <div className={classes.head} role="row">
           <span role="columnheader">Proyek</span><span role="columnheader">Kata kunci</span><span role="columnheader">Cakupan</span>
-          <span role="columnheader"><IconRobot size={13} />AI</span><span role="columnheader">Pembuat</span><span role="columnheader">Terakhir dipakai</span><span role="columnheader">Aksi</span>
+          <span role="columnheader"><IconRobot size={13} />AI</span><span role="columnheader">Klien</span><span role="columnheader">Terakhir dipakai</span><span role="columnheader">Aksi</span>
         </div>
 
         {!keys.data ? (

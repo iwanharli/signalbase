@@ -7,7 +7,6 @@ import { sharedCache } from "./bank/cache";
 import { filterKey } from "./bank/query";
 import { prisma } from "./db";
 import { typeInsights } from "./insights";
-import { accountPlan, clampHistory } from "./plan";
 import { withImageCodes } from "./media/textSignals";
 import { snaGraph } from "./bank/sna";
 import { snaIssueGraph } from "./isu/sna";
@@ -57,14 +56,14 @@ async function warmAll() {
   await step("bank stats", () => Promise.all([typeStats("social"), typeStats("online")]));
   await step("bank insights 7", () => Promise.all([typeInsights("social", 7), typeInsights("online", 7)]));
   await step("bank sna", () => snaGraph(1, DEFAULT_SNA_LIMIT));
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true, ownerId: true } });
+  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
   // With the items each project matches by image text, so the warmed caches are the ones its pages ask for.
   const scopes = await Promise.all(keys.map((key) => withImageCodes(key.id, parseKeyScope(key.scope, key.keywords))));
   for (const [i, scope] of scopes.entries()) {
     const name = keys[i].name;
     await step(`${name} stats`, () => Promise.all([typeStats("social", scope), typeStats("online", scope)]));
     await step(`${name} insights 7`, () => Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]));
-    await step(`${name} media`, () => warmMediaPages(scope, keys[i].ownerId));
+    await step(`${name} media`, () => warmMediaPages(scope));
     // SNA as the page opens it (issue view: 10 and 25 accounts per issue; mention view: 1, 3 and 7 days).
     for (const limit of [25, 50] as const) await step(`${name} sna isu ${limit}`, () => snaIssueGraph(keys[i].id, 7, limit, null, null));
     for (const days of [1, 3, 7] as const) await step(`${name} sna mention ${days}`, () => snaGraph(days, DEFAULT_SNA_LIMIT, scope));
@@ -86,15 +85,13 @@ const RANGE_DAYS = [null, 0, 6, 29] as const;
 /** A project's Media Sosial/Online as they are opened: the first page, the exact total and the mood bar, for every quick
  *  range, with exactly the parameters the page sends (its default filters: analysed only, and relevant only for social),
  *  so the warmed caches are the ones it reads. Broad keywords make the all-time total and moods take 10–50 s cold; caches
- *  refresh in the background, so this only waits for real work when they are missing. The owner's plan may limit history,
- *  which changes the query, so it is applied as the API applies it. */
-async function warmMediaPages(scope: KeyScope, ownerId: string | null) {
-  const history = ownerId ? (await accountPlan(ownerId)).limits.historyDays : null;
+ *  refresh in the background, so this only waits for real work when they are missing. */
+async function warmMediaPages(scope: KeyScope) {
   for (const type of ["social", "online"] as const) {
     if (!allowsType(scope, type)) continue;
     for (const days of RANGE_DAYS) {
-      const base = new URLSearchParams({ analyzed: "yes", ...(type === "social" ? { relevance: "relevant" } : {}), ...(days === null ? {} : { from: jakartaDaysAgo(days) }) });
-      const params = history ? clampHistory(base, history) : base;
+      const params = new URLSearchParams({ analyzed: "yes", ...(type === "social" ? { relevance: "relevant" } : {}), ...(days === null ? {} : { from: jakartaDaysAgo(days) }) });
+
       const list = new URLSearchParams(params);
       list.set("sort", "newest");
       const label = `media ${type} ${days === null ? "semua" : `${days + 1} hari`}`;

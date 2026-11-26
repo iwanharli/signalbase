@@ -18,7 +18,7 @@ export function InvoiceView({ invoice: inv, issuer, isAdmin }: { invoice: Invoic
   return (
     <div className={classes.wrap}>
       <div className={classes.actions}>
-        <Button variant="subtle" icon={IconArrowLeft} href={isAdmin ? "/users#tagihan" : "/billing"}>Kembali</Button>
+        <Button variant="subtle" icon={IconArrowLeft} href="/users#tagihan">Kembali</Button>
         <Button variant="primary" icon={IconPrinter} onClick={() => window.print()}>Cetak / simpan PDF</Button>
       </div>
       <article className={classes.paper}>

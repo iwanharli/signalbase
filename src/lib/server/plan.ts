@@ -5,15 +5,14 @@ import { prisma } from "./db";
 /** demo: a demo account (or a sub-account of one): billing is hidden from it. */
 export type AccountPlan = { plan: string | null; expiresAt: Date | null; expired: boolean; limits: PlanLimits; demo: boolean };
 
-/** The plan an account works under: its own, or for a sub-account its parent's. */
+/** The subscription an account works under. */
 export async function accountPlan(accountId: string): Promise<AccountPlan> {
-  const row = await prisma.admin.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true, demo: true, parent: { select: { plan: true, planExpiresAt: true, demo: true } } } });
-  const a = row?.parent ?? row;
+  const a = await prisma.admin.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true, demo: true } });
   return { plan: a?.plan ?? null, expiresAt: a?.planExpiresAt ?? null, expired: isExpired(a?.planExpiresAt), limits: limitsFor(a?.plan), demo: !!a?.demo };
 }
 
-/** Message shown when a plan's period is over. */
-export const EXPIRED_MESSAGE = "Masa trial atau paket Anda sudah berakhir. Pilih paket untuk mengaktifkan kembali kunci API.";
+/** Message shown to a client whose subscription has ended (no prices: money matters are handled by admins). */
+export const EXPIRED_MESSAGE = "Masa akses Anda sudah berakhir. Hubungi admin Signalbase untuk memperpanjang.";
 
 /** Narrows request filters to the plan's history window by raising `from` (a later `from` from the caller is kept). */
 export function clampHistory(query: URLSearchParams, historyDays: number | null) {

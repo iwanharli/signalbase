@@ -5,7 +5,7 @@
 // LabelAiItem, so it is not paid for twice and a person's decision is never overwritten.
 import type { LabelAi, Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
-import { labelAiProvider, planAllowsLabelAi } from "@/lib/ai/labelAi";
+import { labelAiProvider } from "@/lib/ai/labelAi";
 import { backoffMs, labelErrorKind, needsReview, parseLabelReply, reachesFurther, type AiLabel, type CheckedLabel } from "@/lib/ai/labelReply";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { defaultLabelPrompt, labelOutputFormat, syncLabelList } from "@/lib/media/manualLabels";
@@ -13,7 +13,7 @@ import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
 import { prisma } from "../db";
 import { imageTextFor, withImageCodes } from "../media/textSignals";
-import { accountPlan } from "../plan";
+import { aiPauseReason } from "../projectAccess";
 import { labelAiConfig } from "./labelAi";
 import { checkSources, searchSystem } from "./labelSearch";
 import { completeJson, providerErrorMessage, type CallUsage } from "./providers";
@@ -397,23 +397,17 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
   }
 }
 
-/** Why a project's owner may no longer use AI labelling, or null. Admin-managed projects have no owner. */
-async function planStop(ownerId: string | null) {
-  if (!ownerId) return null;
-  const { limits, expired } = await accountPlan(ownerId);
-  return !planAllowsLabelAi(limits, expired) ? "Dijeda otomatis: paket akun ini tidak mencakup pelabelan AI atau sudah berakhir." : null;
-}
-
 export async function runLabelProject(apiKeyId: string) {
   const row = await prisma.labelAi.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
   if (!row?.enabled || row.apiKey.revokedAt) return;
   // The heartbeat the settings page shows, also while waiting or idle.
   const beat = (data: Prisma.LabelAiUpdateManyMutationInput = {}) => prisma.labelAi.updateMany({ where: { apiKeyId }, data: { lastRunAt: new Date(), ...data } });
   const name = row.apiKey.name;
-  const stopped = await planStop(row.apiKey.ownerId);
-  if (stopped) {
-    log(`${name}: ${stopped}`);
-    return void (await beat({ enabled: false, lastError: stopped }));
+  // Paused (not switched off) while the project has clients and none is active; resumes by itself.
+  const paused = await aiPauseReason(apiKeyId);
+  if (paused) {
+    logIdle(apiKeyId, name, "dijeda: tidak ada klien aktif");
+    return void (await beat({ lastError: paused }));
   }
   if (row.retryAfter && row.retryAfter.getTime() > Date.now()) {
     logIdle(apiKeyId, name, `menunggu sampai ${row.retryAfter.toLocaleTimeString("sv-SE", { timeZone: "Asia/Jakarta" })} WIB setelah error`);

@@ -1,14 +1,11 @@
-// Manual billing: invoice amounts from the pricing table, tax, and the bank account shown on invoices.
-// Prices come from src/components/pricing/plans.ts so invoices always match /pricing.
-import { PLANS, yearlyPrice } from "@/components/pricing/plans";
+// Manual billing (admins only): Instansi invoice amounts from the agreed monthly price, tax, and the bank account shown
+// on invoices. The yearly discount follows src/components/pricing/plans.ts.
+import { yearlyPrice } from "@/components/pricing/plans";
 import type { PlanId } from "./plans";
 
 export type Billing = "monthly" | "yearly";
 export const BILLINGS: Billing[] = ["monthly", "yearly"];
 export const BILLING_LABEL: Record<Billing, string> = { monthly: "Bulanan", yearly: "Tahunan" };
-
-/** Plans a user may order on their own; Instansi is quoted by an admin. */
-export const SELF_SERVE_PLANS: PlanId[] = ["starter", "pro"];
 
 /** Effective VAT on services: 12% × DPP 11/12 = 11% of the price. Change here if the rule changes. */
 export const TAX_RATE = 0.11;
@@ -17,9 +14,9 @@ export const TAX_LABEL = "PPN 11%";
 /** Days to pay after the invoice is created. */
 export const DUE_DAYS = 7;
 
-/** Price before tax for a plan and billing period; `customMonthly` overrides the list price (Instansi quotes). */
-export function invoiceAmounts(plan: PlanId, billing: Billing, customMonthly?: number | null) {
-  const monthly = customMonthly ?? PLANS.find((p) => p.id === plan)?.monthly ?? 0;
+/** Price before tax for an Instansi subscription: the monthly price an admin agreed with the client, for a month or a year. */
+export function invoiceAmounts(_plan: PlanId, billing: Billing, customMonthly?: number | null) {
+  const monthly = customMonthly ?? 0;
   const subtotal = billing === "yearly" ? yearlyPrice(monthly) : monthly;
   const tax = Math.round(subtotal * TAX_RATE);
   return { subtotal, tax, total: subtotal + tax };
@@ -36,9 +33,3 @@ export function billingIssuer() {
     accountName: process.env.BILLING_ACCOUNT_NAME || "",
   };
 }
-
-/** Extra Signalbase AI posts for the current month. Check the price against the real AI cost per 1,000 posts. */
-export const AI_TOPUP = { posts: 20_000, price: 500_000 };
-
-/** Share of the monthly AI quota at which the panel warns the user. */
-export const AI_WARN_AT = 0.8;

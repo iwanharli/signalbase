@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { labelAiSchema, planAllowsLabelAi, usageSeries } from "../src/lib/ai/labelAi";
-import { limitsFor } from "../src/lib/plans";
+import { labelAiSchema, usageSeries } from "../src/lib/ai/labelAi";
 import { backoffMs, labelErrorKind, needsReview, parseLabelReply, parseVerdict, reachesFurther, readSearchReply, billableSearches } from "../src/lib/ai/labelReply";
 import { labelAiConfig, publicLabelAi, storedKeyFor } from "../src/lib/server/ai/labelAi";
 
@@ -91,13 +90,4 @@ test("labelling usage is split per bucket into screening, source check and searc
   const out = usageSeries([row("2026-11-24T16:00:00Z", 99), row("2026-11-24T17:00:00Z", 10), row("2026-11-25T16:00:00Z", 20, 15, 2), row("2026-11-25T17:00:00Z", 5)], from, from.getTime() + 2 * 86_400_000, false, (r) => [r.inputTokens - r.checkInputTokens, r.checkInputTokens, r.searches * 10]);
   assert.deepEqual(out.map((b) => [b.input, b.spent, b.parts, b.tokenParts, b.searches]), [[30, 50, [15, 15, 20], [17, 15, 0], 2], [5, 5, [5, 0, 0], [6, 0, 0], 0]]);
   assert.equal(billableSearches([{ type: "web_search_tool_result", content: [{}] }, { type: "web_search_tool_result", content: [] }, { type: "web_search_tool_result", content: { error_code: "x" } }]), 1);
-});
-
-test("paket yang boleh pelabelan AI: Instansi (kuota null = tanpa batas) dan Pro; Starter, trial, dan paket berakhir tidak", () => {
-  assert.equal(planAllowsLabelAi(limitsFor("instansi"), false), true);
-  assert.equal(planAllowsLabelAi(limitsFor("pro"), false), true);
-  assert.equal(planAllowsLabelAi(limitsFor(null), false), true); // akun tanpa paket (diatur manual): tanpa batas
-  assert.equal(planAllowsLabelAi(limitsFor("starter"), false), false);
-  assert.equal(planAllowsLabelAi(limitsFor("trial"), false), false);
-  assert.equal(planAllowsLabelAi(limitsFor("instansi"), true), false);
 });

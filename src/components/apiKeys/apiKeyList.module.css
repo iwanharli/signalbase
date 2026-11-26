@@ -168,3 +168,6 @@
 :global([data-mantine-color-scheme="dark"]) .tabs button[data-active] {
     color: var(--mantine-color-violet-2)
 }
+
+/* A client whose access has ended, in the Klien column. */
+.chip[data-off] { opacity: .5; text-decoration: line-through; }

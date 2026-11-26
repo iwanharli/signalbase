@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CopyButton, Modal, Skeleton, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
+import { IconUsers,
   IconAdjustmentsHorizontal, IconAlertTriangle, IconArrowLeft, IconArrowRight, IconCalendar, IconCheck, IconClock, IconCopy, IconDeviceFloppy, IconEye, IconId, IconLayoutDashboard, IconPlugConnected, IconRefresh, IconRobot, IconShieldLock, IconShieldOff, IconTag, IconTags,
 } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
@@ -29,6 +29,8 @@ import { SaveConfirm, type SaveRequest, type SettingChange } from "./SaveConfirm
 type KeyDetail = {
   id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
   classifier: { enabled: boolean; labelledOnly: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
+  /** Clients given this project (set on the Pengguna page); aiPaused: it has clients and none is active. */
+  clients: { id: string; name: string; active: boolean }[]; aiPaused: boolean;
 };
 type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "labels" | "security";
 
@@ -287,7 +289,10 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
             <ul className={classes.heroMeta}>
               <li><IconCalendar size={13} />Dibuat {formatDate(data.createdAt)}{data.createdBy && <> oleh <b>{data.createdBy}</b></>}</li>
               <li><IconClock size={13} />{data.lastUsedAt ? `Dipakai ${fromNow(data.lastUsedAt)}` : "Belum pernah dipakai"}</li>
-              <li><IconRobot size={13} />AI {aiStatus(data.classifier).text.toLowerCase()}</li>
+              <li><IconRobot size={13} />AI {data.aiPaused ? "dijeda: tidak ada klien aktif" : aiStatus(data.classifier).text.toLowerCase()}</li>
+              <li><IconUsers size={13} />{data.clients.length
+                ? <>Klien: {data.clients.map((c, i) => <span key={c.id}>{i ? ", " : ""}<b style={c.active ? undefined : { opacity: .55, textDecoration: "line-through" }}>{c.name}</b></span>)}</>
+                : <>Belum diberikan ke klien · <Link href="/users" style={{ color: "inherit" }}>atur di Pengguna</Link></>}</li>
             </ul>
           </div>
           {!revoked && (

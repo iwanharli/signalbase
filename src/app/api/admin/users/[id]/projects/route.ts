@@ -1,62 +1,63 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { jakartaToday } from "@/lib/plans";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
+import { grantAccess } from "@/lib/server/projectAccess";
 
 type Context = { params: Promise<{ id: string }> };
 
-/**
- * Projects an admin can give this account, and which it has now.
- * Main account: the projects it owns plus the admin's own projects (those of other clients are left out).
- * Sub-account: its parent's projects; the ones shared with it are selected.
- */
+/** Every active project, whether this client was given it, and (if so) its key for the client and its API calls. */
 async function load(id: string) {
-  const account = await prisma.admin.findFirst({ where: { id, role: "user" }, select: { id: true, parentId: true } });
+  const account = await prisma.admin.findFirst({ where: { id, role: "user" }, select: { id: true } });
   if (!account) return null;
-  const projects = await prisma.apiKey.findMany({
-    where: { revokedAt: null, ...(account.parentId ? { ownerId: account.parentId } : { OR: [{ ownerId: id }, { ownerId: null }] }) },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, keywords: true, ownerId: true, members: { where: { accountId: id }, select: { accountId: true } } },
+  const since = new Date(Date.now() - 29 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const [projects, usage] = await Promise.all([
+    prisma.apiKey.findMany({
+      where: { revokedAt: null },
+      orderBy: { name: "asc" },
+      select: {
+        id: true, name: true, keywords: true,
+        members: { where: { accountId: id }, select: { keyPrefix: true, keyCreatedAt: true, keyLastUsedAt: true, keyRevokedAt: true, keyEnc: true, createdAt: true } },
+        _count: { select: { members: true } },
+      },
+    }),
+    prisma.projectAccessUsage.groupBy({ by: ["apiKeyId", "day"], where: { accountId: id, day: { gte: since } }, _sum: { count: true } }),
+  ]);
+  const today = jakartaToday();
+  const calls = (keyId: string, onlyToday: boolean) => usage.filter((u) => u.apiKeyId === keyId && (!onlyToday || u.day === today)).reduce((n, u) => n + (u._sum.count ?? 0), 0);
+  return projects.map((p) => {
+    const m = p.members[0];
+    return {
+      id: p.id, name: p.name, keywords: p.keywords, clients: p._count.members,
+      access: m ? {
+        since: m.createdAt, keyPrefix: m.keyPrefix, keyCreatedAt: m.keyCreatedAt, keyLastUsedAt: m.keyLastUsedAt, keyRevokedAt: m.keyRevokedAt,
+        copyable: !!m.keyEnc && !m.keyRevokedAt, callsToday: calls(p.id, true), calls30: calls(p.id, false),
+      } : null,
+    };
   });
-  return {
-    account,
-    options: projects.map((p) => ({ id: p.id, name: p.name, keywords: p.keywords, selected: account.parentId ? p.members.length > 0 : p.ownerId === id })),
-  };
 }
 
 // Admin only (ADMIN_ONLY covers /api/admin/users).
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
-  const data = await load((await params).id);
-  if (!data) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
-  return NextResponse.json({ kind: data.account.parentId ? "sub" : "main", projects: data.options });
+  const projects = await load((await params).id);
+  if (!projects) return NextResponse.json({ error: "Klien tidak ditemukan" }, { status: 404 });
+  return NextResponse.json({ projects });
 });
 
 const bodySchema = z.object({ projectIds: z.array(z.string().uuid()).max(500) });
 
-// Sets the account's projects to exactly projectIds (only ids from the GET list count).
-// Main account: chosen projects become its own, unchosen ones it owned go back to the admin (and its sub-accounts lose them).
-// Sub-account: it sees exactly the chosen projects of its parent.
-export const PUT = adminRoute(async (req: Request, { params }: Context) => {
-  const data = await load((await params).id);
-  if (!data) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+// Sets the client's projects to exactly projectIds: new ones are given (each with a new key for the client), the others
+// taken away (their client keys stop at once). The projects themselves are not touched.
+export const PUT = adminRoute(async (req: Request, { params }: Context, username) => {
+  const { id } = await params;
+  const projects = await load(id);
+  if (!projects) return NextResponse.json({ error: "Klien tidak ditemukan" }, { status: 404 });
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Daftar proyek tidak valid" }, { status: 400 });
   const wanted = new Set(parsed.data.projectIds);
-  const add = data.options.filter((p) => wanted.has(p.id) && !p.selected).map((p) => p.id);
-  const remove = data.options.filter((p) => !wanted.has(p.id) && p.selected).map((p) => p.id);
-  const { id, parentId } = data.account;
-
-  if (parentId) {
-    await prisma.$transaction([
-      prisma.projectMember.deleteMany({ where: { accountId: id, apiKeyId: { in: remove } } }),
-      prisma.projectMember.createMany({ data: add.map((apiKeyId) => ({ apiKeyId, accountId: id })), skipDuplicates: true }),
-    ]);
-  } else {
-    await prisma.$transaction([
-      prisma.apiKey.updateMany({ where: { id: { in: add }, ownerId: null }, data: { ownerId: id } }),
-      prisma.apiKey.updateMany({ where: { id: { in: remove }, ownerId: id }, data: { ownerId: null } }),
-      prisma.projectMember.deleteMany({ where: { apiKeyId: { in: remove } } }),
-    ]);
-  }
-  return NextResponse.json({ ok: true, added: add.length, removed: remove.length });
+  for (const p of projects) if (wanted.has(p.id) && !p.access) await grantAccess(p.id, id, username);
+  const remove = projects.filter((p) => p.access && !wanted.has(p.id)).map((p) => p.id);
+  if (remove.length) await prisma.projectMember.deleteMany({ where: { accountId: id, apiKeyId: { in: remove } } });
+  return NextResponse.json({ ok: true, projects: await load(id) });
 });

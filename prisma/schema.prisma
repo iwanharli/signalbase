@@ -16,22 +16,22 @@ model Admin {
   passwordHash   String
   role           String          @default("admin") // "admin" | "user"
   status         String          @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
-  /// Plan of a "user" account: trial | starter | pro | instansi. null = no plan limits (accounts set up by hand).
+  /// Plan of a client ("user") account: "instansi" (the only plan offered). Unused for limits: clients have none.
   plan           String?
-  /// End of the trial or paid period; keys stop working after it. null = no end date.
+  /// End of the client's subscription; after it the client loses access to its projects and their API keys stop.
+  /// null = no end date.
   planExpiresAt  DateTime?
-  /// Plan chosen on /pricing when signing up (?plan=), shown to the admin who approves; it does not grant anything.
+  /// Sign-up details for the admin who approves: the institution and what it wants monitored.
+  institution     String?
+  requestedTopics String?
+  /// Unused since 2026-11-26 (self-serve plans and sub-accounts were removed); kept so no data is dropped.
   requestedPlan  String?
-  /// Sub-account of a client: set for extra logins of one client. It follows the parent's plan, period and status, owns no
-  /// projects and only sees the parent's projects an admin shared with it (ProjectMember). null = a main account.
-  /// Demo account (e.g. a pilot for a prospective client): no "Paket & tagihan" menu, plan chip or plan banners.
-  /// Sub-accounts follow their main account's flag.
   demo           Boolean         @default(false)
   parentId       String?
   parent         Admin?          @relation("SubAccounts", fields: [parentId], references: [id], onDelete: Cascade)
   subAccounts    Admin[]         @relation("SubAccounts")
   invoices       Invoice[]
-  /// Sub-account only: the parent's projects an admin shared with it.
+  /// Projects an admin gave this client (with one API key per client and project).
   sharedProjects ProjectMember[]
   createdAt      DateTime        @default(now())
 }
@@ -44,7 +44,7 @@ model ApiKey {
   keyEnc         String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
   keywords       String[]  @default([]) // empty = whole bank; else items must mention one
   scope          Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
-  ownerId        String? // account that owns the key (role user); null = managed by admins
+  ownerId        String? // unused since 2026-11-26: projects belong to admins and reach clients through ProjectMember
   createdBy      String? // admin username; null for keys made before this was recorded
   createdAt      DateTime  @default(now())
   lastUsedAt     DateTime?
@@ -305,15 +305,26 @@ model ReportProfile {
 
 /// A sub-account's access to one of its parent's projects, chosen by an admin. Members see the project and its data
 /// (media, insights, issues, reports) but cannot change, revoke or copy it; plan limits and quotas stay with the owner.
+/// A client's access to a project, given by an admin: the client sees the project's data (read only) and the project
+/// answers the public API through this client's own key, which only admins see. The key stops with the client's
+/// subscription or when an admin revokes it; the project's own key (ApiKey.hash) stays the internal/admin key.
 model ProjectMember {
-  apiKeyId  String
-  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  accountId String
-  account   Admin    @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  apiKeyId      String
+  apiKey        ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Admin     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  createdBy     String?
+  keyPrefix     String?
+  keyHash       String? // SHA-256 of the key; looked up through the index (a random 32-byte key never repeats)
+  keyEnc        String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it again
+  keyCreatedAt  DateTime?
+  keyLastUsedAt DateTime?
+  keyRevokedAt  DateTime?
 
   @@id([apiKeyId, accountId])
   @@index([accountId])
+  @@index([keyHash])
 }
 
 /// AI labelling settings of one project ("Kustomisasi Label"), with its own provider key.
@@ -562,4 +573,14 @@ model SnaWatch {
   updatedAt DateTime @updatedAt
 
   @@index([apiKeyId])
+}
+
+/// Public API calls per client key and day (the project total stays in ApiKeyUsage).
+model ProjectAccessUsage {
+  apiKeyId  String
+  accountId String
+  day       String // YYYY-MM-DD, Jakarta
+  count     Int    @default(0)
+
+  @@id([apiKeyId, accountId, day])
 }

@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Alert, Anchor, Button, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
-import { IconId, IconLock, IconUser } from "@tabler/icons-react";
+import { Alert, Anchor, Button, Paper, PasswordInput, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { IconBuilding, IconId, IconLock, IconUser } from "@tabler/icons-react";
 import { Logo } from "@/components/Logo";
 import classes from "./login.module.css";
 
@@ -10,20 +10,20 @@ import classes from "./login.module.css";
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register";
   const [name, setName] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [topics, setTopics] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(false);
-  // Plan picked on /pricing (?plan=pro); recorded for the admin, the account still starts with the trial.
-  const requestedPlan = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("plan") ?? undefined : undefined;
   const inactive = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("inactive");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(register ? { name, username, password, plan: requestedPlan } : { username, password }) });
+    const res = await fetch(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(register ? { name, institution, topics, username, password } : { username, password }) });
     const body = await res.json().catch(() => ({}));
     if (res.ok && body.pending) { setPending(true); setBusy(false); return; }
     if (res.ok) return void (window.location.href = body.home ?? "/");
@@ -39,16 +39,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <Link href="/" aria-label="Beranda Signalbase" style={{ color: "inherit", textDecoration: "none", alignSelf: "flex-start" }}><Logo /></Link>
           <div>
             <Title order={2} fz={24}>{register ? "Buat akun Signalbase" : "Masuk ke Signalbase"}</Title>
-            <Text c="dimmed" fz={14} mt={4}>{register ? "Setelah disetujui admin, atur keyword Anda dan buat proyek, dan ambil data media lewat kunci API." : "Saring data media sebelum diteruskan ke aplikasi lain."}</Text>
+            <Text c="dimmed" fz={14} mt={4}>{register ? "Langganan Instansi. Tim kami meninjau pendaftaran Anda, lalu menyiapkan proyek pemantauan sesuai kebutuhan instansi." : "Pantau media sosial dan berita untuk instansi Anda."}</Text>
           </div>
           {pending ? (
             <Alert color="teal" variant="light" title="Pendaftaran terkirim">
-              Akun <b>{username}</b> menunggu persetujuan admin. Anda bisa masuk setelah akun disetujui; trial dimulai saat itu.
+              Akun <b>{username}</b> menunggu persetujuan admin. Kami akan menghubungi Anda untuk menyiapkan proyek pemantauan; Anda bisa masuk setelah akun disetujui.
             </Alert>
           ) : <>
           {inactive && !error && <Alert color="yellow" variant="light">Akun Anda belum aktif atau sudah dinonaktifkan. Hubungi admin.</Alert>}
           {error && <Alert color="red" variant="light">{error}</Alert>}
           {register && <TextInput label="Nama" leftSection={<IconId size={16} />} value={name} onChange={(e) => setName(e.currentTarget.value)} autoComplete="name" required />}
+          {register && <TextInput label="Instansi" leftSection={<IconBuilding size={16} />} placeholder="mis. Polda Riau" value={institution} onChange={(e) => setInstitution(e.currentTarget.value)} autoComplete="organization" required />}
+          {register && <Textarea label="Yang ingin dipantau" placeholder="Topik atau kata kunci, mis. karhutla, demo buruh, nama pejabat" value={topics} onChange={(e) => setTopics(e.currentTarget.value)}
+            autosize minRows={2} maxRows={4} required description="Kami menyiapkan proyek pemantauan dari sini." />}
           <TextInput label="Username" leftSection={<IconUser size={16} />} value={username} onChange={(e) => setUsername(e.currentTarget.value)} autoComplete="username" required
             description={register ? "Huruf kecil, angka, titik, atau garis bawah" : undefined} />
           <PasswordInput label="Kata sandi" leftSection={<IconLock size={16} />} value={password} onChange={(e) => setPassword(e.currentTarget.value)}

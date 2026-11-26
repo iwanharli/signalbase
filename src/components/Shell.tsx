@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Avatar, Menu, Tooltip, UnstyledButton, useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
-import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconReceipt, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX, IconPhotoScan } from "@tabler/icons-react";
+import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX, IconPhotoScan } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
 import { LogoMark } from "./Logo";
@@ -15,7 +15,8 @@ import { SAVED_FILTERS_PREFIX } from "@/lib/media/filters";
 import classes from "./shell.module.css";
 
 type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[]; /** Active only on this exact path (a sibling lives below it). */ exact?: boolean;
-  /** Shown to admins only (features still on trial). */ adminOnly?: boolean };
+  /** Shown to admins only (features still on trial). */ adminOnly?: boolean;
+  /** Hidden from clients (admins and viewers see it). */ staffOnly?: boolean };
 
 /** Main workspace pages, in the centre of the bar. An item with `children` opens a submenu on hover. */
 const NAV: NavItem[] = [
@@ -32,7 +33,8 @@ const NAV: NavItem[] = [
     { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan },
   ] },
   { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
-  { href: "/project", label: "Proyek", icon: IconKey },
+  // Projects are set up by admins; clients only use the projects given to them.
+  { href: "/project", label: "Proyek", icon: IconKey, staffOnly: true },
 ];
 /** Secondary pages: icon buttons on the right and entries in the account menu. */
 const TOOLS = [
@@ -40,11 +42,8 @@ const TOOLS = [
   { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
   { href: "/ai", label: "Pengaturan AI", icon: IconSparkles, adminOnly: true },
-  { href: "/billing", label: "Paket & tagihan", icon: IconReceipt, userOnly: true },
 ];
 
-/** Shown in the bar for user accounts: plan name and days left, linking to billing. */
-export type PlanChip = { label: string; daysLeft: number | null };
 const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
 /** Like isActive, but a link with ?topik= is active only for that topic (a bare /isu is the default topic). */
 const isActiveTopic = (href: string, path: string, topic: string | null, exact = false) => {
@@ -52,21 +51,15 @@ const isActiveTopic = (href: string, path: string, topic: string | null, exact =
   return (exact ? path === base : path.startsWith(base)) && (new URLSearchParams(query).get("topik") ?? DEFAULT_ISSUE_TOPIC) === (topic ?? DEFAULT_ISSUE_TOPIC);
 };
 
-export function Shell({ name, username, role, plan, banner, hideBilling, children }: {
-  name: string; username: string; role: Role; plan?: PlanChip | null; banner?: React.ReactNode; children: React.ReactNode;
-  /** Demo accounts: no "Paket & tagihan". */
-  hideBilling?: boolean;
-}) {
+export function Shell({ name, username, role, children }: { name: string; username: string; role: Role; children: React.ReactNode }) {
   const path = usePathname();
   const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
   const nav = NAV
+    .filter((i) => !(i.staffOnly && role === "user"))
     .map((i) => (i.children ? { ...i, children: i.children.filter((c) => !c.adminOnly || role === "admin") } : i))
     .map((i) => (role === "user" && i.href === "/dashboard" ? { ...i, label: "Beranda" } : i));
-  const tools = TOOLS.filter((t) => (role === "admin" ? !("userOnly" in t) : role === "user" ? !("adminOnly" in t) : !("adminOnly" in t) && !("userOnly" in t)))
-    .filter((t) => !(hideBilling && t.href === "/billing")); // everywhere: bar, user menu and the mobile menu
-  const barTools = tools.filter((t) => t.href !== "/billing");
-  const menuTools = tools.filter((t) => t.href === "/billing");
+  const barTools = TOOLS.filter((t) => role === "admin" || !("adminOnly" in t));
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
@@ -136,11 +129,6 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
           </nav>
 
           <div className={classes.right}>
-            {plan && (
-              <Link href="/billing" className={classes.planChip} data-warn={plan.daysLeft !== null && plan.daysLeft <= 3 || undefined}>
-                <b>{plan.label}</b>{plan.daysLeft !== null && <span>{plan.daysLeft <= 0 ? "berakhir" : `${plan.daysLeft} hari`}</span>}
-              </Link>
-            )}
             {role === "admin" && <MediaWorkerAlert />}
             <MediaAlertsBell />
             {barTools.map((t) => (
@@ -160,13 +148,8 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
               <Menu.Dropdown>
                 <div className={classes.menuHead}>
                   <Avatar size={38} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
-                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "User"}</small></div>
+                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "Klien"}</small></div>
                 </div>
-                {/* Only what has no icon in the bar (billing); docs and users already sit there. */}
-                {menuTools.length > 0 && <Menu.Divider />}
-                {menuTools.map((t) => (
-                  <Menu.Item key={t.href} component={Link} href={t.href} leftSection={<t.icon size={16} />}>{t.label}</Menu.Item>
-                ))}
                 <Menu.Divider />
                 <Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={logout}>Keluar</Menu.Item>
               </Menu.Dropdown>
@@ -178,7 +161,7 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
         </div>
 
         <nav id="main-mobile-navigation" aria-label="Navigasi utama" className={classes.sheet} data-open={open || undefined} inert={!open} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); document.querySelector<HTMLButtonElement>('[aria-controls="main-mobile-navigation"]')?.focus(); } }}>
-          {[...nav.flatMap((i) => i.children ?? [i]), ...tools].map((i, n) => (
+          {[...nav.flatMap((i) => i.children ?? [i]), ...barTools].map((i, n) => (
             <Link key={i.href} href={i.href} className={classes.sheetLink} aria-current={isActiveTopic(i.href, path, topic, (i as NavItem).exact) ? "page" : undefined} data-active={isActiveTopic(i.href, path, topic, (i as NavItem).exact) || undefined} style={{ transitionDelay: open ? `${n * 40}ms` : "0ms" }}>
               <i.icon size={19} stroke={1.8} />{i.label}
             </Link>
@@ -186,7 +169,7 @@ export function Shell({ name, username, role, plan, banner, hideBilling, childre
         </nav>
       </header>}
 
-      <main key={path} className={classes.main} data-bare={bare || undefined}>{banner}<RoleProvider value={role}>{children}</RoleProvider></main>
+      <main key={path} className={classes.main} data-bare={bare || undefined}><RoleProvider value={role}>{children}</RoleProvider></main>
       {/* Outside <main> (re-mounted per page), so it stays on screen and keeps its data while moving between pages. */}
       {!bare && <AiProgressDock />}
     </div>

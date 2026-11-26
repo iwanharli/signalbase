@@ -19,7 +19,8 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
     counts: Object.fromEntries(groups.map((g) => [g.label, g._count])),
     options: key.manualLabels,
     canEdit: access === "full" && !key.revokedAt,
-    canLabel: user.role !== "viewer" && !!access && !key.revokedAt,
+    // Only admins label posts: viewers and clients read.
+    canLabel: user.role === "admin" && !key.revokedAt,
   };
   return NextResponse.json(settings);
 });

@@ -71,8 +71,3 @@ export function usageSeries(rows: UsageRow[], from: Date, end: number, hourly: b
   }
   return out;
 }
-
-/** Whether a plan lets its account run AI labelling: not ended, AI quota not 0 (null = no limit, e.g. Instansi), and
- *  its own provider key allowed (labelling always pays with the project's key). */
-export const planAllowsLabelAi = (limits: { aiPostsPerMonth: number | null; ownAiKey: boolean }, expired: boolean) =>
-  !expired && limits.aiPostsPerMonth !== 0 && limits.ownAiKey;

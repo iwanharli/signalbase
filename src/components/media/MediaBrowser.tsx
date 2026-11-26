@@ -24,6 +24,7 @@ import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
 import { SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
+import { useRole } from "../RoleContext";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 
@@ -57,6 +58,7 @@ export function MediaBrowser(props: { type: MediaType; keyLocked?: boolean }) {
 }
 
 function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
+  const role = useRole(); // only admins correct AI categories; clients and viewers read
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
   // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
@@ -216,7 +218,7 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
 
         <ScrollTopButton />
         <ItemDetailModal item={selected} type={type} keyName={view?.name} onClose={closeItem}
-          correction={view && aiCategories ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
+          correction={view && aiCategories && role === "admin" ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
             // The card shares this object with the feed, so updating it in place refreshes both.
             const target = feed.items.find((i) => i.code === code);
             if (target) target.classification = classification;

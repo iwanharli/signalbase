@@ -148,7 +148,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
         <div className={c.empty}>
           <IconTag size={22} />
           <b>Belum ada pilihan label</b>
-          <p>{canEdit ? "Tambahkan label di atas, atau mulai dari contoh berikut:" : "Pemilik proyek atau admin dapat menambahkannya."}</p>
+          <p>{canEdit ? "Tambahkan label di atas, atau mulai dari contoh berikut:" : "Admin dapat menambahkannya."}</p>
           {canEdit && <div className={c.suggest}>{SUGGESTIONS.map((s) => <button key={s} type="button" onClick={() => add(s)}><IconPlus size={12} />{s}</button>)}</div>}
         </div>
       ) : (
@@ -189,7 +189,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
 
       <p className={c.note}>
         Label tampil di bagian atas setiap kartu Media Sosial dan Media Online saat dilihat lewat proyek ini, dengan warna sesuai urutan di sini.
-        Pemilik proyek, admin, dan anggota klien dapat memberi label; viewer hanya melihat. Terpisah dari kategorisasi AI.
+        Hanya admin yang memberi label; klien dan viewer melihat labelnya. Terpisah dari kategorisasi AI.
       </p>
 
       {canEdit && (dirty || removedRows.length > 0) && (

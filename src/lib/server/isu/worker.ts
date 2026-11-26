@@ -14,6 +14,7 @@ import { buildWhere, COLUMNS } from "../bank/query";
 import { prisma } from "../db";
 import { getSetting, loggedCall, monthCost } from "../ai/summary";
 import { providerErrorMessage } from "../ai/providers";
+import { pausedProjects } from "../projectAccess";
 
 const WINDOW_DAYS = 7;
 const EVERY_MS = 60 * 60_000;
@@ -142,9 +143,10 @@ export async function runIssueClusters() {
   const url = process.env.KLASTER_URL;
   if (!url) return 0;
   const keys = await prisma.apiKey.findMany({ where: { revokedAt: null, NOT: { keywords: { isEmpty: true } } }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } });
+  const paused = await pausedProjects(); // no active client: no clustering or AI titles until one is renewed
   let ran = 0;
   for (const key of keys) {
-    if (!allowsType(parseKeyScope(key.scope, key.keywords), "social")) continue;
+    if (paused.has(key.id) || !allowsType(parseKeyScope(key.scope, key.keywords), "social")) continue;
     if (Date.now() - (lastRun.get(key.id) ?? 0) < EVERY_MS) continue;
     lastRun.set(key.id, Date.now());
     try {

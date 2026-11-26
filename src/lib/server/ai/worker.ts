@@ -6,10 +6,9 @@ import { NO_CATEGORY, categoriesForType, categorySchema, type Category } from "@
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
 import { fetchItemsByCode, listItemsFromCursor, type TimeCursor } from "../bank";
-import { limitsFor } from "@/lib/plans";
-import { aiQuota, classifierKeyHint, platformPostsThisMonth } from "./platform";
+import { classifierKeyHint } from "./platform";
+import { aiPauseReason } from "../projectAccess";
 
-const QUOTA_REACHED = "Kuota kategorisasi Signalbase AI bulan ini habis. Pelabelan berlanjut bulan depan, setelah menambah kuota, atau setelah paket dinaikkan.";
 import { prisma } from "../db";
 import { fallbackConfig, providerConfig } from "./admin";
 import { snapshotIfDue, spendingStop } from "./balance";
@@ -227,25 +226,15 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   let sentThisTick = 0;
   // The normal share is always processed; only the extra part is cut off by time.
   const overtime = () => sentThisTick >= normalBudget && (Date.now() - started > BACKFILL_MAX_MS || Date.now() > groupDeadline);
-  let limitedQuota = false;
-  // Signalbase AI on a user's key: stay within the plan's monthly post quota (it resumes next month or on upgrade).
-  if (platform && row.apiKey.ownerId) {
-    const owner = await prisma.admin.findUnique({ where: { id: row.apiKey.ownerId }, select: { plan: true } });
-    const quota = await aiQuota(row.apiKey.ownerId, limitsFor(owner?.plan).aiPostsPerMonth);
-    if (quota !== null) {
-      const left = quota - (await platformPostsThisMonth(row.apiKey.ownerId));
-      if (left <= 0) {
-        await prisma.classifier.update({ where: { apiKeyId: row.apiKeyId }, data: { lastError: QUOTA_REACHED, lastRunAt: new Date() } });
-        return;
-      }
-      budget = Math.min(budget, left);
-      limitedQuota = true;
-    }
+  // Paused while the project has clients and none of them is active (their subscriptions ended); resumes by itself.
+  const paused = await aiPauseReason(row.apiKeyId);
+  if (paused) {
+    if (row.lastError !== paused) await prisma.classifier.update({ where: { apiKeyId: row.apiKeyId }, data: { lastError: paused, lastRunAt: new Date() } });
+    return;
   }
 
   const job = buildJob(row);
   job.scope = await withImageCodes(row.apiKeyId, job.scope); // posts matching the keywords only in their image text too
-  job.skipExcluded = limitedQuota;
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
   let lastError: string | null = null;

@@ -1,42 +1,48 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { dateField, endOfDay } from "@/lib/accounts";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { PLAN_IDS, TRIAL_DAYS } from "@/lib/plans";
 
 type Context = { params: Promise<{ id: string }> };
 
+/** expiresAt: the client's last day of access (YYYY-MM-DD, Jakarta), or null for no end date. */
 const actionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.enum(["approve", "suspend", "activate"]) }),
-  /** expiresAt: YYYY-MM-DD (end of that day, Jakarta) or null for no end date. */
-  z.object({ action: z.literal("setPlan"), plan: z.enum(PLAN_IDS).nullable(), expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), demo: z.boolean().optional() }),
+  z.object({ action: z.literal("approve"), expiresAt: dateField.nullable().default(null) }),
+  z.object({ action: z.enum(["suspend", "activate"]) }),
+  z.object({ action: z.literal("setExpiry"), expiresAt: dateField.nullable() }),
 ]);
-const NEXT_STATUS = { approve: "active", activate: "active", suspend: "suspended" } as const;
 
-// Admin only, user and viewer accounts: approve a waiting sign-up (which starts the trial), suspend or re-activate an
-// account, or set the plan and end date of a client's main account (sub-accounts follow it).
+// Admin only, client and viewer accounts: approve a waiting sign-up (with its subscription's last day), suspend or
+// re-activate an account, or change a client's last day of access. Invoices (marked paid) extend it too.
 export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
   const parsed = actionSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Aksi tidak dikenal" }, { status: 400 });
   const body = parsed.data;
-  const account = await prisma.admin.findFirst({ where: { id, role: { in: ["user", "viewer"] } }, select: { plan: true, role: true, parentId: true } });
+  const account = await prisma.admin.findFirst({ where: { id, role: { in: ["user", "viewer"] } }, select: { role: true, status: true } });
   if (!account) return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+  const client = account.role === "user";
 
-  if (body.action === "setPlan") {
-    if (account.role !== "user" || account.parentId) return NextResponse.json({ error: "Paket diatur di akun utama klien" }, { status: 409 });
-    const planExpiresAt = body.expiresAt ? new Date(`${body.expiresAt}T23:59:59+07:00`) : null;
-    await prisma.admin.update({ where: { id }, data: { plan: body.plan, planExpiresAt, ...(body.demo !== undefined ? { demo: body.demo } : {}) } });
+  if (body.action === "setExpiry") {
+    if (!client) return NextResponse.json({ error: "Masa aktif hanya untuk akun klien" }, { status: 409 });
+    await prisma.admin.update({ where: { id }, data: { plan: "instansi", planExpiresAt: body.expiresAt ? endOfDay(body.expiresAt) : null } });
     return NextResponse.json({ ok: true });
   }
-  // Approving an account that has no plan yet starts its trial.
-  const trial = body.action === "approve" && !account.plan && account.role === "user" && !account.parentId ? { plan: "trial", planExpiresAt: new Date(Date.now() + TRIAL_DAYS * 86_400_000) } : {};
-  await prisma.admin.update({ where: { id }, data: { status: NEXT_STATUS[body.action], ...trial } });
-  // A suspended account keeps its keys; the public API refuses them until the account is active again (apiRoute).
+  if (body.action === "approve") {
+    if (account.status !== "pending") return NextResponse.json({ error: "Akun ini tidak sedang menunggu persetujuan" }, { status: 409 });
+    await prisma.admin.update({
+      where: { id },
+      data: { status: "active", ...(client ? { plan: "instansi", planExpiresAt: body.expiresAt ? endOfDay(body.expiresAt) : null } : {}) },
+    });
+    return NextResponse.json({ ok: true });
+  }
+  // A suspended client keeps its projects and keys; the panel and the public API refuse it until it is active again.
+  await prisma.admin.update({ where: { id }, data: { status: body.action === "suspend" ? "suspended" : "active" } });
   return NextResponse.json({ ok: true });
 });
 
-// Admin only: reject a waiting sign-up (the account is deleted; it never had keys).
+// Admin only: reject a waiting sign-up (the account is deleted; it never had projects).
 export const DELETE = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const { count } = await prisma.admin.deleteMany({ where: { id, role: "user", status: "pending" } });

@@ -1,6 +1,5 @@
 // Account fields shared by self sign-up (/register) and accounts an admin creates on the Pengguna page.
 import { z } from "zod";
-import { PLAN_IDS } from "./plans";
 
 export const accountFields = {
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80),
@@ -8,23 +7,28 @@ export const accountFields = {
   password: z.string().min(8, "Kata sandi minimal 8 karakter").max(200),
 };
 
+/** What a sign-up tells the admin who approves it: the institution and what it wants monitored. */
+export const signupFields = {
+  institution: z.string().trim().min(2, "Nama instansi minimal 2 karakter").max(120),
+  topics: z.string().trim().min(3, "Tulis topik atau kata kunci yang ingin dipantau").max(500),
+};
+
 /** Roles an admin may create from the panel; new admins are still made by hand. */
 export const CREATABLE_ROLES = ["user", "viewer"] as const;
 
+/** YYYY-MM-DD, the last day of access (end of that day, Jakarta). */
+export const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const endOfDay = (date: string) => new Date(`${date}T23:59:59+07:00`);
+
 /**
- * An account made by an admin. A "user" is either a client's main account (it holds the plan) or, with parentId, a
- * sub-account of one (it follows that plan). Viewers see everything read-only and have neither a plan nor a parent.
+ * An account made by an admin: a client ("user", plan Instansi, with the last day of its subscription; null = no end)
+ * or a viewer (sees everything read-only, no subscription).
  */
 export const newAccountSchema = z.object({
   ...accountFields,
   role: z.enum(CREATABLE_ROLES),
-  parentId: z.string().uuid().nullable().default(null),
-  plan: z.enum(PLAN_IDS).nullable().default(null),
-  /** YYYY-MM-DD, end of that day in Jakarta; null = no end date. */
-  expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
-  /** Demo account: billing hidden (main accounts only; sub-accounts follow their main account). */
-  demo: z.boolean().default(false),
-}).refine((a) => a.role === "user" || !a.parentId, { message: "Akun viewer tidak bisa menjadi anggota klien", path: ["parentId"] })
-  .transform((a) => a.role === "user" && !a.parentId ? a : { ...a, plan: null, expiresAt: null, demo: false }); // only a main account holds a plan
+  institution: z.string().trim().max(120).nullable().default(null),
+  expiresAt: dateField.nullable().default(null),
+}).transform((a) => (a.role === "user" ? a : { ...a, institution: null, expiresAt: null }));
 
 export type NewAccount = z.infer<typeof newAccountSchema>;

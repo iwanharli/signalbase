@@ -30,7 +30,7 @@ type Item = ArchiveResponse["reports"][number];
 export function ReportArchive() {
   const role = useRole();
   const admin = role !== "user"; // admins and viewers see the whole bank
-  const canEdit = role !== "viewer";
+  const canEdit = role === "admin"; // viewers and clients read reports; admins set the report profile
   const [kind, setKind] = useState<ReportKind>("harian");
   const [scope, setScope] = useState<string | null>(null);
   const { data, error, loading } = useApi<ArchiveResponse>(`/api/admin/reports?kind=${kind}${scope ? `&scope=${encodeURIComponent(scope)}` : ""}`);

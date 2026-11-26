@@ -7,19 +7,20 @@ import { ipAllowed, originAllowed, requestHost } from "../keyAccess";
 import { prisma } from "./db";
 import { decryptSecret, encryptSecret } from "./secrets";
 import { withImageCodes } from "./media/textSignals";
+import { accessByKey } from "./projectAccess";
 
-const hash = (key: string) => createHash("sha256").update(key).digest("hex");
+export const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 
 // A key is checked by its SHA-256 hash. The full value is also stored encrypted so an admin can copy it again.
-function newKey() {
+export function newKey() {
   const key = `sb_${randomBytes(24).toString("base64url")}`;
   return { key, fields: { prefix: key.slice(0, 10), hash: hash(key), keyEnc: encryptSecret(key) } };
 }
 
-export async function createKey(name: string, scope: KeyScope, createdBy: string, ownerId: string | null = null) {
+export async function createKey(name: string, scope: KeyScope, createdBy: string) {
   const { key, fields } = newKey();
   const { keywords, ...rest } = scope;
-  const row = await prisma.apiKey.create({ data: { name, createdBy, ownerId, ...fields, keywords, scope: rest } });
+  const row = await prisma.apiKey.create({ data: { name, createdBy, ...fields, keywords, scope: rest } });
   return { ...row, key };
 }
 
@@ -40,9 +41,9 @@ export function revealKey(keyEnc: string | null) {
 export type ApiCaller = {
   keyId: string;
   scope: KeyScope;
-  /** Owner's plan history window in days; null = unlimited. */
+  /** History window in days; null = unlimited (plans no longer limit it). */
   historyDays: number | null;
-  /** Bank analysis the owner's plan includes. */
+  /** Bank analysis included with each item. */
   analysis: PlanLimits["analysis"];
 };
 
@@ -76,9 +77,13 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
     let cors: Record<string, string> = {};
     const reply = (res: Response) => { for (const [name, value] of Object.entries(cors)) res.headers.set(name, value); return res; };
 
+    // Two kinds of key: the project's internal key (admins, existing integrations) and a client's key for the project
+    // (ProjectMember), which works only while that client is active and its subscription runs.
     const raw = req.headers.get("x-api-key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    const row = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
-    if (!row || row.revokedAt) return NextResponse.json({ error: "Kunci API tidak valid" }, { status: 401 });
+    const internal = raw ? await prisma.apiKey.findUnique({ where: { hash: hash(raw) } }) : null;
+    const access = raw && !internal ? await accessByKey(raw) : null;
+    const row = internal ?? access?.apiKey ?? null;
+    if (!row || row.revokedAt || (access && (access.keyRevokedAt || access.account.role !== "user"))) return NextResponse.json({ error: "Kunci API tidak valid" }, { status: 401 });
 
     // Access rules: with any rule set, the call must come from an allowed IP (servers) or an allowed site (browsers).
     const host = requestHost(origin, req.headers.get("referer"));
@@ -87,44 +92,36 @@ export function apiRoute<C>(handler: (req: Request, ctx: C, caller: ApiCaller) =
       const ip = clientIp(req);
       if (!fromAllowedSite && !(row.allowedIps.length && ipAllowed(ip, row.allowedIps))) {
         const where = host ? `situs ${host}` : `alamat IP ${ip ?? "tidak diketahui"}`;
-        return NextResponse.json({ error: `Kunci API ini tidak diizinkan dipakai dari ${where}. Atur akses di halaman Proyek.`, forbiddenSource: true }, { status: 403 });
+        return NextResponse.json({ error: `Kunci API ini tidak diizinkan dipakai dari ${where}. Hubungi admin Signalbase.`, forbiddenSource: true }, { status: 403 });
       }
     }
     // Browsers may only read responses on sites the key allows; a key without site rules isn't meant for browsers.
     cors = corsHeaders(origin, fromAllowedSite);
 
-    // Keys of a user account that is not active (suspended, or somehow still pending) stop working until it is re-activated.
-    // Keys of an account whose trial or paid period ended stop working too, until a plan is chosen.
-    let limits = limitsFor(null);
-    if (row.ownerId) {
-      const owner = await prisma.admin.findUnique({ where: { id: row.ownerId }, select: { status: true, plan: true, planExpiresAt: true } });
-      if (owner?.status !== "active") return reply(NextResponse.json({ error: "Akun pemilik kunci tidak aktif" }, { status: 403 }));
-      if (isExpired(owner.planExpiresAt)) return reply(NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 }));
-      limits = limitsFor(owner.plan);
+    // A client's key stops with the client: suspended, or its subscription over.
+    if (access) {
+      if (access.account.status !== "active") return reply(NextResponse.json({ error: "Akun klien tidak aktif" }, { status: 403 }));
+      if (isExpired(access.account.planExpiresAt)) return reply(NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 }));
     }
 
-    // Daily call limit, shared by all keys of the owner's account. Every call is counted per key for the panel.
+    // Every call is counted per project (and per client for a client's key) for the admin panel.
     const day = jakartaToday();
-    let remaining: number | null = null;
-    if (row.ownerId && limits.callsPerDay !== null) {
-      const used = (await prisma.apiKeyUsage.aggregate({ _sum: { count: true }, where: { day, apiKey: { ownerId: row.ownerId } } }))._sum.count ?? 0;
-      if (used >= limits.callsPerDay) {
-        return reply(NextResponse.json(
-          { error: `Batas ${limits.callsPerDay.toLocaleString("id-ID")} panggilan API per hari untuk akun ini sudah tercapai. Kuota diisi ulang pukul 00.00 WIB.`, limitReached: true },
-          { status: 429, headers: { "X-RateLimit-Limit": String(limits.callsPerDay), "X-RateLimit-Remaining": "0" } },
-        ));
-      }
-      remaining = limits.callsPerDay - used - 1;
-    }
     await prisma.apiKeyUsage.upsert({ where: { apiKeyId_day: { apiKeyId: row.id, day } }, create: { apiKeyId: row.id, day, count: 1 }, update: { count: { increment: 1 } } });
-    // Touch at most once a minute.
-    if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000)
-      prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-    const res = await handler(req, ctx, { keyId: row.id, scope: await withImageCodes(row.id, parseKeyScope(row.scope, row.keywords)), historyDays: limits.historyDays, analysis: limits.analysis });
-    if (remaining !== null) {
-      res.headers.set("X-RateLimit-Limit", String(limits.callsPerDay));
-      res.headers.set("X-RateLimit-Remaining", String(Math.max(0, remaining)));
+    if (access) {
+      await prisma.projectAccessUsage.upsert({
+        where: { apiKeyId_accountId_day: { apiKeyId: row.id, accountId: access.accountId, day } },
+        create: { apiKeyId: row.id, accountId: access.accountId, day, count: 1 }, update: { count: { increment: 1 } },
+      });
     }
+    // Touch at most once a minute.
+    const last = access ? access.keyLastUsedAt : row.lastUsedAt;
+    if (!last || Date.now() - last.getTime() > 60_000) {
+      (access
+        ? prisma.projectMember.update({ where: { apiKeyId_accountId: { apiKeyId: row.id, accountId: access.accountId } }, data: { keyLastUsedAt: new Date() } })
+        : prisma.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } })).catch(() => {});
+    }
+    const limits = limitsFor(null);
+    const res = await handler(req, ctx, { keyId: row.id, scope: await withImageCodes(row.id, parseKeyScope(row.scope, row.keywords)), historyDays: limits.historyDays, analysis: limits.analysis });
     return reply(res);
   };
 }

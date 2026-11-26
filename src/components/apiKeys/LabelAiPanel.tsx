@@ -36,7 +36,7 @@ export function LabelAiSettings({ keyId }: { keyId: string }) {
         </div>
       </header>
       {loadError ? <p role="alert">{loadError}</p>
-        : settings.data && !settings.data.canEdit ? <p>Hanya pemilik proyek atau admin yang dapat mengatur AI label.</p>
+        : settings.data && !settings.data.canEdit ? <p>Hanya admin yang dapat mengatur AI label.</p>
         : settings.data && stored.data ? <LabelAiPanel key={keyId} keyId={keyId} labels={settings.data.options} initial={stored.data.saved} progress={stored.data.progress ?? null} />
         : <Skeleton h={320} radius="lg" />}
     </div>

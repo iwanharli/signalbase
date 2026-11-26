@@ -1,31 +1,21 @@
 import { redirect } from "next/navigation";
 import { getSession, isActiveAccount } from "@/lib/server/auth";
-import { AiQuotaBanner, PlanBanner } from "@/components/PlanBanner";
-import { aiQuota, platformPostsThisMonth } from "@/lib/server/ai/platform";
+import { AccessEnded } from "@/components/AccessEnded";
 import { Shell } from "@/components/Shell";
 import { accountPlan } from "@/lib/server/plan";
-import { BILLING_VISIBLE, daysLeft, isPlanId, PLAN_LABEL } from "@/lib/plans";
 import { roleOf } from "@/lib/session";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  // A user whose account was suspended (or never approved) loses the panel even with a valid cookie.
+  // A client whose account was suspended (or never approved) loses the panel even with a valid cookie.
   if (roleOf(session) === "user" && !(await isActiveAccount(session.sub))) redirect("/login?inactive=1");
   const role = roleOf(session);
-  const plan = role === "user" ? await accountPlan(session.sub) : null;
-  const aiLimit = plan ? await aiQuota(session.sub, plan.limits.aiPostsPerMonth) : null;
-  const aiUsed = aiLimit ? await platformPostsThisMonth(session.sub) : 0;
-  // Demo accounts (and everyone while billing is hidden) see nothing about plans or billing.
-  const noBilling = !BILLING_VISIBLE || !!plan?.demo;
-  const banner = plan && !noBilling && <>
-    <PlanBanner plan={plan.plan} expiresAt={plan.expiresAt?.toISOString() ?? null} />
-    <AiQuotaBanner used={aiUsed} limit={aiLimit} />
-  </>;
+  // A client whose subscription ended sees one notice instead of pages whose data it may no longer read.
+  const ended = role === "user" && (await accountPlan(session.sub)).expired;
   return (
-    <Shell name={session.name} username={session.username} role={role} banner={banner} hideBilling={noBilling}
-      plan={plan?.plan && !noBilling && isPlanId(plan.plan) ? { label: PLAN_LABEL[plan.plan], daysLeft: daysLeft(plan.expiresAt) } : null}>
-      {children}
+    <Shell name={session.name} username={session.username} role={role}>
+      {ended ? <AccessEnded /> : children}
     </Shell>
   );
 }

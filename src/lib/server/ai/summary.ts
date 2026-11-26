@@ -9,6 +9,7 @@ import { encryptSecret, secretHint } from "../secrets";
 import { completeJson, providerErrorMessage, type CallUsage, type ProviderConfig } from "./providers";
 import { buildInput, SYSTEM_PROMPT, type PreviousSummary } from "./summaryInput";
 import { withImageCodes } from "../media/textSignals";
+import { pausedProjects } from "../projectAccess";
 
 export const BANK_SCOPE = "bank";
 const BANK_NAME = "Seluruh bank data";
@@ -152,7 +153,9 @@ export async function writeSummary(setting: AiSetting, ref: ScopeRef, day = data
 async function dailyScopes(setting: AiSetting): Promise<ScopeRef[]> {
   const bank = (await resolveScope(BANK_SCOPE))!;
   if (!setting.includeProjects) return [bank];
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } });
+  const paused = await pausedProjects(); // projects without an active client get no AI summary
+  const keys = (await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
+    .filter((k) => !paused.has(k.id));
   return [bank, ...await Promise.all(keys.map(async (k) => ({ id: k.id, name: k.name, scope: await withImageCodes(k.id, parseKeyScope(k.scope, k.keywords)), keywords: k.keywords })))];
 }
 

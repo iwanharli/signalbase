@@ -7,6 +7,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { Button } from "../ui/Button";
+import { useRole } from "../RoleContext";
 import classes from "./keyView.module.css";
 import { Tip } from "../ui/Tip";
 
@@ -16,6 +17,7 @@ const TYPE_ICON = { social: IconMessages, online: IconWorldWww } as const;
 
 /** canLeave: false for user accounts, who only ever browse through their own keys. */
 export function KeyViewBanner({ view, type, canLeave = true }: { view: KeyView; type: MediaType; canLeave?: boolean }) {
+  const role = useRole();
   return (
     <section className={classes.banner}>
       <span className={classes.icon}><IconEye size={18} /></span>
@@ -33,8 +35,9 @@ export function KeyViewBanner({ view, type, canLeave = true }: { view: KeyView; 
         })}
       </nav>
       <div className={classes.actions}>
-        {view.aiEnabled && <Button size="sm" onDark variant="secondary" icon={IconRobot} href={`/project/${view.id}/ai`}>AI</Button>}
-        <Button size="sm" onDark variant="secondary" icon={IconKey} href={`/project/${view.id}`}>Proyek</Button>
+        {/* Project settings are for admins (viewers may look); clients only read the data. */}
+        {role !== "user" && view.aiEnabled && <Button size="sm" onDark variant="secondary" icon={IconRobot} href={`/project/${view.id}/ai`}>AI</Button>}
+        {role !== "user" && <Button size="sm" onDark variant="secondary" icon={IconKey} href={`/project/${view.id}`}>Proyek</Button>}
         {canLeave && <Button size="sm" onDark variant="subtle" icon={IconX} href={`/media/${type}`}>Keluar</Button>}
       </div>
     </section>

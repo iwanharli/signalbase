@@ -4,7 +4,7 @@ import { providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, labelImpact, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { accountPlan } from "@/lib/server/plan";
+import { aiPausedFor, clientActive } from "@/lib/server/projectAccess";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -20,7 +20,10 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const { id } = await params;
   const key = await prisma.apiKey.findUnique({
     where: { id },
-    include: { classifier: true, _count: { select: { classifications: true } } },
+    include: {
+      classifier: true, _count: { select: { classifications: true } },
+      members: { orderBy: { createdAt: "asc" }, select: { account: { select: { id: true, name: true, status: true, planExpiresAt: true } } } },
+    },
   });
   if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   return NextResponse.json({
@@ -28,6 +31,9 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
     copyable: !!key.keyEnc,
     access: { ips: key.allowedIps, origins: key.allowedOrigins },
+    // The clients given this project, and whether its AI is paused because none of them is active.
+    clients: key.members.map((m) => ({ id: m.account.id, name: m.account.name, active: clientActive(m.account) })),
+    aiPaused: aiPausedFor(key.members.map((m) => m.account)),
     classifier: key.classifier && {
       enabled: key.classifier.enabled, labelledOnly: key.classifier.labelledOnly, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
       processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,
@@ -37,7 +43,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
 
 // Rename a key or change its scope. A scope change restarts the key's AI categorisation,
 // because the stored labels were made for the old set of items.
-export const PATCH = adminRoute(async (req: Request, { params }: Context, _username, user) => {
+export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
   const { id } = await params;
   const parsed = updateKeySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -55,13 +61,6 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context, _usern
     provinces: [...new Set(parsed.data.scope.provinces)],
     categories: [...new Set(parsed.data.scope.categories)],
   };
-  if (user.role === "user") {
-    if (!scope.keywords.length) return NextResponse.json({ error: "Isi minimal satu keyword" }, { status: 400 });
-    const { keywordsPerKey } = (await accountPlan(user.id)).limits;
-    if (keywordsPerKey !== null && scope.keywords.length > keywordsPerKey) {
-      return NextResponse.json({ error: `Paket Anda membatasi ${keywordsPerKey} keyword per proyek` }, { status: 403 });
-    }
-  }
   const previous = parseKeyScope(key.scope, key.keywords);
   const scopeChanged = !sameScope(scope, previous);
   const { keywords, ...rest } = scope;
