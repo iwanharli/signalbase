@@ -282,6 +282,9 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
   }, [busy]);
   const [full, setFull] = useState(false);
   const stage = useRef<HTMLElement>(null);
+  // In full screen only the stage is shown, so dropdowns open inside it instead of at the end of <body>.
+  const portalTarget = full ? stage.current : null;
+  const dropdown = { withinPortal: true, zIndex: 400, ...(portalTarget ? { portalProps: { target: portalTarget } } : {}) };
   useEffect(() => {
     const on = () => setFull(document.fullscreenElement === stage.current);
     document.addEventListener("fullscreenchange", on);
@@ -360,25 +363,25 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (
             <Select aria-label="Proyek" w={160} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null, watch: null })}
+              comboboxProps={dropdown} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null, watch: null })}
               data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
           {watches.data && (
-            <SnaWatchPicker keyId={keyId} watches={watches.data.watches} canManage={watches.data.canManage} value={watchId} onChanged={() => void watches.reload()}
+            <SnaWatchPicker portalTarget={portalTarget} keyId={keyId} watches={watches.data.watches} canManage={watches.data.canManage} value={watchId} onChanged={() => void watches.reload()}
               // A watch's network shows on 7 days by default, like an issue.
               onChange={(v) => go(v ? { watch: v, issue: null, view: null, ...(params.get("days") ? {} : { days: "7" }) } : { watch: null })} />
           )}
           {keyId && !watchId && (
             <Select aria-label="Isu" w={220} clearable searchable placeholder={issueOptions.length ? "Semua isu" : "Belum ada isu"} disabled={!issueOptions.length && !issueId}
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={issueId} data={issueOptions}
+              comboboxProps={dropdown} value={issueId} data={issueOptions}
               // An issue covers the last 7 days of posts, so its whole network shows on the 7-day view.
               onChange={(v) => go(v ? { issue: v, days: "7" } : { issue: null })} />
           )}
           {keyId && (
             <Select aria-label="Label" w={150} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelName}
               classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
+              comboboxProps={dropdown} value={labelName} data={labelOptions} onChange={(v) => go({ label: v || null })} />
           )}
           <div className={classes.barEnd}>
             <ViewMenu changed={changed}>

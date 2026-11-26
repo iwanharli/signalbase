@@ -161,6 +161,9 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
   const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after a level toggle
   const [full, setFull] = useState(false);
   const stage = useRef<HTMLElement>(null);
+  // In full screen only the stage is shown, so dropdowns open inside it instead of at the end of <body>.
+  const portalTarget = full ? stage.current : null;
+  const dropdown = { withinPortal: true, zIndex: 400, ...(portalTarget ? { portalProps: { target: portalTarget } } : {}) };
   useEffect(() => {
     const on = () => setFull(document.fullscreenElement === stage.current);
     document.addEventListener("fullscreenchange", on);
@@ -209,7 +212,7 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
           {(!keyLocked || projects.length > 1) && projects.length > 0 && (
             <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
+              comboboxProps={dropdown} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
               data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
           <div className={classes.tones} role="group" aria-label="Level isu yang ditampilkan">

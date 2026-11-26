@@ -13,17 +13,17 @@ import { Button } from "../ui/Button";
 import classes from "./sna.module.css";
 
 export type SnaWatch = { id: string; name: string; keywords: string[]; createdAt: string };
-type Props = { keyId: string | null; watches: SnaWatch[]; canManage: boolean; value: string | null; onChange: (id: string | null) => void; onChanged: () => void };
+type Props = { /** Full screen: open dropdown and dialog inside this element (the stage). */ portalTarget?: HTMLElement | null; keyId: string | null; watches: SnaWatch[]; canManage: boolean; value: string | null; onChange: (id: string | null) => void; onChanged: () => void };
 
 const selectClasses = { input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption };
 
-export function SnaWatchPicker({ keyId, watches, canManage, value, onChange, onChanged }: Props) {
+export function SnaWatchPicker({ portalTarget = null, keyId, watches, canManage, value, onChange, onChanged }: Props) {
   const [open, setOpen] = useState(false);
   if (!watches.length && !canManage) return null;
   return (
     <div className={classes.watchPick}>
       <Select aria-label="Pantauan" w={200} clearable searchable placeholder={watches.length ? "Pantauan" : "Belum ada pantauan"} disabled={!watches.length && !value}
-        leftSection={<IconEye size={15} />} classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
+        leftSection={<IconEye size={15} />} classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400, ...(portalTarget ? { portalProps: { target: portalTarget } } : {}) }}
         value={value} onChange={onChange} data={watches.map((w) => ({ value: w.id, label: w.name }))}
         renderOption={({ option }) => {
           const w = watches.find((x) => x.id === option.value);
@@ -34,14 +34,14 @@ export function SnaWatchPicker({ keyId, watches, canManage, value, onChange, onC
           <button type="button" className={classes.watchAdd} aria-label="Atur pantauan" onClick={() => setOpen(true)}><IconPlus size={16} /></button>
         </Tooltip>
       )}
-      <WatchDialog opened={open} onClose={() => setOpen(false)} keyId={keyId} watches={watches} onChanged={onChanged}
+      <WatchDialog portalTarget={portalTarget} opened={open} onClose={() => setOpen(false)} keyId={keyId} watches={watches} onChanged={onChanged}
         onCreated={(id) => { setOpen(false); onChange(id); }} onDeleted={(id) => { if (id === value) onChange(null); }} />
     </div>
   );
 }
 
-function WatchDialog({ opened, onClose, keyId, watches, onChanged, onCreated, onDeleted }: {
-  opened: boolean; onClose: () => void; keyId: string | null; watches: SnaWatch[]; onChanged: () => void; onCreated: (id: string) => void; onDeleted: (id: string) => void;
+function WatchDialog({ portalTarget, opened, onClose, keyId, watches, onChanged, onCreated, onDeleted }: {
+  portalTarget: HTMLElement | null; opened: boolean; onClose: () => void; keyId: string | null; watches: SnaWatch[]; onChanged: () => void; onCreated: (id: string) => void; onDeleted: (id: string) => void;
 }) {
   const [name, setName] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -75,7 +75,7 @@ function WatchDialog({ opened, onClose, keyId, watches, onChanged, onCreated, on
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} centered size="lg" radius={20} title={<span className={classes.watchTitle}><IconEye size={18} />Pantauan SNA</span>}
+    <Modal opened={opened} onClose={onClose} {...(portalTarget ? { portalProps: { target: portalTarget } } : {})} centered size="lg" radius={20} title={<span className={classes.watchTitle}><IconEye size={18} />Pantauan SNA</span>}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
       <div className={classes.watchForm}>
         <p className={classes.watchNote}>

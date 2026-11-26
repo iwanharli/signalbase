@@ -44,3 +44,16 @@ test("pohon: banyak akun daun di bawah satu isu dirapatkan dalam grid 3 kolom", 
 test("pohon: tanpa isu (tampilan mention) tidak ada susunan pohon", () => {
   assert.equal(treeLayout({ nodes: [node("a"), node("b")], links: [link("a", "b")] }), null);
 });
+
+test("pohon: akun yang terhubung ke isu secara tidak langsung (lewat akun lain, arah garis terbalik) masuk pohon, bukan ke bawah", () => {
+  // "atas" belongs to the issue; "x" and "y" only link to it from the other side (atas -> x), and y hangs on x.
+  const indirect: SnaGraph = {
+    nodes: [node("issue:i", "issue"), node("atas"), node("x"), node("y"), node("sendiri"), node("kawan")],
+    links: [link("atas", "issue:i"), link("atas", "x"), link("y", "x"), link("sendiri", "kawan")],
+  };
+  const t = treeLayout(indirect)!;
+  assert.deepEqual([...t.orphans].sort(), ["kawan", "sendiri"]);
+  const p = (id: string) => t.pos.get(id)!;
+  assert.ok(p("issue:i").y < p("atas").y && p("atas").y < p("x").y && p("x").y < p("y").y);
+  assert.ok(p("sendiri").y > p("y").y);
+});

@@ -1,7 +1,7 @@
 // "Susun pohon" of the SNA issue view: the issues in the first row (most posts first), under each issue the accounts tied
-// to it as a tree (an account under the node it links to: the issue, or in a flow its parent account), accounts without
-// children packed in a small grid under their parent so wide issues stay compact. Accounts not tied to any issue (e.g.
-// their link was hidden with an emotion filter) form a grid below everything. Positions in pixels, centred on x = 0.
+// to it, directly or through other accounts, as a tree (an account under the node nearest to an issue it links with),
+// accounts without children packed in a small grid under their parent so wide issues stay compact. Only accounts with no
+// path at all to an issue form a grid below everything. Positions in pixels, centred on x = 0.
 import type { SnaGraph, SnaNode } from "./sna";
 
 export type TreeLayout = { pos: Map<string, { x: number; y: number }>; orphans: Set<string>; width: number; height: number };
@@ -20,19 +20,25 @@ export function treeLayout(g: SnaGraph, { unit: UNIT, level: LEVEL, row: ROW }: 
   const issues = g.nodes.filter((n) => n.kind === "issue").sort((a, b) => b.posts - a.posts || a.id.localeCompare(b.id));
   if (!issues.length) return null;
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
-  const linkedFrom = new Map<string, string[]>(); // parent -> the accounts linking to it
-  for (const l of g.links) linkedFrom.set(l.target, [...(linkedFrom.get(l.target) ?? []), l.source]);
+  // Links followed both ways: an account is in a tree as soon as it has any path to an issue (e.g. it links to an account
+  // of another issue whose own link to that issue was hidden), not only when it points at its parent.
+  const neighbours = new Map<string, string[]>();
+  for (const l of g.links) {
+    neighbours.set(l.target, [...(neighbours.get(l.target) ?? []), l.source]);
+    neighbours.set(l.source, [...(neighbours.get(l.source) ?? []), l.target]);
+  }
   const order = (a: SnaNode, b: SnaNode) => (a.first && b.first && a.first !== b.first ? (a.first < b.first ? -1 : 1) : 0)
     || (b.engagement ?? b.posts) - (a.engagement ?? a.posts) || a.id.localeCompare(b.id);
 
-  // Breadth first from all issues at once: an account in several issues goes under the issue (or account) reached first.
+  // Breadth first from all issues at once: an account goes under the issue or account it is first reached from (the
+  // nearest to an issue); an account in several issues under the first.
   const kids = new Map<string, string[]>();
   const seen = new Set<string>(issues.map((i) => i.id));
   let level = issues.map((i) => i.id);
   while (level.length) {
     const next: string[] = [];
     for (const u of level) {
-      const found = [...new Set(linkedFrom.get(u) ?? [])].map((id) => byId.get(id)).filter((n): n is SnaNode => !!n && n.kind !== "issue" && !seen.has(n.id)).sort(order);
+      const found = [...new Set(neighbours.get(u) ?? [])].map((id) => byId.get(id)).filter((n): n is SnaNode => !!n && n.kind !== "issue" && !seen.has(n.id)).sort(order);
       for (const n of found) seen.add(n.id);
       kids.set(u, found.map((n) => n.id));
       next.push(...found.map((n) => n.id));
