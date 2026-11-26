@@ -75,10 +75,16 @@ export function Shell({ name, username, role, children }: { name: string; userna
   };
 
   useEffect(() => {
+    let compact = false;
     const onScroll = () => {
-      const on = window.scrollY > 12;
+      const y = window.scrollY;
+      const on = y > 12;
       setScrolled(on);
       document.documentElement.toggleAttribute("data-scrolled", on); // lets sticky page bars follow the shrinking top bar
+      // Page bars that fold to one line (media summary) change the page height, and the browser then moves the scroll back:
+      // a single threshold would flip them on and off. They fold past 160px and unfold only back near the top.
+      compact = compact ? y > 40 : y > 160;
+      document.documentElement.toggleAttribute("data-compact", compact);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });

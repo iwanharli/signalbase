@@ -3,16 +3,17 @@
   border-radius: 16px; overflow: hidden; color: #fff; background: rgba(17,15,34,.9); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid rgba(255,255,255,.08); box-shadow: 0 14px 40px -18px rgba(0,0,0,.8); transition: top 260ms ease, padding 200ms ease; }
 /* Scrolled: one slim row under the top bar (counts and the emotion bar); scope chips and emotion cards fold away. */
-:global(html[data-scrolled]) .bar { top: 70px; padding: 8px 14px; gap: 16px; align-items: center; }
-:global(html[data-scrolled]) .context, :global(html[data-scrolled]) .legend, :global(html[data-scrolled]) .sampleNote { display: none; }
-:global(html[data-scrolled]) .summary { grid-template-areas: "id numbers"; gap: 0 16px; }
-:global(html[data-scrolled]) .icon { width: 28px; height: 28px; }
-:global(html[data-scrolled]) .numbers { flex-direction: row; gap: 14px; }
-:global(html[data-scrolled]) .stat { flex-direction: row; align-items: baseline; gap: 5px; }
-:global(html[data-scrolled]) .stat .total { font-size: 17px; }
-:global(html[data-scrolled]) .stat b { font-size: 14px; }
-:global(html[data-scrolled]) .moods { gap: 4px; }
-:global(html[data-scrolled]) .moodBar { height: 12px; }
+:global(html[data-scrolled]) .bar { top: 70px; }
+:global(html[data-compact]) .bar { padding: 8px 14px; gap: 16px; align-items: center; }
+:global(html[data-compact]) .context, :global(html[data-compact]) .legend, :global(html[data-compact]) .sampleNote { display: none; }
+:global(html[data-compact]) .summary { grid-template-areas: "id numbers"; gap: 0 16px; }
+:global(html[data-compact]) .icon { width: 28px; height: 28px; }
+:global(html[data-compact]) .numbers { flex-direction: row; gap: 14px; }
+:global(html[data-compact]) .stat { flex-direction: row; align-items: baseline; gap: 5px; }
+:global(html[data-compact]) .stat .total { font-size: 17px; }
+:global(html[data-compact]) .stat b { font-size: 14px; }
+:global(html[data-compact]) .moods { gap: 4px; }
+:global(html[data-compact]) .moodBar { height: 12px; }
 
 .summary { min-width: 0; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "id numbers" "ctx ctx"; align-items: center; gap: 12px 20px; }
 .identity { grid-area: id; display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; white-space: nowrap; }
