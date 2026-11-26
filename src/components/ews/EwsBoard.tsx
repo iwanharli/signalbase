@@ -3,23 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, MessagesSquare, Radar, ShieldAlert, Smile, Target, Users, Zap, type LucideIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Select, Skeleton } from "@mantine/core";
+import { Skeleton } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft, IconArrowRight, IconBellRinging, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconMessages, IconRadar2, IconSearch, IconSparkles, IconTrophy, IconX } from "@tabler/icons-react";
-import { isHiddenEwsProject } from "@/lib/issues";
-import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { DEFAULT_ONT_DAYS, formatWindow, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntIssue } from "@/lib/ontologi";
 import { TONE_COLOR, toneOf } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "../apiKeys/shared";
-import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import classes from "../issues/issues.module.css";
 import ews from "./ews.module.css";
 import { ActionCalls } from "./ActionCalls";
 
-type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const DAY_MS = 86_400_000;
 const isNew = (i: OntIssue) => Date.now() - new Date(i.sentAt).getTime() < DAY_MS;
@@ -105,7 +101,7 @@ function Detail({ issue, rank, onEntity, entity, nav }: {
   );
 }
 
-export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
+export function EwsBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -124,8 +120,6 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && !isHiddenEwsProject(k.name) && allowsType(k.scope, "social"));
   const list = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontologi?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => list.data?.issues ?? [], [list.data]);
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
@@ -183,11 +177,6 @@ export function EwsBoard({ keyLocked }: { keyLocked: boolean }) {
 
       <div className={classes.toolbar}>
         <Segmented label="Periode alert" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v, issue: null })} />
-        {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-          <Select aria-label="Proyek" w={220} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null })}
-            data={[...(keyLocked ? [] : [{ value: "", label: "Semua isu" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-        )}
         <div className={ews.levels} role="group" aria-label="Level alert">
           <span className={ews.levelsLabel}><IconBellRinging size={14} />Level</span>
           {TOGGLE_LEVELS.map((l) => {

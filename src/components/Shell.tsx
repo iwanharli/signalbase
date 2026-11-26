@@ -11,6 +11,8 @@ import { AiProgressDock } from "./AiProgressDock";
 import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
+import { ProjectSwitcher } from "./ProjectSwitcher";
+import { saveActiveProject } from "@/lib/activeProject";
 import { SAVED_FILTERS_PREFIX } from "@/lib/media/filters";
 import classes from "./shell.module.css";
 
@@ -36,10 +38,10 @@ const NAV: NavItem[] = [
   // Projects are set up by admins; clients only use the projects given to them.
   { href: "/project", label: "Proyek", icon: IconKey, staffOnly: true },
 ];
-/** Secondary pages: icon buttons on the right and entries in the account menu. */
+/** Secondary pages: icon buttons on the right (inMenu: only in the account menu). */
 const TOOLS = [
   { href: "/command-center", label: "Command Center", icon: IconChartDonut },
-  { href: "/docs", label: "Dokumentasi", icon: IconBook2 },
+  { href: "/docs", label: "Dokumentasi", icon: IconBook2, inMenu: true },
   { href: "/users", label: "Pengguna", icon: IconUsers, adminOnly: true },
   { href: "/ai", label: "Pengaturan AI", icon: IconSparkles, adminOnly: true },
 ];
@@ -66,7 +68,8 @@ export function Shell({ name, username, role, children }: { name: string; userna
   const navRef = useRef<HTMLElement>(null);
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    // Saved media filters (search words included) must not reach the next account in this browser.
+    // Saved media filters (search words included) and the active project must not reach the next account in this browser.
+    saveActiveProject(null);
     try { Object.keys(localStorage).filter((k) => k.startsWith(SAVED_FILTERS_PREFIX)).forEach((k) => localStorage.removeItem(k)); } catch { /* storage unavailable */ }
     window.location.href = "/login";
   };
@@ -129,9 +132,10 @@ export function Shell({ name, username, role, children }: { name: string; userna
           </nav>
 
           <div className={classes.right}>
+            <ProjectSwitcher role={role} />
             {role === "admin" && <MediaWorkerAlert />}
             <MediaAlertsBell />
-            {barTools.map((t) => (
+            {barTools.filter((t) => !("inMenu" in t)).map((t) => (
               <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
                 <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
               </Tooltip>
@@ -151,6 +155,9 @@ export function Shell({ name, username, role, children }: { name: string; userna
                   <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "Klien"}</small></div>
                 </div>
                 <Menu.Divider />
+                {barTools.filter((t) => "inMenu" in t).map((t) => (
+                  <Menu.Item key={t.href} component={Link} href={t.href} leftSection={<t.icon size={16} />}>{t.label}</Menu.Item>
+                ))}
                 <Menu.Item color="red" leftSection={<IconLogout size={16} />} onClick={logout}>Keluar</Menu.Item>
               </Menu.Dropdown>
             </Menu>

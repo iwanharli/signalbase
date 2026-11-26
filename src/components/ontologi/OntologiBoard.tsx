@@ -2,24 +2,21 @@
 // /analisis/ontologi — early-warning issues and the actors / targets they name, as a d3 force graph (same layout as /analisis/sna).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Select, Tooltip } from "@mantine/core";
+import { Tooltip } from "@mantine/core";
 import { IconAlertTriangle, IconFlame, IconHierarchy2, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconTarget, IconUsers } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
 import { zoom, zoomIdentity } from "d3-zoom";
-import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { buildOntologi, DEFAULT_ONT_DAYS, filterLevels, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntGraph, type OntIssue, type OntLink, type OntNode } from "@/lib/ontologi";
 import { useApi } from "@/lib/useApi";
-import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import { NetworkHeader } from "../sna/NetworkHeader";
 import classes from "../sna/sna.module.css";
 import { OntologiPanel } from "./OntologiPanel";
 
-type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 type Node = OntNode & SimulationNodeDatum;
 type Edge = Omit<OntLink, "source" | "target"> & SimulationLinkDatum<Node> & { source: Node; target: Node };
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
@@ -149,7 +146,7 @@ function Graph({ graph, issues, onPick, picked, locked }: { graph: OntGraph; iss
   return <div ref={box} className={classes.canvas}><svg ref={svg} role="img" aria-label="Graf keterkaitan isu dan aktor" /><div ref={tip} className={classes.tip} /></div>;
 }
 
-export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
+export function OntologiBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -161,9 +158,6 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
   const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after a level toggle
   const [full, setFull] = useState(false);
   const stage = useRef<HTMLElement>(null);
-  // In full screen only the stage is shown, so dropdowns open inside it instead of at the end of <body>.
-  const portalTarget = full ? stage.current : null;
-  const dropdown = { withinPortal: true, zIndex: 400, ...(portalTarget ? { portalProps: { target: portalTarget } } : {}) };
   useEffect(() => {
     const on = () => setFull(document.fullscreenElement === stage.current);
     document.addEventListener("fullscreenchange", on);
@@ -182,8 +176,6 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
   const res = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontologi?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => res.data?.issues ?? [], [res.data]);
   useEffect(() => { setPicked(null); }, [res.data]);
@@ -210,11 +202,6 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
         <NetworkHeader icon={IconHierarchy2} kicker="Ontologi" title="Isu dan aktor" period={`${periodLabel} terakhir`} stats={stats} ready={ready} />
         <div className={classes.filterBar} role="toolbar" aria-label="Filter keterkaitan">
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-          {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-            <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={dropdown} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
-              data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-          )}
           <div className={classes.tones} role="group" aria-label="Level isu yang ditampilkan">
             {TOGGLE_LEVELS.map((l) => {
               const on = !off.includes(l);

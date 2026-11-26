@@ -18,5 +18,5 @@ export default async function OntologiPage({ searchParams }: { searchParams: Pro
     if (key) redirect(`/analisis/ontologi?key=${key.id}`);
     return <NoKeyYet type="social" label="Ontologi" hasKeys={keys.length > 0} />;
   }
-  return <OntologiBoard keyLocked={isUser} />;
+  return <OntologiBoard />;
 }

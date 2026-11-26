@@ -1,0 +1,15 @@
+/* Top bar: the active project, as a compact chip (a dropdown when there is a choice). */
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 40px; max-width: 220px; padding: 0 10px 0 4px; border-radius: 12px; color: #fff;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); transition: background .15s, border-color .15s; }
+button.chip:hover, button.chip[data-expanded] { background: rgba(255,255,255,.07); border-color: rgba(52,211,153,.45); }
+button.chip:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+.icon { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: #6ee7b7; background: rgba(16,185,129,.14); }
+.text { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.text small { font-size: 9.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.45); }
+.text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 700; }
+.chevron { flex-shrink: 0; color: rgba(255,255,255,.55); }
+.dropdown { max-height: min(70vh, 480px); overflow-y: auto; }
+.dropdown [data-active] { font-weight: 700; color: var(--mantine-color-violet-7); }
+:global([data-mantine-color-scheme="dark"]) .dropdown [data-active] { color: var(--mantine-color-violet-3); }
+@media (max-width: 1200px) { .chip { max-width: 160px; } }
+@media (max-width: 560px) { .text small { display: none; } .chip { max-width: 120px; } }

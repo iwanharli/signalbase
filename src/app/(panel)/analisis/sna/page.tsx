@@ -18,5 +18,5 @@ export default async function SnaPage({ searchParams }: { searchParams: Promise<
     if (key) redirect(`/analisis/sna?key=${key.id}`);
     return <NoKeyYet type="social" label="Analisis SNA" hasKeys={keys.length > 0} />;
   }
-  return <SnaBoard keyLocked={isUser} />;
+  return <SnaBoard />;
 }

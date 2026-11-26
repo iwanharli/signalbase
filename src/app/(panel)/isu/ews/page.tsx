@@ -18,5 +18,5 @@ export default async function EwsPage({ searchParams }: { searchParams: Promise<
     if (key) redirect(`/isu/ews?key=${key.id}`);
     return <NoKeyYet type="social" label="Isu EWS Sosmed" hasKeys={keys.length > 0} />;
   }
-  return <EwsBoard keyLocked={isUser} />;
+  return <EwsBoard />;
 }

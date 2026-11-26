@@ -8,7 +8,6 @@ import { IconAdjustmentsHorizontal, IconAlertTriangle, IconChartBar, IconMessage
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
-import type { KeyScope } from "@/lib/media/keyScope";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { NARRATIVE_MIN_POSTS, parseVisualDays, parseVisualView, tagLabel, VISUAL_KINDS, VISUAL_PERIODS, VISUAL_TAGS, WORKER_STALE_MS, type VisualAsset, type VisualFailures, type VisualPost, type VisualResponse, type VisualUse } from "@/lib/mediaVisual";
@@ -30,7 +29,6 @@ import classes from "../issues/issues.module.css";
 import c from "./mediaVisual.module.css";
 
 dayjs.extend(relativeTime);
-type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 const PERIOD_OPTIONS = VISUAL_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const selectClasses = { input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption };
 const VIEW_OPTIONS = [{ value: "post", label: "Per post" }, { value: "image", label: "Per gambar" }, { value: "narrative", label: "Narasi" }] as const;
@@ -39,7 +37,7 @@ const TEXT_OPTIONS = [{ value: "all", label: "Semua" }, { value: "1", label: "Ad
 const KIND_OPTIONS = [{ value: "", label: "Semua" }, ...Object.entries(VISUAL_KINDS).map(([value, label]) => ({ value, label }))];
 const ago = (iso: string) => dayjs(iso).locale("id").fromNow();
 
-export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
+export function MediaVisualBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -88,8 +86,6 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
   }, [days, view, kind, tag, q, keyId, sensitive, text, action, claims, unread, narrative]);
   useEffect(() => { setCursor(null); setItems([]); setPosts([]); }, [filters]);
 
-  const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt);
   const res = useApi<VisualResponse>(`/api/admin/media-visual?${filters}${cursor ? `&after=${encodeURIComponent(cursor)}` : ""}`);
   useEffect(() => {
     if (!res.data) return;
@@ -157,11 +153,6 @@ export function MediaVisualBoard({ keyLocked }: { keyLocked: boolean }) {
           <span className={c.filterLabel}><IconAdjustmentsHorizontal size={14} />Filter</span>
           <Select aria-label="Sumber gambar" w={170} allowDeselect={false} classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
             value={kind} onChange={(v) => go({ kind: v || null })} data={KIND_OPTIONS.map((o) => ({ value: o.value, label: o.value ? o.label : "Semua sumber" }))} />
-          {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-            <Select aria-label="Proyek" w={190} allowDeselect={false} classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
-              value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
-              data={[...(keyLocked ? [] : [{ value: "", label: "Seluruh bank" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-          )}
           <Select aria-label="Tag visual" w={210} allowDeselect={false} searchable classNames={selectClasses} comboboxProps={{ withinPortal: true, zIndex: 400 }}
             value={tag} onChange={(v) => go({ tag: v || null })} data={tagOptions} />
           <Segmented label="Teks di gambar" options={TEXT_OPTIONS} value={text} onChange={(v) => go({ text: v === "1" ? null : v })} />

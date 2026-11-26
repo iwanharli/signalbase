@@ -1,6 +1,6 @@
 "use client";
 import { categoriesForType } from "@/lib/ai/classifier";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { Alert, Button, Text } from "@mantine/core";
@@ -16,7 +16,6 @@ import { ItemCard } from "./ItemCard";
 import { OriginalCard } from "./OriginalCard";
 import { useStagedPages } from "./useStagedPages";
 import { ItemDetailModal } from "./ItemDetailModal";
-import { KeyViewBanner, type KeyView } from "./KeyViewBanner";
 import { ManualLabelContext } from "./ManualLabel";
 import type { LabelSettings } from "@/lib/media/manualLabels";
 import { FlowMasonry } from "./FlowMasonry";
@@ -49,15 +48,17 @@ function ScrollTopButton() {
 
 /** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal.
  *  With ?key=<id> the page shows the bank as that API key sees it: its scope, and its AI categories. */
-export function MediaBrowser(props: { type: MediaType; keyLocked?: boolean }) {
+type KeyView = { id: string; name: string; scope: KeyScope; aiEnabled: boolean };
+
+export function MediaBrowser(props: { type: MediaType }) {
   const ready = useCleanMediaUrl(props.type);
   const projectId = useSearchParams().get("key") ?? "";
   if (!ready) return null;
-  // Remounted per project, so nothing loaded for one project (banner, labels, AI categories, open post) carries over.
+  // Remounted per project, so nothing loaded for one project (labels, AI categories, open post) carries over.
   return <ProjectBrowser key={projectId} {...props} />;
 }
 
-function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocked?: boolean }) {
+function ProjectBrowser({ type }: { type: MediaType }) {
   const role = useRole(); // only admins correct AI categories; clients and viewers read
   const searchParams = useSearchParams();
   const keyId = searchParams.get("key");
@@ -111,9 +112,6 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
   };
 
   const options = useApi<FilterOptions>(`/api/admin/media/${type}?view=options`);
-  // Active projects that cover this media type; the list is already limited to the account's own projects for users.
-  const keyList = useApi<{ id: string; name: string; scope: KeyScope; revokedAt: string | null }[]>("/api/admin/keys");
-  const projects = useMemo(() => (keyList.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, type)).map((k) => ({ value: k.id, label: k.name })), [keyList.data, type]);
   // The exact total is slow on large sets, so it loads on its own; sort doesn't change it.
   const countQuery = new URLSearchParams(query);
   countQuery.delete("sort");
@@ -142,8 +140,6 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
         filters={filters}
         onChange={update}
         options={options.data}
-        projects={projects}
-        keyLocked={keyLocked}
         aiCategories={aiCategories}
         manualLabels={labelSettings.data?.options ?? null}
         activeCount={activeCount}
@@ -153,12 +149,11 @@ function ProjectBrowser({ type, keyLocked = false }: { type: MediaType; keyLocke
 
       <ManualLabelContext.Provider value={labelContext}>
       <div className={classes.content}>
-        {view && <KeyViewBanner view={view} type={type} canLeave={!keyLocked} />}
         {keyInfo.error && <Alert color="red" mb="md" title="Proyek tidak bisa dimuat">{keyInfo.error}</Alert>}
         {blocked ? (
           <div className={keyViewClasses.blocked}>
             <b>Proyek ini tidak punya akses ke {type === "social" ? "media sosial" : "media online"}</b>
-            <span>Pilih jenis media lain di banner di atas.</span>
+            <span>Pilih proyek lain di bagian atas, atau buka {type === "social" ? "Media Online" : "Media Sosial"}.</span>
           </div>
         ) : (<>
         <StatsBar

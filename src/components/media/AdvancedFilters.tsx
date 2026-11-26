@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { IconAdjustmentsHorizontal, IconBriefcase, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconTags, IconX } from "@tabler/icons-react";
+import { IconAdjustmentsHorizontal, IconCalendar, IconFlame, IconLanguage, IconMapPin, IconMessage, IconMoodSmile, IconNews, IconRobot, IconSparkles, IconTag, IconTags, IconX } from "@tabler/icons-react";
 import { ANY_CATEGORY, LOW_CONFIDENCE_FILTER, NO_CATEGORY, type Category } from "@/lib/ai/classifier";
 import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
 import { ANY_LABEL, LABEL_FILTER_NAMES } from "@/lib/media/manualLabels";
@@ -22,7 +22,6 @@ const IMAGE_OPTIONS = [{ value: "", label: "Semua" }, { value: "yes", label: "Ha
 const SOURCE_DROPDOWN_LIMIT = 80;
 
 /** An active project that covers this media type, as a choice for the Proyek field. */
-export type ProjectOption = { value: string; label: string };
 
 /** Titled group of fields laid out on a two-column grid. */
 function Section({ icon: Icon, title, children }: { icon: typeof IconNews; title: string; children: React.ReactNode }) {
@@ -46,7 +45,7 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. Choices go into a draft and
  *  only load data when applied ("Terapkan"); closing the drawer drops the draft. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, projects, keyLocked, aiCategories, manualLabels, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, aiCategories, manualLabels, activeCount, advancedCount, total }: {
   type: MediaType;
   open: boolean;
   onClose: () => void;
@@ -54,9 +53,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
   filters: MediaFilters;
   onChange: (patch: Partial<MediaFilters>) => void;
   options: FilterOptions | null;
-  projects: ProjectOption[];
   /** User accounts always browse through a project, so theirs cannot be cleared. */
-  keyLocked: boolean;
   activeCount: number;
   advancedCount: number;
   /** Exact total for the current filters, or null while counting. */
@@ -76,8 +73,6 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
   const changed = (Object.keys(applied) as (keyof MediaFilters)[]).filter((k) => applied[k] !== filters[k]).length;
   const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort, key: applied.key });
   const submit = () => { if (changed) apply(filters); onClose(); };
-  // Label and AI category choices are those of the applied project: hidden while the draft points at another one.
-  const sameProject = filters.key === applied.key;
   const social = type === "social";
   const unanalyzed = filters.analyzed === "no";
 
@@ -94,7 +89,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
           </header>
 
           <div className={classes.panelBody}>
-            {sameProject && !!manualLabels?.length && (
+            {!!manualLabels?.length && (
               <Section icon={IconTags} title="Label manual">
                 <Field label="Label" wide>
                   <DarkSelect leftSection={<IconTags size={15} />} placeholder="Semua post" value={filters.manualLabel}
@@ -106,7 +101,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
                 </Field>
               </Section>
             )}
-            {sameProject && aiCategories && (
+            {aiCategories && (
               <Section icon={IconRobot} title="Kategorisasi AI">
                 <Field label="Kategori AI" wide>
                   <DarkSelect leftSection={<IconRobot size={15} />} placeholder="Semua kategori" value={filters.aiCategory}
@@ -138,10 +133,6 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
             </Section>
 
             <Section icon={IconNews} title="Sumber & konten">
-              <Field label="Proyek / Isu" wide>
-                <DarkSelect leftSection={<IconBriefcase size={15} />} placeholder="Semua" value={filters.key}
-                  clearable={!keyLocked} allowDeselect={!keyLocked} data={projects} onChange={(key) => onChange({ key })} />
-              </Field>
               <Field label={SOURCE_KIND_LABEL[type]}>
                 <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
                   value={filters.source} data={(options?.sources ?? []).map((v) => ({ value: v, label: sourceLabel(v) }))} onChange={(source) => onChange({ source })} />

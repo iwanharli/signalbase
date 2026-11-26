@@ -31,5 +31,5 @@ export default async function MediaPage({ params, searchParams }: Props) {
     return <NoKeyYet type={type} hasKeys={keys.length > 0} />;
   }
   // Keyed by type so switching between the two pages starts with fresh filters.
-  return <MediaBrowser key={type} type={type} keyLocked={isUser} />;
+  return <MediaBrowser key={type} type={type} />;
 }

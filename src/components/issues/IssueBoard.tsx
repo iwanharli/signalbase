@@ -2,25 +2,22 @@
 // /isu — the top news issues of a period (left) and the news behind the selected one (right).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Select, Skeleton } from "@mantine/core";
+import { Skeleton } from "@mantine/core";
 import {
   IconAlertTriangle, IconArrowLeft, IconArrowRight, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconNews, IconRadar2, IconSearch,
   IconSparkles, IconTrendingUp, IconTrophy, IconUser, IconX,
 } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { DEFAULT_ISSUE_DAYS, DEFAULT_ISSUE_TOPIC, ISSUE_PERIODS, ISSUE_TOPICS, parseIssueDays, parseIssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
-import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { capitalize, formatNumber, sourceLabel } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { formatDate, fromNow } from "../apiKeys/shared";
-import controlClasses from "../media/controls.module.css";
 import { Segmented } from "../media/controls";
 import { Button } from "../ui/Button";
 import classes from "./issues.module.css";
 
 type ListResponse = { days: number; issues: IssueSummary[] };
 type DetailResponse = { issue: IssueSummary; page: number; items: IssueNews[]; hasMore: boolean; sources: IssueSource[] | null };
-type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 
 const DAY_MS = 86_400_000;
 const PERIOD_OPTIONS = ISSUE_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
@@ -163,7 +160,7 @@ function IssueDetail({ issue, rank, max, keyId, topic, nav }: {
   );
 }
 
-export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
+export function IssueBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -182,8 +179,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "online"));
   const list = useApi<ListResponse>(`/api/admin/issues?days=${days}&topik=${topic}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => list.data?.issues ?? [], [list.data]);
   const max = Math.max(1, ...issues.map((i) => i.score));
@@ -241,11 +236,6 @@ export function IssueBoard({ keyLocked }: { keyLocked: boolean }) {
 
       <div className={classes.toolbar}>
         <Segmented label="Periode isu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-        {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-          <Select aria-label="Proyek" w={220} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null })}
-            data={[...(keyLocked ? [] : [{ value: "", label: "Semua isu" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-        )}
         <label className={classes.search}>
           <IconSearch size={15} />
           <input ref={searchRef} value={search} onChange={(e) => setSearch(e.currentTarget.value)} placeholder="Cari isu  ( / )" />

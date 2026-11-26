@@ -16,5 +16,5 @@ export default async function MediaVisualPage({ searchParams }: { searchParams: 
     if (key) redirect(`/analisis/media?key=${key.id}`);
     return <NoKeyYet type="social" label="Media visual" hasKeys={false} />;
   }
-  return <MediaVisualBoard keyLocked={isUser} />;
+  return <MediaVisualBoard />;
 }

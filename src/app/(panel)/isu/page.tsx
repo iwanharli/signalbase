@@ -18,5 +18,5 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
     if (key) redirect(`/isu?key=${key.id}${topik ? `&topik=${encodeURIComponent(topik)}` : ""}`);
     return <NoKeyYet type="online" label="Isu" hasKeys={keys.length > 0} />;
   }
-  return <IssueBoard keyLocked={isUser} />;
+  return <IssueBoard />;
 }

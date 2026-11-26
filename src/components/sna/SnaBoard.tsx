@@ -9,7 +9,6 @@ import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
 import { zoom, zoomIdentity } from "d3-zoom";
-import { allowsType, type KeyScope } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
@@ -28,7 +27,6 @@ import { SnaPanel } from "./SnaPanel";
 import { SnaWatchPicker, type SnaWatch } from "./SnaWatches";
 import classes from "./sna.module.css";
 
-type KeyRow = { id: string; name: string; scope: KeyScope; revokedAt: string | null };
 type Node = SnaNode & SimulationNodeDatum;
 type Edge = Omit<SnaLink, "source" | "target"> & SimulationLinkDatum<Node> & { source: Node; target: Node };
 const LIMIT_OPTIONS = SNA_LIMITS.map((n) => ({ value: String(n), label: `${n} akun teratas` }));
@@ -246,7 +244,7 @@ function Graph({ graph, onPick, picked, locked, layout }: { graph: SnaGraph; onP
   return <div ref={box} className={classes.canvas}><svg ref={svg} role="img" aria-label="Graf jaringan akun" /><div ref={tip} className={classes.tip} /></div>;
 }
 
-export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
+export function SnaBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -306,8 +304,6 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const keys = useApi<KeyRow[]>("/api/admin/keys");
-  const projects = (keys.data ?? []).filter((k) => !k.revokedAt && allowsType(k.scope, "social"));
   const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? `&view=isu${flow !== "langsung" ? `&flow=${flow}` : ""}` : ""}`);
   const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/isu-klaster?key=${encodeURIComponent(keyId)}` : null);
   const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
@@ -361,11 +357,6 @@ export function SnaBoard({ keyLocked }: { keyLocked: boolean }) {
         <div className={classes.filterBar} role="toolbar" aria-label="Filter jaringan">
           {(keyId || watchId) && <Segmented label="Tampilan" options={VIEW_OPTIONS} value={issueView ? "isu" : "mention"} onChange={(v) => go({ view: v === "isu" ? null : "mention" })} />}
           <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-          {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-            <Select aria-label="Proyek" w={160} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-              comboboxProps={dropdown} value={keyId ?? ""} onChange={(v) => go({ key: v || null, issue: null, label: null, watch: null })}
-              data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-          )}
           {watches.data && (
             <SnaWatchPicker portalTarget={portalTarget} keyId={keyId} watches={watches.data.watches} canManage={watches.data.canManage} value={watchId} onChanged={() => void watches.reload()}
               // A watch's network shows on 7 days by default, like an issue.

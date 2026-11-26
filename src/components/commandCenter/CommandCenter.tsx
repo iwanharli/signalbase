@@ -1,4 +1,5 @@
 "use client";
+import { saveActiveProject } from "@/lib/activeProject";
 import type { Role } from "@/lib/session";
 // One-screen summary of Ringkasan: round charts only, no scrolling on a normal desktop viewport.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -86,7 +87,8 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
 
   const s = stats.data, si = social.data?.insights ?? null, oi = online.data?.insights ?? null;
   const loaded = s !== null;
-  const setKey = useCallback((v: string | null) => router.replace(v ? `/command-center?key=${v}` : "/command-center"), [router]);
+  // Also the active project of the top bar, so leaving it for the whole bank sticks.
+  const setKey = useCallback((v: string | null) => { saveActiveProject(v); router.replace(v ? `/command-center?key=${v}` : "/command-center"); }, [router]);
 
     // Everything below follows the period: this period against the one right before it.
   const cur = [si?.current, oi?.current].filter((c): c is NonNullable<typeof c> => !!c), prev = [si?.previous, oi?.previous].filter((c): c is NonNullable<typeof c> => !!c);
