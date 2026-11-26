@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Select, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconChevronDown, IconChevronUp, IconFlame, IconHierarchy2, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconTarget, IconUsers } from "@tabler/icons-react";
+import { IconAlertTriangle, IconFlame, IconHierarchy2, IconInfoCircle, IconLock, IconLockOpen, IconMaximize, IconMinimize, IconTarget, IconUsers } from "@tabler/icons-react";
 import { drag } from "d3-drag";
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from "d3-force";
 import { select } from "d3-selection";
@@ -149,7 +149,6 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
   const keyId = params.get("key");
   const days = parseOntDays(params.get("days")) ?? DEFAULT_ONT_DAYS;
   const [picked, setPicked] = useState<string | null>(null);
-  const [legendOpen, setLegendOpen] = useState(true);
   const [locked, setLocked] = useState(true);
   const [off, setOff] = useState<string[]>([]);
   const [busy, setBusy] = useState(false); // brief loading cover while the graph is rebuilt after a level toggle
@@ -206,18 +205,28 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
         </div>
       </header>
 
-      <div className={classes.toolbar}>
-        <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-        {(!keyLocked || projects.length > 1) && projects.length > 0 && (
-          <Select aria-label="Proyek" w={220} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
-            comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
-            data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
-        )}
-      </div>
-
       {res.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{res.error}<Button size="sm" variant="secondary" onClick={() => void res.reload()}>Coba lagi</Button></div>}
 
       <section ref={stage} className={classes.stage} data-panel={picked || undefined}>
+        <div className={classes.filterBar} role="toolbar" aria-label="Filter keterkaitan">
+          <Segmented label="Rentang waktu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
+          {(!keyLocked || projects.length > 1) && projects.length > 0 && (
+            <Select aria-label="Proyek" w={170} allowDeselect={false} classNames={{ input: controlClasses.selectInput, section: controlClasses.selectSection, dropdown: controlClasses.selectDropdown, option: controlClasses.selectOption }}
+              comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyId ?? ""} onChange={(v) => go({ key: v || null })}
+              data={[...(keyLocked ? [] : [{ value: "", label: "Nasional" }]), ...projects.map((k) => ({ value: k.id, label: k.name }))]} />
+          )}
+          <div className={classes.tones} role="group" aria-label="Level isu yang ditampilkan">
+            {TOGGLE_LEVELS.map((l) => {
+              const on = !off.includes(l);
+              return (
+                <button key={l} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan level ${l}` : `Tampilkan level ${l}`}
+                  onClick={() => { setOff(on ? [...off, l] : off.filter((x) => x !== l)); setBusy(true); }}>
+                  <i style={{ background: levelColor(l) }} />{l}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {issues.length > 0 && (
           <div className={classes.tools}>
             <Tooltip label={locked ? "Buka kunci graf" : "Kunci graf"} withinPortal={false} position="bottom" withArrow>
@@ -240,31 +249,21 @@ export function OntologiBoard({ keyLocked }: { keyLocked: boolean }) {
             <span>Memuat keterkaitan…</span>
           </div>
         )}
-        {issues.length > 0 && ( // stays when every level is switched off, so they can be switched back on
-          <aside className={classes.legendBox} data-open={legendOpen || undefined}>
-            <button type="button" className={classes.legendToggle} aria-expanded={legendOpen} onClick={() => setLegendOpen(!legendOpen)}>
-              <IconInfoCircle size={15} />Legenda{legendOpen ? <IconChevronDown size={14} /> : <IconChevronUp size={14} />}
-            </button>
-            {legendOpen && (
-              <ul>
-                <li className={classes.legendHead}>Level isu (klik toggle untuk menyembunyikan)</li>
-                {TOGGLE_LEVELS.map((l) => {
-                  const on = !off.includes(l);
-                  return (
-                    <li key={l} data-off={!on || undefined}>
-                      <i className={classes.swatch} style={{ background: levelColor(l) }} />{l}
-                      <button type="button" role="switch" aria-checked={on} aria-label={`Tampilkan level ${l}`} className={classes.switch} onClick={() => { setOff(on ? [...off, l] : off.filter((x) => x !== l)); setBusy(true); }} />
-                    </li>
-                  );
-                })}
-                <li className={classes.legendHead}>Simpul</li>
-                <li className={classes.legendNote}><IconFlame size={16} /><span><b>Isu</b>: lingkaran putih, border = level, makin besar = skor makin tinggi.</span></li>
-                <li className={classes.legendNote}><IconUsers size={16} /><span><b>Aktor</b>: pelaku di dalam isu (ungu).</span></li>
-                <li className={classes.legendNote}><IconTarget size={16} /><span><b>Target</b>: sasaran isu (biru muda).</span></li>
-                <li className={classes.legendHead}>Garis</li>
-                <li className={classes.legendNote}><span>Bergerak dari aktor ke isu, lalu dari isu ke target. Aktor atau target yang sama di beberapa isu menghubungkan isu-isu itu.</span></li>
-              </ul>
-            )}
+        {issues.length > 0 && (
+          <aside className={classes.legend} aria-label="Legenda">
+            <span><i className={classes.hubMark}><IconFlame size={10} /></i>Isu (besar = skor tinggi)</span>
+            <span><i className={classes.dot} style={{ background: "#a78bfa" }} />Aktor</span>
+            <span><i className={classes.dot} style={{ background: "#67e8f9" }} />Target</span>
+            <span><i className={classes.lineMark} />Aktor → isu → target</span>
+            <Tooltip multiline w={300} withArrow position="top-start" withinPortal={false} events={{ hover: true, focus: true, touch: true }}
+              label={<>
+                <b>Isu</b>: lingkaran putih; warna bingkai = level, makin besar = skor makin tinggi.<br />
+                <b>Aktor</b> (ungu): pelaku di dalam isu. <b>Target</b> (biru muda): sasaran isu.<br />
+                <b>Garis</b>: dari aktor ke isu, lalu dari isu ke target. Aktor atau target yang sama di beberapa isu menghubungkan isu-isu itu.<br />
+                Level bisa disembunyikan lewat tombol warna di panel filter.
+              </>}>
+              <button type="button" className={classes.legendInfo} aria-label="Penjelasan legenda"><IconInfoCircle size={14} /></button>
+            </Tooltip>
           </aside>
         )}
         {picked && node && <OntologiPanel key={picked} node={node} graph={graph} issues={byId} onPick={setPicked} onClose={() => setPicked(null)} />}

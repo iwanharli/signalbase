@@ -167,3 +167,12 @@ button.tag:hover { background: rgba(124,58,237,.4); }
 .stage[data-panel] .legend { max-width: calc(100% - 372px - 24px); }
 @media (max-width: 760px) { .legend { right: 12px; max-width: none; } .legend > span:nth-child(3) { display: none; } }
 
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+
+/* PC: no page scroll. The shell's main keeps 104px above and 48px below (see shell.module.css), the hero takes its height,
+   the canvas the rest. Phones and tablets scroll as before. */
+@media (min-width: 1001px) {
+  .page { height: calc(100dvh - 152px); min-height: 520px; }
+  .stage { flex: 1; height: auto; min-height: 0; }
+}
+
