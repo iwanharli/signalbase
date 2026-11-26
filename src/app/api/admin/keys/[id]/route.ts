@@ -31,6 +31,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
     copyable: !!key.keyEnc,
     access: { ips: key.allowedIps, origins: key.allowedOrigins },
+    display: { analyzedFilter: key.showAnalyzedFilter, relevanceFilter: key.showRelevanceFilter },
     // The clients given this project, and whether its AI is paused because none of them is active.
     clients: key.members.map((m) => ({ id: m.account.id, name: m.account.name, active: clientActive(m.account) })),
     aiPaused: aiPausedFor(key.members.map((m) => m.account)),

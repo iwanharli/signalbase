@@ -28,7 +28,7 @@ import { useRole } from "../RoleContext";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 
-type KeyResponse = { key: { id: string; name: string; scope: KeyScope }; classifier: { enabled: boolean; categories: Category[]; onlineCategories: Category[] | null } | null };
+type KeyResponse = { key: { id: string; name: string; scope: KeyScope; showAnalyzedFilter: boolean; showRelevanceFilter: boolean }; classifier: { enabled: boolean; categories: Category[]; onlineCategories: Category[] | null } | null };
 
 const CARD_STAGGER_MS = 30;
 const PAGE_SIZE = 24;
@@ -87,7 +87,7 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     if (target) target.manualLabels = labels;
     setLabelVersion((v) => v + 1);
   } } : null;
-  const aiCategories = keyInfo.data?.classifier ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
+  const aiCategories = keyInfo.data?.classifier?.enabled ? (categoriesForType(keyInfo.data.classifier, type) as Category[]) : null;
   // Admins, and clients the project is given to, correct AI categories (on the card and in the detail panel); viewers read.
   const correction: Correction | null = view && aiCategories && role !== "viewer" ? { keyId: view.id, categories: aiCategories, onSaved: (code, classification) => {
     // The card shares this object with the feed, so updating it in place refreshes both.
@@ -159,6 +159,9 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     <div className={classes.layout}>
       <AdvancedFilters
         type={type}
+        // "Label emosi" and "Relevansi": per project (set by an admin on the project page); on the whole bank (staff only) always.
+        showAnalyzed={keyId ? !!keyInfo.data?.key.showAnalyzedFilter : role !== "user"}
+        showRelevance={keyId ? !!keyInfo.data?.key.showRelevanceFilter : role !== "user"}
         open={drawerOpen}
         onClose={closeDrawer}
         escapeEnabled={!selected}

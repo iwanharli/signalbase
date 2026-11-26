@@ -15,9 +15,10 @@ export async function effectiveCategoryFilter(apiKeyId: string, requested: strin
   return c?.labelledOnly ? ANY_CATEGORY : null;
 }
 
-export async function keyCategories(apiKeyId: string, type: MediaType): Promise<Category[] | null> {
-  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { categories: true, onlineCategories: true } });
-  if (!classifier) return null;
+/** onlyEnabled: null while the project's AI categorisation is switched off (the media pages then show no AI category). */
+export async function keyCategories(apiKeyId: string, type: MediaType, { onlyEnabled = false } = {}): Promise<Category[] | null> {
+  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId }, select: { categories: true, onlineCategories: true, enabled: true } });
+  if (!classifier || (onlyEnabled && !classifier.enabled)) return null;
   const parsed = categorySchema.array().safeParse(categoriesForType(classifier, type));
   return parsed.success ? parsed.data : null;
 }

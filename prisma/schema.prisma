@@ -52,6 +52,10 @@ model ApiKey {
   showAuthors    Boolean   @default(false) // unused: author details are now always returned
   allowedIps     String[]  @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
   allowedOrigins String[]  @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
+  /// Media pages: show the "Label emosi" (analysed or not) filter in the filter drawer for this project. Off: the drawer hides it.
+  showAnalyzedFilter Boolean @default(false)
+  /// Media pages: show the "Relevansi" filter in the filter drawer for this project. Off: hidden (default still hides irrelevant posts).
+  showRelevanceFilter Boolean @default(false)
 
   classifier      Classifier?
   classifications Classification[]

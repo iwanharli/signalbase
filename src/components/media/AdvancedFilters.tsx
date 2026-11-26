@@ -45,8 +45,12 @@ function useEscape(enabled: boolean, onEscape: () => void) {
 
 /** Left drawer with every filter. Pushes the page on wide screens, overlays it on small ones. Choices go into a draft and
  *  only load data when applied ("Terapkan"); closing the drawer drops the draft. */
-export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, aiCategories, manualLabels, activeCount, advancedCount, total }: {
+export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: applied, onChange: apply, options, aiCategories, manualLabels, activeCount, advancedCount, total, showAnalyzed, showRelevance }: {
   type: MediaType;
+  /** Show the "Label emosi" (analysed or not) choice; hidden unless the project turns it on. */
+  showAnalyzed: boolean;
+  /** Show the "Relevansi" choice (social); likewise per project. */
+  showRelevance: boolean;
   open: boolean;
   onClose: () => void;
   escapeEnabled: boolean;
@@ -91,10 +95,12 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
           <div className={classes.panelBody}>
             <fieldset className={classes.filterGroup}>
             <Section icon={IconSparkles} title="Analisis AI">
-              <Field label={social ? "Label emosi" : "Label sentimen"} wide>
-                <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
-              </Field>
-              {social && (
+              {showAnalyzed && (
+                <Field label={social ? "Label emosi" : "Label sentimen"} wide>
+                  <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
+                </Field>
+              )}
+              {social && showRelevance && (
                 <Field label="Relevansi" wide>
                   <Segmented full options={RELEVANCE_OPTIONS} value={filters.relevance} onChange={(relevance) => onChange({ relevance })} />
                 </Field>

@@ -48,7 +48,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     const scope = await withImageSearch(resolved.scope, query.get("q"));
     if (!allowsType(scope, type)) return NextResponse.json({ error: `Proyek ini tidak punya akses ke media ${type === "social" ? "sosial" : "online"}` }, { status: 403 });
 
-    const categories = keyId ? await keyCategories(keyId, type) : null;
+    // AI categories only while the project's categorisation is on: switched off, cards and filters show none.
+    const categories = keyId ? await keyCategories(keyId, type, { onlyEnabled: true }) : null;
     const aiCategory = categories ? await effectiveCategoryFilter(keyId!, query.get("aiCategory")) : null;
     const page = Math.max(1, Math.floor(Number(query.get("page"))) || 1);
     // Manual label filter (?label=, only through a project); combined with the AI category when both are set.

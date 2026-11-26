@@ -19,7 +19,7 @@ import { CopyKeyButton } from "./CopyKeyButton";
 import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
 import { KeywordTable } from "./KeywordTable";
 import { ManualLabelSettings } from "./ManualLabelSettings";
-import { keyInputClasses, ScopeParams } from "./ScopeFields";
+import { DataToggle, keyInputClasses, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
 import classes from "./apiKeys.module.css";
 import { BalanceUsage } from "../ai/BalanceUsage";
@@ -31,6 +31,8 @@ type KeyDetail = {
   classifier: { enabled: boolean; labelledOnly: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
   /** Clients given this project (set on the Pengguna page); aiPaused: it has clients and none is active. */
   clients: { id: string; name: string; active: boolean }[]; aiPaused: boolean;
+  /** How the media pages look for this project (filter drawer). */
+  display: { analyzedFilter: boolean; relevanceFilter: boolean };
 };
 type Tab = "overview" | "identity" | "keywords" | "scope" | "ai" | "labels" | "security";
 
@@ -101,6 +103,19 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
   const [name, setName] = useState("");
   const [scope, setScope] = useState<KeyScope | null>(null);
   const [busy, setBusy] = useState(false);
+  const [displayBusy, setDisplayBusy] = useState(false);
+  const saveDisplay = async (change: { analyzedFilter?: boolean; relevanceFilter?: boolean }, name: string, on: boolean) => {
+    setDisplayBusy(true);
+    try {
+      await post(`/api/admin/keys/${keyId}/display`, change, "PUT");
+      await detail.reload();
+      notifications.show({ color: "teal", message: `Filter ${name} ${on ? "ditampilkan" : "disembunyikan"}` });
+    } catch (e) {
+      notifications.show({ color: "red", message: (e as Error).message });
+    } finally {
+      setDisplayBusy(false);
+    }
+  };
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
   const [rotated, setRotated] = useState<string | null>(null);
@@ -337,6 +352,14 @@ export function ApiKeyDetail({ keyId }: { keyId: string }) {
           {tab === "identity" && (
             <SectionPanel icon={IconId} title="Identitas" description="Nama tampilan proyek. Nilai kunci tidak berubah, jadi aplikasi tidak perlu diperbarui.">
               <TextInput classNames={keyInputClasses} label="Nama aplikasi" value={name} disabled={revoked || busy} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />
+            </SectionPanel>
+          )}
+          {tab === "identity" && (
+            <SectionPanel icon={IconAdjustmentsHorizontal} title="Tampilan halaman media" description="Pilihan filter yang muncul untuk proyek ini di Filter lanjutan. Disimpan langsung.">
+              <DataToggle title="Filter Label emosi" description="Pilihan Sudah dianalisis / Belum / Semua. Mati: tidak ditampilkan, hasil tetap hanya yang sudah dianalisis."
+                checked={data.display.analyzedFilter} disabled={revoked || displayBusy} onChange={(on) => saveDisplay({ analyzedFilter: on }, "Label emosi", on)} />
+              <DataToggle title="Filter Relevansi" description="Pilihan Relevan / Watchlist / Tidak relevan / Semua (media sosial). Mati: tidak ditampilkan, post tidak relevan tetap disembunyikan."
+                checked={data.display.relevanceFilter} disabled={revoked || displayBusy} onChange={(on) => saveDisplay({ relevanceFilter: on }, "Relevansi", on)} />
             </SectionPanel>
           )}
 

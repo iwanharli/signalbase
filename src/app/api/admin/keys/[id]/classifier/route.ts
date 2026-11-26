@@ -21,7 +21,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
     ? await prisma.classification.count({ where: { apiKeyId: id, manual: false, confidence: { lt: LOW_CONFIDENCE } } })
     : 0;
   return NextResponse.json({
-    key: { id: key.id, name: key.name, prefix: key.prefix, revokedAt: key.revokedAt, scope: parseKeyScope(key.scope, key.keywords) },
+    key: { id: key.id, name: key.name, prefix: key.prefix, revokedAt: key.revokedAt, scope: parseKeyScope(key.scope, key.keywords), showAnalyzedFilter: key.showAnalyzedFilter, showRelevanceFilter: key.showRelevanceFilter },
     classifier: key.classifier ? publicClassifier(key.classifier) : null,
     counts: counts.map((c) => ({ type: c.type, category: c.category, n: c._count })),
     lowConfidence,

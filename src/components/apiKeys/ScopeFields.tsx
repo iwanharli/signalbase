@@ -45,7 +45,7 @@ export function KeywordsInput({ scope, onChange }: { scope: KeyScope; onChange: 
 /** "Hanya sudah dikategorisasi" lives on the key's AI categorisation, not in its scope, so the page passes it in. */
 export type LabelledToggle = { checked: boolean; available: boolean; busy?: boolean; onChange: (value: boolean) => void };
 
-function DataToggle({ title, description, checked, disabled, onChange }: {
+export function DataToggle({ title, description, checked, disabled, onChange }: {
   title: string; description: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void;
 }) {
   return (
