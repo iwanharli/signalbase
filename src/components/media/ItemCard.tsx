@@ -82,7 +82,8 @@ export function CardFooter({ item, type, onOpen, children, notice }: { item: Med
   );
 }
 
-export function ItemCard({ item, type, delay, onOpen, notice }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void; notice?: React.ReactNode }) {
+/** loadingOriginal: Original View is fetching the post as its platform shows it; a light sweeps along the top edge. */
+export function ItemCard({ item, type, delay, onOpen, notice, loadingOriginal }: { item: MediaItem; type: MediaType; delay: number; onOpen: (item: MediaItem) => void; notice?: React.ReactNode; loadingOriginal?: boolean }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const hasImage = !!item.image && item.image !== failedImage;
   const editorial = type === "online" && !hasImage;
@@ -104,6 +105,7 @@ export function ItemCard({ item, type, delay, onOpen, notice }: { item: MediaIte
       onClick={open}
       style={{ animationDelay: `${delay}ms`, ["--tone" as string]: moodTone(item) }}
     >
+      {loadingOriginal && <span className={classes.loadingLine} role="status" aria-label="Memuat tampilan asli" />}
       <ManualLabelPicker item={item} leading={item.classification !== undefined ? <CardAiCategory item={item} /> : null} />
       {/* Like the Original View card: post type and topic right under the AI category and label strip. */}
       {type === "social" && (item.postType || item.category) && <div className={classes.subbar}><PostMeta item={item} /></div>}

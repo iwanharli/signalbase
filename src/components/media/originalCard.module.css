@@ -1,8 +1,6 @@
 .wrap { position: relative; }
 .quick { position: relative; }
 .quick[data-hidden] { display: none; }
-.shimmer { position: absolute; inset: 0 0 auto; z-index: 3; height: 3px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--mantine-color-cyan-5), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: sweep 1.2s ease-in-out infinite; }
-@keyframes sweep { from { background-position: -50% 0; } to { background-position: 150% 0; } }
 /* In the card footer, next to the time. */
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--mantine-color-violet-6); cursor: pointer; white-space: nowrap; }
 .chip:hover { text-decoration: underline; }
@@ -41,17 +39,9 @@
 .clamp { position: relative; min-width: 0; }
 .clampInner { overflow: hidden; border-radius: 14px; }
 .clamp[data-clamped] .clampInner { -webkit-mask-image: linear-gradient(#000 calc(100% - 90px), transparent); mask-image: linear-gradient(#000 calc(100% - 90px), transparent); }
-.more { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-top: 6px; padding: 7px 10px; border-radius: 10px; cursor: pointer;
-  font-size: 12px; font-weight: 700; color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-0); border: 1px solid color-mix(in srgb, var(--mantine-color-violet-3) 45%, transparent);
-  transition: background 160ms, color 160ms; }
-.more:hover { background: var(--mantine-color-violet-1); color: var(--mantine-color-violet-9); }
-.more:focus-visible { outline: 2px solid var(--mantine-color-violet-5); outline-offset: 2px; }
-.clamp[data-clamped] .more { position: relative; margin-top: -26px; }
 @media (max-width: 480px) { .shell { padding: 12px 14px 10px; } }
 
 /* ---------- Dark mode (generated from the light colours above; tweak by hand) ---------- */
-:global([data-mantine-color-scheme="dark"]) .more { color: var(--mantine-color-violet-2); background: color-mix(in srgb, var(--mantine-color-violet-5) 16%, var(--mantine-color-body)); border-color: color-mix(in srgb, var(--mantine-color-violet-4) 35%, transparent); }
-:global([data-mantine-color-scheme="dark"]) .more:hover { color: #fff; background: color-mix(in srgb, var(--mantine-color-violet-5) 28%, var(--mantine-color-body)); }
 :global([data-mantine-color-scheme="dark"]) .chip {
     color: var(--mantine-color-violet-3)
 }

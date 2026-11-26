@@ -3,7 +3,7 @@
 // A failed or unsupported original leaves the Quick card as is, without a note (it only distracted).
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconChevronDown, IconChevronUp, IconEye } from "@tabler/icons-react";
+import { IconEye } from "@tabler/icons-react";
 import { createLimiter } from "@/lib/limiter";
 import { originalOf } from "@/lib/media/original";
 import type { MediaItem, MediaType } from "@/lib/media/types";
@@ -86,8 +86,7 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
       <div className={classes.quick} data-hidden={showOriginal || undefined}>
         <ItemCard item={item} type={type} delay={delay} onOpen={onOpen} notice={
           manual && !wanted ? <button type="button" className={classes.chip} onClick={(e) => { stop(e); setWanted(true); }}><IconEye size={13} aria-hidden />Lihat asli</button>
-            : null} />
-        {!manual && mounted && status === "loading" && <span className={classes.shimmer} role="status" aria-label="Memuat tampilan asli" />}
+            : null} loadingOriginal={!manual && mounted && status === "loading"} />
       </div>
       {mounted && (
         <div className={classes.original} data-visible={showOriginal || undefined}>
@@ -119,27 +118,20 @@ export function OriginalCard({ item, type, delay, onOpen, eager, onSettled }: {
 // A very long original (a Threads thread, a long caption) is cut at this height so the feed's columns stay even.
 const CLAMP_PX = 640;
 
-/** Cuts a tall original to CLAMP_PX with a fade and a button to show all of it (and to fold it again). */
+/** Cuts a tall original to CLAMP_PX with a fade; the whole post is in the detail panel (Detail in the footer). */
 function Clamp({ children }: { children: React.ReactNode }) {
   const inner = useRef<HTMLDivElement>(null);
   const [long, setLong] = useState(false);
-  const [open, setOpen] = useState(false);
   useEffect(() => {
     const el = inner.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setLong(el.scrollHeight > CLAMP_PX + 80)); // a little over is not worth a button
+    const ro = new ResizeObserver(() => setLong(el.scrollHeight > CLAMP_PX + 80)); // a little over is not worth cutting
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const clamped = long && !open;
   return (
-    <div className={classes.clamp} data-clamped={clamped || undefined}>
-      <div ref={inner} className={classes.clampInner} style={clamped ? { maxHeight: CLAMP_PX } : undefined}>{children}</div>
-      {long && (
-        <button type="button" className={classes.more} aria-expanded={open} onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
-          {open ? <><IconChevronUp size={14} aria-hidden />Ringkas</> : <><IconChevronDown size={14} aria-hidden />Tampilkan semua</>}
-        </button>
-      )}
+    <div className={classes.clamp} data-clamped={long || undefined}>
+      <div ref={inner} className={classes.clampInner} style={long ? { maxHeight: CLAMP_PX } : undefined}>{children}</div>
     </div>
   );
 }
