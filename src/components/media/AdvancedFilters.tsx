@@ -94,6 +94,32 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
 
           <div className={classes.panelBody}>
             <fieldset className={classes.filterGroup}>
+            <Section icon={IconNews} title="Sumber & konten">
+              <Field label={SOURCE_KIND_LABEL[type]}>
+                <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
+                  value={filters.source} data={(options?.sources ?? []).map((v) => ({ value: v, label: sourceLabel(v) }))} onChange={(source) => onChange({ source })} />
+              </Field>
+              <Field label="Kategori">
+                <DarkSelect leftSection={<IconTag size={15} />} placeholder="Semua" value={filters.category}
+                  data={(options?.categories ?? []).map((v) => ({ value: v, label: capitalize(humanize(v)) }))} onChange={(category) => onChange({ category })} />
+              </Field>
+              {social && (
+                <Field label="Jenis post">
+                  <DarkSelect leftSection={<IconMessage size={15} />} placeholder="Semua" searchable={false} value={filters.postType || null}
+                    data={(options?.postTypes ?? []).map((v) => ({ value: v, label: POST_TYPE_LABEL[v] ?? v }))} onChange={(postType) => onChange({ postType: postType ?? "" })} />
+                </Field>
+              )}
+              <Field label="Bahasa" wide={!social}>
+                <DarkSelect leftSection={<IconLanguage size={15} />} placeholder="Semua" searchable={false} value={filters.language || null}
+                  data={LANGUAGE_OPTIONS} onChange={(language) => onChange({ language: (language ?? "") as MediaFilters["language"] })} />
+              </Field>
+              {!social && (
+                <Field label="Gambar" wide>
+                  <Segmented full options={IMAGE_OPTIONS} value={filters.withImage ? "yes" : ""} onChange={(v) => onChange({ withImage: v === "yes" })} />
+                </Field>
+              )}
+            </Section>
+
             <Section icon={IconSparkles} title="Analisis AI">
               {showAnalyzed && (
                 <Field label={social ? "Label emosi" : "Label sentimen"} wide>
@@ -140,31 +166,6 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
               </Section>
             )}
 
-            <Section icon={IconNews} title="Sumber & konten">
-              <Field label={SOURCE_KIND_LABEL[type]}>
-                <DarkSelect leftSection={social ? <PlatformMark source={filters.source} /> : <IconNews size={15} />} placeholder="Semua" limit={SOURCE_DROPDOWN_LIMIT}
-                  value={filters.source} data={(options?.sources ?? []).map((v) => ({ value: v, label: sourceLabel(v) }))} onChange={(source) => onChange({ source })} />
-              </Field>
-              <Field label="Kategori">
-                <DarkSelect leftSection={<IconTag size={15} />} placeholder="Semua" value={filters.category}
-                  data={(options?.categories ?? []).map((v) => ({ value: v, label: capitalize(humanize(v)) }))} onChange={(category) => onChange({ category })} />
-              </Field>
-              {social && (
-                <Field label="Jenis post">
-                  <DarkSelect leftSection={<IconMessage size={15} />} placeholder="Semua" searchable={false} value={filters.postType || null}
-                    data={(options?.postTypes ?? []).map((v) => ({ value: v, label: POST_TYPE_LABEL[v] ?? v }))} onChange={(postType) => onChange({ postType: postType ?? "" })} />
-                </Field>
-              )}
-              <Field label="Bahasa" wide={!social}>
-                <DarkSelect leftSection={<IconLanguage size={15} />} placeholder="Semua" searchable={false} value={filters.language || null}
-                  data={LANGUAGE_OPTIONS} onChange={(language) => onChange({ language: (language ?? "") as MediaFilters["language"] })} />
-              </Field>
-              {!social && (
-                <Field label="Gambar" wide>
-                  <Segmented full options={IMAGE_OPTIONS} value={filters.withImage ? "yes" : ""} onChange={(v) => onChange({ withImage: v === "yes" })} />
-                </Field>
-              )}
-            </Section>
 
             </fieldset>
             <Section icon={IconCalendar} title="Waktu & lokasi">

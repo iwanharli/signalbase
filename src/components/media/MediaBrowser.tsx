@@ -97,6 +97,10 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     setLabelVersion((v) => v + 1);
   } } : null;
   const blocked = !!view && !allowsType(view.scope, type);
+  // "Label emosi" and "Relevansi": per project (an admin turns them on); on the whole bank (staff only) always.
+  // Off: hidden in the drawer, and their chips are locked at the default.
+  const showAnalyzed = keyId ? !!keyInfo.data?.key.showAnalyzedFilter : role !== "user";
+  const showRelevance = keyId ? !!keyInfo.data?.key.showRelevanceFilter : role !== "user";
 
   const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
   const feed = useMediaFeed(type, query);
@@ -159,9 +163,8 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     <div className={classes.layout}>
       <AdvancedFilters
         type={type}
-        // "Label emosi" and "Relevansi": per project (set by an admin on the project page); on the whole bank (staff only) always.
-        showAnalyzed={keyId ? !!keyInfo.data?.key.showAnalyzedFilter : role !== "user"}
-        showRelevance={keyId ? !!keyInfo.data?.key.showRelevanceFilter : role !== "user"}
+        showAnalyzed={showAnalyzed}
+        showRelevance={showRelevance}
         open={drawerOpen}
         onClose={closeDrawer}
         escapeEnabled={!selected}
@@ -208,7 +211,7 @@ function ProjectBrowser({ type }: { type: MediaType }) {
           onSourceChange={changeSource}
           busy={feed.loading}
         >
-          <ActiveFilters filters={filters} options={options.data} onChange={update} onReset={reset} canReset={activeCount > 0} />
+          <ActiveFilters type={type} locked={{ analyzed: !showAnalyzed, relevance: !showRelevance }} filters={filters} options={options.data} onChange={update} onReset={reset} canReset={activeCount > 0} />
         </QuickFilters>
 
         {feed.error && (
