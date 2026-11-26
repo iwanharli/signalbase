@@ -24,6 +24,7 @@ import { QuickFilters } from "./QuickFilters";
 import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
 import { COLUMNS_KEY, SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
+import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
 import { useRole } from "../RoleContext";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
@@ -103,6 +104,17 @@ function ProjectBrowser({ type }: { type: MediaType }) {
   const showRelevance = keyId ? !!keyInfo.data?.key.showRelevanceFilter : role !== "user";
 
   const { filters, update, reset, query, advancedCount, activeCount } = useMediaFilters(type);
+  // A filter the admin turned off is not the reader's to change: a value saved earlier in this browser (or from a link)
+  // goes back to the default once the project's settings are known, so nothing hidden keeps narrowing the results.
+  const settingsKnown = !keyId || !!keyInfo.data;
+  useEffect(() => {
+    if (!settingsKnown) return;
+    const d = defaultFilters(type);
+    const patch: Partial<MediaFilters> = {};
+    if (!showAnalyzed && filters.analyzed !== d.analyzed) patch.analyzed = d.analyzed;
+    if (!showRelevance && filters.relevance !== d.relevance) patch.relevance = d.relevance;
+    if (Object.keys(patch).length) update(patch);
+  }, [settingsKnown, showAnalyzed, showRelevance, filters.analyzed, filters.relevance, type, update]);
   const feed = useMediaFeed(type, query);
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Columns (1-4, remembered). With one or two the cards are wide enough to keep the filter drawer open beside them,

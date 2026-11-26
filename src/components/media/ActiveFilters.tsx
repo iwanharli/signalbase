@@ -27,7 +27,7 @@ export function ActiveFilters({ type, filters: f, options, onChange, onReset, ca
   if (f.source) add("source", sourceLabel(f.source), { source: null });
   if (f.mood) add("mood", moodInfo(f.mood).label, { mood: null });
   // Fixed by the admin: at its default the chip is locked; a different value (from a link) can only go back to the default.
-  if (f.analyzed) add("analyzed", f.analyzed === "yes" ? "Sudah dianalisis sumber" : "Belum dianalisis sumber", { analyzed: locked.analyzed ? d.analyzed : "" }, !!locked.analyzed && f.analyzed === d.analyzed);
+  if (f.analyzed) add("analyzed", `${f.analyzed === "yes" ? "Sudah" : "Belum"} dianalisis ${type === "social" ? "emosi" : "sentimen"}`, { analyzed: locked.analyzed ? d.analyzed : "" }, !!locked.analyzed && f.analyzed === d.analyzed);
   if (f.language) add("language", f.language === "id" ? "Bahasa Indonesia" : "Bahasa lain", { language: "" });
   if (f.province) add("province", options?.provinces.find((p) => p.value === f.province)?.label ?? `Provinsi ${f.province}`, { province: null });
   if (f.category) add("category", `Kategori: ${humanize(f.category)}`, { category: null });

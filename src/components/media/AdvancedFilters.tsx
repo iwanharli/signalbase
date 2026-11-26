@@ -120,7 +120,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
               )}
             </Section>
 
-            <Section icon={IconSparkles} title="Analisis AI">
+            <Section icon={IconSparkles} title="Analisis">
               {showAnalyzed && (
                 <Field label={social ? "Label emosi" : "Label sentimen"} wide>
                   <Segmented full options={ANALYZED_OPTIONS} value={filters.analyzed} onChange={(analyzed) => onChange({ analyzed })} />
