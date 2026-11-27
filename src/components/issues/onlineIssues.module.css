@@ -100,6 +100,8 @@
 .newBadge { color: var(--mantine-color-violet-7); background: var(--mantine-color-violet-1); }
 .detailMeta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; font-weight: 600; color: var(--mantine-color-dimmed); }
 .detailMeta li { display: inline-flex; align-items: center; gap: 6px; }
+/* SNA isu / Ontologi isu: open the issue's full-screen network (components/issues/IssueNetwork). */
+.networkButtons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .stepper { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: stretch; gap: 6px; text-align: center; font-size: 12px; font-weight: 700; color: var(--mantine-color-dimmed); }
 
 .sources { display: flex; flex-wrap: wrap; gap: 6px; }

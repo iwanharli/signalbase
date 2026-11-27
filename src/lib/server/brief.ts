@@ -155,7 +155,7 @@ export async function buildBrief(ref: ScopeRef, kind: ReportKind, cur: Range, pr
   const issues: IssueRow[] = topEws.map((i) => {
     const m = metrics.get(i.id);
     return {
-      code: refs.add("E", `Isu EWS: ${i.title}`, i.posts.find((p) => p.url)?.url ?? null), kind: "ews", title: i.title, level: i.level, score: i.score,
+      code: refs.add("E", `Isu media sosial: ${i.title}`, i.posts.find((p) => p.url)?.url ?? null), kind: "ews", title: i.title, level: i.level, score: i.score,
       posts: m?.posts ?? i.postCount, accounts: m?.accounts ?? null, interactions: m?.inter ?? null, emotion: m?.emotion ?? i.emotion, maxLevel: m?.level ?? null,
       location: i.location, actors: i.actors.slice(0, 4), targets: i.targets.slice(0, 4), sentDay: wallDay(i.sentAt),
     };
@@ -283,7 +283,7 @@ function assessmentInput(d: BriefData, ews: OntIssue[], headlines: Map<string, s
     `- Total tayangan (hanya platform yang mencatat): ${n(k.views.now)} | ${n(k.views.prev ?? 0)} | ${delta(k.views)}`,
     `- Artikel media online: ${n(k.news.now)} | ${n(k.news.prev ?? 0)} | ${delta(k.news)}`,
     `- Porsi negatif media sosial (dari ${d.labelledShare ?? 0}% unggahan berlabel emosi): ${k.negShare.now}% | ${k.negShare.prev ?? "?"}%`,
-    `- Isu peringatan dini (EWS): ${k.ews.now} (${k.critical} Critical) | ${k.ews.prev ?? 0}`,
+    `- Isu peringatan dini media sosial: ${k.ews.now} (${k.critical} Critical) | ${k.ews.prev ?? 0}`,
     "",
     "# TREN HARIAN (tanggal: unggahan / interaksi / berita)",
     d.daily.map((x) => `${x.day.slice(5)}: ${n(x.posts)} / ${n(x.interactions)} / ${n(x.news)}`).join("; "),
@@ -301,7 +301,7 @@ function assessmentInput(d: BriefData, ews: OntIssue[], headlines: Map<string, s
     ...d.actors.map((a) => `- @${a.username} (${sourceLabel(a.source)}, ${a.kind === "publik" ? "akun publik" : `akun ${a.kind}`}): ${n(a.posts)} unggahan, ${n(a.interactions)} interaksi${a.negShare === null ? "" : `, ${a.negShare}% negatif`}`),
     "",
     "# ISU PERINGATAN DINI MEDIA SOSIAL (kode E, angka sepanjang umur klaster)",
-    ...(ewsLines.length ? ewsLines : ["(tidak ada isu EWS dalam periode)"]),
+    ...(ewsLines.length ? ewsLines : ["(tidak ada isu media sosial dalam periode)"]),
     "",
     "# ISU BERITA TERATAS (kode I)",
     ...(newsLines.length ? newsLines : ["(tidak ada)"]),

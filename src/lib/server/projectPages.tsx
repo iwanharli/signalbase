@@ -1,12 +1,15 @@
 // Server side of the data pages that exist for the whole bank (/issues/media-online) and per project (/projects/<id>/issues/media-online).
 import { notFound, redirect } from "next/navigation";
 import { NoProjectYet } from "@/components/media/NoProjectYet";
-import { projectPath } from "@/lib/activeProject";
+import { isProjectId, projectPath } from "@/lib/activeProject";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 import { roleOf } from "@/lib/session";
 import { getSession, keyAccess, visibleKeys } from "./auth";
 import { prisma } from "./db";
+
+/** Clears the active project and goes to Beranda (see api/active-project/forget). */
+const FORGET_PROJECT = "/api/active-project/forget";
 
 type Query = Record<string, string | string[] | undefined>;
 
@@ -33,6 +36,10 @@ export async function clientToProject(page: string, query: Query, type: MediaTyp
 export async function requireProject(id: string) {
   const session = await getSession();
   if (!session) redirect("/login");
-  const project = await prisma.project.findUnique({ where: { id }, select: { id: true } }).catch(() => null);
-  if (!project || !(await keyAccess({ id: session.sub, username: session.username, role: roleOf(session) }, id))) notFound();
+  // Not a project id at all (a mistyped link): a plain 404; the middleware never keeps such an id as the active project.
+  if (!isProjectId(id)) notFound();
+  const project = await prisma.project.findUnique({ where: { id }, select: { id: true } });
+  // A project this account cannot open (deleted or taken away): forget it as the active project and go
+  // home, rather than a 404 that the active project would bring back on every page.
+  if (!project || !(await keyAccess({ id: session.sub, username: session.username, role: roleOf(session) }, id))) redirect(FORGET_PROJECT);
 }

@@ -238,7 +238,7 @@ async function ewsBlock(scope: KeyScope, day: string, refs: Refs) {
   if (issues.length < 3) { issues = recent.filter((i) => wallDay(i.sentAt) >= shiftDay(day, -2)); window = `3 hari hingga ${longDate(day)}`; }
   if (!issues.length) return null;
   const lines = issues.slice(0, EWS_ISSUES).map((i) => {
-    const id = refs.add("E", `Isu EWS: ${i.title}`, i.posts.find((p) => p.url)?.url ?? null);
+    const id = refs.add("E", `Isu media sosial: ${i.title}`, i.posts.find((p) => p.url)?.url ?? null);
     const who = [i.actors.length && `aktor: ${i.actors.slice(0, 4).join(", ")}`, i.targets.length && `target: ${i.targets.slice(0, 4).join(", ")}`, i.location && `lokasi: ${i.location}`, i.emotion && `emosi dominan: ${i.emotion}`]
       .filter(Boolean).join(" · ");
     return [

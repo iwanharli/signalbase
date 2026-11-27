@@ -4,6 +4,9 @@
 // still checked per request.
 export const PROJECT_COOKIE = "sb_project";
 
+/** Project ids are UUIDs. Anything else in the cookie or a path (a mistyped or cut-off link) is not a project. */
+export const isProjectId = (value: string | null | undefined): value is string => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 /** Data pages that show either the whole bank (this path) or one project (/projects/<id> + this path). */
 const PROJECT_PAGES = ["/dashboard", "/media/social", "/media/online", "/issues/media-online", "/issues/media-social", "/analysis/sna", "/analysis/ontology", "/analysis/media", "/command-center"];
 export const isProjectPage = (page: string) => PROJECT_PAGES.includes(page);

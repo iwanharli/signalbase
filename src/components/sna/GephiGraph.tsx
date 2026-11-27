@@ -6,13 +6,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Graph from "graphology";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import Sigma from "sigma";
-import { dominantTone, TONE_COLOR, type SnaGraph, type Tone } from "@/lib/sna";
+import { dominantTone, KIND_COLOR, TONE_COLOR, type SnaGraph, type Tone } from "@/lib/sna";
 import { formatNumber } from "@/lib/media/labels";
 import { seeded, type NetworkAnalysis } from "@/lib/snaNetwork";
 import type { TreeLayout } from "@/lib/snaTree";
 import classes from "./sna.module.css";
 
-export type GephiColor = "klaster" | "emosi";
+/** klaster: Louvain communities; emosi: the tone of each node's links; jenis: by node type (see KIND_COLOR). */
+export type GephiColor = "klaster" | "emosi" | "jenis";
 /** Node size: engagement (posts for issues), or betweenness: the bridges between groups stand out. */
 export type GephiSize = "engagement" | "betweenness";
 type NodeAttrs = { label: string; full: string; x: number; y: number; fx: number; fy: number; size: number; eng: number; btw: number; color: string; community: number; kind: string };
@@ -38,10 +39,12 @@ function drawHover(ctx: CanvasRenderingContext2D, data: { x: number; y: number; 
   ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.fillText(data.label, x, data.y + 0.5);
 }
 
-export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null }: {
+export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null, bridgeTitle = "Akun jembatan" }: {
   graph: SnaGraph; analysis: NetworkAnalysis; picked: string | null; onPick: (id: string | null) => void; color: GephiColor; size: GephiSize;
   /** "Susun pohon": fixed positions instead of ForceAtlas2. */
   layout?: TreeLayout | null;
+  /** Heading of the bridge list ("Akun jembatan"; other networks name their nodes differently). */
+  bridgeTitle?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigmaRef = useRef<Sigma<NodeAttrs> | null>(null);
@@ -70,7 +73,7 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
       // Betweenness on a square-root scale: a few bridges are far above the rest, which would leave everyone else a dot.
       const btw = 3 + 19 * Math.sqrt((analysis.betweenness.get(n.id) ?? 0) / maxB);
       const a = rand() * Math.PI * 2, r = 10 + rand() * 90;
-      const full = n.kind === "issue" ? (n.title ?? "Isu") : `@${n.id}`;
+      const full = n.kind === "issue" ? (n.title ?? "Isu") : n.name ?? `@${n.id}`;
       g.addNode(n.id, { label: short(full), full, x: Math.cos(a) * r, y: Math.sin(a) * r, fx: 0, fy: 0, size: eng, eng, btw, color: OTHER, community: analysis.community.get(n.id) ?? -1, kind: n.kind });
     }
     for (const l of graph.links) {
@@ -121,7 +124,8 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     const { g, colorOf, tones } = built;
     g.forEachNode((id, a) => {
       const t = tones.get(id);
-      g.setNodeAttribute(id, "color", color === "emosi" ? TONE_COLOR[t ? dominantTone(t) : "unknown"] : colorOf.get(a.community) ?? OTHER);
+      g.setNodeAttribute(id, "color", color === "emosi" ? TONE_COLOR[t ? dominantTone(t) : "unknown"]
+        : color === "jenis" ? KIND_COLOR[a.kind as keyof typeof KIND_COLOR] ?? OTHER : colorOf.get(a.community) ?? OTHER);
     });
     setClusters(color === "klaster" ? built.legend : []);
     sigmaRef.current?.refresh();
@@ -144,7 +148,8 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
       labelFont: "Inter, system-ui, sans-serif",
       labelWeight: "600",
       labelSize: 12,
-      labelRenderedSizeThreshold: 7,
+      // Small maps (an ontology, a small issue) name every node; big ones only the larger nodes, so labels do not pile up.
+      labelRenderedSizeThreshold: g.order <= 80 ? 0 : 7,
       labelDensity: 0.9,
       defaultEdgeType: "line",
       zIndex: true,
@@ -201,11 +206,11 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
       <div ref={box} className={classes.gephi} role="img" aria-label="Graf jaringan akun, mode Gephi" />
       {size === "betweenness" ? bridges.length > 0 && (
         <aside className={classes.clusters} aria-label="Akun jembatan">
-          <b>Akun jembatan</b>
+          <b>{bridgeTitle}</b>
           {bridges.map((br) => (
             <button key={br.id} type="button" className={classes.bridgeRow} onClick={() => onPick(br.id)} title={`Betweenness ${br.score.toFixed(3)} · menghubungkan ${br.communities.length} klaster`}>
               <span className={classes.bridgeRank}>{br.rank}</span>
-              <em>@{br.id}</em>
+              <em>{built.g.hasNode(br.id) ? built.g.getNodeAttribute(br.id, "full") : `@${br.id}`}</em>
               <span className={classes.bridgeDots}>{br.communities.slice(0, 5).map((c) => <i key={c} style={{ background: built.colorOf.get(c) ?? OTHER }} />)}</span>
             </button>
           ))}

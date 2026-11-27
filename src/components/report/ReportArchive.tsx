@@ -192,7 +192,7 @@ function HeatStrip({ reports, kind, href }: { reports: Item[]; kind: ReportKind;
       <div className={c.stripBars}>
         {rows.map((r) => (
           <a key={r.id} href={href(r.id)} target="_blank" rel="noopener noreferrer" style={{ ["--heat" as string]: r.cover.heatColor }}
-            title={`${periodLabel({ days: 0, start: r.start, day: r.day })} · ${r.cover.heat} · ${compact(volume(r))} item · ${r.cover.issues} isu EWS`}>
+            title={`${periodLabel({ days: 0, start: r.start, day: r.day })} · ${r.cover.heat} · ${compact(volume(r))} item · ${r.cover.issues} isu media sosial`}>
             <i style={{ height: `${Math.max(8, (volume(r) / max) * 100)}%` }} />
             <small>{kind === "bulanan" ? dayjs(r.day).locale("id").format("MMM") : dayjs(r.day).format("D/M")}</small>
           </a>

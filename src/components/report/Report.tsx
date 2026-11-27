@@ -322,7 +322,7 @@ function Notes({ d }: { d: ReportData }) {
         <li>Data: post media sosial dan berita online dari bank data Signalbase, {source}.</li>
         <li>Periode: {d.day ? `${periodLabel(d)} (${d.days === 1 ? "satu hari penuh" : `${d.days} hari penuh`}, 00.00–24.00 WIB), dibanding ${d.days === 1 ? "hari" : `${d.days} hari`} sebelumnya.` : `${d.days} hari terakhir dibanding ${d.days} hari sebelumnya; hari ini belum lengkap.`}</li>
         <li>Emosi: label hasil analisis otomatis; porsi dihitung dari post yang sudah berlabel.</li>
-        <li>Isu EWS: peringatan dini dari klaster post media sosial (level High/Critical); “Implikasi” adalah penilaian risiko otomatis dan perlu ditinjau analis.</li>
+        <li>Isu media sosial: peringatan dini dari klaster post media sosial (level High/Critical); “Implikasi” adalah penilaian risiko otomatis dan perlu ditinjau analis.</li>
       </ul>
     </>
   );
@@ -349,7 +349,7 @@ function Section({ x, d, mode, start, total, sifat, period, to, untuk, notes }: 
         <div className={r.tiles}>
           <div style={{ background: "#1f3a5f" }}><b>{formatNumber(volume)}</b><small>Total unggahan dianalisis</small></div>
           {parts.map(([t, v], k) => <div key={t} style={{ background: ["#b8962e", "#b4443a"][k] }}><b>{pct(v.insights.current.neg, v.insights.current.labelled)}</b><small>Porsi negatif {MEDIA_TYPE_LABEL[t]}</small></div>)}
-          <div style={{ background: "#3f8f78" }}><b>{x.issueCount ?? x.issues.length}</b><small>Isu EWS dipantau</small></div>
+          <div style={{ background: "#3f8f78" }}><b>{x.issueCount ?? x.issues.length}</b><small>Isu media sosial dipantau</small></div>
           <div style={{ background: heat.color }}><b>{heat.label}</b><small>Suhu isu</small></div>
         </div>
         <div className={r.band}>
@@ -398,7 +398,7 @@ function Comparison({ d, n, total, sifat }: { d: ReportData; n: number; total: n
     <Page n={n} total={total} sifat={sifat}>
       <H sub={`${d.sections.length} proyek, masing-masing dihitung sesuai cakupannya`}>Perbandingan proyek</H>
       <table className={r.table} data-matrix>
-        <thead><tr><th>Proyek</th><th className={r.num}>Volume</th><th className={r.num}>Negatif sosial</th><th className={r.num}>Negatif online</th><th className={r.num}>Isu EWS</th><th>Suhu</th></tr></thead>
+        <thead><tr><th>Proyek</th><th className={r.num}>Volume</th><th className={r.num}>Negatif sosial</th><th className={r.num}>Negatif online</th><th className={r.num}>Isu sosmed</th><th>Suhu</th></tr></thead>
         <tbody>{d.sections.map((x) => {
           const heat = issueHeat(x.issues), vol = (x.social?.insights.current.total ?? 0) + (x.online?.insights.current.total ?? 0), neg = (v: typeof x.social) => (v ? pct(v.insights.current.neg, v.insights.current.labelled) : "—");
           return <tr key={x.project?.name}><td>{x.project?.name}</td><td className={r.num}>{formatNumber(vol)}</td><td className={r.num}>{neg(x.social)}</td><td className={r.num}>{neg(x.online)}</td><td className={r.num}>{x.issues.length}</td><td><span className={r.pill} style={{ background: heat.color }}>{heat.label}</span></td></tr>;

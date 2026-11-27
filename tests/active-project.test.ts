@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isProjectPage, legacyProjectUrl, projectPath, projectSettingsPath, splitProjectPath } from "../src/lib/activeProject";
+import { isProjectId, isProjectPage, legacyProjectUrl, projectPath, projectSettingsPath, splitProjectPath } from "../src/lib/activeProject";
 
 test("isProjectPage: data pages that exist for the whole bank and per project", () => {
   for (const p of ["/dashboard", "/media/social", "/media/online", "/issues/media-online", "/issues/media-social", "/analysis/sna", "/analysis/ontology", "/analysis/media", "/command-center"]) assert.ok(isProjectPage(p), p);
@@ -51,4 +51,9 @@ test("legacyProjectUrl: Indonesian paths, ?key= and /project addresses move to t
   assert.equal(at("/media/social"), null);
   assert.equal(at("/projects/abc/media/social"), null);
   assert.equal(at("/report?project=all"), null);
+});
+
+test("isProjectId: only UUIDs, so a mistyped link never becomes the active project", () => {
+  assert.ok(isProjectId("08b04185-e66d-4359-8ba6-562f988c5bf2"));
+  for (const v of ["08b04185-e66d-4359-8ba6-562f988c5bf2s", "abc", "", null, undefined, "new"]) assert.ok(!isProjectId(v), String(v));
 });

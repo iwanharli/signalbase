@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, verifySession } from "@/lib/session";
-import { isProjectPage, legacyProjectUrl, PROJECT_COOKIE, projectPath, splitProjectPath } from "@/lib/activeProject";
+import { isProjectId, isProjectPage, legacyProjectUrl, PROJECT_COOKIE, projectPath, splitProjectPath } from "@/lib/activeProject";
 
 // Guards the panel and its API. /api/v1 uses API keys instead (checked in the route).
 /** Marketing pages anyone can open. */
@@ -22,14 +22,17 @@ export async function middleware(req: NextRequest) {
 function pageWithProject(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   if (pathname.startsWith("/api/")) return NextResponse.next();
-  const saved = req.cookies.get(PROJECT_COOKIE)?.value;
+  // A cookie that is not a project id (an old bad link) is ignored, so it can never send every page to a 404.
+  const cookie = req.cookies.get(PROJECT_COOKIE)?.value;
+  const saved = isProjectId(cookie) ? cookie : undefined;
   if (isProjectPage(pathname) && saved) {
     const qs = searchParams.toString();
     return NextResponse.redirect(new URL(`${projectPath(saved, pathname)}${qs ? `?${qs}` : ""}`, publicOrigin(req)));
   }
   const { id, page } = splitProjectPath(pathname);
   const res = NextResponse.next();
-  if (id && id !== saved && isProjectPage(page)) res.cookies.set(PROJECT_COOKIE, id, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
+  if (isProjectId(id) && id !== saved && isProjectPage(page)) res.cookies.set(PROJECT_COOKIE, id, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
+  else if (cookie && !saved) res.cookies.delete(PROJECT_COOKIE);
   return res;
 }
 

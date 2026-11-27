@@ -1,6 +1,6 @@
 // Shared by the Isu page and its API: periods, row types and the keyword filter on issue titles.
 
-export const ISSUE_PERIODS = [{ days: 3, label: "3 hari" }, { days: 7, label: "7 hari" }, { days: 14, label: "14 hari" }, { days: 30, label: "1 bulan" }] as const;
+export const ISSUE_PERIODS = [{ days: 1, label: "1 hari" }, { days: 3, label: "3 hari" }, { days: 7, label: "7 hari" }, { days: 14, label: "14 hari" }, { days: 30, label: "1 bulan" }] as const;
 export type IssueDays = (typeof ISSUE_PERIODS)[number]["days"];
 export const DEFAULT_ISSUE_DAYS: IssueDays = 7;
 export const ISSUES_LIMIT = 200;
@@ -36,8 +36,8 @@ export const SPAM_TERMS = ["zodiak", "zodiac", "iklan", "harga emas", "emas anta
 
 /** The submenu of /isu. A topic with `terms` only keeps issues whose title contains one of them (hardcoded for now). */
 export const ISSUE_TOPICS = [
-  { id: "nasional", label: "Isu Nasional", terms: [] as string[] },
-  { id: "polisi", label: "Isu Polisi", terms: ["polisi", "polri", "polda"] },
+  { id: "nasional", label: "Isu Media Online", terms: [] as string[] },
+  { id: "polisi", label: "Isu Media Online · Polisi", terms: ["polisi", "polri", "polda"] },
 ] as const;
 export type IssueTopic = (typeof ISSUE_TOPICS)[number]["id"];
 export const DEFAULT_ISSUE_TOPIC: IssueTopic = "nasional";

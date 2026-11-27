@@ -107,7 +107,7 @@ const cardHeight = (c: BriefAi["kartu"][number]) =>
   36 + 18 + Math.max(c.fakta.reduce((t, f) => t + text(f, 62) * LINE + 3, 0) + 16, text(c.implikasi, 62) * LINE + 16) + 14 + text(c.tindakan, 105) * LINE + 18;
 
 const GLOSSARY: [string, string][] = [
-  ["EWS", "Peringatan dini dari klaster unggahan media sosial; level Critical > High > Medium."],
+  ["Isu media sosial", "Peringatan dini dari klaster unggahan media sosial; level Critical > High > Medium."],
   ["L1–L5", "Intensitas emosi unggahan; 5 = paling kuat."],
   ["Resonansi (/u)", "Interaksi per unggahan: seberapa kuat publik merespons."],
   ["Interaksi", "Jumlah suka, komentar, dan bagikan/repost."],
@@ -152,7 +152,7 @@ export function BriefDocument({ d }: { d: BriefData }) {
     { label: "Total interaksi", value: compact(k.interactions.now), m: k.interactions },
     { label: "Artikel media online", value: compact(k.news.now), m: k.news },
     { label: "Porsi negatif sosmed", value: `${dec(k.negShare.now)}%`, m: k.negShare, goodUp: false, points: true },
-    { label: "Isu EWS", value: `${k.ews.now}${k.critical ? ` · ${k.critical} Crit.` : ""}`, m: k.ews, goodUp: false },
+    { label: "Isu sosmed", value: `${k.ews.now}${k.critical ? ` · ${k.critical} Crit.` : ""}`, m: k.ews, goodUp: false },
   ];
   add("summary-head", 150 + (ai ? text(ai.suhu.ringkas, 115) * 15 : 30), <>
     <Section title="Ringkasan eksekutif" lead={`${kindLabel} · ${period} · dibanding ${compareTo}${reader ? ` · untuk ${reader}` : ""}`} />
@@ -190,7 +190,7 @@ export function BriefDocument({ d }: { d: BriefData }) {
     ["Total tayangan", n(k.views.now), <Delta key="d" m={k.views} />, ai?.catatanKpi.views],
     ["Artikel media online", n(k.news.now), <Delta key="e" m={k.news} />, ai?.catatanKpi.news],
     ["Porsi negatif media sosial", `${dec(k.negShare.now)}%`, <Delta key="f" m={k.negShare} goodUp={false} points />, ai?.catatanKpi.negShare],
-    ["Isu peringatan dini (EWS)", `${k.ews.now}${k.critical ? ` (${k.critical} Critical)` : ""}`, <Delta key="g" m={k.ews} goodUp={false} />, ai?.catatanKpi.ews],
+    ["Isu peringatan dini", `${k.ews.now}${k.critical ? ` (${k.critical} Critical)` : ""}`, <Delta key="g" m={k.ews} goodUp={false} />, ai?.catatanKpi.ews],
   ];
   add("kpi", 70 + table(kpiRows.map(([label, , , note]) => [label, note ?? ""]), [26, 62]), <>
     <Section no="1" title="Dasbor situasi" lead={`Angka ${period}, dibanding ${compareTo}`} />
@@ -305,7 +305,7 @@ export function BriefDocument({ d }: { d: BriefData }) {
       <article className={b.card}>
         <header>
           <h4><span>3.{i + 1}</span>{c.judul}</h4>
-          <Tag tone={issueTone(issue)}>{issue?.kind === "news" ? "ISU BERITA" : `EWS ${issueTag(issue)}`}</Tag>
+          <Tag tone={issueTone(issue)}>{issue?.kind === "news" ? "ISU BERITA" : `ISU SOSMED ${issueTag(issue)}`}</Tag>
         </header>
         {facts.length > 0 && <p className={b.cardMeta}>{facts.join(" · ")}<span>Keyakinan {c.keyakinan}</span></p>}
         <div className={b.cardGrid}>
@@ -385,7 +385,7 @@ export function BriefDocument({ d }: { d: BriefData }) {
       <li><b>Data.</b> Unggahan media sosial ({d.platforms.map((x) => sourceLabel(x.source)).join(", ") || "—"}) dan berita online dari bank data Signalbase, cakupan {d.scope.name}{d.scope.keywords.length ? ` (kata kunci: ${d.scope.keywords.join(", ")})` : ""}.</li>
       <li><b>Periode.</b> {period}, {d.days === 1 ? "satu hari penuh" : `${d.days} hari penuh`} 00.00–24.00 WIB; pembanding {compareTo}.</li>
       <li><b>Emosi.</b> Label analisis otomatis; {dec(d.labelledShare ?? 0)}% unggahan media sosial periode ini berlabel.</li>
-      <li><b>Isu EWS.</b> Klaster unggahan yang memicu peringatan dini; angka per isu dihitung sepanjang umur klaster.</li>
+      <li><b>Isu media sosial.</b> Klaster unggahan yang memicu peringatan dini; angka per isu dihitung sepanjang umur klaster.</li>
       {stale.length > 0 && <li><b>Kesenjangan data.</b> {stale.map((x) => `${sourceLabel(x.source)} (data terakhir ${dayjs(x.lastDay).locale("id").format("D MMM")})`).join(", ")}; volume platform ini dalam periode bisa lebih rendah dari kenyataan.</li>}
       <li><b>Tidak dipantau.</b> {d.notCollected.join(", ")}.</li>
       <li><b>Narasi analisis.</b> Disusun AI dari angka dan sampel{ai ? "" : " (tidak tersedia untuk laporan ini)"}; fakta dari pemberitaan perlu verifikasi analis sebelum menjadi dasar tindakan.</li>
@@ -435,7 +435,7 @@ export function BriefDocument({ d }: { d: BriefData }) {
             <div><dt>Unggahan</dt><dd>{compact(k.posts.now)}</dd><Delta m={k.posts} /></div>
             <div><dt>Interaksi</dt><dd>{compact(k.interactions.now)}</dd><Delta m={k.interactions} /></div>
             <div><dt>Artikel online</dt><dd>{compact(k.news.now)}</dd><Delta m={k.news} /></div>
-            <div><dt>Isu EWS</dt><dd>{k.ews.now}</dd><span className={b.delta}>{k.critical} critical</span></div>
+            <div><dt>Isu sosmed</dt><dd>{k.ews.now}</dd><span className={b.delta}>{k.critical} critical</span></div>
           </dl>
           <table className={b.coverMeta}>
             <tbody>

@@ -28,6 +28,8 @@ const TONE_BY_EMOTION: Record<string, Tone> = {
   mendukung: "positive", puas: "positive", dukungan: "positive",
 };
 export const toneOf = (emotion: string | null): Tone => TONE_BY_EMOTION[(emotion ?? "").toLowerCase()] ?? "unknown";
+/** Node colours by type ("jenis" on the Gephi map): issues, main nodes (accounts, outlets, actors), their neighbours. */
+export const KIND_COLOR: Record<"issue" | "hub" | "child", string> = { issue: "#f5f3ff", hub: "#a78bfa", child: "#22d3ee" };
 export const TONE_COLOR: Record<Tone, string> = { negative: "#fb7185", neutral: "#60a5fa", positive: "#4ade80", unknown: "#94a3b8" };
 export const TONE_LABEL: Record<Tone, string> = { negative: "Marah / menolak", neutral: "Netral", positive: "Mendukung / puas", unknown: "Tanpa emosi" };
 const TONE_ORDER: Tone[] = ["negative", "positive", "neutral", "unknown"];
@@ -40,6 +42,8 @@ export type SnaRow = { hub: string; target: string; emotion: string | null; n: n
  *  `engagement`: likes + 2 x comments + 3 x shares of the account's posts in view (node size); `title`: an issue's title. */
 export type SnaNode = {
   id: string; kind: "hub" | "child" | "issue"; posts: number; mentions: number; source?: string; engagement?: number; title?: string;
+  /** Display name of a node that is not a social account (an outlet, a journalist, an ontology entity); accounts show "@id". */
+  name?: string;
   /** What runs the account (lib/ai/accountKind.ts): a news outlet, an institution, or the public. Set by the server. */
   account?: "media" | "institusi" | "publik";
   /** Issue view: the account's first post in the issue (Jakarta wall-clock, YYYY-MM-DDTHH:MM:SS); `wave` its wave (flow "gelombang"). */

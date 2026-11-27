@@ -4,22 +4,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, MessagesSquare, Radar, ShieldAlert, Smile, Target, Users, Zap, type LucideIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@mantine/core";
-import { IconAlertTriangle, IconArrowLeft, IconArrowRight, IconBellRinging, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconMessages, IconRadar2, IconSearch, IconSparkles, IconTrophy, IconX } from "@tabler/icons-react";
+import {
+  IconAlertTriangle, IconArrowLeft, IconArrowRight, IconBellRinging, IconChartDots3, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconHierarchy2, IconMapPin, IconMessages, IconRadar2, IconSparkles, IconTrophy, IconX,
+} from "@tabler/icons-react";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { DEFAULT_ONT_DAYS, formatWindow, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntIssue } from "@/lib/ontology";
 import { TONE_COLOR, toneOf } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "@/lib/dates";
-import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import { useProjectId } from "@/lib/useProjectId";
 import classes from "./onlineIssues.module.css";
 import ews from "./socialIssues.module.css";
 import { ActionCalls } from "./ActionCalls";
+import { relatedOntology } from "@/lib/issueNetwork";
+import { IssueNetwork, type NetworkTab } from "./IssueNetwork";
+import { IssueToolbar, type IssueSort } from "./IssueToolbar";
 
 const PERIOD_OPTIONS = ONT_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const DAY_MS = 86_400_000;
 const isNew = (i: OntIssue) => Date.now() - new Date(i.sentAt).getTime() < DAY_MS;
+/** Skor: as ranked; Terbaru: sent last first; Volume: most posts first. */
+const sortIssues = (list: OntIssue[], sort: IssueSort) => sort === "skor" ? list
+  : [...list].sort((a, b) => sort === "terbaru" ? b.sentAt.localeCompare(a.sentAt) : b.postCount - a.postCount);
 const has = (names: string[], q: string) => names.some((n) => n.toLowerCase() === q);
 
 /** A narrative card of the alert: coloured icon tile, title and text, with a faint icon watermark. */
@@ -33,8 +40,10 @@ function Narrative({ icon: Icon, title, text, accent }: { icon: LucideIcon; titl
   );
 }
 
-function Detail({ issue, rank, onEntity, entity, nav }: {
+function Detail({ issue, rank, onEntity, entity, nav, onNetwork }: {
   issue: OntIssue; rank: number; onEntity: (name: string | null) => void; entity: string | null;
+  /** Opens the issue's full-screen network on a tab. */
+  onNetwork: (tab: NetworkTab) => void;
   nav: { prev: (() => void) | null; next: (() => void) | null; position: string };
 }) {
   const color = levelColor(issue.level);
@@ -44,7 +53,7 @@ function Detail({ issue, rank, onEntity, entity, nav }: {
   return (
     <section className={classes.detail} style={{ "--heat": color } as React.CSSProperties} aria-label="Detail alert">
       <header className={classes.detailHead}>
-        <div className={classes.scoreRing} style={{ "--pct": `${Math.max(6, Math.min(100, issue.score))}%` } as React.CSSProperties} title="Skor EWS">
+        <div className={classes.scoreRing} style={{ "--pct": `${Math.max(6, Math.min(100, issue.score))}%` } as React.CSSProperties} title="Skor isu">
           <span><b>{formatNumber(issue.score)}</b><small>skor</small></span>
         </div>
         <div className={classes.detailTitle}>
@@ -61,6 +70,10 @@ function Detail({ issue, rank, onEntity, entity, nav }: {
             <li><IconClock size={14} />Dikirim {fromNow(issue.sentAt)}</li>
             {issue.category && <li><IconRadar2 size={14} />{issue.category}</li>}
           </ul>
+          <div className={classes.networkButtons}>
+            <Button size="sm" variant="primary" icon={IconChartDots3} onClick={() => onNetwork("sna")}>SNA isu</Button>
+            <Button size="sm" variant="secondary" icon={IconHierarchy2} onClick={() => onNetwork("ontologi")}>Ontologi isu</Button>
+          </div>
         </div>
         <div className={classes.stepper}>
           <Button size="sm" variant="secondary" icon={IconArrowLeft} onClick={nav.prev ?? undefined} disabled={!nav.prev}>Sebelumnya</Button>
@@ -112,6 +125,9 @@ export function SocialIssues() {
   const [search, setSearch] = useState("");
   const [off, setOff] = useState<string[]>([]);
   const [entity, setEntity] = useState<string | null>(null);
+  const [network, setNetwork] = useState<NetworkTab | null>(null);
+  const [sort, setSort] = useState<IssueSort>("skor");
+  const [onlyNew, setOnlyNew] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -126,9 +142,11 @@ export function SocialIssues() {
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
 
   const term = search.trim().toLowerCase();
-  const visible = useMemo(() => issues.filter((i) => !off.includes(i.level)
+  const visible = useMemo(() => sortIssues(issues.filter((i) => !off.includes(i.level) && (!onlyNew || isNew(i))
     && (!entity || has(i.actors, entity) || has(i.targets, entity))
-    && (!term || [i.title, i.location ?? "", ...i.actors, ...i.targets].some((s) => s.toLowerCase().includes(term)))), [issues, off, entity, term]);
+    && (!term || [i.title, i.location ?? "", ...i.actors, ...i.targets].some((s) => s.toLowerCase().includes(term)))), sort), [issues, off, entity, term, onlyNew, sort]);
+  const filtered = !!term || off.length > 0 || !!entity || onlyNew;
+  const resetFilters = () => { setSearch(""); setOff([]); setEntity(null); setOnlyNew(false); };
   const index = Math.max(0, visible.findIndex((i) => i.id === issueParam));
   const selected = visible[index] ?? null;
 
@@ -161,13 +179,13 @@ export function SocialIssues() {
     <div className={classes.page}>
       <header className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
-        <IconBellRinging className={classes.heroIcon} size={150} stroke={1} aria-hidden />
+        <IconMessages className={classes.heroIcon} size={150} stroke={1} aria-hidden />
         <div className={classes.heroText}>
-          <span className={classes.badge}><IconRadar2 size={13} />Radar EWS</span>
-          <h1>Isu EWS Sosmed <em>{periodLabel}</em> terakhir</h1>
+          <span className={classes.badge}><IconMessages size={13} />Media sosial · post &amp; akun</span>
+          <h1>Isu Media Sosial <em>{periodLabel}</em> terakhir</h1>
           <p>{keyId
-            ? "Isu dari post media sosial proyek ini, dikelompokkan Signalbase tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, dan post di baliknya."
-            : "Peringatan dini dari media sosial, diurutkan dari skor tertinggi. Pilih alert untuk melihat aktor, target, reaksi publik, dan post di baliknya."}</p>
+            ? "Post media sosial proyek ini (X, TikTok, Instagram, Facebook, Threads, YouTube) yang membahas hal yang sama, dikelompokkan tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, post, serta SNA dan ontologinya."
+            : "Post media sosial yang membahas hal yang sama, dikelompokkan tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, post, serta SNA dan ontologinya."}</p>
         </div>
         <div className={classes.stats}>
           {stats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{list.data ? formatNumber(s.value) : "—"}</b><span>{s.label}</span></div>)}
@@ -176,27 +194,16 @@ export function SocialIssues() {
 
       <ActionCalls days={days} keyId={keyId} />
 
-      <div className={classes.toolbar}>
-        <Segmented label="Periode alert" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v, issue: null })} />
-        <div className={ews.levels} role="group" aria-label="Level alert">
-          <span className={ews.levelsLabel}><IconBellRinging size={14} />Level</span>
-          {TOGGLE_LEVELS.map((l) => {
-            const on = !off.includes(l);
-            return (
-              <button key={l} type="button" data-level={l.toLowerCase()} data-active={on || undefined} aria-pressed={on} title={on ? `Sembunyikan ${l}` : `Tampilkan ${l}`}
-                onClick={() => setOff(on ? [...off, l] : off.filter((x) => x !== l))}>
-                <i />{l}<b>{list.data ? issues.filter((i) => i.level === l).length : "–"}</b>
-              </button>
-            );
-          })}
-        </div>
-        {entity && <button type="button" className={ews.filterChip} onClick={() => setEntity(null)}>{entity}<IconX size={14} /></button>}
-        <label className={classes.search}>
-          <IconSearch size={15} />
-          <input ref={searchRef} value={search} onChange={(e) => setSearch(e.currentTarget.value)} placeholder="Cari judul, aktor, lokasi  ( / )" />
-          {search && <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian"><IconX size={14} /></button>}
-        </label>
-      </div>
+      <IssueToolbar periods={PERIOD_OPTIONS} days={String(days)} onDays={(v) => go({ days: v, issue: null })} sort={sort} onSort={setSort}
+        search={search} onSearch={setSearch} searchRef={searchRef} placeholder="Cari judul, aktor, lokasi"
+        shown={list.data ? visible.length : null} total={list.data ? issues.length : null} onReset={filtered ? resetFilters : null}
+        extra={entity && <button type="button" className={ews.filterChip} onClick={() => setEntity(null)} title="Hapus filter aktor/target">{entity}<IconX size={14} /></button>}
+        chips={[
+          ...TOGGLE_LEVELS.map((l) => ({ key: l, label: l, color: levelColor(l), on: !off.includes(l), count: list.data ? issues.filter((i) => i.level === l).length : null,
+            onToggle: () => setOff(off.includes(l) ? off.filter((x) => x !== l) : [...off, l]) })),
+          { key: "new", label: "Baru 24 jam", color: "#22d3ee", on: onlyNew, count: list.data ? issues.filter(isNew).length : null,
+            title: onlyNew ? "Tampilkan semua isu" : "Hanya isu yang dikirim dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
+        ]} />
 
       {list.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{list.error}<Button size="sm" variant="secondary" onClick={() => void list.reload()}>Coba lagi</Button></div>}
 
@@ -241,12 +248,18 @@ export function SocialIssues() {
 
         <div ref={detailRef} className={classes.detailWrap}>
           {selected ? (
-            <Detail key={selected.id} issue={selected} rank={rankOf.get(selected.id)!} entity={entity} onEntity={setEntity}
+            <Detail key={selected.id} issue={selected} rank={rankOf.get(selected.id)!} entity={entity} onEntity={setEntity} onNetwork={(tab) => setNetwork(tab)}
               nav={{ prev: index > 0 ? () => step(-1) : null, next: index < visible.length - 1 ? () => step(1) : null, position: `${index + 1} dari ${visible.length}` }} />
           ) : (
-            list.data && <div className={classes.empty}><IconBellRinging size={26} /><b>Pilih alert di sebelah kiri</b></div>
+            list.data && <div className={classes.empty}><IconBellRinging size={26} /><b>Pilih isu di sebelah kiri</b></div>
           )}
         </div>
+        {selected && (
+          <IssueNetwork opened={network !== null} onClose={() => setNetwork(null)} kind="social" initialTab={network ?? "sna"} title={selected.title}
+            url={`/api/admin/ontology/${encodeURIComponent(selected.id)}/network${keyId ? `?project=${encodeURIComponent(keyId)}` : ""}`}
+            ontology={relatedOntology(issues, selected.id)}
+            meta={<><span style={{ color: levelColor(selected.level), fontWeight: 800 }}>{selected.level}</span>· skor {formatNumber(selected.score)} · {formatNumber(selected.postCount)} post · dikirim {fromNow(selected.sentAt)}</>} />
+        )}
       </div>
     </div>
   );

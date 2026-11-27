@@ -51,7 +51,7 @@ export function OntologyPanel({ node, graph, issues, onPick, onClose }: {
         {tab === "summary" && issue && (
           <>
             <div className={classes.kpis}>
-              <div><b style={{ color: levelColor(issue.level) }}>{issue.score}</b><span>skor EWS</span></div>
+              <div><b style={{ color: levelColor(issue.level) }}>{issue.score}</b><span>skor isu</span></div>
               <div><b>{formatNumber(issue.postCount)}</b><span>post</span></div>
               <div><b>{issue.level}</b><span>level</span></div>
             </div>

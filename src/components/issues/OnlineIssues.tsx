@@ -4,17 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@mantine/core";
 import {
-  IconAlertTriangle, IconArrowLeft, IconArrowRight, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconNews, IconRadar2, IconSearch,
-  IconSparkles, IconTrendingUp, IconTrophy, IconUser, IconX,
+  IconAlertTriangle, IconArrowLeft, IconArrowRight, IconChartDots3, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconHierarchy2, IconMapPin, IconNews, IconRadar2, IconSparkles, IconTrendingUp, IconTrophy, IconUser, IconWorldWww,
 } from "@tabler/icons-react";
 import { api } from "@/lib/api-client";
 import { DEFAULT_ISSUE_DAYS, DEFAULT_ISSUE_TOPIC, ISSUE_PERIODS, ISSUE_TOPICS, parseIssueDays, parseIssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
 import { capitalize, formatNumber, sourceLabel } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { formatDate, fromNow } from "@/lib/dates";
-import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import { useProjectId } from "@/lib/useProjectId";
+import { IssueNetwork, type NetworkTab } from "./IssueNetwork";
+import { IssueToolbar, type IssueSort } from "./IssueToolbar";
 import classes from "./onlineIssues.module.css";
 
 type ListResponse = { days: number; issues: IssueSummary[] };
@@ -23,6 +23,9 @@ type DetailResponse = { issue: IssueSummary; page: number; items: IssueNews[]; h
 const DAY_MS = 86_400_000;
 const PERIOD_OPTIONS = ISSUE_PERIODS.map((p) => ({ value: String(p.days), label: p.label }));
 const isNew = (issue: IssueSummary) => Date.now() - new Date(issue.firstSeenAt).getTime() < DAY_MS;
+/** Skor: as ranked; Terbaru: last seen first; Volume: most news first. */
+const sortIssues = (list: IssueSummary[], sort: IssueSort) => sort === "skor" ? list
+  : [...list].sort((a, b) => sort === "terbaru" ? b.lastSeenAt.localeCompare(a.lastSeenAt) : b.newsCount - a.newsCount);
 /** Heat colour from the share of the top score: hot red, warm orange, calm violet. */
 const heat = (score: number, max: number) => (score / max > 0.66 ? "#f43f5e" : score / max > 0.33 ? "#fb923c" : "#8b5cf6");
 const dayLabel = (iso: string) => {
@@ -61,8 +64,10 @@ function NewsCard({ news, delay }: { news: IssueNews; delay: number }) {
   );
 }
 
-function IssueDetail({ issue, rank, max, keyId, topic, nav }: {
+function IssueDetail({ issue, rank, max, keyId, topic, nav, onNetwork }: {
   issue: IssueSummary; rank: number; max: number; keyId: string | null; topic: string;
+  /** Opens the issue's full-screen network on a tab. */
+  onNetwork: (tab: NetworkTab) => void;
   nav: { prev: (() => void) | null; next: (() => void) | null; position: string };
 }) {
   const [source, setSource] = useState<string | null>(null);
@@ -124,6 +129,10 @@ function IssueDetail({ issue, rank, max, keyId, topic, nav }: {
             <li><IconClock size={14} />Terakhir muncul {fromNow(issue.lastSeenAt)}</li>
             <li><IconTrendingUp size={14} />Sejak {formatDate(issue.firstSeenAt).split(",")[0]}</li>
           </ul>
+          <div className={classes.networkButtons}>
+            <Button size="sm" variant="primary" icon={IconChartDots3} onClick={() => onNetwork("sna")}>SNA isu</Button>
+            <Button size="sm" variant="secondary" icon={IconHierarchy2} onClick={() => onNetwork("ontologi")}>Ontologi isu</Button>
+          </div>
         </div>
         <div className={classes.stepper}>
           <Button size="sm" variant="secondary" icon={IconArrowLeft} onClick={nav.prev ?? undefined} disabled={!nav.prev}>Sebelumnya</Button>
@@ -171,6 +180,11 @@ export function OnlineIssues() {
   const topicLabel = ISSUE_TOPICS.find((t) => t.id === topic)!.label;
   const issueParam = params.get("issue");
   const [search, setSearch] = useState("");
+  const [network, setNetwork] = useState<NetworkTab | null>(null);
+  const [sort, setSort] = useState<IssueSort>("skor");
+  const [hideActive, setHideActive] = useState(false);
+  const [hideQuiet, setHideQuiet] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -186,7 +200,10 @@ export function OnlineIssues() {
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
 
   const term = search.trim().toLowerCase();
-  const visible = useMemo(() => issues.filter((i) => (!term || i.title.toLowerCase().includes(term) || i.label?.toLowerCase().includes(term))), [issues, term]);
+  const visible = useMemo(() => sortIssues(issues.filter((i) => (!term || i.title.toLowerCase().includes(term) || i.label?.toLowerCase().includes(term))
+    && !(i.active ? hideActive : hideQuiet) && (!onlyNew || isNew(i))), sort), [issues, term, hideActive, hideQuiet, onlyNew, sort]);
+  const filtered = !!term || hideActive || hideQuiet || onlyNew;
+  const resetFilters = () => { setSearch(""); setHideActive(false); setHideQuiet(false); setOnlyNew(false); };
   const index = Math.max(0, visible.findIndex((i) => i.id === issueParam));
   const selected = visible[index] ?? null;
 
@@ -222,11 +239,11 @@ export function OnlineIssues() {
     <div className={classes.page}>
       <header className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
-        <IconFlame className={classes.heroIcon} size={150} stroke={1} aria-hidden />
+        <IconWorldWww className={classes.heroIcon} size={150} stroke={1} aria-hidden />
         <div className={classes.heroText}>
-          <span className={classes.badge}><IconRadar2 size={13} />Radar isu</span>
+          <span className={classes.badge}><IconNews size={13} />Media online · berita portal</span>
           <h1>{topicLabel} <em>{periodLabel || "…"}</em> terakhir</h1>
-          <p>Berita yang sejenis dikelompokkan menjadi satu isu dan diurutkan dari yang paling ramai. Pilih isu untuk melihat berita di baliknya.</p>
+          <p>Berita portal online yang sejenis dikelompokkan menjadi satu isu dan diurutkan dari yang paling ramai. Pilih isu untuk melihat berita, media yang memberitakan, serta SNA dan ontologinya.</p>
         </div>
         <div className={classes.stats}>
           {stats.map((s) => (
@@ -235,14 +252,15 @@ export function OnlineIssues() {
         </div>
       </header>
 
-      <div className={classes.toolbar}>
-        <Segmented label="Periode isu" options={PERIOD_OPTIONS} value={String(days)} onChange={(v) => go({ days: v })} />
-        <label className={classes.search}>
-          <IconSearch size={15} />
-          <input ref={searchRef} value={search} onChange={(e) => setSearch(e.currentTarget.value)} placeholder="Cari isu  ( / )" />
-          {search && <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian"><IconX size={14} /></button>}
-        </label>
-      </div>
+      <IssueToolbar periods={PERIOD_OPTIONS} days={String(days)} onDays={(v) => go({ days: v })} sort={sort} onSort={setSort}
+        search={search} onSearch={setSearch} searchRef={searchRef} placeholder="Cari judul isu"
+        shown={list.data ? visible.length : null} total={list.data ? issues.length : null} onReset={filtered ? resetFilters : null}
+        chips={[
+          { key: "active", label: "Masih berkembang", color: "#fb923c", on: !hideActive, count: list.data ? issues.filter((i) => i.active).length : null, onToggle: () => setHideActive(!hideActive) },
+          { key: "quiet", label: "Mereda", color: "#94a3b8", on: !hideQuiet, count: list.data ? issues.filter((i) => !i.active).length : null, onToggle: () => setHideQuiet(!hideQuiet) },
+          { key: "new", label: "Baru 24 jam", color: "#22d3ee", on: onlyNew, count: list.data ? issues.filter(isNew).length : null,
+            title: onlyNew ? "Tampilkan semua isu" : "Hanya isu yang muncul dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
+        ]} />
 
       {list.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{list.error}<Button size="sm" variant="secondary" onClick={() => void list.reload()}>Coba lagi</Button></div>}
 
@@ -285,12 +303,17 @@ export function OnlineIssues() {
 
         <div ref={detailRef} className={classes.detailWrap}>
           {selected ? (
-            <IssueDetail key={`${topic}-${selected.id}`} issue={selected} rank={rankOf.get(selected.id)!} max={max} keyId={keyId} topic={topic}
+            <IssueDetail key={`${topic}-${selected.id}`} issue={selected} rank={rankOf.get(selected.id)!} max={max} keyId={keyId} topic={topic} onNetwork={(tab) => setNetwork(tab)}
               nav={{ prev: index > 0 ? () => step(-1) : null, next: index < visible.length - 1 ? () => step(1) : null, position: `${index + 1} dari ${visible.length}` }} />
           ) : (
             list.data && <div className={classes.empty}><IconNews size={26} /><b>Pilih isu di sebelah kiri</b></div>
           )}
         </div>
+        {selected && (
+          <IssueNetwork opened={network !== null} onClose={() => setNetwork(null)} kind="online" initialTab={network ?? "sna"} title={selected.label || selected.title}
+            url={`/api/admin/issues/${encodeURIComponent(selected.id)}/network?topik=${topic}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}`}
+            meta={<>{formatNumber(selected.newsCount)} berita · skor {formatNumber(selected.score)} · terakhir muncul {fromNow(selected.lastSeenAt)}</>} />
+        )}
       </div>
     </div>
   );
