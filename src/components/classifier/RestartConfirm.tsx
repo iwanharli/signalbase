@@ -4,7 +4,7 @@ import { Modal } from "@mantine/core";
 import { IconRefreshAlert } from "@tabler/icons-react";
 import { formatNumber } from "@/lib/media/labels";
 import { Button } from "../ui/Button";
-import classes from "../apiKeys/apiKeys.module.css";
+import classes from "../projects/projects.module.css";
 
 export type RestartRequest = { changes: string[]; results: number; run: () => Promise<void> | void };
 

@@ -3,7 +3,7 @@
 import { Modal } from "@mantine/core";
 import type { Icon } from "@tabler/icons-react";
 import { Button } from "./Button";
-import classes from "../apiKeys/apiKeys.module.css";
+import classes from "../projects/projects.module.css";
 
 type Props = {
   opened: boolean; onClose: () => void; onConfirm: () => void; loading?: boolean;

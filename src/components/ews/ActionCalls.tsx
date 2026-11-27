@@ -9,7 +9,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { sourceLabel } from "@/lib/media/labels";
 import type { VisualResponse } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
-import { useRole } from "../RoleContext";
+import { useRole } from "../shell/RoleContext";
 import c from "./actionCalls.module.css";
 import { VisualImage } from "../mediaVisual/VisualImage";
 

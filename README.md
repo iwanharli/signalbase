@@ -314,15 +314,24 @@ src/
 │   │   ├── ItemDetailModal.tsx   Modal detail
 │   │   ├── itemParts.tsx         Bagian kecil kartu/modal (badge, metrik, skor, faktor)
 │   │   ├── Masonry.tsx           Kolom masonry
-│   │   └── controls.tsx          Kontrol form bertema gelap
-│   ├── Overview.tsx              Halaman Ringkasan
-│   ├── Shell.tsx                 Topbar & tata letak
-│   ├── apiKeys/                  Daftar kunci (ApiKeyList) dan halaman buat kunci (CreateApiKey)
-│   ├── ontologi/                 Graf Ontologi (isu ↔ aktor/target)
+│   │   └── NoProjectYet.tsx      Keadaan kosong bila belum ada proyek
+│   ├── shell/                    Topbar & tata letak (Shell, ProjectSwitcher, lonceng, RoleContext)
+│   ├── overview/                 Halaman Beranda (Overview, Insights, AiSummary, …)
+│   ├── projects/                 Proyek: daftar (ProjectList), buat (CreateProject), detail (ProjectDetail)
+│   ├── classifier/               Kategorisasi AI per proyek (ProjectClassifier, ClassifierEditor)
+│   ├── labels/                   Label manual & Label AI per proyek
+│   ├── aiUsage/                  Saldo dan biaya AI (BalanceCard, BalanceUsage, AiCosts)
+│   ├── aiSettings/               Pengaturan AI global
+│   ├── ontology/                 Graf Ontologi (isu ↔ aktor/target)
 │   ├── sna/                      Graf SNA (d3-force, zoom, drag)
 │   ├── commandCenter/            Command Center (grafik Chart.js + layar satu halaman)
 │   ├── issues/                   Halaman Isu (IssueBoard + issues.module.css)
-│   ├── ApiDocs.tsx
+│   ├── ews/                      Peringatan dini (EWS)
+│   ├── report/                   Laporan eksekutif
+│   ├── billing/                  Tagihan (InvoiceView, InvoiceAdmin)
+│   ├── users/                    Pengguna & permintaan kontak
+│   ├── docs/                     Dokumentasi API (ApiDocs)
+│   ├── ui/                       Komponen umum (Button, ConfirmDialog, Tip, controls)
 │   └── Logo.tsx
 ├── lib/
 │   ├── media/                    Dipakai client & server
@@ -361,7 +370,7 @@ tests/                            Tes node:test (npm test)
 1. **Server** — tambahkan kondisi di `buildWhere` (`lib/server/bank/query.ts`) dan nama parameternya di `FILTER_PARAMS` (agar ikut kunci cache).
 2. **Shared** — tambahkan field di `MediaFilters`, `defaultFilters`, `toSearchParams`, `filtersFromSearchParams`, `countAdvanced`, dan nama parameternya di `FILTER_URL_PARAMS` (agar tersimpan dan dibersihkan dari URL) (`lib/media/filters.ts`).
 3. **UI** — tambahkan `<Field>` di `AdvancedFilters.tsx`; bila perlu tampil di `StatsBar.tsx`.
-4. **Dokumentasi** — `docs/API.md` dan `components/ApiDocs.tsx`.
+4. **Dokumentasi** — `docs/API.md` dan `components/docs/ApiDocs.tsx`.
 
 ---
 

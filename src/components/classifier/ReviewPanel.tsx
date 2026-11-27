@@ -11,7 +11,7 @@ import { post } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
-import classes from "./review.module.css";
+import classes from "./reviewPanel.module.css";
 
 type Rejected = { total: number; items: { type: "social" | "online"; code: string; source: string; publishedAt: string; text: string }[] };
 

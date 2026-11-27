@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { MediaVisualBoard } from "@/components/mediaVisual/MediaVisualBoard";
-import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { NoProjectYet } from "@/components/media/NoProjectYet";
 import { getSession, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { roleOf } from "@/lib/session";
@@ -14,7 +14,7 @@ export default async function MediaVisualPage({ searchParams }: { searchParams: 
   if (isUser && !keyParam) {
     const key = await prisma.apiKey.findFirst({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } });
     if (key) redirect(`/analisis/media?key=${key.id}`);
-    return <NoKeyYet type="social" label="Media visual" hasKeys={false} />;
+    return <NoProjectYet type="social" label="Media visual" hasKeys={false} />;
   }
   return <MediaVisualBoard />;
 }

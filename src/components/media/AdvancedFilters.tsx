@@ -7,7 +7,7 @@ import { ANY_LABEL, LABEL_FILTER_NAMES } from "@/lib/media/manualLabels";
 import { capitalize, formatNumber, humanize, MOOD_KIND_LABEL, POST_TYPE_LABEL, SOURCE_KIND_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
-import { DarkSelect, DateRange, Field, Segmented } from "./controls";
+import { DarkSelect, DateRange, Field, Segmented } from "../ui/controls";
 import { PlatformMark } from "./PlatformIcon";
 import { applyRules } from "./useMediaFilters";
 import classes from "./filters.module.css";

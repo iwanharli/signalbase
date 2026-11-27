@@ -6,7 +6,7 @@ import { Button } from "../ui/Button";
 import classes from "./browser.module.css";
 
 /** Shown to a user account that has no API key covering this media type yet: its feed starts empty. */
-export function NoKeyYet({ type, hasKeys, label = MEDIA_TYPE_LABEL[type] }: { type: MediaType; hasKeys: boolean; label?: string }) {
+export function NoProjectYet({ type, hasKeys, label = MEDIA_TYPE_LABEL[type] }: { type: MediaType; hasKeys: boolean; label?: string }) {
   const Icon = type === "social" ? IconMessages : IconWorldWww;
   return (
     <div className={classes.emptyState} style={{ marginTop: 40 }}>

@@ -8,7 +8,7 @@ import { notifications } from "@mantine/notifications";
 import { IconEye, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
 import { api, post } from "@/lib/api-client";
 import { keywordProblem } from "@/lib/media/keywordExpr";
-import controlClasses from "../media/controls.module.css";
+import controlClasses from "../ui/controls.module.css";
 import { Button } from "../ui/Button";
 import classes from "./sna.module.css";
 

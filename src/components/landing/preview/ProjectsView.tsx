@@ -1,12 +1,12 @@
 "use client";
 // Preview of /project: dark hero with counts, then the key table with Aktif/Dicabut tabs and search.
 import { IconKey, IconPlugConnected, IconSearch, IconSparkles } from "@tabler/icons-react";
-import { KEY_ROWS } from "./data";
+import { PROJECT_ROWS } from "./data";
 import c from "./preview.module.css";
 
 const VISIBLE_KEYWORDS = 3;
 
-function KeyRow({ row, index }: { row: (typeof KEY_ROWS)[number]; index: number }) {
+function KeyRow({ row, index }: { row: (typeof PROJECT_ROWS)[number]; index: number }) {
   const extra = row.keywords.length - VISIBLE_KEYWORDS;
   return (
     <div className={c.trow} style={{ animationDelay: `${index * 80}ms` }}>
@@ -33,8 +33,8 @@ function KeyRow({ row, index }: { row: (typeof KEY_ROWS)[number]; index: number 
   );
 }
 
-export function KeysView() {
-  const withAi = KEY_ROWS.filter((k) => k.ai).length;
+export function ProjectsView() {
+  const withAi = PROJECT_ROWS.filter((k) => k.ai).length;
   return (
     <>
       <section className={c.hero} data-compact>
@@ -46,7 +46,7 @@ export function KeysView() {
         </div>
         <div className={c.heroSide}>
           <div className={c.keyStats}>
-            <div><b>{KEY_ROWS.length}</b><span>Aktif</span></div>
+            <div><b>{PROJECT_ROWS.length}</b><span>Aktif</span></div>
             <div><b>2</b><span>Dipakai 24 jam</span></div>
             <div><b>{withAi}</b><span>Dengan AI</span></div>
           </div>
@@ -56,13 +56,13 @@ export function KeysView() {
 
       <section className={c.list}>
         <div className={c.toolbar}>
-          <div className={c.tabs}><span data-active>Aktif<i>{KEY_ROWS.length}</i></span><span>Dicabut<i>0</i></span></div>
+          <div className={c.tabs}><span data-active>Aktif<i>{PROJECT_ROWS.length}</i></span><span>Dicabut<i>0</i></span></div>
           <span className={c.listSearch}><IconSearch size={13} />Cari nama, prefix, atau kata kunci</span>
         </div>
         <div className={c.thead}>
           <span>Proyek</span><span>Kata kunci</span><span>Cakupan</span><span><IconSparkles size={11} />AI</span><span>Pembuat</span><span>Terakhir dipakai</span>
         </div>
-        {KEY_ROWS.map((row, i) => <KeyRow key={row.name} row={row} index={i} />)}
+        {PROJECT_ROWS.map((row, i) => <KeyRow key={row.name} row={row} index={i} />)}
       </section>
     </>
   );

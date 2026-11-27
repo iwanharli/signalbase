@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { EwsBoard } from "@/components/ews/EwsBoard";
-import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { NoProjectYet } from "@/components/media/NoProjectYet";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { getSession, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
@@ -16,7 +16,7 @@ export default async function EwsPage({ searchParams }: { searchParams: Promise<
     const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
     const key = keys.find((k) => allowsType(parseKeyScope(k.scope, k.keywords), "social"));
     if (key) redirect(`/isu/ews?key=${key.id}`);
-    return <NoKeyYet type="social" label="Isu EWS Sosmed" hasKeys={keys.length > 0} />;
+    return <NoProjectYet type="social" label="Isu EWS Sosmed" hasKeys={keys.length > 0} />;
   }
   return <EwsBoard />;
 }

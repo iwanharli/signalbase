@@ -25,7 +25,7 @@ import { StatsBar } from "./StatsBar";
 import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
 import { COLUMNS_KEY, SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
 import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
-import { useRole } from "../RoleContext";
+import { useRole } from "../shell/RoleContext";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 

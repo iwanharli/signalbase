@@ -42,7 +42,7 @@ export const POSTS: Post[] = [
 export const MEDIA_FILTERS = ["7 hari", "Semua platform", "Semua emosi"];
 
 // Keys page: rows of the key table. `ai` is [running, items processed] or null when off.
-export const KEY_ROWS: { name: string; prefix: string; keywords: string[]; scope: string; ai: [boolean, string] | null; by: string; used: string; live: boolean }[] = [
+export const PROJECT_ROWS: { name: string; prefix: string; keywords: string[]; scope: string; ai: [boolean, string] | null; by: string; used: string; live: boolean }[] = [
   { name: KEY_NAME, prefix: "sb_7Kq2", keywords: KEYWORDS, scope: "Jawa Timur", ai: [true, "1.862"], by: "rina", used: "2 menit lalu", live: true },
   { name: "Aplikasi Lalu Lintas", prefix: "sb_P41x", keywords: ["lalu lintas", "tilang", "parkir", "ganjil genap"], scope: "Hanya media sosial", ai: null, by: "rina", used: "kemarin", live: false },
   { name: "Riset Lingkungan", prefix: "sb_Lm8e", keywords: ["banjir", "sampah"], scope: "Tanpa batasan", ai: [false, "640"], by: "rina", used: "3 hari lalu", live: false },

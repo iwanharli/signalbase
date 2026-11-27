@@ -1,6 +1,6 @@
-import { ApiKeyDetail } from "@/components/apiKeys/ApiKeyDetail";
+import { ProjectDetail } from "@/components/projects/ProjectDetail";
 
-export default async function ApiKeyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <ApiKeyDetail key={id} keyId={id} />;
+  return <ProjectDetail key={id} keyId={id} />;
 }

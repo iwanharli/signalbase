@@ -8,9 +8,9 @@ import { keywordProblem } from "@/lib/media/keywordExpr";
 import { capitalize, humanize } from "@/lib/media/labels";
 import type { FilterOptions, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
-import { DarkMultiSelect, Field, Segmented } from "../media/controls";
+import { DarkMultiSelect, Field, Segmented } from "../ui/controls";
 import { KeywordChips, keywordText, RestrictionChips, scopeRestrictions, useProvinceNames } from "./shared";
-import classes from "./apiKeys.module.css";
+import classes from "./projects.module.css";
 
 const TYPE_OPTIONS = [{ value: "both", label: "Keduanya" }, { value: "social", label: "Media Sosial" }, { value: "online", label: "Media Online" }] as const;
 const RELEVANCE_OPTIONS = [{ value: "", label: "Semua" }, { value: "relevant", label: "Relevan" }, { value: "include", label: "Include" }, { value: "watchlist", label: "Watchlist" }] as const;

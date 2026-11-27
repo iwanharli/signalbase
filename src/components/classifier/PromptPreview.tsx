@@ -8,7 +8,7 @@ import { post } from "@/lib/api-client";
 import { categoriesForType, NO_CATEGORY } from "@/lib/ai/classifier";
 import type { ClassifierDraft } from "./ClassifierEditor";
 import { Button } from "../ui/Button";
-import classes from "./preview.module.css";
+import classes from "./promptPreview.module.css";
 
 type Result = { code: string; source: string; publishedAt: string; text: string; category: string | null; confidence: number | null; reason: string | null; saved: string | null };
 type Type = "social" | "online";

@@ -14,8 +14,8 @@ import type { MediaType } from "@/lib/media/types";
 import type { LabelProgress, LabelTotals } from "@/lib/server/ai/labelProgress";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
-import classes from "../ai/keyClassifier.module.css";
-import review from "../ai/review.module.css";
+import classes from "../classifier/projectClassifier.module.css";
+import review from "../classifier/reviewPanel.module.css";
 
 dayjs.extend(relativeTime);
 

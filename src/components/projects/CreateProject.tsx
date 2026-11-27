@@ -10,13 +10,13 @@ import {
 import { post } from "@/lib/api-client";
 import { OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
 import { providerLabel } from "@/lib/ai/classifier";
-import { ClassifierEditor, draftProblems, emptyDraft, type ClassifierDraft } from "../ai/ClassifierEditor";
-import { Segmented } from "../media/controls";
+import { ClassifierEditor, draftProblems, emptyDraft, type ClassifierDraft } from "../classifier/ClassifierEditor";
+import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
-import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
+import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./SettingsSections";
 import { keyInputClasses, KeywordsInput, ScopeParams, ScopePreview } from "./ScopeFields";
 import { keywordText, scopeRestrictions, useProvinceNames, type CreatedKey } from "./shared";
-import classes from "./apiKeys.module.css";
+import classes from "./projects.module.css";
 
 type Step = "identity" | "keywords" | "scope" | "ai" | "review";
 const STEPS: Step[] = ["identity", "keywords", "scope", "ai", "review"];
@@ -171,7 +171,7 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
 }
 
 /** /project/new — step-by-step key creation, then the key value shown once. */
-export function CreateApiKey() {
+export function CreateProject() {
   const [created, setCreated] = useState<CreatedKey | null>(null);
 
   // The key is shown only once; warn before navigating away while it is on screen.

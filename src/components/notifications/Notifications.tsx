@@ -9,7 +9,7 @@ import "dayjs/locale/id";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ALERT_DAYS, alertHref, type VisualAlert } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
-import { Segmented } from "../media/controls";
+import { Segmented } from "../ui/controls";
 import c from "./notifications.module.css";
 
 dayjs.extend(relativeTime);

@@ -5,7 +5,7 @@ import { IconCheck, IconMail, IconRotate } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";
 import { PLAN_LABEL, isPlanId } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
-import { fromNow } from "../apiKeys/shared";
+import { fromNow } from "@/lib/dates";
 import { Button, StatusPill } from "../ui/Button";
 import classes from "./contactRequests.module.css";
 

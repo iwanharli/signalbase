@@ -5,7 +5,7 @@ import { IconDeviceFloppy, IconRefreshAlert } from "@tabler/icons-react";
 import type { LabelImpact } from "@/lib/media/keyScope";
 import { formatNumber } from "@/lib/media/labels";
 import { Button } from "../ui/Button";
-import classes from "./apiKeys.module.css";
+import classes from "./projects.module.css";
 
 export type SettingChange = { label: string; before: string; after: string };
 /** What happens to the stored AI labels (see labelImpact); null when the project has no AI categorisation. */

@@ -11,10 +11,10 @@ import { notifications } from "@mantine/notifications";
 import { post } from "@/lib/api-client";
 import { apiKeyProblem } from "@/lib/ai/classifier";
 import { LABEL_AI_PROVIDERS, labelAiProvider, type LabelAiProgress, type LabelAiSaved, type LabelAiState } from "@/lib/ai/labelAi";
-import { daysAgo, RangeField } from "../ai/ClassifierEditor";
+import { daysAgo, RangeField } from "../classifier/ClassifierEditor";
 import { Button } from "../ui/Button";
-import ai from "../ai/ai.module.css";
-import card from "../ai/keyClassifier.module.css";
+import ai from "../classifier/classifierEditor.module.css";
+import card from "../classifier/projectClassifier.module.css";
 
 export function LabelAiSettings({ keyId }: { keyId: string }) {
   const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);

@@ -9,14 +9,14 @@ import { IconArrowRight, IconCalendarTime, IconCheck, IconClockHour4, IconFolder
 import { api, post } from "@/lib/api-client";
 import { daysLeft } from "@/lib/plans";
 import { useApi } from "@/lib/useApi";
-import { fromNow } from "../apiKeys/shared";
-import { CopyKeyButton } from "../apiKeys/CopyKeyButton";
+import { fromNow } from "@/lib/dates";
+import { CopyKeyButton } from "../projects/CopyKeyButton";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Button, ButtonGroup, StatusPill } from "../ui/Button";
-import classes from "../apiKeys/apiKeyList.module.css";
+import classes from "../projects/projectList.module.css";
 import u from "./users.module.css";
 import { ContactRequests } from "./ContactRequests";
-import { InvoiceAdmin } from "./InvoiceAdmin";
+import { InvoiceAdmin } from "../billing/InvoiceAdmin";
 
 type Status = "pending" | "active" | "suspended";
 type UserRow = {

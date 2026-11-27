@@ -11,8 +11,8 @@ import { api } from "@/lib/api-client";
 import { DEFAULT_ISSUE_DAYS, DEFAULT_ISSUE_TOPIC, ISSUE_PERIODS, ISSUE_TOPICS, parseIssueDays, parseIssueTopic, type IssueNews, type IssueSource, type IssueSummary } from "@/lib/issues";
 import { capitalize, formatNumber, sourceLabel } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
-import { formatDate, fromNow } from "../apiKeys/shared";
-import { Segmented } from "../media/controls";
+import { formatDate, fromNow } from "@/lib/dates";
+import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import classes from "./issues.module.css";
 

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession, isActiveAccount } from "@/lib/server/auth";
-import { AccessEnded } from "@/components/AccessEnded";
-import { Shell } from "@/components/Shell";
+import { AccessEnded } from "@/components/shell/AccessEnded";
+import { Shell } from "@/components/shell/Shell";
 import { accountPlan } from "@/lib/server/plan";
 import { roleOf } from "@/lib/session";
 

@@ -12,7 +12,7 @@ import { ANY_LABEL, labelColor, MAX_LABEL_LENGTH, MAX_LABELS, normalizeLabels, t
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
 import { LabelAiProgress } from "./LabelAiProgress";
-import { BalanceUsage } from "../ai/BalanceUsage";
+import { BalanceUsage } from "../aiUsage/BalanceUsage";
 import c from "./manualLabelSettings.module.css";
 
 type Row = { id: number; original: string | null; name: string; removed: boolean };

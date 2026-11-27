@@ -1,5 +1,5 @@
 "use client";
-import { KeywordsPill } from "./overview/KeywordsPill";
+import { KeywordsPill } from "./KeywordsPill";
 import type { Role } from "@/lib/session";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -15,9 +15,9 @@ import { moodInfo } from "@/lib/media/mood";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import classes from "./overview.module.css";
-import { AiSummary } from "./overview/AiSummary";
-import { CardHelp } from "./overview/CardHelp";
-import { FilterControls, Insights, Kpis, useInsights, VIEW_LABEL, type View } from "./overview/Insights";
+import { AiSummary } from "./AiSummary";
+import { CardHelp } from "./CardHelp";
+import { FilterControls, Insights, Kpis, useInsights, VIEW_LABEL, type View } from "./Insights";
 
 dayjs.extend(relativeTime);
 

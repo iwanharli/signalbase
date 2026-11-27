@@ -14,7 +14,7 @@ import { api } from "@/lib/api-client";
 import type { BriefProfile } from "@/lib/brief";
 import { useApi } from "@/lib/useApi";
 import { LogoMark } from "../Logo";
-import { useRole } from "../RoleContext";
+import { useRole } from "../shell/RoleContext";
 import { Button } from "../ui/Button";
 import c from "./reportArchive.module.css";
 

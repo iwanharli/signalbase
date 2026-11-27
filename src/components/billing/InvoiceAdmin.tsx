@@ -9,9 +9,9 @@ import { IconCheck, IconFileInvoice, IconPlus, IconX } from "@tabler/icons-react
 import { post } from "@/lib/api-client";
 import { BILLING_LABEL, BILLINGS, invoiceAmounts, type Billing } from "@/lib/billing";
 import { useApi } from "@/lib/useApi";
-import { describeInvoice, rupiah, STATUS, formatLongDate, type InvoiceRow } from "../billing/shared";
+import { describeInvoice, rupiah, STATUS, formatLongDate, type InvoiceRow } from "./shared";
 import { Button, StatusPill } from "../ui/Button";
-import classes from "./contactRequests.module.css";
+import classes from "../users/contactRequests.module.css";
 
 type Account = { id: string; name: string; username: string; status: string };
 

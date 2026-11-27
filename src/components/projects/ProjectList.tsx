@@ -9,17 +9,18 @@ import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, ButtonGroup, StatusPill } from "../ui/Button";
 import { CopyKeyButton } from "./CopyKeyButton";
-import { formatDate, fromNow, isRecentlyUsed, scopeRestrictions, useProvinceNames, type ApiKeyRow } from "./shared";
-import classes from "./apiKeyList.module.css";
+import { formatDate, fromNow } from "@/lib/dates";
+import { isRecentlyUsed, scopeRestrictions, useProvinceNames, type ProjectRow } from "./shared";
+import classes from "./projectList.module.css";
 import { Tip } from "../ui/Tip";
-import { useRole } from "../RoleContext";
+import { useRole } from "../shell/RoleContext";
 
 type Filter = "active" | "revoked";
 
 /** The media browser as this key sees it, on the first media type it may read. */
-const viewHref = (key: ApiKeyRow) => `/media/${key.scope.types[0] ?? "social"}?key=${key.id}`;
+const viewHref = (key: ProjectRow) => `/media/${key.scope.types[0] ?? "social"}?key=${key.id}`;
 
-function AiCell({ apiKey }: { apiKey: ApiKeyRow }) {
+function AiCell({ apiKey }: { apiKey: ProjectRow }) {
   const ai = apiKey.classifier;
   if (!ai) return <span className={classes.muted}>—</span>;
   // Paused by the system (e.g. no active client), whether or not the switch is on.
@@ -35,7 +36,7 @@ function AiCell({ apiKey }: { apiKey: ApiKeyRow }) {
   );
 }
 
-function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKeyRow; provinceName: (code: string) => string; onRevoke: (key: ApiKeyRow) => void; callsToday?: number }) {
+function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ProjectRow; provinceName: (code: string) => string; onRevoke: (key: ProjectRow) => void; callsToday?: number }) {
   const revoked = !!apiKey.revokedAt;
   const recent = isRecentlyUsed(apiKey);
   const restrictions = scopeRestrictions(apiKey.scope, provinceName);
@@ -92,7 +93,7 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: ApiKey
   );
 }
 
-function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow | null; onCancel: () => void; onConfirm: () => void; busy: boolean }) {
+function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ProjectRow | null; onCancel: () => void; onConfirm: () => void; busy: boolean }) {
   return (
     <Modal opened={!!apiKey} onClose={onCancel} centered radius={20} padding={0} withCloseButton={false}
       overlayProps={{ backgroundOpacity: 0.55, blur: 6 }} transitionProps={{ transition: "pop", duration: 200 }}>
@@ -115,14 +116,14 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ApiKeyRow 
 type Usage = { day: string; perKey: Record<string, number> };
 
 /** /project — every key as a row; creating and editing happen on their own pages. */
-export function ApiKeyList() {
+export function ProjectList() {
   const role = useRole(); // viewers are read-only: no "Buat proyek"
-  const keys = useApi<ApiKeyRow[]>("/api/admin/keys");
+  const keys = useApi<ProjectRow[]>("/api/admin/keys");
   const usage = useApi<Usage>("/api/admin/usage");
   const provinceName = useProvinceNames();
   const [filter, setFilter] = useState<Filter>("active");
   const [search, setSearch] = useState("");
-  const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
+  const [revoking, setRevoking] = useState<ProjectRow | null>(null);
   const [busy, setBusy] = useState(false);
 
   const all = useMemo(() => keys.data ?? [], [keys.data]);

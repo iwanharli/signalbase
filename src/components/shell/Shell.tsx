@@ -6,7 +6,7 @@ import { Avatar, Menu, Tooltip, UnstyledButton, useComputedColorScheme, useManti
 import { IconBook2, IconChevronDown, IconMoon, IconSun, IconChartDonut, IconChartDots3, IconFlame, IconHierarchy2, IconKey, IconLayoutDashboard, IconLogout, IconMenu2, IconMessages, IconBellRinging, IconSparkles, IconFileDescription, IconUsers, IconWorldWww, IconX, IconPhotoScan } from "@tabler/icons-react";
 import { DEFAULT_ISSUE_TOPIC } from "@/lib/issues";
 import type { Role } from "@/lib/session";
-import { LogoMark } from "./Logo";
+import { LogoMark } from "../Logo";
 import { AiProgressDock } from "./AiProgressDock";
 import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";

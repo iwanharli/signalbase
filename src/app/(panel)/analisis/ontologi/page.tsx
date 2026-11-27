@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { NoProjectYet } from "@/components/media/NoProjectYet";
 import { OntologyBoard } from "@/components/ontology/OntologyBoard";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { getSession, visibleKeys } from "@/lib/server/auth";
@@ -16,7 +16,7 @@ export default async function OntologyPage({ searchParams }: { searchParams: Pro
     const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
     const key = keys.find((k) => allowsType(parseKeyScope(k.scope, k.keywords), "social"));
     if (key) redirect(`/analisis/ontologi?key=${key.id}`);
-    return <NoKeyYet type="social" label="Ontologi" hasKeys={keys.length > 0} />;
+    return <NoProjectYet type="social" label="Ontologi" hasKeys={keys.length > 0} />;
   }
   return <OntologyBoard />;
 }

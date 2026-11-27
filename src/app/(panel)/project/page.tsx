@@ -1,5 +1,5 @@
-import { ApiKeyList } from "@/components/apiKeys/ApiKeyList";
+import { ProjectList } from "@/components/projects/ProjectList";
 
-export default function ApiKeysPage() {
-  return <ApiKeyList />;
+export default function ProjectsPage() {
+  return <ProjectList />;
 }

@@ -6,7 +6,7 @@
 // when the cache is cold.
 import { AiOverview } from "./AiOverview";
 import { TopIssues } from "./TopIssues";
-import { useRole } from "../RoleContext";
+import { useRole } from "../shell/RoleContext";
 import { useState } from "react";
 import Link from "next/link";
 import { Alert as MantineAlert, SegmentedControl, Skeleton, Tooltip } from "@mantine/core";

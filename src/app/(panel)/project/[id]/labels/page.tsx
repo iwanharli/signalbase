@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/server/auth";
 import { roleOf } from "@/lib/session";
-import { LabelAiSettings } from "@/components/apiKeys/LabelAiPanel";
+import { LabelAiSettings } from "@/components/labels/LabelAiSettings";
 
 export default async function LabelAiSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

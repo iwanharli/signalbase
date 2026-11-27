@@ -5,7 +5,7 @@ import { useState } from "react";
 import { IconBook2, IconKey, IconLayoutDashboard, IconMessages, IconWorldWww } from "@tabler/icons-react";
 import { LogoMark } from "../../Logo";
 import { HomeView } from "./HomeView";
-import { KeysView } from "./KeysView";
+import { ProjectsView } from "./ProjectsView";
 import { MediaView } from "./MediaView";
 import c from "./preview.module.css";
 
@@ -14,7 +14,7 @@ type View = "home" | "social" | "keys";
 const VIEWS: Record<View, { path: string; render: () => React.ReactNode }> = {
   home: { path: "dashboard", render: () => <HomeView /> },
   social: { path: "media/social", render: () => <MediaView /> },
-  keys: { path: "project", render: () => <KeysView /> },
+  keys: { path: "project", render: () => <ProjectsView /> },
 };
 
 /** The panel's menu; entries without a view are shown but not clickable. */

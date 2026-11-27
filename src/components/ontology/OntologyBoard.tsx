@@ -11,7 +11,7 @@ import { zoom, zoomIdentity } from "d3-zoom";
 import { formatNumber } from "@/lib/media/labels";
 import { buildOntology, DEFAULT_ONT_DAYS, filterLevels, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntGraph, type OntIssue, type OntLink, type OntNode } from "@/lib/ontology";
 import { useApi } from "@/lib/useApi";
-import { Segmented } from "../media/controls";
+import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import { NetworkHeader } from "../sna/NetworkHeader";
 import classes from "../sna/sna.module.css";

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { MediaBrowser } from "@/components/media/MediaBrowser";
-import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { NoProjectYet } from "@/components/media/NoProjectYet";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { getSession, visibleKeys } from "@/lib/server/auth";
@@ -28,7 +28,7 @@ export default async function MediaPage({ params, searchParams }: Props) {
     const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
     const key = keys.find((k) => allowsType(parseKeyScope(k.scope, k.keywords), type));
     if (key) redirect(`/media/${type}?key=${key.id}`);
-    return <NoKeyYet type={type} hasKeys={keys.length > 0} />;
+    return <NoProjectYet type={type} hasKeys={keys.length > 0} />;
   }
   // Keyed by type so switching between the two pages starts with fresh filters.
   return <MediaBrowser key={type} type={type} />;

@@ -7,7 +7,7 @@ import { IconExternalLink, IconUser, IconUsers, IconX } from "@tabler/icons-reac
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { ACCOUNT_LABEL, dominantTone, nodeCounts, TONE_COLOR, TONE_LABEL, toneOf, type SnaAccount, type SnaGraph, type SnaNode, type SnaRole, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
-import { fromNow } from "../apiKeys/shared";
+import { fromNow } from "@/lib/dates";
 import classes from "./sna.module.css";
 
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];

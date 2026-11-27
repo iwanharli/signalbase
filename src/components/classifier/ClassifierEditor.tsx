@@ -14,8 +14,8 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { Button } from "../ui/Button";
 import { PromptPreview } from "./PromptPreview";
-import { useRole } from "../RoleContext";
-import classes from "./ai.module.css";
+import { useRole } from "../shell/RoleContext";
+import classes from "./classifierEditor.module.css";
 
 /** Start of the day N days ago, as ISO. */
 export const daysAgo = (days: number) => dayjs().subtract(days, "day").startOf("day").toISOString();

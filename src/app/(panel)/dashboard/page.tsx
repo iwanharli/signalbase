@@ -1,4 +1,4 @@
-import { Overview } from "@/components/Overview";
+import { Overview } from "@/components/overview/Overview";
 import { getSession } from "@/lib/server/auth";
 import { roleOf } from "@/lib/session";
 

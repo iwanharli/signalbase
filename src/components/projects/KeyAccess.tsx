@@ -9,7 +9,7 @@ import { MAX_ACCESS_RULES, normalizeIpRule, normalizeOriginRule } from "@/lib/ke
 import { post } from "@/lib/api-client";
 import { Button } from "../ui/Button";
 import { keyInputClasses } from "./ScopeFields";
-import classes from "./apiKeys.module.css";
+import classes from "./projects.module.css";
 
 export type KeyAccessRules = { ips: string[]; origins: string[] };
 

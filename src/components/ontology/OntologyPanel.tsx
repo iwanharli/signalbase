@@ -5,7 +5,7 @@ import { IconExternalLink, IconFlame, IconTarget, IconUsers, IconX } from "@tabl
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { toneOf, TONE_COLOR, TONE_LABEL } from "@/lib/sna";
 import { issueNodeId, levelColor, type OntGraph, type OntIssue, type OntNode } from "@/lib/ontology";
-import { fromNow } from "../apiKeys/shared";
+import { fromNow } from "@/lib/dates";
 import classes from "../sna/sna.module.css";
 
 const ISSUE_TABS = [{ id: "summary", label: "Ringkasan" }, { id: "posts", label: "Postingan" }, { id: "names", label: "Aktor & target" }] as const;

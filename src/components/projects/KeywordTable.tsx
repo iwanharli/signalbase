@@ -9,7 +9,7 @@ import type { KeyScope } from "@/lib/media/keyScope";
 import { isKeywordExpression, keywordProblem } from "@/lib/media/keywordExpr";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
-import { Segmented } from "../media/controls";
+import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import c from "./keywordTable.module.css";
 

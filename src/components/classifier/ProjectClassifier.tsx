@@ -12,9 +12,9 @@ import { sharePct } from "@/lib/ai/progress";
 import { formatNumber, MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
-import { BalanceCard } from "./BalanceCard";
+import { BalanceCard } from "../aiUsage/BalanceCard";
 import { ClassifierEditor, draftProblems, emptyDraft, estimateUrl, money, type ClassifierDraft, type Estimate } from "./ClassifierEditor";
-import classes from "./keyClassifier.module.css";
+import classes from "./projectClassifier.module.css";
 import { RestartConfirm, type RestartRequest } from "./RestartConfirm";
 import { ReviewPanel } from "./ReviewPanel";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -173,7 +173,7 @@ export function ClassifierResults({ keyId }: { keyId: string }) {
 }
 
 /** /project/[id]/ai — set up AI categorisation for an existing key and watch its progress. */
-export function KeyClassifier({ keyId }: { keyId: string }) {
+export function ProjectClassifier({ keyId }: { keyId: string }) {
   const data = useApi<Response>(`/api/admin/keys/${keyId}/classifier`);
   const [draft, setDraft] = useState<ClassifierDraft | null>(null);
   const [busy, setBusy] = useState(false);

@@ -12,18 +12,19 @@ import { keyScopeSchema, labelImpact, type KeyScope } from "@/lib/media/keyScope
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button, StatusPill } from "../ui/Button";
-import { BalanceCard } from "../ai/BalanceCard";
-import { ClassifierResults } from "../ai/KeyClassifier";
+import { BalanceCard } from "../aiUsage/BalanceCard";
+import { ClassifierResults } from "../classifier/ProjectClassifier";
 import { KeyAccess, type KeyAccessRules } from "./KeyAccess";
 import { CopyKeyButton } from "./CopyKeyButton";
-import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./KeySections";
+import { SectionLayout, SectionNav, SectionPanel, type SectionItem } from "./SettingsSections";
 import { KeywordTable } from "./KeywordTable";
-import { ManualLabelSettings } from "./ManualLabelSettings";
+import { ManualLabelSettings } from "../labels/ManualLabelSettings";
 import { DataToggle, keyInputClasses, ScopeParams } from "./ScopeFields";
-import { formatDate, fromNow, scopeRestrictions, useProvinceNames } from "./shared";
-import classes from "./apiKeys.module.css";
-import { BalanceUsage } from "../ai/BalanceUsage";
-import { AiCosts } from "../ai/AiCosts";
+import { formatDate, fromNow } from "@/lib/dates";
+import { scopeRestrictions, useProvinceNames } from "./shared";
+import classes from "./projects.module.css";
+import { BalanceUsage } from "../aiUsage/BalanceUsage";
+import { AiCosts } from "../aiUsage/AiCosts";
 import { SaveConfirm, type SaveRequest, type SettingChange } from "./SaveConfirm";
 
 type KeyDetail = {
@@ -87,7 +88,7 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
 }
 
 /** /project/[id] — a key's overview and settings, grouped in a side sub-menu. */
-export function ApiKeyDetail({ keyId }: { keyId: string }) {
+export function ProjectDetail({ keyId }: { keyId: string }) {
   const router = useRouter();
   const detail = useApi<KeyDetail>(`/api/admin/keys/${keyId}`);
   const provinceName = useProvinceNames();

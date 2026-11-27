@@ -4,7 +4,7 @@ import { Menu } from "@mantine/core";
 import { IconAdjustmentsHorizontal, IconCheck, IconLayoutColumns, IconSearch, IconX } from "@tabler/icons-react";
 import { activePreset, DATE_PRESETS, presetRange, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
-import { Segmented } from "./controls";
+import { Segmented } from "../ui/controls";
 import classes from "./filters.module.css";
 
 const SORT_OPTIONS = [{ value: "newest", label: "Terbaru" }, { value: "oldest", label: "Terlama" }] as const;

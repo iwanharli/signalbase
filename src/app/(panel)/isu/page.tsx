@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { IssueBoard } from "@/components/issues/IssueBoard";
-import { NoKeyYet } from "@/components/media/NoKeyYet";
+import { NoProjectYet } from "@/components/media/NoProjectYet";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { getSession, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
@@ -16,7 +16,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Promi
     const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(session.sub), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, scope: true, keywords: true } });
     const key = keys.find((k) => allowsType(parseKeyScope(k.scope, k.keywords), "online"));
     if (key) redirect(`/isu?key=${key.id}${topik ? `&topik=${encodeURIComponent(topik)}` : ""}`);
-    return <NoKeyYet type="online" label="Isu" hasKeys={keys.length > 0} />;
+    return <NoProjectYet type="online" label="Isu" hasKeys={keys.length > 0} />;
   }
   return <IssueBoard />;
 }

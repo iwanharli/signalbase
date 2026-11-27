@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import type { ProgressState, TypeProgress } from "@/lib/ai/progress";
 import { formatNumber } from "@/lib/media/labels";
-import classes from "./aiProgress.module.css";
+import classes from "./aiProgressDock.module.css";
 
 type Kind = "category" | "label";
 const KINDS: Record<Kind, { title: string; href: (id: string) => string }> = {

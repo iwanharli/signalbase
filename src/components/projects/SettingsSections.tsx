@@ -2,7 +2,7 @@
 // Side sub-menu + content panel used by the create-key wizard and the key detail page.
 import type { Icon } from "@tabler/icons-react";
 import { IconCheck } from "@tabler/icons-react";
-import classes from "./keySections.module.css";
+import classes from "./settingsSections.module.css";
 
 export type SectionItem<T extends string> = {
   id: T;

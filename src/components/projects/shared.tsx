@@ -1,17 +1,12 @@
 "use client";
-// Types and small pieces shared by the API key list and the create page.
-import dayjs from "dayjs";
-import "dayjs/locale/id";
-import relativeTime from "dayjs/plugin/relativeTime";
+// Types and small pieces shared by the project list, create and detail pages.
 import type { KeyScope } from "@/lib/media/keyScope";
 import { capitalize, humanize, MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import type { FilterOptions } from "@/lib/media/types";
-import classes from "./apiKeys.module.css";
+import classes from "./projects.module.css";
 
-dayjs.extend(relativeTime);
-
-export type ApiKeyRow = {
+export type ProjectRow = {
   id: string; name: string; prefix: string; keywords: string[]; scope: KeyScope;
   createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null;
   classifier: { enabled: boolean; processed: number; lastError: string | null; providerName: string } | null;
@@ -24,9 +19,7 @@ export type CreatedKey = { name: string; key: string; scope: KeyScope };
 
 const RECENTLY_USED_MS = 24 * 60 * 60_000;
 
-export const formatDate = (value: string) => dayjs(value).locale("id").format("D MMM YYYY, HH:mm");
-export const fromNow = (value: string) => dayjs(value).locale("id").fromNow();
-export const isRecentlyUsed = (key: ApiKeyRow) => !!key.lastUsedAt && Date.now() - new Date(key.lastUsedAt).getTime() < RECENTLY_USED_MS;
+export const isRecentlyUsed = (key: ProjectRow) => !!key.lastUsedAt && Date.now() - new Date(key.lastUsedAt).getTime() < RECENTLY_USED_MS;
 
 export const RELEVANCE_SCOPE_LABEL = { relevant: "Hanya relevan", include: "Hanya include", watchlist: "Hanya watchlist" } as const;
 export const LANGUAGE_SCOPE_LABEL = { id: "Bahasa Indonesia", other: "Bahasa lain" } as const;
