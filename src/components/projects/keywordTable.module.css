@@ -21,7 +21,7 @@
 .search { width: 180px; color: #fff; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; }
 
 .table { border: 1px solid rgba(255,255,255,.08); border-radius: 14px; overflow: hidden; }
-.head, .row { display: grid; grid-template-columns: 38px minmax(0, 1fr) 92px 112px 112px 44px; align-items: center; gap: 12px; padding: 0 14px; }
+.head, .row { display: grid; grid-template-columns: 38px minmax(0, 1fr) 92px 170px 112px 112px 44px; align-items: center; gap: 12px; padding: 0 14px; }
 .head { height: 38px; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.45);
   background: rgba(255,255,255,.035); border-bottom: 1px solid rgba(255,255,255,.08); }
 .row { min-height: 50px; padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid rgba(255,255,255,.06); transition: background .12s; }
@@ -67,6 +67,7 @@
   .row > :nth-child(1) { display: none; }
   .row > :nth-child(2) { grid-area: kw; }
   .row > :nth-child(3) { grid-area: kind; }
+  .row > :nth-child(4) { display: none; } /* the group field: set on a wider screen */
   .row > :last-child { grid-area: del; align-self: center; }
   .add { flex-direction: column; align-items: stretch; }
   .tools { width: 100%; }
@@ -74,3 +75,15 @@
   .row [data-label]::before { content: attr(data-label); margin-right: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,.4); }
 }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* Keyword groups: a heading row per group with its total (posts matching any of its keywords, once), and the group field. */
+.groupHead { display: grid; grid-template-columns: 38px minmax(0, 1fr) 92px 170px 112px 112px 44px; align-items: center; gap: 12px; padding: 10px 14px 8px;
+  background: linear-gradient(90deg, rgba(124,58,237,.16), rgba(124,58,237,.03)); border-bottom: 1px solid rgba(167,139,250,.18); }
+.groupHead > span:first-child { grid-column: 1 / 5; display: flex; align-items: center; gap: 8px; min-width: 0; color: #c4b5fd; }
+.groupHead b { color: #fff; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.groupHead small { color: rgba(255,255,255,.45); font-size: 11.5px; white-space: nowrap; }
+.groupInput { width: 100%; height: 30px; padding: 0 9px; border-radius: 8px; font: inherit; font-size: 12.5px; color: #ede9fe;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); outline: none; }
+.groupInput:focus { border-color: rgba(167,139,250,.6); background: rgba(255,255,255,.07); }
+.groupInput::placeholder { color: rgba(255,255,255,.3); }
+@media (max-width: 760px) { .groupHead { grid-template-columns: minmax(0, 1fr) auto auto; } .groupHead > span:first-child { grid-column: auto; } }

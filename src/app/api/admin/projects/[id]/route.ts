@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { providerLabel } from "@/lib/ai/classifier";
 import { keyScopeSchema, labelImpact, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { MAX_GROUP_NAME, parseKeywordGroups } from "@/lib/media/keywordGroups";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { aiPausedFor, clientActive } from "@/lib/server/projectAccess";
@@ -11,6 +12,8 @@ type Context = { params: Promise<{ id: string }> };
 const updateKeySchema = z.object({
   name: z.string().trim().min(2).max(80),
   scope: keyScopeSchema,
+  /** keyword → group name; absent = keep the stored groups. Not part of the scope: no data or AI change. */
+  keywordGroups: z.record(z.string(), z.string().trim().max(MAX_GROUP_NAME)).optional(),
 });
 
 const sameScope = (a: KeyScope, b: KeyScope) => JSON.stringify(a) === JSON.stringify(b);
@@ -28,7 +31,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
   return NextResponse.json({
     id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
-    keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
+    keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords), keywordGroups: parseKeywordGroups(key.keywordGroups, key.keywords),
     copyable: !!key.keyEnc,
     access: { ips: key.allowedIps, origins: key.allowedOrigins },
     display: { analyzedFilter: key.showAnalyzedFilter, relevanceFilter: key.showRelevanceFilter },
@@ -71,7 +74,11 @@ export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
   const extendAi = impact === "extend";
 
   await prisma.$transaction([
-    prisma.project.update({ where: { id }, data: { name: parsed.data.name, keywords, scope: rest } }),
+    prisma.project.update({ where: { id }, data: {
+      name: parsed.data.name, keywords, scope: rest,
+      // Groups follow the keywords: a removed keyword leaves its group.
+      keywordGroups: parseKeywordGroups(parsed.data.keywordGroups ?? key.keywordGroups, keywords),
+    } }),
     ...(restartAi
       ? [
         prisma.classification.deleteMany({ where: { projectId: id } }),

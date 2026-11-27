@@ -4,6 +4,7 @@ import { adminRoute } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { typeStats } from "@/lib/server/overview";
 import { overviewView } from "@/lib/server/overviewKey";
+import { parseKeywordGroups } from "@/lib/media/keywordGroups";
 
 // Overview page data: per media type the last 14 days of volume, the mood split of the
 // last 7 days and the newest items; plus the active API keys.
@@ -22,7 +23,7 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
     const [social, online] = await Promise.all([typeStats("social", scope, days), typeStats("online", scope, days)]);
     return NextResponse.json({
       social, online,
-      key: key ? { id: key.id, name: key.name, keywords: key.keywords } : null,
+      key: key ? { id: key.id, name: key.name, keywords: key.keywords, keywordGroups: parseKeywordGroups(key.keywordGroups, key.keywords) } : null,
       keys: keys.map((k) => ({ id: k.id, name: k.name, keywords: k.keywords, lastUsedAt: k.lastUsedAt })),
       at: new Date().toISOString(),
     });

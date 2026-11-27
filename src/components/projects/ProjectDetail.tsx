@@ -27,9 +27,10 @@ import classes from "./projects.module.css";
 import { BalanceUsage } from "../aiUsage/BalanceUsage";
 import { AiCosts } from "../aiUsage/AiCosts";
 import { SaveConfirm, type SaveRequest, type SettingChange } from "./SaveConfirm";
+import { groupNames, parseKeywordGroups, type KeywordGroups } from "@/lib/media/keywordGroups";
 
 type KeyDetail = {
-  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; copyable: boolean; access: KeyAccessRules;
+  id: string; name: string; prefix: string; createdBy: string | null; createdAt: string; lastUsedAt: string | null; revokedAt: string | null; scope: KeyScope; keywordGroups: KeywordGroups; copyable: boolean; access: KeyAccessRules;
   classifier: { enabled: boolean; labelledOnly: boolean; providerName: string; model: string; processed: number; lastError: string | null; lastRunAt: string | null } | null;
   /** Clients given this project (set on the Pengguna page); aiPaused: it has clients and none is active. */
   clients: { id: string; name: string; active: boolean }[]; aiPaused: boolean;
@@ -148,6 +149,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
     }
     setName(detail.data.name);
     setScope(detail.data.scope);
+    setGroups(detail.data.keywordGroups ?? {});
   }, [detail.data, draftKey]);
 
   const data = detail.data;
@@ -160,13 +162,16 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
   const labelled = labelledOnly ?? savedLabelled;
   const labelledChanged = !!data?.classifier && labelled !== savedLabelled;
   const [confirmSave, setConfirmSave] = useState<SaveRequest | null>(null);
+  // Keyword groups: how the Kata kunci tab sorts and counts the list; no effect on the data or the AI.
+  const [groups, setGroups] = useState<KeywordGroups>({});
 
   const nameChanged = ready && name.trim() !== data.name;
   const keywordsChanged = ready && !sameKeywords(scope.keywords, data.scope.keywords);
   const scopeChanged = ready && !sameScope(scope, data.scope);
   // Everything in the scope except the keywords, which have their own tab.
   const paramsChanged = ready && !sameScope({ ...scope, keywords: [] }, { ...data.scope, keywords: [] });
-  const dirty = nameChanged || scopeChanged || labelledChanged;
+  const groupsChanged = ready && JSON.stringify(parseKeywordGroups(groups, scope.keywords)) !== JSON.stringify(data.keywordGroups ?? {});
+  const dirty = nameChanged || scopeChanged || labelledChanged || groupsChanged;
   const restrictions = scope ? scopeRestrictions(scope, provinceName) : [];
 
   useEffect(() => {
@@ -197,7 +202,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
     } catch { /* Editing remains available when session storage is disabled. */ }
   }, [ready, dirty, revoked, draftKey, data, name, scope]);
 
-  const reset = () => { if (data) { setName(data.name); setScope(data.scope); setLabelledOnly(null); } };
+  const reset = () => { if (data) { setName(data.name); setScope(data.scope); setGroups(data.keywordGroups ?? {}); setLabelledOnly(null); } };
 
   /** Every change shown as before → after, for the confirmation dialog. */
   const describeChanges = (): SettingChange[] => {
@@ -213,6 +218,10 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
       changes.push({ label: "Cakupan data", before: list(scopeRestrictions(rest(data.scope), provinceName)), after: list(scopeRestrictions(rest(scope), provinceName)) });
     }
     if (labelledChanged) changes.push({ label: "Hanya sudah dikategorisasi", before: onOff(savedLabelled), after: onOff(labelled) });
+    if (groupsChanged) {
+      const names = (g: KeywordGroups) => groupNames(scope.keywords, g).join(" · ") || "Tanpa kelompok";
+      changes.push({ label: "Kelompok kata kunci", before: names(data.keywordGroups ?? {}), after: names(parseKeywordGroups(groups, scope.keywords)) });
+    }
     return changes;
   };
 
@@ -228,8 +237,9 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
     setBusy(true);
     try {
       let aiRestarted = false, aiExtended = false;
-      if (nameChanged || scopeChanged) {
-        ({ aiRestarted, aiExtended } = await post(`/api/admin/projects/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean; aiExtended: boolean });
+      if (nameChanged || scopeChanged || groupsChanged) {
+        const keywordGroups = parseKeywordGroups(groups, scope.keywords);
+        ({ aiRestarted, aiExtended } = await post(`/api/admin/projects/${keyId}`, { name, scope, keywordGroups }, "PATCH") as { aiRestarted: boolean; aiExtended: boolean });
       }
       if (labelledChanged) await post(`/api/admin/projects/${keyId}/labelled-only`, { value: labelled }, "PUT");
       notifications.show({ color: "teal", message: aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : aiExtended ? "Disimpan. Label tetap; post tambahan akan dilabeli bertahap." : "Perubahan disimpan" });
@@ -367,7 +377,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
 
           {tab === "keywords" && (
             <SectionPanel icon={IconTag} title="Kata kunci" description="Aplikasi hanya menerima post dan berita yang menyebut salah satu kata kunci.">
-              <KeywordTable keyId={data.id} scope={scope} saved={data.scope.keywords} onChange={setScope} disabled={revoked || busy} />
+              <KeywordTable keyId={data.id} scope={scope} saved={data.scope.keywords} onChange={setScope} groups={groups} onGroupsChange={setGroups} disabled={revoked || busy} />
               {keywordsChanged && data.classifier && (labelImpact(scope, data.scope) === "restart"
                 ? <div className={classes.warning}><IconAlertTriangle size={17} />Menghapus kata kunci akan mengulang kategorisasi AI dari awal, karena sebagian post berlabel tidak lagi masuk proyek.</div>
                 : <div className={classes.stepHint}>Label kategorisasi AI tetap dipakai. Post yang masuk lewat kata kunci baru dilabeli bertahap; post yang sudah berlabel tidak diproses ulang.</div>)}

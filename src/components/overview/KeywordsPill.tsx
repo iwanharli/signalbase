@@ -1,9 +1,11 @@
 "use client";
 // Beranda: a pill beside "Beranda · <project>" that opens, in a right-hand drawer, the project's registered keywords with
-// how many posts and articles mention each in the chosen period. Read only: keywords are set by an admin.
+// how many posts and articles mention each in the chosen period, grouped when the project groups its keywords. Read only:
+// keywords are set by an admin.
 import { Fragment, useState } from "react";
 import { Drawer, Skeleton } from "@mantine/core";
 import { IconChevronRight, IconTag, IconX } from "@tabler/icons-react";
+import { groupKeywords, UNGROUPED, type KeywordGroups } from "@/lib/media/keywordGroups";
 import { formatNumber } from "@/lib/media/labels";
 import type { ViewData } from "./Insights";
 import c from "./keywordsPill.module.css";
@@ -25,8 +27,8 @@ function KeywordText({ value }: { value: string }) {
   );
 }
 
-export function KeywordsPill({ name, keywords, data, period, scope }: {
-  name: string; keywords: string[]; data: ViewData | null; period: number; scope: string;
+export function KeywordsPill({ name, keywords, groups = {}, data, period, scope }: {
+  name: string; keywords: string[]; groups?: KeywordGroups; data: ViewData | null; period: number; scope: string;
 }) {
   const [open, setOpen] = useState(false);
   if (!keywords.length) return null;
@@ -37,6 +39,13 @@ export function KeywordsPill({ name, keywords, data, period, scope }: {
     return { keyword: k, n: data ? r?.n ?? 0 : null, neg: r?.neg != null && r.n ? Math.round((r.neg / r.n) * 100) : null };
   }).sort((a, b) => (b.n ?? -1) - (a.n ?? -1));
   const max = Math.max(1, ...rows.map((r) => r.n ?? 0));
+  // With groups: one section per group (list order), keywords by count inside; the section total adds mentions up.
+  const sections = groupKeywords(keywords, groups).map((g) => {
+    const items = rows.filter((r) => g.keywords.includes(r.keyword));
+    return { name: g.name, items, mentions: data ? items.reduce((sum, r) => sum + (r.n ?? 0), 0) : null };
+  });
+  const grouped = sections.some((g) => g.name !== UNGROUPED);
+  let rank = 0;
   const active = rows.filter((r) => (r.n ?? 0) > 0).length;
 
   return (
@@ -62,21 +71,31 @@ export function KeywordsPill({ name, keywords, data, period, scope }: {
         </div>
         <p className={c.scope}>{scope}</p>
 
-        <ol className={c.list}>
-          {rows.map((r, i) => (
-            <li key={r.keyword} data-zero={r.n === 0 || undefined}>
-              <span className={c.rank}>{i + 1}</span>
-              <div className={c.body}>
-                <div className={c.row}>
-                  <KeywordText value={r.keyword} />
-                  {r.n == null ? <Skeleton h={16} w={56} radius="sm" /> : <b className={c.count}>{formatNumber(r.n)}<small>post</small></b>}
-                </div>
-                <span className={c.bar}><i style={{ width: `${((r.n ?? 0) / max) * 100}%` }} /></span>
-                {r.neg != null && <small className={c.neg} data-high={r.neg >= 50 || undefined}>{r.neg}% negatif</small>}
-              </div>
-            </li>
-          ))}
-        </ol>
+        {sections.map((g) => (
+          <section key={g.name} className={c.group}>
+            {grouped && (
+              <header className={c.groupHead}>
+                <b>{g.name}</b>
+                <small>{g.items.length} keyword{g.mentions !== null && <> · {formatNumber(g.mentions)} sebutan</>}</small>
+              </header>
+            )}
+            <ol className={c.list}>
+              {g.items.map((r) => (
+                <li key={r.keyword} data-zero={r.n === 0 || undefined}>
+                  <span className={c.rank}>{++rank}</span>
+                  <div className={c.body}>
+                    <div className={c.row}>
+                      <KeywordText value={r.keyword} />
+                      {r.n == null ? <Skeleton h={16} w={56} radius="sm" /> : <b className={c.count}>{formatNumber(r.n)}<small>post</small></b>}
+                    </div>
+                    <span className={c.bar}><i style={{ width: `${((r.n ?? 0) / max) * 100}%` }} /></span>
+                    {r.neg != null && <small className={c.neg} data-high={r.neg >= 50 || undefined}>{r.neg}% negatif</small>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
 
         <footer className={c.foot}>
           Angka untuk {period} hari terakhir pada media yang dipilih di Beranda. Satu post bisa menyebut lebih dari satu keyword.

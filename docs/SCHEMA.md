@@ -412,6 +412,7 @@ What AI labelling has done with each post of a project, or that a person decided
 | `publishedAt` | timestamp(3) without time zone | tidak |  |  |
 | `createdAt` | timestamp(3) without time zone | ya | `CURRENT_TIMESTAMP` |  |
 | `updatedAt` | timestamp(3) without time zone | ya |  |  |
+| `textKey` | text | tidak |  | Normalised text fingerprint (lib/ai/labelSkip textKey): a later copy of the same text takes this post's result. |
 
 **Kunci:**
 - `FOREIGN KEY ("projectId") REFERENCES "Project"(id) ON UPDATE CASCADE ON DELETE CASCADE`
@@ -419,6 +420,7 @@ What AI labelling has done with each post of a project, or that a person decided
 
 **Index:**
 - `CREATE INDEX "LabelAiItem_projectId_type_status_retryAfter_idx" ON "LabelAiItem" USING btree ("projectId", type, status, "retryAfter")`
+- `CREATE INDEX "LabelAiItem_projectId_type_textKey_idx" ON "LabelAiItem" USING btree ("projectId", type, "textKey")`
 
 ## LabelAiUsage
 
@@ -588,6 +590,7 @@ A monitored project: its keywords and fixed scope, and its own API key (hash/key
 | `manualLabels` | text[] | tidak | `ARRAY[]::text[]` | Manual label choices of this project (in order), set by its owner or an admin; people label posts with one of them. |
 | `showAnalyzedFilter` | boolean | ya | `false` | Media pages: show the "Label emosi" (analysed or not) filter in the filter drawer for this project. Off: the drawer hides it. |
 | `showRelevanceFilter` | boolean | ya | `false` | Media pages: show the "Relevansi" filter in the filter drawer for this project. Off: hidden (default still hides irrelevant posts). |
+| `keywordGroups` | jsonb | ya | `'{}'::jsonb` | Keyword groups (keyword → group name, lib/media/keywordGroups.ts): to read and count the list by theme. Not part of the scope, so regrouping changes no data and no AI labels. |
 
 **Kunci:**
 - `PRIMARY KEY (id)`

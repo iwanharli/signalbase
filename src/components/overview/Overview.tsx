@@ -25,7 +25,7 @@ dayjs.extend(relativeTime);
 type TypeStats = { latest: MediaItem[] };
 type ApiKeySummary = { id: string; name: string; keywords: string[]; lastUsedAt: string | null };
 /** A type is null when the viewed key's scope leaves it out. noKey: a user account without any key yet. */
-type OverviewStats = { social: TypeStats | null; online: TypeStats | null; key: { id: string; name: string; keywords: string[] } | null; keys: ApiKeySummary[]; at: string; noKey?: boolean };
+type OverviewStats = { social: TypeStats | null; online: TypeStats | null; key: { id: string; name: string; keywords: string[]; keywordGroups?: Record<string, string> } | null; keys: ApiKeySummary[]; at: string; noKey?: boolean };
 
 /** The sticky filter bar shows once the hero's filters scroll under the floating nav (60px bar + 14px gap + margin). */
 const NAV_CLEARANCE = 90;
@@ -155,7 +155,7 @@ export function Overview({ name, role }: { name: string; role: Role }) {
             {key ? <>
               <div className={classes.heroPills}>
                 <span className={classes.live}><i />{own ? "Beranda" : "Dilihat sebagai proyek"} · {key.name}</span>
-                <KeywordsPill name={key.name} keywords={key.keywords} data={insights.data} period={period} scope={scope} />
+                <KeywordsPill name={key.name} keywords={key.keywords} groups={key.keywordGroups ?? {}} data={insights.data} period={period} scope={scope} />
               </div>
               <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
               {/* The project's keywords are an admin's business: clients don't see them, only admins edit them. */}

@@ -6,7 +6,7 @@ import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 import { withImageCodes } from "./media/textSignals";
 
-type KeyRow = { id: string; name: string; keywords: string[]; scope: unknown; lastUsedAt: Date | null };
+type KeyRow = { id: string; name: string; keywords: string[]; keywordGroups: unknown; scope: unknown; lastUsedAt: Date | null };
 export type OverviewView = { keys: KeyRow[]; key: KeyRow | null; scope: KeyScope | undefined; noKey: boolean };
 
 /** Admins: the whole bank, or one key with ?project=. Users: one of their own keys (?project= or their oldest active one).
@@ -20,7 +20,7 @@ export async function overviewView(req: Request, user: PanelUser): Promise<Overv
   const keys = await prisma.project.findMany({
     where: { revokedAt: null, ...(isUser ? visibleKeys(user.id) : {}) },
     orderBy: { createdAt: isUser ? "asc" : "desc" },
-    select: { id: true, name: true, keywords: true, scope: true, lastUsedAt: true },
+    select: { id: true, name: true, keywords: true, keywordGroups: true, scope: true, lastUsedAt: true },
   });
   let key: KeyRow | undefined;
   if (requested) {

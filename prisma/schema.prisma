@@ -49,6 +49,9 @@ model Project {
   showAnalyzedFilter  Boolean   @default(false)
   /// Media pages: show the "Relevansi" filter in the filter drawer for this project. Off: hidden (default still hides irrelevant posts).
   showRelevanceFilter Boolean   @default(false)
+  /// Keyword groups (keyword → group name, lib/media/keywordGroups.ts): to read and count the list by theme. Not part of
+  /// the scope, so regrouping changes no data and no AI labels.
+  keywordGroups       Json      @default("{}")
 
   classifier      Classifier?
   classifications Classification[]
