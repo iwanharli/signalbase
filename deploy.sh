@@ -37,6 +37,12 @@ git reset -q --hard origin/main
 echo "▸ $(git log --oneline -1)"
 npm ci --no-audit --no-fund --loglevel=error
 npx prisma generate >/dev/null
+# yt-dlp for the server copy of TikTok videos (src/lib/server/videoFile.ts), in its own venv outside the app folder.
+# Updated on every deploy: TikTok changes often and an old yt-dlp stops working. A failure here never stops the deploy.
+{ [ -d /opt/yt-dlp ] || python3 -m venv /opt/yt-dlp; } \
+  && /opt/yt-dlp/bin/pip -q install -U "yt-dlp[default,curl-cffi]" >/dev/null 2>&1 \
+  && ln -sf /opt/yt-dlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+  && echo "▸ yt-dlp $(yt-dlp --version)" || echo "⚠ yt-dlp tidak terpasang: video TikTok tanpa salinan server"
 
 active=$(cat .next-active 2>/dev/null || echo .next)
 next=$([ "$active" = .next-a ] && echo .next-b || echo .next-a)

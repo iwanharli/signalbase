@@ -25,3 +25,13 @@ export function publicVideoPlayer(video: PublicVideo) {
     ? `https://www.youtube.com/embed/${video.id}?autoplay=0&playsinline=1&enablejsapi=1`
     : `https://www.tiktok.com/player/v1/${video.id}?autoplay=0&description=1&music_info=1`;
 }
+
+/** A "Range: bytes=a-b" header against a file of `size` bytes: the inclusive span, null for the whole file, or
+ *  "invalid" when it starts past the end (416). */
+export function byteRange(header: string | null, size: number): { start: number; end: number } | null | 'invalid' {
+  const m = header?.match(/^bytes=(\d*)-(\d*)$/);
+  if (!m || (!m[1] && !m[2])) return null;
+  const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+  const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  return start >= size || start > end ? 'invalid' : { start, end };
+}

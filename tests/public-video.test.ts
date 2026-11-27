@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { publicVideo, publicVideoPlayer } from '../src/lib/media/publicVideo';
+import { byteRange, publicVideo, publicVideoPlayer } from '../src/lib/media/publicVideo';
 import { originalPublicVideo } from '../src/lib/server/publicVideo';
 
 test('normalizes YouTube watch, short, live and shared URLs', () => {
@@ -42,4 +42,15 @@ test('provider failures are retried rather than cached', async () => {
     for (let n = 0; n < 2; n++) await assert.rejects(originalPublicVideo('https://youtu.be/12345678901'));
     assert.equal(calls, 2);
   } finally { globalThis.fetch = previous; }
+});
+test('byteRange: spans the browser asks for when playing and seeking the server copy', () => {
+  assert.equal(byteRange(null, 100), null);
+  assert.equal(byteRange('bytes=-', 100), null);
+  assert.equal(byteRange('items=0-5', 100), null);
+  assert.deepEqual(byteRange('bytes=0-', 100), { start: 0, end: 99 });
+  assert.deepEqual(byteRange('bytes=10-19', 100), { start: 10, end: 19 });
+  assert.deepEqual(byteRange('bytes=90-500', 100), { start: 90, end: 99 });
+  assert.deepEqual(byteRange('bytes=-30', 100), { start: 70, end: 99 });
+  assert.equal(byteRange('bytes=100-', 100), 'invalid');
+  assert.equal(byteRange('bytes=20-10', 100), 'invalid');
 });

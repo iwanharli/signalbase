@@ -23,3 +23,6 @@ __pycache__/
 
 # Temporary dev server build (NEXT_DIST_DIR=.next-test)
 /.next-test/
+
+# TikTok copies played when the browser cannot load TikTok (VIDEO_CACHE_DIR default)
+/.video-cache/
