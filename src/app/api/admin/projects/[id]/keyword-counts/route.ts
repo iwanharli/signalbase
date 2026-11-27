@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminRoute } from "@/lib/server/auth";
-import { KEYWORD_RANGES, keywordCounts } from "@/lib/server/keywordCounts";
+import { KEYWORD_RANGES, keywordCountsForPage } from "@/lib/server/keywordCounts";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -11,7 +11,8 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const asked = Number(new URL(req.url).searchParams.get("days"));
   const days = KEYWORD_RANGES.includes(asked as (typeof KEYWORD_RANGES)[number]) ? asked : 30;
   try {
-    const result = await keywordCounts(id, days);
+    // A long keyword list answers { pending: true } while it is counted in the background.
+    const result = await keywordCountsForPage(id, days);
     if (!result) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     return NextResponse.json(result);
   } catch {

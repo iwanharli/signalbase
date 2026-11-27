@@ -15,6 +15,7 @@ import { cleanName, profileLink } from "./bank/items";
 import { sharedCache } from "./bank/cache";
 import { REQUEST_TIMEOUT_MS, withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS, filterKey, keywordQuery } from "./bank/query";
+import { MANY_KEYWORDS } from "./keywordCounts";
 
 const DAY_MS = 86_400_000;
 const TOP_CATEGORIES = 8;
@@ -74,6 +75,8 @@ async function scan(type: MediaType, scope: KeyScope, period: number, end?: stri
 async function keywordCounts(type: MediaType, scope: KeyScope, period: number, end?: string): Promise<Ranked[] | null> {
   const keywords = scope.keywords.filter((k) => keywordQuery([k]));
   if (keywords.length < 2) return null; // one keyword is just the total
+  // A long list takes minutes per breakdown (see keywordCounts MANY_KEYWORDS): Beranda stays fast without it.
+  if (keywords.length >= MANY_KEYWORDS) return null;
   const c = COLUMNS[type];
   const { where, values, now } = windowWhere(type, scope, period * 2, end);
   const columns = keywords.map((k, i) => {

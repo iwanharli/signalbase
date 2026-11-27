@@ -3,7 +3,7 @@
 // last 7 / 30 / 90 days, an input to add one (checked as you type) and a remove button per row. Changes are kept in the
 // page's draft scope and saved with the page's Save button, like every other tab. Keywords can be put in groups (themes);
 // the table then lists them group by group, each with its total (posts matching any of its keywords, counted once).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, Pagination, TextInput } from "@mantine/core";
 import { IconArticle, IconBrandX, IconFolder, IconPlus, IconSearch, IconTrash } from "@tabler/icons-react";
 import type { KeyScope } from "@/lib/media/keyScope";
@@ -21,6 +21,8 @@ type Range = (typeof RANGE_OPTIONS)[number]["value"];
 type CountsResponse = {
   days: number; from: string; keywords: { keyword: string; social: number | null; online: number | null }[];
   groups?: { name: string; social: number | null; online: number | null }[]; total: { social: number | null; online: number | null };
+  /** A long keyword list being counted in the background: ask again shortly. */
+  pending?: boolean;
 };
 
 /** Plain word, phrase, or AND / OR expression. */
@@ -62,7 +64,14 @@ export function KeywordTable({ keyId, scope, saved, onChange, groups, onGroupsCh
   const [page, setPage] = useState(1);
   const counts = useApi<CountsResponse>(`/api/admin/projects/${keyId}/keyword-counts?days=${range}`);
   const byKeyword = useMemo(() => new Map((counts.data?.keywords ?? []).map((k) => [k.keyword, k])), [counts.data]);
-  const loading = !counts.data && !counts.error;
+  const pending = !!counts.data?.pending;
+  const loading = (!counts.data && !counts.error) || pending;
+  // A long list is counted in the background (one query per keyword): ask again until the numbers are there.
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => void counts.reload(), 15_000);
+    return () => clearTimeout(timer);
+  }, [pending, counts]);
   const social = !scope.types.length || scope.types.includes("social");
   const online = !scope.types.length || scope.types.includes("online");
 
@@ -173,7 +182,9 @@ export function KeywordTable({ keyId, scope, saved, onChange, groups, onGroupsCh
       <datalist id={`groups-${keyId}`}>{names.map((n) => <option key={n} value={n} />)}</datalist>
 
       <div className={c.foot}>
-        <small>{counts.error ? "Jumlah post belum bisa dihitung, coba lagi nanti." : `Jumlah post sejak ${counts.data ? new Date(`${counts.data.from}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "…"} · sesuai cakupan proyek · diperbarui tiap 10 menit`}</small>
+        <small>{counts.error ? "Jumlah post belum bisa dihitung, coba lagi nanti."
+          : pending ? `Menghitung ${formatNumber(scope.keywords.length)} kata kunci di latar belakang (beberapa menit untuk daftar panjang); angka muncul sendiri.`
+          : `Jumlah post sejak ${counts.data ? new Date(`${counts.data.from}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "…"} · sesuai cakupan proyek · diperbarui tiap 10 menit`}</small>
         {pages > 1 && <Pagination size="sm" radius="md" total={pages} value={current} onChange={setPage} classNames={{ control: c.pageControl }} />}
       </div>
     </div>

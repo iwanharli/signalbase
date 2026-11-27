@@ -33,10 +33,12 @@ export function KeywordsPill({ name, keywords, groups = {}, data, period, scope 
   const [open, setOpen] = useState(false);
   if (!keywords.length) return null;
   // Counts per keyword; with a single keyword the insights skip the breakdown, so it gets the period's whole volume.
+  // A very long list has no breakdown at all (too slow to count on Beranda): its rows show "—", not 0.
   const counts = new Map((data?.keywords ?? []).map((r) => [r.value, r]));
+  const counted = keywords.length === 1 || (data?.keywords?.length ?? 0) > 0;
   const rows = keywords.map((k) => {
     const r = counts.get(k) ?? (keywords.length === 1 && data ? { n: data.current.total, neg: data.current.neg } : null);
-    return { keyword: k, n: data ? r?.n ?? 0 : null, neg: r?.neg != null && r.n ? Math.round((r.neg / r.n) * 100) : null };
+    return { keyword: k, n: data && counted ? r?.n ?? 0 : null, neg: r?.neg != null && r.n ? Math.round((r.neg / r.n) * 100) : null };
   }).sort((a, b) => (b.n ?? -1) - (a.n ?? -1));
   const max = Math.max(1, ...rows.map((r) => r.n ?? 0));
   // With groups: one section per group (list order), keywords by count inside; the section total adds mentions up.
@@ -86,7 +88,7 @@ export function KeywordsPill({ name, keywords, groups = {}, data, period, scope 
                   <div className={c.body}>
                     <div className={c.row}>
                       <KeywordText value={r.keyword} />
-                      {r.n == null ? <Skeleton h={16} w={56} radius="sm" /> : <b className={c.count}>{formatNumber(r.n)}<small>post</small></b>}
+                      {r.n == null ? (data ? <span className={c.count}>—</span> : <Skeleton h={16} w={56} radius="sm" />) : <b className={c.count}>{formatNumber(r.n)}<small>post</small></b>}
                     </div>
                     <span className={c.bar}><i style={{ width: `${((r.n ?? 0) / max) * 100}%` }} /></span>
                     {r.neg != null && <small className={c.neg} data-high={r.neg >= 50 || undefined}>{r.neg}% negatif</small>}
@@ -100,6 +102,7 @@ export function KeywordsPill({ name, keywords, groups = {}, data, period, scope 
         <footer className={c.foot}>
           Angka untuk {period} hari terakhir pada media yang dipilih di Beranda. Satu post bisa menyebut lebih dari satu keyword.
           Keyword diatur oleh admin Signalbase.
+          {data && !counted && " Proyek ini punya banyak keyword: jumlah per keyword ada di Pengaturan proyek → Kata kunci."}
         </footer>
       </Drawer>
     </>

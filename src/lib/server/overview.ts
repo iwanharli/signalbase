@@ -11,7 +11,7 @@ import { withImageCodes } from "./media/textSignals";
 import { snaGraph } from "./bank/sna";
 import { snaIssueGraph } from "./issueClusters/sna";
 import { DEFAULT_SNA_LIMIT } from "@/lib/sna";
-import { KEYWORD_RANGES, keywordCounts } from "./keywordCounts";
+import { KEYWORD_RANGES, keywordCounts, MANY_KEYWORDS } from "./keywordCounts";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
@@ -70,7 +70,8 @@ async function warmAll() {
     for (const limit of [25, 50] as const) await step(`${name} sna isu ${limit}`, () => snaIssueGraph(keys[i].id, 7, limit, null, null));
     for (const days of [1, 3, 7] as const) await step(`${name} sna mention ${days}`, () => snaGraph(days, DEFAULT_SNA_LIMIT, scope));
     // The Kata kunci tab's counts per keyword.
-    for (const days of KEYWORD_RANGES) await step(`${name} kata kunci ${days}`, () => keywordCounts(keys[i].id, days));
+    // A long keyword list (minutes to count) warms only the tab's default range.
+    for (const days of keys[i].keywords.length >= MANY_KEYWORDS ? [30] : KEYWORD_RANGES) await step(`${name} kata kunci ${days}`, () => keywordCounts(keys[i].id, days));
   }
   for (const period of [30, 14]) {
     for (const [i, scope] of [undefined, ...scopes].entries()) {
