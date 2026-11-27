@@ -35,9 +35,10 @@ test("buildWhere: stored matches replace the keyword search within their range",
   assert.ok(!recent.where.includes("to_tsquery"), "no keyword search for a range the matches cover");
   assert.ok(recent.values.some((v) => Array.isArray(v) && v.join() === "c,d,e"));
 
+  // No date range: every stored match, nothing older is searched (that search is what took minutes).
   const all = buildWhere("social", new URLSearchParams(), scope);
-  assert.ok(all.where.includes("to_tsquery"), "older than coverFrom: still searched");
-  assert.ok(all.values.includes("2026-09-01"));
+  assert.ok(!all.where.includes("to_tsquery"));
+  assert.ok(all.values.some((v) => Array.isArray(v) && v.length === 5));
 
   const since = buildWhere("social", new URLSearchParams({ since: "2026-11-22 00:00:00" }), scope);
   assert.ok(!since.where.includes("to_tsquery"));

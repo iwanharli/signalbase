@@ -78,12 +78,10 @@ function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown
   const imageCodes = scope.imageCodes?.[type];
   const matched = scope.matched?.[type];
   if (keywordTs) {
-    // A long keyword list whose matches are stored (server/projectMatches.ts): the stored codes of the requested dates,
-    // and a search only for what is older than the stored matches reach.
+    // A long keyword list whose matches are stored (server/projectMatches.ts): only the stored codes of the requested
+    // dates. Anything older than the matches reach (BACKFILL_DAYS) is left out: searching it is what took minutes.
     const byKeyword = matched
-      ? (range.from && range.from >= matched.coverFrom
-        ? `${c.code} = ANY(${bind(codesBetween(matched, range.from, range.to))}::text[])`
-        : `(${c.code} = ANY(${bind(codesBetween(matched, range.from, range.to))}::text[]) OR (${c.timestamp} < ${bind(matched.coverFrom)}::date AND ${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})))`)
+      ? `${c.code} = ANY(${bind(codesBetween(matched, range.from, range.to))}::text[])`
       : `${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`;
     // Items whose image text names a keyword (media worker) count too, even when their caption doesn't.
     where.push(imageCodes?.length ? `(${byKeyword} OR ${c.code} = ANY(${bind(imageCodes)}::text[]))` : byKeyword);
