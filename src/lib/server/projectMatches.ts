@@ -23,7 +23,7 @@ export const BACKFILL_DAYS = 90;
 const CHUNK_IDS = 5_000;
 const TICK_MS = 60_000;
 /** Backfill work per project and media type per tick, so the source database is never busy with it for long. */
-const BACKFILL_BUDGET_MS = 30_000;
+const BACKFILL_BUDGET_MS = 45_000;
 const QUERY_TIMEOUT_MS = 3 * 60_000;
 
 const SOURCE = {
@@ -46,11 +46,11 @@ export function matchSets(projectId: string, keywords: string[]): Promise<MatchS
   const hash = keywordsHash(keywords);
   return loaded(`${projectId}|${hash}`, async () => {
     const rows = await prisma.$queryRaw<{ type: MediaType; coverFrom: string; codes: string[] | null; at: string[] | null }[]>`
-      SELECT s.type, to_char(s."coverFrom", 'YYYY-MM-DD') "coverFrom",
+      SELECT s.type, to_char(CASE WHEN s.ready THEN s."coverFrom" ELSE s."readyFrom" END, 'YYYY-MM-DD') "coverFrom",
         array_agg(m.code ORDER BY m.at) FILTER (WHERE m.code IS NOT NULL) codes,
         array_agg(to_char(m.at, 'YYYY-MM-DD"T"HH24:MI:SS') ORDER BY m.at) FILTER (WHERE m.code IS NOT NULL) at
       FROM "ProjectMatchState" s LEFT JOIN "ProjectMatch" m ON m."projectId" = s."projectId" AND m.type = s.type
-      WHERE s."projectId" = ${projectId} AND s.ready AND s."keywordsHash" = ${hash}
+      WHERE s."projectId" = ${projectId} AND (s.ready OR s."readyFrom" IS NOT NULL) AND s."keywordsHash" = ${hash}
       GROUP BY s.type, s."coverFrom"`;
     const out: MatchSets = {};
     for (const r of rows) out[r.type] = { coverFrom: r.coverFrom, codes: r.codes ?? [], at: r.at ?? [] };
@@ -86,7 +86,7 @@ async function restart(projectId: string, type: MediaType, hash: string) {
     prisma.projectMatchState.upsert({
       where: { projectId_type: { projectId, type } },
       create: { projectId, type, keywordsHash: hash, coverFrom: naive(`${coverFrom}T00:00:00`), highId: high, lowId: high, floorId: floor, ready: false },
-      update: { keywordsHash: hash, coverFrom: naive(`${coverFrom}T00:00:00`), highId: high, lowId: high, floorId: floor, ready: false },
+      update: { keywordsHash: hash, coverFrom: naive(`${coverFrom}T00:00:00`), highId: high, lowId: high, floorId: floor, ready: false, readyFrom: null },
     }),
   ]);
   console.log(`[matches] ${projectId} ${type}: mulai mencocokkan ${BACKFILL_DAYS} hari (id ${floor}..${high})`);
@@ -122,6 +122,19 @@ async function advance(project: { id: string; name: string; keywords: string[] }
     const ready = low <= state.floorId;
     await prisma.projectMatchState.update({ where: { projectId_type: { projectId: project.id, type } }, data: { lowId: low, ready } });
     if (ready) console.log(`[matches] ${project.name} ${type}: siap (${await prisma.projectMatch.count({ where: { projectId: project.id, type } })} item sejak ${coverFrom})`);
+  }
+  if (!state.ready && low > state.floorId) {
+    // Not done: the newest item still unmatched decides from which day on everything is matched (the day after it).
+    const s = SOURCE[type];
+    const { rows } = await withLongTimeout(QUERY_TIMEOUT_MS, (client) => client.query<{ day: string | null }>(
+      `SELECT to_char(${s.ts}::date + 1, 'YYYY-MM-DD') AS day FROM ${s.table} WHERE id > $1 AND id <= $2 AND ${s.ts} <= now() ORDER BY ${s.ts} DESC LIMIT 1`,
+      [state.floorId.toString(), low.toString()]));
+    const day = rows[0]?.day ?? coverFrom;
+    const readyFrom = naive(`${day > coverFrom ? day : coverFrom}T00:00:00`);
+    if (readyFrom.getTime() !== state.readyFrom?.getTime()) {
+      await prisma.projectMatchState.update({ where: { projectId_type: { projectId: project.id, type } }, data: { readyFrom } });
+      console.log(`[matches] ${project.name} ${type}: tercakup sejak ${readyFrom.toISOString().slice(0, 10)}`);
+    }
   }
 }
 

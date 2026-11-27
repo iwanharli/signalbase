@@ -64,7 +64,10 @@ async function warmAll() {
   const scopes = await Promise.all(keys.map((key) => withImageCodes(key.id, parseKeyScope(key.scope, key.keywords))));
   // A long keyword list is searched in minutes until its matches are stored (projectMatches.ts): not warmed until then,
   // so the warm-up does not keep the source database busy with searches that time out.
-  const waiting = (i: number) => usesMatches(keys[i].keywords) && !scopes[i].matched?.social && !scopes[i].matched?.online;
+  // Waiting = its stored matches do not reach back the 30 days the warm-up asks for yet.
+  const month = new Date(Date.now() - 30 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const waiting = (i: number) => usesMatches(keys[i].keywords)
+    && !Object.values(scopes[i].matched ?? {}).some((m) => m && m.coverFrom <= month);
   for (const [i, scope] of scopes.entries()) {
     const name = keys[i].name;
     if (waiting(i)) continue;

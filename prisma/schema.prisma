@@ -612,6 +612,9 @@ model ProjectMatchState {
   lowId        BigInt
   floorId      BigInt
   ready        Boolean  @default(false)
+  /// Before `ready`: every item from this day on is matched already (the backfill walks back from the newest items), so
+  /// recent ranges use the stored matches while the backfill goes on.
+  readyFrom    DateTime?
   updatedAt    DateTime @updatedAt
 
   @@id([projectId, type])
