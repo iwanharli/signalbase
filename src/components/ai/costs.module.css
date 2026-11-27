@@ -1,4 +1,4 @@
-/* Biaya AI proyek di panel AI gelap; melengkapi usage.module.css (kartu, kepala, kotak angka). */
+/* A project's AI costs on the dark AI panel; complements usage.module.css (cards, headers, number boxes). */
 .stats4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .chart { display: flex; flex-direction: column; gap: 6px; }

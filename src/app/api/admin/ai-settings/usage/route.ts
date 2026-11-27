@@ -4,7 +4,7 @@ import { providerBalance } from "@/lib/server/ai/balance";
 import { getSetting, jakartaDay, settingConfig } from "@/lib/server/ai/summary";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { liveKurs } from "@/lib/server/kurs";
+import { liveUsdToIdr } from "@/lib/server/exchangeRate";
 
 const PAGE = 25;
 const DAYS = 30;
@@ -15,13 +15,13 @@ export const GET = adminRoute(async (req: Request) => {
   const setting = await getSetting();
   const monthStart = new Date(`${jakartaDay().slice(0, 7)}-01T00:00:00+07:00`);
   const since = new Date(`${jakartaDay(new Date(Date.now() - (DAYS - 1) * 86_400_000))}T00:00:00+07:00`);
-  const [month, rows, total, recent, balance, kurs] = await Promise.all([
+  const [month, rows, total, recent, balance, usdToIdr] = await Promise.all([
     prisma.aiUsageLog.aggregate({ where: { at: { gte: monthStart } }, _sum: { cost: true, inputTokens: true, outputTokens: true }, _count: true }),
     prisma.aiUsageLog.findMany({ orderBy: { at: "desc" }, skip: page * PAGE, take: PAGE }),
     prisma.aiUsageLog.count(),
     prisma.aiUsageLog.findMany({ where: { at: { gte: since } }, select: { at: true, cost: true } }),
     setting?.providerKeyEnc ? providerBalance(settingConfig(setting)).catch(() => null) : Promise.resolve(null),
-    liveKurs(),
+    liveUsdToIdr(),
   ]);
   const byDay = new Map<string, { cost: number; calls: number }>();
   for (const r of recent) {
@@ -40,7 +40,7 @@ export const GET = adminRoute(async (req: Request) => {
     rows: rows.map((r) => ({ ...r, at: r.at.toISOString() })),
     total,
     balance: balance?.supported ? balance.balances.map((b) => ({ currency: b.currency, total: b.total })) : null,
-    kurs,
+    usdToIdr,
   };
   return NextResponse.json(body);
 });

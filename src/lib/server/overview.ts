@@ -9,7 +9,7 @@ import { prisma } from "./db";
 import { berandaScope, typeInsights } from "./insights";
 import { withImageCodes } from "./media/textSignals";
 import { snaGraph } from "./bank/sna";
-import { snaIssueGraph } from "./isu/sna";
+import { snaIssueGraph } from "./issueClusters/sna";
 import { DEFAULT_SNA_LIMIT } from "@/lib/sna";
 import { KEYWORD_RANGES, keywordCounts } from "./keywordCounts";
 

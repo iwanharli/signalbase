@@ -4,7 +4,7 @@
 import { runDailySummaries } from "../src/lib/server/ai/summary";
 import { runScheduledReports } from "../src/lib/server/report";
 import { runClassifiers } from "../src/lib/server/ai/worker";
-import { runIssueClusters } from "../src/lib/server/isu/worker";
+import { runIssueClusters } from "../src/lib/server/issueClusters/worker";
 
 const INTERVAL_MS = 60_000;
 let stopping = false;

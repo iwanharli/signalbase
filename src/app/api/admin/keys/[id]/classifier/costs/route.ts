@@ -4,25 +4,25 @@ import { platformKeyHint } from "@/lib/server/ai/platform";
 import { getSetting, jakartaDay } from "@/lib/server/ai/summary";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { liveKurs } from "@/lib/server/kurs";
+import { liveUsdToIdr } from "@/lib/server/exchangeRate";
 
 type Context = { params: Promise<{ id: string }> };
 const DAYS = 30;
 
-// Biaya AI satu proyek yang dibayar key milik Signalbase (SIGNALBASE_AI_API_KEY): kategorisasi (TokenUsage dengan
-// keyHint = key itu) dan Ringkasan AI proyek ini (AiUsageLog). Token yang dibayar key lain (mis. key DeepSeek milik klien
-// seperti KIPERMAS, atau dicatat sebelum 16 Nov 2026 tanpa keterangan key) tidak dihitung, hanya dilaporkan jumlahnya.
+// One project's AI costs paid by Signalbase's own key (SIGNALBASE_AI_API_KEY): categorisation (TokenUsage with keyHint =
+// that key) and this project's AI summary (AiUsageLog). Tokens paid by other keys (e.g. a client's own DeepSeek key such as
+// KIPERMAS', or recorded before 16 Nov 2026 without a key hint) are not counted, only reported as a number.
 export const GET = adminRoute(async (_req: Request, { params }: Context, _username, user) => {
-  // Biaya internal Signalbase: tidak untuk akun klien (role user), walau pemilik proyeknya.
+  // Signalbase's internal costs: not for client accounts (role user), even for their own project.
   if (user.role === "user") return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
   const { id } = await params;
   const today = jakartaDay();
   const monthStart = `${today.slice(0, 7)}-01`;
   const since = new Date(Math.min(Date.parse(`${monthStart}T00:00:00+07:00`), Date.parse(`${today}T00:00:00+07:00`) - (DAYS - 1) * 86_400_000));
   const own = platformKeyHint();
-  const [setting, kurs, tokens, calls, labels] = await Promise.all([
+  const [setting, usdToIdr, tokens, calls, labels] = await Promise.all([
     getSetting(),
-    liveKurs(),
+    liveUsdToIdr(),
     prisma.$queryRaw<{ day: string; model: string; keyHint: string | null; input: number; output: number; calls: number }[]>`
       select to_char(hour + interval '7 hours', 'YYYY-MM-DD') as day, model, "keyHint",
         sum("inputTokens")::float input, sum("outputTokens")::float output, sum(calls)::int calls
@@ -56,7 +56,7 @@ export const GET = adminRoute(async (_req: Request, { params }: Context, _userna
   const firstDay = jakartaDay(new Date(Date.parse(`${today}T00:00:00+07:00`) - (DAYS - 1) * 86_400_000));
 
   return NextResponse.json({
-    today, kurs, keyHint: own,
+    today, usdToIdr, keyHint: own,
     month: { cost: sum(month, "cost"), calls: sum(month, "calls"), tokens: sum(month, "tokens") },
     ...monthProjection(perDay, today),
     modules: (["kategorisasi", "ringkasan"] as const).map((m) => {

@@ -13,7 +13,7 @@ export const STATUS: Record<InvoiceRow["status"], [tone: "warning" | "success" |
 };
 
 export const rupiah = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
-export const tanggal = (d: string | Date) => new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" });
+export const formatLongDate = (d: string | Date) => new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" });
 
 /** "Pro · Tahunan" for a plan invoice, "Tambah kuota AI · 20.000 post" for a top-up. */
 export const describeInvoice = (i: Pick<InvoiceRow, "kind" | "plan" | "billing" | "topupPosts">) =>

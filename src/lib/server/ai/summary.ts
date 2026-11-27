@@ -91,8 +91,8 @@ export async function testSetting(setting: AiSetting) {
     "Anda adalah asisten uji koneksi. Jawab hanya dengan JSON berbentuk {\"ok\": true, \"pesan\": string}.",
     "Tulis satu kalimat pendek dalam bahasa Indonesia yang menyatakan koneksi berhasil.", 400);
   await log(true, null);
-  const pesan = typeof raw === "object" && raw && "pesan" in raw ? String((raw as { pesan: unknown }).pesan).slice(0, 200) : "";
-  return { ok: true, ms, message: pesan, cost: callCost(usage, setting), currency: setting.currency };
+  const message = typeof raw === "object" && raw && "pesan" in raw ? String((raw as { pesan: unknown }).pesan).slice(0, 200) : ""; // "pesan": key of the provider's error JSON
+  return { ok: true, ms, message, cost: callCost(usage, setting), currency: setting.currency };
 }
 
 export async function monthCost() {
@@ -133,7 +133,7 @@ export async function writeSummary(setting: AiSetting, ref: ScopeRef, day = data
       attempts = MAX_ATTEMPTS;
       return save({ status: "failed", error: "Tidak ada data pada hari itu untuk cakupan ini." });
     }
-    // 16000: model berpikir (mis. deepseek-v4-pro) menghabiskan sebagian besar jatah untuk penalaran; 8000 terpotong (16 Nov 2026).
+    // 16000: thinking models (e.g. deepseek-v4-pro) spend most of the budget on reasoning; 8000 got cut off (16 Nov 2026).
     const { raw, log } = await loggedCall(setting, "summary", { id: ref.id, name: ref.name }, SYSTEM_PROMPT, input.text, 16000);
     const parsed = summaryContentSchema.safeParse(raw);
     if (!parsed.success) {

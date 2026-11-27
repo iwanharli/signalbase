@@ -16,7 +16,7 @@ type Usage = {
   buckets: { start: string; spent: number; topUp: number; parts?: number[]; searches?: number }[];
   tokens?: { start: string; input: number; output: number; calls: number; parts?: number[] }[];
   models?: string[];
-  kurs?: number | null;
+  usdToIdr?: number | null;
   /** Labelling only: false until its settings are saved; the live balance of the whole provider account. */
   configured?: boolean;
   balance?: { currency: string; total: number } | null;
@@ -119,14 +119,14 @@ export function BalanceUsage({ keyId, labelling }: { keyId: string; labelling?: 
       </header>
 
       <div className={classes.stats}>
-        <div><small>{tokenMode ? "Total token" : labelling ? "Perkiraan terpakai" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir{!tokenMode && data && rupiah(spent, currency, data.kurs) ? ` · ${rupiah(spent, currency, data.kurs)}` : ""}</span></div>
+        <div><small>{tokenMode ? "Total token" : labelling ? "Perkiraan terpakai" : "Terpakai"}</small><b>{data ? fmt(spent) : "—"}</b><span>{RANGES.find((r) => r.days === days)!.label} terakhir{!tokenMode && data && rupiah(spent, currency, data.usdToIdr) ? ` · ${rupiah(spent, currency, data.usdToIdr)}` : ""}</span></div>
         {tokenMode ? <>
           <div><small>Input</small><b>{data ? compact(inputTotal) : "—"}</b><span>token prompt</span></div>
           <div><small>Output</small><b>{data ? compact(outputTotal) : "—"}</b><span>token jawaban</span></div>
         </> : <>
-          <div><small>Rata-rata</small><b>{data ? money(average, currency) : "—"}</b><span>per {hourly ? "jam" : "hari"}{data && rupiah(average, currency, data.kurs) ? ` · ${rupiah(average, currency, data.kurs)}` : ""}</span></div>
+          <div><small>Rata-rata</small><b>{data ? money(average, currency) : "—"}</b><span>per {hourly ? "jam" : "hari"}{data && rupiah(average, currency, data.usdToIdr) ? ` · ${rupiah(average, currency, data.usdToIdr)}` : ""}</span></div>
           {labelling
-            ? <div><small>Sisa saldo</small><b>{data?.balance ? money(data.balance.total, data.balance.currency) : "—"}</b><span>{data?.balance ? `saldo seluruh akun${rupiah(data.balance.total, data.balance.currency, data.kurs) ? ` · ${rupiah(data.balance.total, data.balance.currency, data.kurs)}` : ""}` : data ? "tidak bisa dicek" : ""}</span></div>
+            ? <div><small>Sisa saldo</small><b>{data?.balance ? money(data.balance.total, data.balance.currency) : "—"}</b><span>{data?.balance ? `saldo seluruh akun${rupiah(data.balance.total, data.balance.currency, data.usdToIdr) ? ` · ${rupiah(data.balance.total, data.balance.currency, data.usdToIdr)}` : ""}` : data ? "tidak bisa dicek" : ""}</span></div>
             : <div><small>Top-up</small><b>{data ? money(topUp, currency) : "—"}</b><span>dalam rentang</span></div>}
         </>}
       </div>

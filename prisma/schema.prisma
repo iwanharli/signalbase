@@ -149,7 +149,7 @@ model TokenUsage {
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
   calls        Int      @default(0)
-  keyHint      String? // 4 huruf terakhir key penyedia yang membayar (sejak 16 Nov 2026); null = sebelum dicatat
+  keyHint      String? // last 4 characters of the paying provider key (since 16 Nov 2026); null = before it was recorded
 
   @@id([apiKeyId, hour, model])
 }
@@ -464,7 +464,7 @@ model MediaAsset {
   sensitive     String[] // tags that mark possibly sensitive content (shown as "perlu ditinjau")
   model         String?
   analyzedAt    DateTime?
-  /// The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/layanan_asr.py).
+  /// The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/asr_service.py).
   videoUrl         String?
   /// null = no video; "pending" | "done" | "failed" | "none" (no audio track, or too old when its turn came)
   transcriptStatus String?

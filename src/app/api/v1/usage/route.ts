@@ -3,11 +3,11 @@ import { classifierKeyHint, keySince } from "@/lib/server/ai/platform";
 import { apiPreflight, apiRoute } from "@/lib/server/apiKey";
 import { prisma } from "@/lib/server/db";
 
-// Pemakaian AI kategorisasi untuk kunci pemanggil, supaya pemiliknya (mis. pbm) bisa menampilkan biayanya sendiri:
-//   days     token per hari (WIB) dan model, hanya yang dibayar key penyedia saat ini
-//   provider model dan 4 huruf terakhir key penyedia AI classifier (null bila kunci tidak memakai kategorisasi)
-//   balance  saldo akhir key penyedia per hari (WIB), sejak key itu dipakai
-//   labels   jumlah post berlabel per hari: lokal (IndoBERT, gratis) atau penyedia AI
+// AI categorisation usage of the calling key, so its owner (e.g. pbm) can show its own costs:
+//   days     tokens per day (WIB) and model, only those paid by the current provider key
+//   provider model and last 4 characters of the classifier's AI provider key (null when the key has no categorisation)
+//   balance  the provider key's closing balance per day (WIB), since that key came into use
+//   labels   labelled posts per day: local (IndoBERT, free) or the AI provider
 //   GET /api/v1/usage?days=30   (1–90)
 export const OPTIONS = (req: Request) => apiPreflight(req);
 
@@ -16,7 +16,7 @@ export const GET = apiRoute(async (req, _ctx: unknown, { keyId }) => {
   const since = new Date(Date.now() - days * 86_400_000);
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: keyId }, select: { providerModel: true, providerKind: true, providerKeyHint: true } });
   const hint = classifier ? classifierKeyHint(classifier) : null;
-  // Token dan saldo dari key lain (mis. key yang dulu dipakai bersama) tidak ikut, agar tidak terhitung dua kali.
+  // Tokens and balances of other keys (e.g. a key that used to be shared) are left out, so nothing is counted twice.
   const keyFrom = await keySince(keyId, hint);
   const balanceFrom = keyFrom && keyFrom > since ? keyFrom : since;
   const [rows, balance, labels] = await Promise.all([

@@ -1,12 +1,12 @@
-# Layanan analisis media (scripts/media/layanan_media.py). Python 3.12.
-# Di server tanpa layar: setelah install, ganti opencv-python dengan opencv-python-headless (tanpa libGL):
+# Media analysis service (scripts/media/media_service.py). Python 3.12.
+# On a headless server: after installing, swap opencv-python for opencv-python-headless (no libGL):
 #   pip uninstall -y opencv-python && pip install opencv-python-headless==5.1.0.95
 onnxruntime==1.32.0
 numpy==2.5.5
 pillow==13.0.0
 tokenizers==0.23.3
 rapidocr_onnxruntime==1.4.4
-# Transkripsi suara video (layanan_asr.py) dan frame video (PyAV). av 17+ belum cocok dengan faster-whisper 1.2.1
-# (argumen metadata_errors).
+# Video speech transcription (asr_service.py) and video frames (PyAV). av 17+ does not work with faster-whisper 1.2.1 yet
+# (metadata_errors argument).
 faster-whisper==1.2.1
 av==16.1.0

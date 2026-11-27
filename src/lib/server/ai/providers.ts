@@ -22,7 +22,7 @@ const resultSchema = z.object({
   results: z.array(z.object({ id: z.string(), category: z.string(), confidence: z.number().nullable().optional(), reason: z.string().nullable().optional() })),
 });
 
-/** `reason: false`: tanpa alasan (mis. pelabelan ulang data latih; ±80% token keluaran adalah alasan). */
+/** `reason: false`: no reasons (e.g. relabelling training data; ±80% of output tokens are the reasons). */
 function systemPrompt(prompt: string, categories: Category[], reason = true) {
   const list = categories.map((c) => `- ${c.code}: ${c.label}${c.description ? ` — ${c.description}` : ""}`).join("\n");
   return [

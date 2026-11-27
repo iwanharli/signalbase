@@ -93,7 +93,7 @@ export const QUICK_WIN_PRESET: { prompt: string; categories: Category[] } = {
     "Kamu mengklasifikasikan post media sosial dan berita online berbahasa Indonesia ke dalam salah satu dari delapan Quick Win program 100 hari Kapolri \"Polisi Bersama Masyarakat\".",
     "Pilih tepat satu kategori yang paling sesuai dengan pokok isi teks, bukan sekadar kata yang disebut. Bila teks tidak berkaitan dengan kepolisian atau tidak cocok dengan kategori mana pun, pilih \"none\".",
     "Contoh: keluhan pungli saat membuat SIM masuk QW6; laporan kasus judi online masuk QW3; patroli malam atau tawuran masuk QW1.",
-    // Aturan pembeda yang sama dengan pelabelan kuesioner pbm (audit label 16 Nov 2026): tanpa ini model menebak dari NAMA QW.
+    // The same telling-apart rules as the pbm questionnaire labelling (label audit 16 Nov 2026): without them the model guesses from the QW NAME.
     "Aturan pembeda (pakai isi definisi, bukan nama program):",
     "- QW8 HANYA bila membahas BBM ilegal/penimbunan BBM, tambang ilegal, kejahatan ekonomi, TPPO, korupsi di luar Polri, penyelundupan, pencucian uang, KUHP/KUHAP baru, atau olah TKP ilmiah. Keadilan umum, \"hukum tanpa pandang bulu\", oknum, atau pemecatan anggota bukan QW8.",
     "- QW7 HANYA bila menyebut Bhabinkamtibmas, Polsek (siaga, kemampuan, personel, sarana) atau penataan personel/anggaran Polres-Polsek. \"Polisi hadir/dekat dengan masyarakat\" atau \"humanis\" saja adalah QW1.",

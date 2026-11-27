@@ -5,7 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { OPEN_SCOPE, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
-import { ONT_PERIODS } from "@/lib/ontologi";
+import { ONT_PERIODS } from "@/lib/ontology";
 import { heatColor, type BriefData, type BriefProfile } from "@/lib/brief";
 import {
   changePct, daysBetween, DEFAULT_SIFAT, latestPeriod, REPORT_ISSUES, REPORT_KINDS, REPORT_NEWS_ISSUES,
@@ -15,7 +15,7 @@ import { getSetting } from "./ai/summary";
 import { buildBrief, heatOf } from "./brief";
 import { moodBreakdown } from "./bank";
 import { listIssues } from "./bank/issues";
-import { ontologiIssues } from "./bank/ontologi";
+import { ontologyIssues } from "./bank/ontology";
 import { prisma } from "./db";
 import { typeInsights } from "./insights";
 import { typeStats } from "./overview";
@@ -59,7 +59,7 @@ export async function reportSection(scope: KeyScope | undefined, project: Report
   const ontDays = ONT_PERIODS.find((p) => p.days >= back)?.days ?? 30;
   const [social, online, issues, news] = await Promise.all([
     part("social"), part("online"),
-    ontologiIssues(ontDays, scope),
+    ontologyIssues(ontDays, scope),
     opts.newsIssues ? listIssues(back, scope?.keywords ?? [], "nasional") : Promise.resolve([]),
   ]);
   const inPeriod = (from: string, to: string) => !period || (from <= period.end && to >= period.start);

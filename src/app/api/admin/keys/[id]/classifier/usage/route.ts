@@ -3,7 +3,7 @@ import { usageBuckets } from "@/lib/server/ai/balance";
 import { classifierKeyHint, keySince } from "@/lib/server/ai/platform";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { liveKurs } from "@/lib/server/kurs";
+import { liveUsdToIdr } from "@/lib/server/exchangeRate";
 
 type Context = { params: Promise<{ id: string }> };
 const HOUR = 3_600_000, DAY = 24 * HOUR;
@@ -33,12 +33,12 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   }
   const models = [...new Set(tokenRows.map((t) => t.model))];
 
-  // Saldo hanya sejak key penyedia saat ini dipakai; snapshot sebelumnya milik key lain (mis. key klien yang dulu dipakai bersama).
+  // Balance only since the current provider key came into use; earlier snapshots belong to another key (e.g. a client key once shared).
   const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: id }, select: { providerKind: true, providerKeyHint: true } });
   const keyFrom = classifier ? await keySince(id, classifierKeyHint(classifier)) : null;
   const own = { apiKeyId: id, at: { gte: keyFrom ?? new Date(0) } };
-  const [latest, kurs] = await Promise.all([keyFrom ? prisma.balanceSnapshot.findFirst({ where: own, orderBy: { at: "desc" } }) : null, liveKurs()]);
-  if (!latest) return NextResponse.json({ currency: null, current: null, since: null, bucket: range.bucketMs === HOUR ? "hour" : "day", buckets: usageBuckets([], from, new Date(end), range.bucketMs), tokens, models, kurs });
+  const [latest, usdToIdr] = await Promise.all([keyFrom ? prisma.balanceSnapshot.findFirst({ where: own, orderBy: { at: "desc" } }) : null, liveUsdToIdr()]);
+  if (!latest) return NextResponse.json({ currency: null, current: null, since: null, bucket: range.bucketMs === HOUR ? "hour" : "day", buckets: usageBuckets([], from, new Date(end), range.bucketMs), tokens, models, usdToIdr });
   const currency = latest.currency;
   const [before, inRange, first] = await Promise.all([
     prisma.balanceSnapshot.findFirst({ where: { ...own, currency, AND: { at: { lt: from } } }, orderBy: { at: "desc" } }),
@@ -48,6 +48,6 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
   const points = before ? [before, ...inRange] : inRange;
   return NextResponse.json({
     currency, current: latest.total, checkedAt: latest.at, since: first?.at ?? null, bucket: range.bucketMs === HOUR ? "hour" : "day",
-    buckets: usageBuckets(points, from, new Date(end), range.bucketMs), tokens, models, kurs,
+    buckets: usageBuckets(points, from, new Date(end), range.bucketMs), tokens, models, usdToIdr,
   }, { headers: { "Cache-Control": "no-store" } });
 });

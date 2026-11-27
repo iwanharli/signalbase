@@ -1,9 +1,9 @@
-// Kategori 8 Quick Win dari IndoBERT lokal (scripts/indobert/layanan_qw.py), sebelum penyedia AI berbayar dipanggil.
-// Hanya untuk API key yang disebut di LOCAL_QW_KEYS (classifier KIPERMAS); model dilatih dari label key itu sendiri.
-// Post yang keyakinannya >= LOCAL_QW_MIN langsung disimpan; sisanya tetap ke penyedia AI. Layanan mati/lambat = semua ke
-// penyedia AI seperti sebelumnya (tidak pernah menggagalkan batch).
-//   LOCAL_QW_URL=http://127.0.0.1:3725  LOCAL_QW_KEYS=<apiKeyId>[:<ambang>][,<apiKeyId>[:<ambang>]]  LOCAL_QW_MIN=0.8
-// Ambang per key (mis. `id-b:0.8`) menimpa LOCAL_QW_MIN untuk key itu saja.
+// The 8 Quick Win categories from a local IndoBERT (scripts/indobert/qw_service.py), before a paid AI provider is called.
+// Only for the API keys listed in LOCAL_QW_KEYS (the KIPERMAS classifier); the model was trained on that key's own labels.
+// Posts at or above LOCAL_QW_MIN confidence are stored straight away; the rest still go to the AI provider. A service that is
+// down or slow sends everything to the AI provider as before (it never fails a batch).
+//   LOCAL_QW_URL=http://127.0.0.1:3725  LOCAL_QW_KEYS=<apiKeyId>[:<threshold>][,<apiKeyId>[:<threshold>]]  LOCAL_QW_MIN=0.8
+// A per-key threshold (e.g. `id-b:0.8`) overrides LOCAL_QW_MIN for that key only.
 import type { MediaType } from "@/lib/media/types";
 
 export type LocalLabel = { id: string; category: string; confidence: number };
@@ -12,7 +12,7 @@ const threshold = (v: string | undefined) => (v?.trim() && Number.isFinite(Numbe
 /** Key → its own threshold (undefined = LOCAL_QW_MIN). */
 const keys = () => new Map((process.env.LOCAL_QW_KEYS ?? "").split(",").map((s) => s.trim()).filter(Boolean)
   .map((s) => { const [id, min] = s.split(":"); return [id.trim(), threshold(min)] as const; }));
-/** Ambang keyakinan key ini; 0 = semua post dilabel model lokal (tanpa DeepSeek). Kosong/tidak valid = LOCAL_QW_MIN, lalu 0,8. */
+/** This key's confidence threshold; 0 = every post labelled by the local model (no DeepSeek). Empty/invalid = LOCAL_QW_MIN, then 0.8. */
 export const localQwMin = (apiKeyId?: string) =>
   (apiKeyId ? keys().get(apiKeyId) : undefined) ?? threshold(process.env.LOCAL_QW_MIN) ?? 0.8;
 
@@ -20,7 +20,7 @@ export function usesLocalQw(apiKeyId: string) {
   return !!process.env.LOCAL_QW_URL && keys().has(apiKeyId);
 }
 
-/** Label lokal per item; null bila layanan tidak tersedia. */
+/** Local labels per item; null when the service is unavailable. */
 export async function localQw(type: MediaType, items: { id: string; text: string }[]): Promise<{ model: string; items: LocalLabel[] } | null> {
   if (!items.length) return { model: "", items: [] };
   try {

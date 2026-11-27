@@ -9,7 +9,7 @@ import { IconCheck, IconFileInvoice, IconPlus, IconX } from "@tabler/icons-react
 import { post } from "@/lib/api-client";
 import { BILLING_LABEL, BILLINGS, invoiceAmounts, type Billing } from "@/lib/billing";
 import { useApi } from "@/lib/useApi";
-import { describeInvoice, rupiah, STATUS, tanggal, type InvoiceRow } from "../billing/shared";
+import { describeInvoice, rupiah, STATUS, formatLongDate, type InvoiceRow } from "../billing/shared";
 import { Button, StatusPill } from "../ui/Button";
 import classes from "./contactRequests.module.css";
 
@@ -89,11 +89,11 @@ export function InvoiceAdmin({ accounts, onPlanChanged }: { accounts: Account[];
                   <Link href={`/billing/${i.id}`}><b>{i.number}</b></Link>
                   <span>{i.account?.name} · {describeInvoice(i)}</span>
                   <StatusPill tone={tone}>{label}</StatusPill>
-                  <small>{rupiah(i.total)} · jatuh tempo {tanggal(i.dueAt)}</small>
+                  <small>{rupiah(i.total)} · jatuh tempo {formatLongDate(i.dueAt)}</small>
                 </div>
                 {i.status === "unpaid" && (
                   <div className={classes.foot}>
-                    <span>Periode {tanggal(i.periodStart)} – {tanggal(i.periodEnd)}</span>
+                    <span>Periode {formatLongDate(i.periodStart)} – {formatLongDate(i.periodEnd)}</span>
                     <Button size="sm" variant="primary" icon={IconCheck} loading={busy === i.id} onClick={() => act(i, "paid")}>Tandai lunas</Button>
                     <Button size="sm" variant="subtle" icon={IconX} disabled={busy === i.id} onClick={() => act(i, "cancel")}>Batalkan</Button>
                   </div>

@@ -4,7 +4,7 @@ import { OPEN_SCOPE } from "../src/lib/media/keyScope";
 import { buildWhere, scopeKey } from "../src/lib/server/bank/query";
 import { watchInputSchema } from "../src/lib/server/snaWatch";
 
-test("pantauan dalam proyek: post harus cocok kata kunci proyek DAN salah satu kata kunci pantauan", () => {
+test("watch within a project: a post must match the project keywords AND one of the watch keywords", () => {
   const project = { ...OPEN_SCOPE, keywords: ["polri"] };
   const watch = { ...project, alsoKeywords: ["listyo", "makar", "sadap"] };
   const plain = buildWhere("social", new URLSearchParams(), project);
@@ -14,7 +14,7 @@ test("pantauan dalam proyek: post harus cocok kata kunci proyek DAN salah satu k
   assert.notEqual(scopeKey(project), scopeKey(watch), "cache proyek dan pantauan terpisah");
 });
 
-test("validasi pantauan: kata kunci dirapikan, ganda dibuang, ekspresi rusak ditolak", () => {
+test("watch validation: keywords tidied, duplicates dropped, broken expressions refused", () => {
   const ok = watchInputSchema.parse({ name: "Isu Listyo makar", keywords: [" Listyo", "makar", "makar", "listyo AND sadap"] });
   assert.equal(ok.key, null);
   assert.deepEqual(ok.keywords, ["listyo", "makar", "listyo and sadap"]);

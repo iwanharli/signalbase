@@ -12,7 +12,7 @@ const g: SnaGraph = {
   links: [link("a", "issue:besar"), link("b", "a"), link("c", "b"), link("d", "issue:kecil"), link("lepas", "teman")],
 };
 
-test("pohon: isu di baris pertama, isu terbesar di kiri, anak di bawah induknya", () => {
+test("tree: issues on the first row, the largest on the left, children under their parent", () => {
   const t = treeLayout(g)!;
   const p = (id: string) => t.pos.get(id)!;
   assert.equal(p("issue:besar").y, 0);
@@ -23,7 +23,7 @@ test("pohon: isu di baris pertama, isu terbesar di kiri, anak di bawah induknya"
   assert.ok(p("d").y > 0);
 });
 
-test("pohon: akun yang tak terikat isu di bawah semua pohon, dan bisa disembunyikan", () => {
+test("tree: accounts tied to no issue go below every tree and can be hidden", () => {
   const t = treeLayout(g)!;
   assert.deepEqual([...t.orphans].sort(), ["lepas", "teman"]);
   const deepest = Math.max(...["a", "b", "c", "d"].map((id) => t.pos.get(id)!.y));
@@ -33,7 +33,7 @@ test("pohon: akun yang tak terikat isu di bawah semua pohon, dan bisa disembunyi
   assert.ok(!shown.links.some((l) => l.source === "lepas"));
 });
 
-test("pohon: banyak akun daun di bawah satu isu dirapatkan dalam grid 3 kolom", () => {
+test("tree: many leaf accounts under one issue are packed into a 3-column grid", () => {
   const many: SnaGraph = { nodes: [node("issue:x", "issue"), ...Array.from({ length: 12 }, (_, i) => node(`u${i}`))], links: Array.from({ length: 12 }, (_, i) => link(`u${i}`, "issue:x")) };
   const t = treeLayout(many)!;
   const rows = new Set(Array.from({ length: 12 }, (_, i) => t.pos.get(`u${i}`)!.y));
@@ -41,11 +41,11 @@ test("pohon: banyak akun daun di bawah satu isu dirapatkan dalam grid 3 kolom", 
   assert.equal(t.orphans.size, 0);
 });
 
-test("pohon: tanpa isu (tampilan mention) tidak ada susunan pohon", () => {
+test("tree: without issues (mention view) there is no tree layout", () => {
   assert.equal(treeLayout({ nodes: [node("a"), node("b")], links: [link("a", "b")] }), null);
 });
 
-test("pohon: akun yang terhubung ke isu secara tidak langsung (lewat akun lain, arah garis terbalik) masuk pohon, bukan ke bawah", () => {
+test("tree: accounts linked to an issue indirectly (through another account, reversed edge) join the tree, not the bottom", () => {
   // "atas" belongs to the issue; "x" and "y" only link to it from the other side (atas -> x), and y hangs on x.
   const indirect: SnaGraph = {
     nodes: [node("issue:i", "issue"), node("atas"), node("x"), node("y"), node("sendiri"), node("kawan")],

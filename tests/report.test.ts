@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { OntIssue } from "../src/lib/ontologi";
+import type { OntIssue } from "../src/lib/ontology";
 import type { Insights } from "../src/lib/media/insights";
 import { changePct, daysBetween, latestPeriod, periodLabel, weekOfYear, closingNarrative, reportFileName, entityRanking, issueHeat, locationRanking, narrative, reportTitle } from "../src/lib/report";
 

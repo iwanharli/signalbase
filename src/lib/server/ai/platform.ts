@@ -11,15 +11,15 @@ import type { ProviderConfig } from "./providers";
 
 let cachedEnc: { key: string; enc: string } | null = null;
 
-/** 4 huruf terakhir key penyedia milik Signalbase (SIGNALBASE_AI_API_KEY); null bila belum diatur. */
+/** Last 4 characters of Signalbase's own provider key (SIGNALBASE_AI_API_KEY); null when not set. */
 export const platformKeyHint = () => (process.env.SIGNALBASE_AI_API_KEY ? process.env.SIGNALBASE_AI_API_KEY.slice(-4) : null);
 
-/** 4 huruf terakhir key yang kini membayar kategorisasi sebuah classifier (key Signalbase atau key milik klien). */
+/** Last 4 characters of the key now paying for a classifier's categorisation (Signalbase's key or the client's own). */
 export const classifierKeyHint = (c: { providerKind: string; providerKeyHint: string }) =>
   c.providerKind === "signalbase" ? platformKeyHint() : c.providerKeyHint;
 
-/** Saat key itu pertama tercatat membayar token proyek ini; saldo sebelumnya milik key lain. Null bila belum pernah.
- *  shortcut: keyHint baru dicatat sejak 16 Nov 2026, jadi saldo key yang tidak pernah diganti pun tampil sejak tanggal itu. */
+/** When that key was first recorded paying for this project's tokens; earlier balances belong to another key. Null if never.
+ *  shortcut: keyHint is only recorded since 16 Nov 2026, so even a key that never changed shows balances from that date. */
 export async function keySince(apiKeyId: string, hint: string | null) {
   if (!hint) return null;
   const row = await prisma.tokenUsage.findFirst({ where: { apiKeyId, keyHint: hint }, orderBy: { hour: "asc" }, select: { hour: true } });

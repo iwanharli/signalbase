@@ -1,6 +1,0 @@
-# Issue clustering service (scripts/klaster/layanan_klaster.py), venv /opt/sb-klaster/venv, Python 3.12.
-# Model files (not in git): Xenova/multilingual-e5-small -> /opt/sb-klaster/models/e5/{model.onnx (onnx/model.onnx, fp32), tokenizer.json}
-onnxruntime>=1.20
-tokenizers>=0.20
-numpy>=2.0
-scikit-learn>=1.5

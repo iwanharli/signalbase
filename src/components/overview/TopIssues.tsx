@@ -14,7 +14,7 @@ type Cluster = { id: string; title: string | null; keywords: string[]; posts: nu
 
 export function TopIssues({ keyId, period, social, online }: { keyId: string | null; period: number; social: boolean; online: boolean }) {
   const withKey = keyId ? `key=${encodeURIComponent(keyId)}` : "";
-  const clusters = useApi<{ issues: Cluster[] }>(social && keyId ? `/api/admin/isu-klaster?${withKey}` : null);
+  const clusters = useApi<{ issues: Cluster[] }>(social && keyId ? `/api/admin/issue-clusters?${withKey}` : null);
   const news = useApi<{ issues: IssueSummary[] }>(online ? `/api/admin/issues?days=${period}&topik=nasional${withKey ? `&${withKey}` : ""}` : null);
   const showSocial = social && !!keyId;
   if (!showSocial && !online) return null;

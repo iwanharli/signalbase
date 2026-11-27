@@ -6,23 +6,23 @@ import { keywordQuery } from "../src/lib/server/bank/query";
 
 const q = (k: string) => { const r = keywordToQuery(k); assert.ok("query" in r, `error: ${"error" in r ? r.error : ""}`); return r.query; };
 
-test("kata kunci biasa tetap seperti dulu: kata, frasa, polisi bukan polisi tidur", () => {
+test("plain keywords work as before: words, phrases, \"polisi\" is not \"polisi tidur\"", () => {
   assert.equal(q("polri"), "(polri)");
   assert.equal(q("andi amran"), "(andi <-> amran)");
   assert.equal(q("polisi"), "(polisi & !(polisi <-> tidur))");
   assert.equal(keywordQuery(["polri", "andi amran"]), "(polri) | (andi <-> amran)");
 });
 
-test("ekspresi AND / OR, tanda kurung, frasa berkutip (contoh SLOG POLRI)", () => {
+test("AND / OR expressions, parentheses, quoted phrases (SLOG POLRI example)", () => {
   assert.equal(q('("Polres Kuat Polsek Tangguh" OR "Quick Win 07") AND (pelayanan OR pengaduan)'),
     "(((polres <-> kuat <-> polsek <-> tangguh) | (quick <-> win <-> 07)) & ((pelayanan) | (pengaduan)))");
   assert.equal(q('(Polres OR Polsek) AND ("urus SKCK" OR "waktu tunggu" OR "bikin laporan polisi")'),
     "(((polres) | (polsek)) & ((urus <-> skck) | (waktu <-> tunggu) | (bikin <-> laporan <-> polisi)))");
   assert.equal(q("polres or polsek and spkt"), "((polres) | (polsek) & (spkt))"); // AND mengikat lebih kuat
-  assert.equal(q("(status laporan) and polres"), "(((status <-> laporan)) & (polres))"); // kata tanpa kutip = frasa
+  assert.equal(q("(status laporan) and polres"), "(((status <-> laporan)) & (polres))"); // unquoted words = a phrase
 });
 
-test("ekspresi yang salah ditolak dengan pesan jelas", () => {
+test("invalid expressions are refused with a clear message", () => {
   assert.match(keywordProblem('(polres OR polsek') ?? "", /kurung belum ditutup/);
   assert.match(keywordProblem('polres OR polsek)') ?? "", /tanpa pasangan/);
   assert.match(keywordProblem('"urus skck AND polres') ?? "", /kutip belum ditutup/);
@@ -34,7 +34,7 @@ test("ekspresi yang salah ditolak dengan pesan jelas", () => {
   assert.equal(keyScopeSchema.safeParse({ keywords: ['("Polres Kuat Polsek Tangguh" OR "Quick Win 07") AND (pelayanan OR pengaduan)'] }).success, true);
 });
 
-test("menambah kata kunci tidak mengulang kategorisasi; menghapus mengulang", () => {
+test("adding keywords does not restart categorisation; removing does", () => {
   const base = keyScopeSchema.parse({ keywords: ["polri", "polisi"] });
   assert.equal(labelImpact({ ...base, keywords: ["polri", "polisi", "(polres or polsek) and skck"] }, base), "extend");
   assert.equal(labelImpact({ ...base, keywords: ["polri"] }, base), "restart");

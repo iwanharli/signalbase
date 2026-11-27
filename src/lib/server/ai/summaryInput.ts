@@ -11,10 +11,10 @@ import { allowsType, OPEN_SCOPE, type KeyScope } from "@/lib/media/keyScope";
 import { MEDIA_TYPE_LABEL, sourceLabel } from "@/lib/media/labels";
 import { moodPolarity } from "@/lib/media/mood";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
-import type { OntIssue } from "@/lib/ontologi";
+import type { OntIssue } from "@/lib/ontology";
 import { fetchItemsByCode, listItems } from "../bank";
 import { issueNews, listIssues } from "../bank/issues";
-import { ontologiIssues } from "../bank/ontologi";
+import { ontologyIssues } from "../bank/ontology";
 import { bankPool, withLongTimeout } from "../bank/pool";
 import { buildWhere, COLUMNS, keywordQuery } from "../bank/query";
 import { imageTextFor } from "../media/textSignals";
@@ -232,7 +232,7 @@ async function statsBlock(type: MediaType, scope: KeyScope, day: string, known: 
 
 /** Early-warning issues sent on the day; the 3 days up to it when the day itself had fewer than 3. Highest score first. */
 async function ewsBlock(scope: KeyScope, day: string, refs: Refs) {
-  const recent = (await ontologiIssues(3, scope)).filter((i) => wallDay(i.sentAt) <= day);
+  const recent = (await ontologyIssues(3, scope)).filter((i) => wallDay(i.sentAt) <= day);
   let issues: OntIssue[] = recent.filter((i) => wallDay(i.sentAt) === day);
   let window = `pada ${longDate(day)}`;
   if (issues.length < 3) { issues = recent.filter((i) => wallDay(i.sentAt) >= shiftDay(day, -2)); window = `3 hari hingga ${longDate(day)}`; }

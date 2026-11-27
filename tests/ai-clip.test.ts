@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { briefAiSchema } from "../src/lib/brief";
 import { clip, schemaIssues, wellFormed } from "../src/lib/ai/clip";
 
-test("clip tidak memotong emoji di tengah; wellFormed membersihkan setengah karakter", () => {
+test("clip never cuts an emoji in half; wellFormed cleans half characters", () => {
   assert.equal(clip("ab😀", 3), "ab"); // 😀 = 2 unit UTF-16; memotong di tengahnya membuang separuhnya
   assert.equal(clip("ab😀", 4), "ab😀");
   assert.equal(clip("abc", 10), "abc");
@@ -13,12 +13,12 @@ test("clip tidak memotong emoji di tengah; wellFormed membersihkan setengah kara
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(wellFormed(broken))));
 });
 
-test("butir daftar yang tidak lengkap dibuang, narasi lain tetap terpakai", () => {
+test("incomplete list items are dropped, the rest of the narrative is kept", () => {
   const reply = {
     suhu: { level: "waspada", momentum: "naik", ringkas: "Percakapan meningkat." },
     keputusan: { pengantar: "Perlu keputusan.", isu: [{ judul: "Isu A", tenggat: "" }, { judul: "Isu B", tenggat: "Hari ini" }] },
     temuan: [{ judul: "T", isi: "", evidence: [] }, { judul: "T2", isi: "Isi", evidence: ["s1"] }],
-    tren: { judul: "", isi: "Naik" }, // tidak lengkap: dihilangkan saja
+    tren: { judul: "", isi: "Naik" }, // incomplete: simply dropped
     keterbatasan: "",
   };
   const r = briefAiSchema.safeParse(reply);
@@ -27,5 +27,5 @@ test("butir daftar yang tidak lengkap dibuang, narasi lain tetap terpakai", () =
   assert.deepEqual(r.data.temuan.map((x) => x.judul), ["T2"]);
   assert.equal(r.data.tren, undefined);
   assert.equal(r.data.keterbatasan, "");
-  assert.equal(briefAiSchema.safeParse({ keputusan: { pengantar: "x" } }).success, false); // tanpa suhu tetap ditolak
+  assert.equal(briefAiSchema.safeParse({ keputusan: { pengantar: "x" } }).success, false); // still refused without a temperature
 });

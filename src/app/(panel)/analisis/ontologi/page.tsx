@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { NoKeyYet } from "@/components/media/NoKeyYet";
-import { OntologiBoard } from "@/components/ontologi/OntologiBoard";
+import { OntologyBoard } from "@/components/ontology/OntologyBoard";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import { getSession, visibleKeys } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
 import { roleOf } from "@/lib/session";
 
-export default async function OntologiPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
+export default async function OntologyPage({ searchParams }: { searchParams: Promise<{ key?: string }> }) {
   const session = await getSession();
   const isUser = !!session && roleOf(session) === "user";
 
@@ -18,5 +18,5 @@ export default async function OntologiPage({ searchParams }: { searchParams: Pro
     if (key) redirect(`/analisis/ontologi?key=${key.id}`);
     return <NoKeyYet type="social" label="Ontologi" hasKeys={keys.length > 0} />;
   }
-  return <OntologiBoard />;
+  return <OntologyBoard />;
 }

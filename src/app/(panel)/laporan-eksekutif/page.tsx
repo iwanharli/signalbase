@@ -1,4 +1,4 @@
-import { ReportArchive } from "@/components/laporan/ReportArchive";
+import { ReportArchive } from "@/components/report/ReportArchive";
 
 // Laporan: the archive of executive reports (harian, mingguan, bulanan); a card opens the printable report at /laporan.
 export default function Page() {

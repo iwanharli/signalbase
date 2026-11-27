@@ -1,9 +1,9 @@
-// Harga resmi DeepSeek (api-docs.deepseek.com, 16 Nov 2026), USD per 1 juta token, dirata-rata dengan anggapan ±20%
-// panggilan di jam sibuk (harga penuh; jam sepi = setengahnya).
+// DeepSeek list prices (api-docs.deepseek.com, 16 Nov 2026), USD per 1 million tokens, averaged assuming ±20% of calls at
+// peak hours (full price; off-peak = half).
 //   deepseek-v4-pro: cache 0,022/0,044 · input 0,66/1,32 · output 1,98/3,96
 //   deepseek-flash : cache 0,003/0,006 · input 0,15/0,30 · output 0,60/1,20
-// deepseek-chat tidak lagi tercantum; dianggap setara deepseek-flash. Model lain: harga dari Pengaturan AI (fallback).
-// shortcut: harga tetap di kode, pindahkan ke pengaturan bila sering berubah.
+// deepseek-chat is no longer listed; treated as deepseek-flash. Other models: prices from the AI settings (fallback).
+// shortcut: prices fixed in code; move them to the settings if they change often.
 export type Price = { input: number; cached: number; output: number };
 
 const FLASH: Price = { input: 0.18, cached: 0.0036, output: 0.72 };
@@ -12,14 +12,14 @@ const MODELS: Record<string, Price> = { "deepseek-chat": FLASH, "deepseek-flash"
 
 export const priceFor = (model: string, fallback: Price): Price => MODELS[model] ?? fallback;
 
-/** USD per web search yang berhasil dan ada hasilnya (api-docs.deepseek.com/quick_start/pricing, 26 Nov 2026: 0,75 per 1.000). */
+/** USD per successful web search with results (api-docs.deepseek.com/quick_start/pricing, 26 Nov 2026: 0.75 per 1,000). */
 export const SEARCH_PRICE = 0.75 / 1000;
 
-/** Biaya USD dari token; `cached` adalah bagian dari `input`. */
+/** USD cost of tokens; `cached` is part of `input`. */
 export const tokenCost = (t: { input: number; cached?: number; output: number }, p: Price) =>
   ((t.input - (t.cached ?? 0)) * p.input + (t.cached ?? 0) * p.cached + t.output * p.output) / 1_000_000;
 
-/** Perkiraan sebulan penuh: rata-rata hari-hari penuh terakhir (maks. 7, sebelum hari ini) × jumlah hari bulan berjalan. */
+/** Full-month estimate: mean of the last full days (at most 7, before today) × days in the current month. */
 export function monthProjection(perDay: Record<string, number>, today: string) {
   const [y, m] = today.split("-").map(Number);
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();

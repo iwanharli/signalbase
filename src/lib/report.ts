@@ -5,7 +5,7 @@ import type { Insights } from "./media/insights";
 import { formatNumber, sourceLabel } from "./media/labels";
 import type { MoodCount } from "./media/types";
 import type { IssueSummary } from "./issues";
-import type { OntIssue } from "./ontologi";
+import type { OntIssue } from "./ontology";
 
 export const REPORT_PERIODS = [1, 3, 7] as const;
 export type ReportDays = (typeof REPORT_PERIODS)[number];

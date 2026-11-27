@@ -25,7 +25,7 @@ test("search: a single term and a bare 'or' keep working", () => {
   assert.doesNotMatch(buildWhere("online", new URLSearchParams({ q: "or" }), OPEN_SCOPE).where, /plainto_tsquery/);
 });
 
-test("search: \"frasa\" memakai phraseto_tsquery, @akun mencocokkan handle atau nama penulis", () => {
+test("search: \"phrase\" uses phraseto_tsquery, @account matches the handle or author name", () => {
   const phrase = buildWhere("social", new URLSearchParams({ q: '"sidang etik" listyo' }), OPEN_SCOPE);
   assert.match(phrase.where, /post_content_tsv @@ \(plainto_tsquery\('indonesian', \$\d+\) && phraseto_tsquery\('indonesian', \$\d+\)\)/);
   assert.deepEqual(phrase.values.slice(-2), ["listyo", "sidang etik"]);

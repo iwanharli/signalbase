@@ -6,7 +6,7 @@ import { labelAiBlocked, labelAiConfig } from "@/lib/server/ai/labelAi";
 import { getSetting } from "@/lib/server/ai/summary";
 import { adminRoute } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/db";
-import { liveKurs } from "@/lib/server/kurs";
+import { liveUsdToIdr } from "@/lib/server/exchangeRate";
 
 type Context = { params: Promise<{ id: string }> };
 const HOUR = 3_600_000, DAY = 24 * HOUR;
@@ -25,11 +25,11 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
   const offset = 7 * HOUR, now = Date.now();
   const end = hourly ? Math.ceil(now / HOUR) * HOUR : Math.ceil((now + offset) / DAY) * DAY - offset;
   const from = new Date(end - days * DAY);
-  const [row, rows, setting, kurs] = await Promise.all([
+  const [row, rows, setting, usdToIdr] = await Promise.all([
     prisma.labelAi.findUnique({ where: { apiKeyId: id } }),
     prisma.labelAiUsage.findMany({ where: { apiKeyId: id, hour: { gte: from } } }),
     getSetting(),
-    liveKurs(),
+    liveUsdToIdr(),
   ]);
   const fallback = { input: setting?.priceInput ?? 0.18, cached: setting?.priceCachedInput ?? 0.0036, output: setting?.priceOutput ?? 0.72 };
   const series = usageSeries(rows, from, end, hourly, (u) => {
@@ -48,6 +48,6 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     configured: !!row, currency: "USD", current: null, since: null, bucket: hourly ? "hour" : "day",
     buckets: series.map(({ start, spent, parts, searches }) => ({ start, spent, parts, searches, topUp: 0 })),
     tokens: series.map(({ start, input, output, calls, tokenParts }) => ({ start, input, output, calls, parts: tokenParts })),
-    models: [...new Set(rows.map((r) => r.model))], kurs, balance: balance && { currency: balance.currency, total: balance.total },
+    models: [...new Set(rows.map((r) => r.model))], usdToIdr, balance: balance && { currency: balance.currency, total: balance.total },
   }, { headers: { "Cache-Control": "no-store" } });
 });

@@ -1,5 +1,5 @@
 // Media visual page (Analisis → Media visual): labels and shapes shared by the API and the page. The tags come from the
-// local media worker (scripts/media/analisis_media.py); their codes must match TAGS there.
+// local media worker (scripts/media/media_analysis.py); their codes must match TAGS there.
 import type { MediaItem, MediaType } from "./media/types";
 
 export const VISUAL_TAGS: Record<string, string> = {
@@ -385,7 +385,7 @@ export function numericClaims(text: string) {
 
 // ── Words OCR ran together ────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Word → frequency (see server/media/kata.ts). */
+/** Word → frequency (see server/media/wordFrequencies.ts). */
 export type WordFreq = Map<string, number>;
 /** Only tokens at least this long that aren't words themselves are split. */
 const SPLIT_MIN = 8;

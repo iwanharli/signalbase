@@ -5,7 +5,7 @@ import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { snaGraph } from "@/lib/server/bank/sna";
 import { overviewView } from "@/lib/server/overviewKey";
 import { snaCodes } from "@/lib/server/snaFilter";
-import { snaIssueGraph } from "@/lib/server/isu/sna";
+import { snaIssueGraph } from "@/lib/server/issueClusters/sna";
 import { resolveWatch, snaWatchGraph } from "@/lib/server/snaWatch";
 
 // SNA page: ?days=1|3|7&limit=25|50|100|200[&key=][&issue=&label=] (only that project's posts of the issue or label)

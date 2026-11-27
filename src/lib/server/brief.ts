@@ -13,11 +13,11 @@ import { allowsType, OPEN_SCOPE } from "@/lib/media/keyScope";
 import { sourceLabel } from "@/lib/media/labels";
 import { moodPolarity } from "@/lib/media/mood";
 import type { MediaItem } from "@/lib/media/types";
-import { ONT_PERIODS, type OntIssue } from "@/lib/ontologi";
+import { ONT_PERIODS, type OntIssue } from "@/lib/ontology";
 import { daysBetween, KIND_LABEL, periodLabel, shiftDay, type ReportKind } from "@/lib/report";
 import { listItems } from "./bank";
 import { issueNews, listIssues } from "./bank/issues";
-import { ontologiIssues } from "./bank/ontologi";
+import { ontologyIssues } from "./bank/ontology";
 import { withLongTimeout } from "./bank/pool";
 import { buildWhere, COLUMNS } from "./bank/query";
 import { prisma } from "./db";
@@ -126,7 +126,7 @@ export async function buildBrief(ref: ScopeRef, kind: ReportKind, cur: Range, pr
   const [soc, onl, ews, newsIssues] = await Promise.all([
     hasSocial ? socialNumbers(s, cur, prev) : null,
     hasOnline ? onlineNumbers(s, cur, prev) : null,
-    hasSocial ? ontologiIssues(ontDays, ref.scope) : Promise.resolve([] as OntIssue[]),
+    hasSocial ? ontologyIssues(ontDays, ref.scope) : Promise.resolve([] as OntIssue[]),
     hasOnline ? listIssues(daysBetween(cur.start, jakartaDay()), s.keywords, "nasional") : Promise.resolve([]),
   ]);
 

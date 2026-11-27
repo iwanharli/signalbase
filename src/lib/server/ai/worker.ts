@@ -60,7 +60,7 @@ type Job = {
   provider: ProviderConfig & { model: string };
   /** Tried for a batch when the main provider fails it. */
   fallback: ProviderConfig | null;
-  /** 4 huruf terakhir key yang membayar tiap penyedia, untuk biaya per key (halaman Biaya AI). */
+  /** Last 4 characters of the key paying each provider, for costs per key (AI costs page). */
   providerHint: string | null;
   fallbackHint: string | null;
   prompt: string;
@@ -135,7 +135,7 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const fullText = (i: MediaItem) => [itemText(i), images.has(i.code) ? `[Teks di gambar] ${images.get(i.code)}` : ""].filter(Boolean).join("\n");
   const classifiable = items.filter((i) => fullText(i) && !(job.skipExcluded && i.analysis?.relevance === "exclude"));
   let toProvider = classifiable.map((i) => ({ id: i.code, text: fullText(i) }));
-  // Model lokal (IndoBERT) dulu untuk key yang memakainya: yang yakin langsung disimpan, sisanya ke penyedia AI.
+  // The local model (IndoBERT) first for keys that use it: confident results are stored, the rest go to the AI provider.
   const local: Labelled[] = [];
   if (usesLocalQw(job.apiKeyId)) {
     const allowed = new Set(job.categories[type].map((c) => c.code));

@@ -71,17 +71,17 @@ test("switching emotions off drops their counts, empty links and accounts left w
   assert.deepEqual(filterGraph(g, ["negative", "positive", "neutral", "unknown"]).nodes, []);
 });
 
-test("tampilan isu: isu jadi simpul, akun teratas per isu menurut engagement, akun di dua isu menjadi satu simpul", async () => {
+test("issue view: issues become nodes, top accounts per issue by engagement, an account in two issues is one node", async () => {
   const { buildIssueGraph } = await import("../src/lib/sna");
   const issues = [{ id: "i1", title: "Isu satu", posts: 50 }, { id: "i2", title: "Isu dua", posts: 20 }, { id: "i3", title: "Tanpa akun", posts: 5 }];
   const rows = [
     { issue: "i1", username: "a", source: "x", emotion: "marah", n: 3, eng: 900 },
     { issue: "i1", username: "b", source: "x", emotion: "netral", n: 1, eng: 10 },
-    { issue: "i1", username: "c", source: "x", emotion: "netral", n: 5, eng: 1 },   // banyak post, engagement kecil: tidak masuk 2 teratas
+    { issue: "i1", username: "c", source: "x", emotion: "netral", n: 5, eng: 1 },   // many posts, little engagement: not in the top 2
     { issue: "i2", username: "a", source: "x", emotion: "mendukung", n: 2, eng: 100 },
   ];
   const g = buildIssueGraph(issues, rows, 2);
-  assert.deepEqual(g.nodes.filter((n) => n.kind === "issue").map((n) => n.id), ["issue:i1", "issue:i2"]); // isu tanpa akun tidak digambar
+  assert.deepEqual(g.nodes.filter((n) => n.kind === "issue").map((n) => n.id), ["issue:i1", "issue:i2"]); // issues without accounts are not drawn
   const a = g.nodes.find((n) => n.id === "a")!;
   assert.equal(a.kind, "hub");
   assert.equal(a.engagement, 1000); // dua isu, satu simpul
@@ -100,17 +100,17 @@ const flowRows = [
 const issueA = [{ id: "a", title: "Isu A", posts: 7 }];
 const parentOf = (g: ReturnType<typeof buildIssueGraph>) => Object.fromEntries(g.links.map((l) => [l.source, l.target]));
 
-test("alur langsung: semua akun ke isu", () => {
+test("direct flow: every account to the issue", () => {
   assert.deepEqual(parentOf(buildIssueGraph(issueA, flowRows, 10)), { awal: "issue:a", kedua: "issue:a", ketiga: "issue:a", akhir: "issue:a" });
 });
 
-test("alur rantai: urut waktu post pertama, yang paling awal ke isu", () => {
+test("chain flow: ordered by first post time, the earliest to the issue", () => {
   const g = buildIssueGraph(issueA, flowRows, 10, "rantai");
   assert.deepEqual(parentOf(g), { awal: "issue:a", kedua: "awal", ketiga: "kedua", akhir: "ketiga" });
   assert.equal(g.nodes.find((n) => n.id === "awal")?.first, "2026-11-26T08:00:00");
 });
 
-test("alur mention: anak dari akun lebih awal yang disebut, selain itu ke isu; tidak pernah mundur waktu", () => {
+test("mention flow: child of an earlier account it mentions, else to the issue; never back in time", () => {
   const pairs = [
     { issue: "a", source: "ketiga", target: "@Awal" }, // case and @ ignored
     { issue: "a", source: "awal", target: "akhir" }, // mentions a later account: stays under the issue
@@ -119,14 +119,14 @@ test("alur mention: anak dari akun lebih awal yang disebut, selain itu ke isu; t
   assert.deepEqual(parentOf(buildIssueGraph(issueA, flowRows, 10, "mention", pairs)), { awal: "issue:a", kedua: "issue:a", ketiga: "awal", akhir: "kedua" });
 });
 
-test("alur gelombang: gelombang pertama ke isu, berikutnya ke akun paling berpengaruh di gelombang sebelumnya", () => {
+test("wave flow: the first wave to the issue, later ones to the most influential account of the wave before", () => {
   const g = buildIssueGraph(issueA, flowRows, 10, "gelombang");
   // awal and kedua: first hour (wave 1); ketiga: 4 h later (wave 2); akhir: 2 days later (wave 4).
   assert.deepEqual(parentOf(g), { awal: "issue:a", kedua: "issue:a", ketiga: "kedua", akhir: "ketiga" });
   assert.deepEqual(g.nodes.filter((n) => n.kind === "hub").map((n) => [n.id, n.wave]), [["awal", 1], ["kedua", 1], ["ketiga", 2], ["akhir", 4]]);
 });
 
-test("alur selain langsung menjaga akun paling awal walau engagement-nya kecil", () => {
+test("flows other than direct keep the earliest account even with little engagement", () => {
   const ids = (g: ReturnType<typeof buildIssueGraph>) => g.nodes.filter((n) => n.kind === "hub").map((n) => n.id).sort();
   assert.deepEqual(ids(buildIssueGraph(issueA, flowRows, 2)), ["akhir", "kedua"]);
   assert.deepEqual(ids(buildIssueGraph(issueA, flowRows, 2, "rantai")), ["awal", "kedua"]);

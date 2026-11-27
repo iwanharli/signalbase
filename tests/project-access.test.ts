@@ -9,7 +9,7 @@ const ended = { status: "active", planExpiresAt: new Date(Date.now() - day) };
 const suspended = { status: "suspended", planExpiresAt: null };
 const pending = { status: "pending", planExpiresAt: null };
 
-test("klien aktif: disetujui, tidak dinonaktifkan, masa akses belum berakhir (atau tanpa batas)", () => {
+test("active client: approved, not suspended, access not expired (or unlimited)", () => {
   assert.equal(clientActive(active), true);
   assert.equal(clientActive(noEnd), true);
   assert.equal(clientActive(ended), false);
@@ -17,7 +17,7 @@ test("klien aktif: disetujui, tidak dinonaktifkan, masa akses belum berakhir (at
   assert.equal(clientActive(pending), false);
 });
 
-test("AI proyek dijeda hanya bila proyek punya klien dan tidak ada satu pun yang aktif", () => {
+test("a project's AI is paused only when it has clients and none is active", () => {
   assert.equal(aiPausedFor([]), false, "proyek tanpa klien mengikuti saklar admin");
   assert.equal(aiPausedFor([ended]), true);
   assert.equal(aiPausedFor([ended, suspended]), true);
@@ -25,7 +25,7 @@ test("AI proyek dijeda hanya bila proyek punya klien dan tidak ada satu pun yang
   assert.equal(aiPausedFor([noEnd]), false);
 });
 
-test("clientMayWrite: klien hanya boleh mengoreksi label dan kategori AI", async () => {
+test("clientMayWrite: clients may only correct labels and AI categories", async () => {
   const { clientMayWrite } = await import("../src/lib/server/auth");
   assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/item-labels"));
   assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/classifications"));

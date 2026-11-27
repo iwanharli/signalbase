@@ -1,5 +1,5 @@
 // Local media analysis (npm run media): collects the images of new items from the source database (read-only) and has the
-// local service (scripts/media/layanan_media.py, MEDIA_SERVICE_URL) read their text (OCR), tag them and fingerprint them.
+// local service (scripts/media/media_service.py, MEDIA_SERVICE_URL) read their text (OCR), tag them and fingerprint them.
 // Feeds: news images (news_main.news_image and images in the article body), X photos, video posters and frames (through
 // originalXPost), YouTube thumbnails and frames, Instagram posts (every carousel slide and Reel frames, from the official embed
 // page; og:image otherwise) and Threads post images (og:image). Speech of X videos and Reels is transcribed (transcribePending).
@@ -20,7 +20,7 @@ import { groupUngrouped, twinGroupFor } from "./twins";
 import { applyTextSignals, applyTranscript, computeKeyText, refreshTextSignals } from "./textSignals";
 
 const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
-/** Speech-to-text service (scripts/media/layanan_asr.py); optional: without it videos simply wait. */
+/** Speech-to-text service (scripts/media/asr_service.py); optional: without it videos simply wait. */
 const ASR = () => process.env.MEDIA_ASR_URL ?? "http://127.0.0.1:3727";
 /** Transcription time per tick (beside the image analysis, not after it), and how old a video may be when its turn comes (Instagram video links expire in days). */
 const ASR_BUDGET_MS = Number(process.env.MEDIA_ASR_BUDGET_MS ?? 180_000);

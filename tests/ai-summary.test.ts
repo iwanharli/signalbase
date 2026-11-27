@@ -78,7 +78,7 @@ test("input codes written into prose are removed, the rest of the sentence kept"
   assert.equal(stripCodes("Tol KM 12 dan Pasal 33 tetap utuh."), "Tol KM 12 dan Pasal 33 tetap utuh.");
 });
 
-test("pesan gagal ringkasan tidak pernah memuat balasan mentah penyedia", async () => {
+test("a failed summary message never contains the provider's raw reply", async () => {
   const { summaryErrorText } = await import("../src/lib/ai/summary");
   const raw = "Penyedia AI menolak (401): Authentication Fails, Your api key: ****4b5e is invalid (request_id: ddc06b1f-da6b-4f0f-9cdc-e3c4d59f72a8)";
   assert.equal(summaryErrorText(raw, true), "API key penyedia AI tidak valid. Periksa di Pengaturan AI.");
@@ -90,7 +90,7 @@ test("pesan gagal ringkasan tidak pernah memuat balasan mentah penyedia", async 
   for (const out of [summaryErrorText(raw, true), summaryErrorText("x (500) req_123", true)]) assert.doesNotMatch(out ?? "", /\*\*\*\*|request_id|req_/);
 });
 
-test("mode berpikir dimatikan hanya untuk DeepSeek", async () => {
+test("thinking mode is turned off for DeepSeek only", async () => {
   const { requestExtras } = await import("../src/lib/server/ai/summary");
   assert.deepEqual(requestExtras("https://api.deepseek.com"), { thinking: { type: "disabled" } });
   assert.deepEqual(requestExtras("https://api.deepseek.com/v1/"), { thinking: { type: "disabled" } });

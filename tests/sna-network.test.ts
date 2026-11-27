@@ -16,7 +16,7 @@ const groups: SnaGraph = {
   ],
 };
 
-test("betweenness: akun yang satu-satunya menghubungkan dua kelompok jadi jembatan #1", () => {
+test("betweenness: the only account linking two groups is bridge #1", () => {
   const a = analyzeNetwork(groups);
   assert.equal(a.bridges[0].id, "jembatan");
   assert.equal(a.bridges[0].rank, 1);
@@ -26,7 +26,7 @@ test("betweenness: akun yang satu-satunya menghubungkan dua kelompok jadi jembat
   assert.equal(a.betweenness.get("a2"), 0);
 });
 
-test("klaster: dua kelompok terpisah, jembatan menghubungkan keduanya", () => {
+test("communities: two separate groups, the bridge links both", () => {
   const a = analyzeNetwork(groups);
   assert.equal(a.community.get("a1"), a.community.get("a3"));
   assert.equal(a.community.get("b1"), a.community.get("b3"));
@@ -34,7 +34,7 @@ test("klaster: dua kelompok terpisah, jembatan menghubungkan keduanya", () => {
   assert.equal(a.bridges[0].communities.length, 2);
 });
 
-test("node isu tidak ikut peringkat jembatan; hasil stabil untuk graf yang sama", () => {
+test("issue nodes are not ranked as bridges; stable results for the same graph", () => {
   const issue: SnaGraph = { nodes: [node("issue:x", "issue"), node("p"), node("q")], links: [link("p", "issue:x"), link("q", "issue:x")] };
   const a = analyzeNetwork(issue);
   assert.equal(a.accounts, 2);

@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft, IconArrowRight, IconBellRinging, IconChevronRight, IconClock, IconExternalLink, IconFlame, IconMapPin, IconMessages, IconRadar2, IconSearch, IconSparkles, IconTrophy, IconX } from "@tabler/icons-react";
 import { formatNumber, sourceLabel } from "@/lib/media/labels";
-import { DEFAULT_ONT_DAYS, formatWindow, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntIssue } from "@/lib/ontologi";
+import { DEFAULT_ONT_DAYS, formatWindow, levelColor, ONT_PERIODS, parseOntDays, TOGGLE_LEVELS, type OntIssue } from "@/lib/ontology";
 import { TONE_COLOR, toneOf } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "../apiKeys/shared";
@@ -120,7 +120,7 @@ export function EwsBoard() {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const list = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontologi?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
+  const list = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontology?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => list.data?.issues ?? [], [list.data]);
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
 

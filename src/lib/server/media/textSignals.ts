@@ -5,7 +5,7 @@
 import { parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
 import { detectActionCall, keyText, mergeKeyText, narrativeKey, numericClaims, speechLines, splitJoinedText, type OcrLine } from "@/lib/mediaVisual";
-import { wordFreq } from "./kata";
+import { wordFreq } from "./wordFrequencies";
 import { keywordQuery } from "../bank/query";
 import { imageSearchText, parseSearch } from "@/lib/media/searchQuery";
 import { sharedCache } from "../bank/cache";
@@ -13,7 +13,7 @@ import { prisma } from "../db";
 import { RETENTION_DAYS } from "./projects";
 
 /** Bump when the rules in mediaVisual.ts change: analysed images are re-derived in the background. */
-export const TEXT_RULES_VERSION = 4; // 2: words OCR ran together split (kata.txt); calls to action need a call word. 3: Roman numerals in splits. 4: status bar, app screens, outlet names, view counts; claims without views/speeds/3T/Rp 0
+export const TEXT_RULES_VERSION = 4; // 2: words OCR ran together split (word-frequencies.txt); calls to action need a call word. 3: Roman numerals in splits. 4: status bar, app screens, outlet names, view counts; claims without views/speeds/3T/Rp 0
 const DERIVE_BATCH = 1000;
 
 type Project = { id: string; query: string };

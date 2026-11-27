@@ -153,13 +153,13 @@ export type UsageResponse = {
   rows: UsageRow[];
   total: number;
   balance: { currency: string; total: number }[] | null;
-  /** Kurs 1 USD dalam Rupiah (live, open.er-api.com); null bila tidak tersedia. */
-  kurs: number | null;
+  /** 1 USD in Rupiah (live, open.er-api.com); null when unavailable. */
+  usdToIdr: number | null;
 };
 
-/** "≈ Rp…" untuk jumlah USD bila kurs tersedia, selain itu kosong. */
-export const rupiah = (usd: number, currency: string | null, kurs: number | null | undefined) =>
-  currency === "USD" && kurs ? `≈ Rp${Math.round(usd * kurs).toLocaleString("id-ID")}` : "";
+/** "≈ Rp…" for a USD amount when the exchange rate is known, else empty. */
+export const rupiah = (usd: number, currency: string | null, usdToIdr: number | null | undefined) =>
+  currency === "USD" && usdToIdr ? `≈ Rp${Math.round(usd * usdToIdr).toLocaleString("id-ID")}` : "";
 
 /** What the Ringkasan page says about a failed summary. The stored error (often the provider's raw reply, with part of
  *  the key and a request id) never reaches the browser: users get nothing extra, admins one short reason to act on. */

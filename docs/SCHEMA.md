@@ -500,7 +500,7 @@ One image analysed by the local media worker (npm run media): news images, X pho
 | `sensitive` | text[] | tidak |  | tags that mark possibly sensitive content (shown as "perlu ditinjau") |
 | `model` | text | tidak |  |  |
 | `analyzedAt` | timestamp(3) without time zone | tidak |  |  |
-| `videoUrl` | text | tidak |  | The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/layanan_asr.py). |
+| `videoUrl` | text | tidak |  | The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/asr_service.py). |
 | `transcriptStatus` | text | tidak |  | null = no video; "pending" \| "done" \| "failed" \| "none" (no audio track, or too old when its turn came) |
 | `transcript` | text | tidak |  | What was said in the first MEDIA_ASR_MAX_SECONDS of the video ("" = no speech), and the detected language. |
 | `transcriptLang` | text | tidak |  |  |

@@ -6,7 +6,7 @@ import { BILLING_LABEL, TAX_LABEL, type billingIssuer } from "@/lib/billing";
 import { PLAN_LABEL, isPlanId } from "@/lib/plans";
 import { LogoMark } from "../Logo";
 import { Button, StatusPill } from "../ui/Button";
-import { rupiah, STATUS, tanggal, type InvoiceRow } from "./shared";
+import { rupiah, STATUS, formatLongDate, type InvoiceRow } from "./shared";
 import classes from "./invoice.module.css";
 
 type Issuer = ReturnType<typeof billingIssuer>;
@@ -29,9 +29,9 @@ export function InvoiceView({ invoice: inv, issuer, isAdmin }: { invoice: Invoic
 
         <div className={classes.meta}>
           <div><small>Ditagihkan kepada</small><b>{inv.account?.name}</b><span>@{inv.account?.username}</span></div>
-          <div><small>Tanggal</small><b>{tanggal(inv.createdAt)}</b></div>
-          <div><small>Jatuh tempo</small><b>{tanggal(inv.dueAt)}</b></div>
-          {inv.paidAt && <div><small>Dibayar</small><b>{tanggal(inv.paidAt)}</b></div>}
+          <div><small>Tanggal</small><b>{formatLongDate(inv.createdAt)}</b></div>
+          <div><small>Jatuh tempo</small><b>{formatLongDate(inv.dueAt)}</b></div>
+          {inv.paidAt && <div><small>Dibayar</small><b>{formatLongDate(inv.paidAt)}</b></div>}
         </div>
 
         <table className={classes.table}>
@@ -41,7 +41,7 @@ export function InvoiceView({ invoice: inv, issuer, isAdmin }: { invoice: Invoic
               <td>{inv.kind === "topup"
                 ? <><b>Tambah kuota kategorisasi AI</b><small>{(inv.topupPosts ?? 0).toLocaleString("id-ID")} post untuk bulan berjalan · paket {planName}</small></>
                 : <><b>Signalbase {planName}</b><small>Langganan {BILLING_LABEL[inv.billing].toLowerCase()}{inv.note ? ` · ${inv.note}` : ""}</small></>}</td>
-              <td>{tanggal(inv.periodStart)} – {tanggal(inv.periodEnd)}</td>
+              <td>{formatLongDate(inv.periodStart)} – {formatLongDate(inv.periodEnd)}</td>
               <td className={classes.num}>{rupiah(inv.subtotal)}</td>
             </tr>
           </tbody>
