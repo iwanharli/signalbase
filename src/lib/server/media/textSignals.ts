@@ -133,7 +133,10 @@ export async function withImageCodes(keyId: string | null | undefined, scope: Ke
     try {
       const matched = await matchSets(keyId, scope.keywords);
       if (matched.social || matched.online) out = { ...out, matched };
-    } catch { /* searches as before */ }
+    } catch (e) {
+      // Searches as before (slow for a long list): logged, so a broken lookup does not go unnoticed.
+      console.warn(`[matches] ${keyId}: hasil tersimpan tidak bisa dibaca: ${(e as Error).message.slice(-200)}`);
+    }
   }
   return out;
 }

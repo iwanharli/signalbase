@@ -51,7 +51,7 @@ export function matchSets(projectId: string, keywords: string[]): Promise<MatchS
         array_agg(to_char(m.at, 'YYYY-MM-DD"T"HH24:MI:SS') ORDER BY m.at) FILTER (WHERE m.code IS NOT NULL) at
       FROM "ProjectMatchState" s LEFT JOIN "ProjectMatch" m ON m."projectId" = s."projectId" AND m.type = s.type
       WHERE s."projectId" = ${projectId} AND (s.ready OR s."readyFrom" IS NOT NULL) AND s."keywordsHash" = ${hash}
-      GROUP BY s.type, s."coverFrom"`;
+      GROUP BY s.type, s.ready, s."coverFrom", s."readyFrom"`;
     const out: MatchSets = {};
     for (const r of rows) out[r.type] = { coverFrom: r.coverFrom, codes: r.codes ?? [], at: r.at ?? [] };
     return out;
