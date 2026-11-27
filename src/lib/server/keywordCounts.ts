@@ -10,10 +10,10 @@ import { buildWhere, COLUMNS, keywordQuery } from "./bank/query";
 import { prisma } from "./db";
 
 export const KEYWORD_RANGES = [7, 30, 90] as const;
-/** From this many keywords one combined query takes minutes (measured: 123 keywords ~100 s, 346 over 4 min). Such lists
- *  are counted one small indexed query per keyword (and per group), in the background; Beranda skips the per-keyword
- *  breakdown for them. */
-export const MANY_KEYWORDS = 60;
+/** Long lists (MANY_KEYWORDS, projectMatches.ts) are counted one small indexed query per keyword (and per group), in the
+ *  background; Beranda skips the per-keyword breakdown for them. */
+export { MANY_KEYWORDS } from "./projectMatches";
+import { MANY_KEYWORDS } from "./projectMatches";
 const MANY_TIMEOUT_MS = 5 * 60_000;
 const PARALLEL = 3;
 type Counts = { keyword: string; social: number | null; online: number | null }[];

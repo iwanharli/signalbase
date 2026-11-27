@@ -15,6 +15,7 @@ import { prisma } from "../db";
 import { getSetting, loggedCall, monthCost } from "../ai/summary";
 import { providerErrorMessage } from "../ai/providers";
 import { pausedProjects } from "../projectAccess";
+import { withImageCodes } from "../media/textSignals";
 
 const WINDOW_DAYS = 7;
 const EVERY_MS = 60 * 60_000;
@@ -102,7 +103,8 @@ async function writeTitles(projectId: string, name: string) {
 
 async function runProject(key: { id: string; name: string; scope: unknown; keywords: string[] }, url: string) {
   const started = Date.now();
-  const scope = parseKeyScope(key.scope, key.keywords);
+  // With its image codes and stored keyword matches, like the panel's queries (a long keyword list is minutes otherwise).
+  const scope = await withImageCodes(key.id, parseKeyScope(key.scope, key.keywords));
   const rows = await projectPosts(scope);
   if (rows.length < MIN_POSTS * 2) return log(`${key.name}: ${rows.length} post, terlalu sedikit untuk klaster`);
   // The first run embeds a whole week; later runs only new posts (the service keeps the embeddings).

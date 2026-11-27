@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 // Every user-supplied value is passed as a bound parameter.
 import type { KeyScope } from "@/lib/media/keyScope";
 import { keywordToQuery } from "@/lib/media/keywordExpr";
+import { codesBetween } from "@/lib/media/matchSet";
 import type { MediaType } from "@/lib/media/types";
 import { escapeLike, parseSearch } from "@/lib/media/searchQuery";
 
@@ -57,7 +58,9 @@ const AUTHOR = {
  * like any other new post. The image codes of a search (imageSearch) belong to that search, so they stay (as a digest).
  */
 export function scopeKey(scope: KeyScope) {
-  const { imageCodes: _codes, imageSearch, ...rest } = scope;
+  // matched (stored keyword matches) is left out for the same reason: it grows every minute.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { imageCodes: _codes, imageSearch, matched: _matched, ...rest } = scope;
   const digest = (c: KeyScope["imageSearch"]) => createHash("sha1").update(JSON.stringify([c?.social ?? [], c?.online ?? []])).digest("hex").slice(0, 12);
   return JSON.stringify({ ...rest, img: !!_codes }) + (imageSearch ? `#imgq:${digest(imageSearch)}` : "");
 }
@@ -67,16 +70,24 @@ export const filterKey = (type: MediaType, params: URLSearchParams, scope: KeySc
   [type, scopeKey(scope), ...FILTER_PARAMS.map((k) => params.get(k) ?? "")].join("|");
 
 /** Conditions from the API key's fixed scope. Added on top of the request filters, so they can only narrow. */
-function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown) => string) {
+function scopeConditions(type: MediaType, scope: KeyScope, bind: (value: unknown) => string, range: { from: string | null; to: string | null }) {
   const c = COLUMNS[type];
   const social = type === "social";
   const where: string[] = [];
   const keywordTs = keywordQuery(scope.keywords);
   const imageCodes = scope.imageCodes?.[type];
-  // Items whose image text names a keyword (media worker) count too, even when their caption doesn't.
-  if (keywordTs) where.push(imageCodes?.length
-    ? `(${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)}) OR ${c.code} = ANY(${bind(imageCodes)}::text[]))`
-    : `${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`);
+  const matched = scope.matched?.[type];
+  if (keywordTs) {
+    // A long keyword list whose matches are stored (server/projectMatches.ts): the stored codes of the requested dates,
+    // and a search only for what is older than the stored matches reach.
+    const byKeyword = matched
+      ? (range.from && range.from >= matched.coverFrom
+        ? `${c.code} = ANY(${bind(codesBetween(matched, range.from, range.to))}::text[])`
+        : `(${c.code} = ANY(${bind(codesBetween(matched, range.from, range.to))}::text[]) OR (${c.timestamp} < ${bind(matched.coverFrom)}::date AND ${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})))`)
+      : `${c.search} @@ to_tsquery('indonesian', ${bind(keywordTs)})`;
+    // Items whose image text names a keyword (media worker) count too, even when their caption doesn't.
+    where.push(imageCodes?.length ? `(${byKeyword} OR ${c.code} = ANY(${bind(imageCodes)}::text[]))` : byKeyword);
+  }
   // A second keyword set on top (an SNA watch within a project): items must match one of these as well.
   const alsoTs = scope.alsoKeywords?.length ? keywordQuery(scope.alsoKeywords) : "";
   if (alsoTs) where.push(`${c.search} @@ to_tsquery('indonesian', ${bind(alsoTs)})`);
@@ -105,7 +116,12 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   // Timestamps outside this window are scraper errors (some rows say 1925).
   where.push(`${c.timestamp} >= '2010-01-01'`, `${c.timestamp} <= now()`);
 
-  where.push(...scopeConditions(type, scope, bind));
+  // The request's date range (from/to, or an exact `since`), for the stored matches of a long keyword list.
+  const since = get("since");
+  const sinceOk = !!since && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(since);
+  const fromDay = isDate(get("from")) ? get("from") : null;
+  const lower = sinceOk && (!fromDay || since.replace(" ", "T") > fromDay) ? since.replace(" ", "T") : fromDay;
+  where.push(...scopeConditions(type, scope, bind, { from: lower, to: isDate(get("to")) ? get("to") : null }));
 
   // The search box (lib/media/searchQuery.ts): parts are alternatives; words, "phrases" and @accounts in a part all match.
   const search = get("q")?.trim();
@@ -132,8 +148,7 @@ export function buildWhere(type: MediaType, params: URLSearchParams, scope: KeyS
   if (isDate(from)) where.push(`${c.timestamp} >= ${bind(from)}::date`);
   if (isDate(to)) where.push(`${c.timestamp} < ${bind(to)}::date + 1`);
   // since: an exact wall-clock time "YYYY-MM-DD HH:mm:ss" (internal; the AI worker's start point).
-  const since = get("since");
-  if (since && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(since)) where.push(`${c.timestamp} >= ${bind(since)}::timestamp`);
+  if (sinceOk) where.push(`${c.timestamp} >= ${bind(since)}::timestamp`);
 
   // analyzed: "yes" = has an emotion/sentiment label, "no" = not labelled yet.
   const analyzed = get("analyzed");

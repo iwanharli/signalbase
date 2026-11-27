@@ -12,6 +12,7 @@ import { snaGraph } from "./bank/sna";
 import { snaIssueGraph } from "./issueClusters/sna";
 import { DEFAULT_SNA_LIMIT } from "@/lib/sna";
 import { KEYWORD_RANGES, keywordCounts, MANY_KEYWORDS } from "./keywordCounts";
+import { usesMatches } from "./projectMatches";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
@@ -61,8 +62,12 @@ async function warmAll() {
   const keys = await prisma.project.findMany({ where: { revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
   // With the items each project matches by image text, so the warmed caches are the ones its pages ask for.
   const scopes = await Promise.all(keys.map((key) => withImageCodes(key.id, parseKeyScope(key.scope, key.keywords))));
+  // A long keyword list is searched in minutes until its matches are stored (projectMatches.ts): not warmed until then,
+  // so the warm-up does not keep the source database busy with searches that time out.
+  const waiting = (i: number) => usesMatches(keys[i].keywords) && !scopes[i].matched?.social && !scopes[i].matched?.online;
   for (const [i, scope] of scopes.entries()) {
     const name = keys[i].name;
+    if (waiting(i)) continue;
     await step(`${name} stats`, () => Promise.all([typeStats("social", scope), typeStats("online", scope)]));
     await step(`${name} insights 7`, () => Promise.all([typeInsights("social", 7, scope), typeInsights("online", 7, scope)]));
     await step(`${name} media`, () => warmMediaPages(scope));
@@ -75,6 +80,7 @@ async function warmAll() {
   }
   for (const period of [30, 14]) {
     for (const [i, scope] of [undefined, ...scopes].entries()) {
+      if (i && waiting(i - 1)) continue;
       await step(`${i ? keys[i - 1].name : "bank"} insights ${period}`, () => Promise.all([typeInsights("social", period, scope), typeInsights("online", period, scope)]));
     }
   }

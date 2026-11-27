@@ -2,13 +2,15 @@
 // every request, on top of the request's own filters — so a client can narrow it, never widen it.
 import { z } from "zod";
 import { keywordProblem } from "./keywordExpr";
+import type { MatchSets } from "./matchSet";
 import { MEDIA_TYPES, type MediaType } from "./types";
 
 export const keyScopeSchema = z.object({
   /** Items must match at least one keyword: a word, a phrase, or an AND / OR expression (keywordExpr.ts). Empty = none. */
   keywords: z.array(z.string().trim().toLowerCase().min(2, "Kata kunci minimal 2 karakter").max(200, "Kata kunci maksimal 200 karakter")
     .superRefine((k, ctx) => { const problem = keywordProblem(k); if (problem) ctx.addIssue({ code: "custom", message: `Kata kunci "${k}": ${problem}` }); }))
-    .max(30).default([]),
+    // A project may list hundreds (PPIS: 346); long lists are matched ahead of time (server/projectMatches.ts).
+    .max(500).default([]),
   /** Media types the key may read. Empty = both. */
   types: z.array(z.enum(MEDIA_TYPES)).default([]),
   /** Only items that already have an emotion/sentiment label. */
@@ -30,6 +32,9 @@ export type KeyScope = z.infer<typeof keyScopeSchema> & {
   imageCodes?: Partial<Record<MediaType, string[]>>;
   /** Server only: items whose image text matches the request's search (?q=), which count as matching it. */
   imageSearch?: Partial<Record<MediaType, string[]>>;
+  /** Server only: the project's keyword matches stored ahead of time (long keyword lists, server/projectMatches.ts);
+   *  used by the source queries instead of searching all its keywords. Attached by withImageCodes. */
+  matched?: MatchSets;
   /** Server only: a second keyword set items must also match (one of them), e.g. an SNA watch within a project. */
   alsoKeywords?: string[];
 };

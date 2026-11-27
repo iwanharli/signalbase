@@ -60,11 +60,13 @@ model Project {
   tokenUsage      TokenUsage[]
   members         ProjectMember[]
   /// Manual label choices of this project (in order), set by its owner or an admin; people label posts with one of them.
-  manualLabels    String[]          @default([])
+  manualLabels    String[]            @default([])
   itemLabels      ItemLabel[]
   labelAi         LabelAi?
   labelAiItems    LabelAiItem[]
   labelAiUsage    LabelAiUsage[]
+  matches         ProjectMatch[]
+  matchStates     ProjectMatchState[]
 }
 
 // AI categorisation settings and progress for one project.
@@ -577,4 +579,40 @@ model ProjectAccessUsage {
   count     Int    @default(0)
 
   @@id([projectId, accountId, day])
+}
+
+/// Items of the source database that match a project's keywords, for projects with a long keyword list (≥ MANY_KEYWORDS):
+/// one search over hundreds of phrases takes minutes, so lib/server/projectMatches.ts matches new items every minute and
+/// the older ones once (back to ProjectMatchState.coverFrom), and the project's queries read these codes instead.
+/// Keyword match only: the project's other restrictions are still applied by the query.
+model ProjectMatch {
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      String // "social" | "online"
+  code      String // post_code / news_code in the source database
+  /// The item's timestamp as the source stores it (local time, no zone), kept as is.
+  at        DateTime
+
+  @@id([projectId, type, code])
+  @@index([projectId, type, at])
+}
+
+/// Progress of ProjectMatch per project and media type. Ids are the source table's `id` (insert order).
+model ProjectMatchState {
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type         String
+  /// The keywords the matches were made with (sha1 of the full-text query); different = start over.
+  keywordsHash String
+  /// Every item at or after this time is matched once `ready` (the backfill reached floorId).
+  coverFrom    DateTime
+  /// Forward cursor: items with an id up to here are matched.
+  highId       BigInt
+  /// Backfill cursor, going down to floorId.
+  lowId        BigInt
+  floorId      BigInt
+  ready        Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@id([projectId, type])
 }

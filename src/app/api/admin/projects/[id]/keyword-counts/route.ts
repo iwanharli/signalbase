@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminRoute } from "@/lib/server/auth";
 import { KEYWORD_RANGES, keywordCountsForPage } from "@/lib/server/keywordCounts";
+import { matchProgress } from "@/lib/server/projectMatches";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -14,7 +15,9 @@ export const GET = adminRoute(async (req: Request, { params }: Context) => {
     // A long keyword list answers { pending: true } while it is counted in the background.
     const result = await keywordCountsForPage(id, days);
     if (!result) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
-    return NextResponse.json(result);
+    // A long keyword list: how far its stored matches are (projectMatches.ts), shown under the table.
+    const matching = await matchProgress(id).catch(() => ({}));
+    return NextResponse.json({ ...result, matching });
   } catch {
     return NextResponse.json({ error: "Jumlah post belum bisa dihitung" }, { status: 502 });
   }

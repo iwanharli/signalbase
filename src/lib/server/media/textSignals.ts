@@ -11,6 +11,7 @@ import { imageSearchText, parseSearch } from "@/lib/media/searchQuery";
 import { sharedCache } from "../bank/cache";
 import { prisma } from "../db";
 import { RETENTION_DAYS } from "./projects";
+import { matchSets, usesMatches } from "../projectMatches";
 
 /** Bump when the rules in mediaVisual.ts change: analysed images are re-derived in the background. */
 export const TEXT_RULES_VERSION = 4; // 2: words OCR ran together split (word-frequencies.txt); calls to action need a call word. 3: Roman numerals in splits. 4: status bar, app screens, outlet names, view counts; claims without views/speeds/3T/Rp 0
@@ -122,12 +123,19 @@ export function imageCodesFor(keyId: string): Promise<ImageCodes> {
 /** A project's scope plus the items it matches by image text. Never fails: without the media tables it is the plain scope. */
 export async function withImageCodes(keyId: string | null | undefined, scope: KeyScope): Promise<KeyScope> {
   if (!keyId || !scope.keywords.length) return scope;
+  let out = scope;
   try {
     const imageCodes = await imageCodesFor(keyId);
-    return imageCodes.social?.length || imageCodes.online?.length ? { ...scope, imageCodes } : scope;
-  } catch {
-    return scope;
+    if (imageCodes.social?.length || imageCodes.online?.length) out = { ...out, imageCodes };
+  } catch { /* plain scope */ }
+  // A long keyword list: its matches stored ahead of time, once ready (server/projectMatches.ts).
+  if (usesMatches(scope.keywords)) {
+    try {
+      const matched = await matchSets(keyId, scope.keywords);
+      if (matched.social || matched.online) out = { ...out, matched };
+    } catch { /* searches as before */ }
   }
+  return out;
 }
 
 /** Same, from a stored key row. */

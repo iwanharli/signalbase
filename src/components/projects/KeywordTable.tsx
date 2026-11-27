@@ -23,7 +23,15 @@ type CountsResponse = {
   groups?: { name: string; social: number | null; online: number | null }[]; total: { social: number | null; online: number | null };
   /** A long keyword list being counted in the background: ask again shortly. */
   pending?: boolean;
+  /** Long keyword list: share of the stored matches done per media type (1 = ready), see server/projectMatches.ts. */
+  matching?: { social?: number; online?: number };
 };
+
+/** While a long keyword list is matched ahead of time, its pages still search slowly: say how far it is. */
+function matchingNote(m: CountsResponse["matching"]) {
+  const parts = ([["social", "media sosial"], ["online", "berita"]] as const).filter(([t]) => m?.[t] != null && m[t]! < 1).map(([t, label]) => `${label} ${Math.floor(m![t]! * 100)}%`);
+  return parts.length ? `Menyiapkan pencocokan kata kunci (${parts.join(", ")}); sampai selesai, halaman proyek ini masih lambat.` : null;
+}
 
 /** Plain word, phrase, or AND / OR expression. */
 const kindOf = (k: string) => (isKeywordExpression(k) ? "Ekspresi" : /\s/.test(k.trim()) ? "Frasa" : "Kata");
@@ -184,7 +192,7 @@ export function KeywordTable({ keyId, scope, saved, onChange, groups, onGroupsCh
       <div className={c.foot}>
         <small>{counts.error ? "Jumlah post belum bisa dihitung, coba lagi nanti."
           : pending ? `Menghitung ${formatNumber(scope.keywords.length)} kata kunci di latar belakang (beberapa menit untuk daftar panjang); angka muncul sendiri.`
-          : `Jumlah post sejak ${counts.data ? new Date(`${counts.data.from}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "…"} · sesuai cakupan proyek · diperbarui tiap 10 menit`}</small>
+          : matchingNote(counts.data?.matching) ?? `Jumlah post sejak ${counts.data ? new Date(`${counts.data.from}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "…"} · sesuai cakupan proyek · diperbarui tiap 10 menit`}</small>
         {pages > 1 && <Pagination size="sm" radius="md" total={pages} value={current} onChange={setPage} classNames={{ control: c.pageControl }} />}
       </div>
     </div>
