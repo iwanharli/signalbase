@@ -5,7 +5,7 @@ import { listIssues } from "@/lib/server/bank/issues";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { issueView } from "@/lib/server/panelScope";
 
-// Top issues of the last ?days= (3, 7, 14 or 30) in ?topik= (nasional, polisi) as seen through ?key= (users must pass one; admins may omit it).
+// Top issues of the last ?days= (3, 7, 14 or 30) in ?topik= (nasional, polisi) as seen through ?project= (users must pass one; admins may omit it).
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const query = new URL(req.url).searchParams;
   const requested = parseIssueDays(query.get("days"));

@@ -56,7 +56,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             description={register ? "Huruf kecil, angka, titik, atau garis bawah" : undefined} />
           <PasswordInput label="Kata sandi" leftSection={<IconLock size={16} />} value={password} onChange={(e) => setPassword(e.currentTarget.value)}
             autoComplete={register ? "new-password" : "current-password"} description={register ? "Minimal 8 karakter" : undefined} required />
-          {register && <Text fz={12.5} c="dimmed">Dengan mendaftar, Anda menyetujui <Anchor component={Link} href="/syarat" fz={12.5}>Syarat & Ketentuan</Anchor> dan <Anchor component={Link} href="/privasi" fz={12.5}>Kebijakan Privasi</Anchor>.</Text>}
+          {register && <Text fz={12.5} c="dimmed">Dengan mendaftar, Anda menyetujui <Anchor component={Link} href="/terms" fz={12.5}>Syarat & Ketentuan</Anchor> dan <Anchor component={Link} href="/privacy" fz={12.5}>Kebijakan Privasi</Anchor>.</Text>}
           <Button type="submit" size="md" loading={busy} variant="gradient" gradient={{ from: "violet.7", to: "cyan.6", deg: 120 }}>{register ? "Daftar" : "Masuk"}</Button>
           </>}
           <Text fz={14} ta="center" c="dimmed">

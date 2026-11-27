@@ -1,4 +1,4 @@
-// Layout for the public legal pages (/syarat, /privasi): header, table of contents, numbered sections.
+// Layout for the public legal pages (/terms, /privacy): header, table of contents, numbered sections.
 import Link from "next/link";
 import { PageHeader } from "../landing/decor";
 import c from "./legal.module.css";
@@ -21,7 +21,7 @@ export function LegalPage({ label, title, accent, lead, updated, sections }: { l
               {s.body}
             </section>
           ))}
-          <p className={c.contact}>Pertanyaan tentang dokumen ini? <Link href="/kontak">Hubungi kami</Link>.</p>
+          <p className={c.contact}>Pertanyaan tentang dokumen ini? <Link href="/contact">Hubungi kami</Link>.</p>
         </article>
       </div>
     </>

@@ -17,7 +17,7 @@ export function SectionTitle({ label, title, text }: { label: string; title: str
   );
 }
 
-/** Top of a detail page (/fitur, /integrasi, …): label, title with a coloured half, and a lead paragraph. */
+/** Top of a detail page (/features, /integration, …): label, title with a coloured half, and a lead paragraph. */
 export function PageHeader({ label, title, accent, text }: { label: string; title: string; accent: string; text: string }) {
   return (
     <header className={c.pageHeader}>

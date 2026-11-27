@@ -28,7 +28,7 @@ const usd = (n: number | null) => (n == null ? "—" : `US$${n.toLocaleString("i
 const rp = (n: number | null, usdToIdr: number | null) => (n == null || !usdToIdr ? "" : `≈ Rp${Math.round(n * usdToIdr).toLocaleString("id-ID")}`);
 
 export function AiCosts({ keyId }: { keyId: string }) {
-  const { data: d, error } = useApi<Costs>(`/api/admin/keys/${keyId}/classifier/costs`);
+  const { data: d, error } = useApi<Costs>(`/api/admin/projects/${keyId}/classifier/costs`);
   // Client accounts may not see internal costs (403): the card is not shown.
   if (error) return null;
   const labelled = d ? d.labels.local + d.labels.ai : 0;
@@ -40,7 +40,7 @@ export function AiCosts({ keyId }: { keyId: string }) {
         <div>
           <b>Biaya AI proyek{d ? ` · ${dayjs(d.today).locale("id").format("MMMM YYYY")}` : ""}</b>
           <small>
-            Yang dibayar key DeepSeek milik Signalbase{d?.keyHint ? <> <code>…{d.keyHint}</code></> : ""}; key milik klien tidak dihitung
+            Yang dibayar key DeepSeek milik Signalbase{d?.keyHint ? <> <code>…{d.keyHint}</code></> : ""}; key milik instansi tidak dihitung
             {d?.usdToIdr ? ` · kurs Rp${d.usdToIdr.toLocaleString("id-ID")}/USD (live)` : ""}
           </small>
         </div>
@@ -74,7 +74,7 @@ export function AiCosts({ keyId }: { keyId: string }) {
         {d.excluded.tokens > 0 && (
           <p className={c.foot}><IconInfoCircle size={15} />
             Tidak dihitung bulan ini: {formatNumber(Math.round(d.excluded.tokens))} token ({formatNumber(d.excluded.calls)} panggilan) yang dibayar key lain, yaitu key
-            DeepSeek milik klien atau tercatat sebelum 16 Nov 2026 tanpa keterangan key.
+            DeepSeek milik instansi atau tercatat sebelum 16 Nov 2026 tanpa keterangan key.
           </p>
         )}
       </>}

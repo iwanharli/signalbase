@@ -14,6 +14,7 @@ import type { MediaType } from "@/lib/media/types";
 import type { LabelProgress, LabelTotals } from "@/lib/server/ai/labelProgress";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
+import { projectPath } from "@/lib/activeProject";
 import classes from "../classifier/projectClassifier.module.css";
 import review from "../classifier/reviewPanel.module.css";
 
@@ -24,7 +25,7 @@ const pct = (n: number, total: number | null) => (total ? Math.min(100, Math.rou
 type Failed = { total: number; items: { type: MediaType; code: string; error: string | null; attempts: number; source: string | null; publishedAt: string | null; text: string }[] };
 
 export function LabelAiProgress({ keyId }: { keyId: string }) {
-  const url = `/api/admin/keys/${keyId}/label-ai/progress`;
+  const url = `/api/admin/projects/${keyId}/label-ai/progress`;
   const data = useApi<{ progress: LabelProgress | null }>(url);
   const totals = useApi<{ totals: LabelTotals }>(data.data?.progress ? `${url}?view=totals` : null);
   const reload = data.reload, recount = totals.reload;
@@ -104,10 +105,10 @@ export function LabelAiProgress({ keyId }: { keyId: string }) {
 function Review({ keyId, type, p, onRetried }: { keyId: string; type: MediaType; p: LabelProgress; onRetried: () => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const url = `/api/admin/keys/${keyId}/label-ai/failed`;
+  const url = `/api/admin/projects/${keyId}/label-ai/failed`;
   const failed = useApi<Failed>(open ? url : null);
   // The page's default "analysed" and "relevant" filters would hide some results, so both are cleared.
-  const view = (label: string) => `/media/${type}?key=${keyId}&label=${label}&analyzed=&relevance=`;
+  const view = (label: string) => `${projectPath(keyId, `/media/${type}`)}?label=${label}&analyzed=&relevance=`;
 
   const retry = async () => {
     setBusy(true);

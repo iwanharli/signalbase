@@ -22,9 +22,9 @@ export type MediaFilters = {
   withImage: boolean;
   /** AI category code; only used when browsing through an API key with AI categorisation. */
   aiCategory: string | null;
-  /** API key id of the project the bank is viewed as (its whole scope). Page context rather than a filter: reset keeps
-   *  it and it is not counted. */
-  key: string | null;
+  /** Id of the project the bank is viewed as (its whole scope), from the page path (/projects/<id>/…). Page context rather
+   *  than a filter: reset keeps it, it is not counted, and browser URLs never carry it (the path does). */
+  project: string | null;
   /** Manual label of the project being viewed, or ANY_LABEL for every labelled item. Not AI categorisation. */
   manualLabel: string | null;
 };
@@ -34,7 +34,7 @@ export const DEFAULT_RANGE_DAYS = 6;
 
 export const defaultFilters = (type: MediaType): MediaFilters => ({
   search: "", from: daysAgo(DEFAULT_RANGE_DAYS), to: "", sort: "newest", source: null, mood: null, analyzed: "yes", language: "",
-  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, key: null, manualLabel: null,
+  province: null, category: null, relevance: type === "social" ? "relevant" : "", postType: "", minLevel: "", withImage: false, aiCategory: null, project: null, manualLabel: null,
 });
 
 /** Query-string parameters for the API. `search` must already be debounced/trimmed by the caller. */
@@ -55,7 +55,7 @@ export function toSearchParams(f: MediaFilters) {
   set("level", f.minLevel);
   set("image", f.withImage && "yes");
   set("aiCategory", f.aiCategory);
-  set("key", f.key);
+  set("project", f.project);
   set("label", f.manualLabel);
   return p;
 }
@@ -117,7 +117,7 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
     sort: pick("sort", ["newest", "oldest"], d.sort), source: p.get("source") || null,
     mood: p.get("mood") || null, analyzed: pick("analyzed", ["", "yes", "no"], d.analyzed),
     language: pick("lang", ["", "id", "other"], d.language), province: p.get("province") || null,
-    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, key: p.get("key") || null, manualLabel: p.get("label") || null,
+    category: p.get("category") || null, aiCategory: p.get("aiCategory") || null, project: p.get("project") || null, manualLabel: p.get("label") || null,
     relevance: type === "social" ? pick("relevance", ["", "relevant", "include", "watchlist", "exclude"], d.relevance) : "",
     postType: type === "social" ? pick("postType", ["", "post", "reply", "quote", "repost"], "") : "",
     minLevel: type === "social" ? pick("level", ["", "1", "2", "3", "4", "5"], "") : "",
@@ -128,7 +128,7 @@ export function filtersFromSearchParams(p: URLSearchParams, type: MediaType): Me
 /** Browser URLs carry only what differs from the defaults (an absent parameter reads back as the default); an empty
  *  value stays when it means “Semua” and the default is narrower. API requests (toSearchParams) are not trimmed. */
 export function browserFilterParams(f: MediaFilters, type: MediaType) {
-  const p = toSearchParams(f);
+  const p = toSearchParams({ ...f, project: null });
   const d = defaultFilters(type);
   if (f.sort === d.sort) p.delete("sort");
   // The default range is left out of the URL; "Semua" (no start) is kept as an empty from=.
@@ -141,7 +141,7 @@ export function browserFilterParams(f: MediaFilters, type: MediaType) {
   return p;
 }
 
-/** Every browser URL parameter that carries a filter (`key`, the project, is page context and not listed). */
+/** Every browser URL parameter that carries a filter (the project is in the path, not a parameter). */
 export const FILTER_URL_PARAMS = ["q", "from", "to", "sort", "source", "mood", "analyzed", "lang", "province", "category", "relevance", "postType", "level", "image", "aiCategory", "label"];
 
 /** localStorage keys of the saved filters start with this; one entry per media type and project. */
@@ -151,7 +151,7 @@ export const savedFiltersKey = (type: MediaType, projectId: string | null) => `$
 /** What to remember of the filters ("" = all defaults). A quick range is kept as its length, so “7 hari” stays the last
  *  seven days rather than the dates it meant when saved. */
 export function savedFilterValue(f: MediaFilters, type: MediaType) {
-  const p = browserFilterParams({ ...f, key: null }, type);
+  const p = browserFilterParams(f, type);
   const preset = activePreset(f);
   if (preset?.days != null) {
     p.delete("from");

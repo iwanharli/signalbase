@@ -1,5 +1,5 @@
 "use client";
-// /analisis/media — images of news, X and YouTube analysed by the local media worker: text in the image (OCR), visual
+// /analysis/media — images of news, X and YouTube analysed by the local media worker: text in the image (OCR), visual
 // tags, possibly sensitive content and re-shared pictures. Click an image for its details and the posts that use it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +12,7 @@ import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { NARRATIVE_MIN_POSTS, parseVisualDays, parseVisualView, tagLabel, VISUAL_KINDS, VISUAL_PERIODS, VISUAL_TAGS, WORKER_STALE_MS, type VisualAsset, type VisualFailures, type VisualPost, type VisualResponse, type VisualUse } from "@/lib/mediaVisual";
 import { useApi } from "@/lib/useApi";
+import { useProjectId } from "@/lib/useProjectId";
 import controlClasses from "../ui/controls.module.css";
 import { Segmented } from "../ui/controls";
 import { ItemDetailModal } from "../media/ItemDetailModal";
@@ -25,7 +26,7 @@ import { AnalysisNote, collageRatio, PostCard, PostModal, Summary, Transcript } 
 import { Button } from "../ui/Button";
 import m from "../media/modal.module.css";
 import { DetailDrawer } from "../media/DetailDrawer";
-import classes from "../issues/issues.module.css";
+import classes from "../issues/onlineIssues.module.css";
 import c from "./mediaVisual.module.css";
 
 dayjs.extend(relativeTime);
@@ -41,7 +42,7 @@ export function MediaVisualBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const keyId = params.get("key");
+  const keyId = useProjectId();
   const days = parseVisualDays(params.get("days"));
   const kind = params.get("kind") ?? "";
   const tag = params.get("tag") ?? "";
@@ -76,7 +77,7 @@ export function MediaVisualBoard() {
 
   const filters = useMemo(() => {
     const s = new URLSearchParams({ days: String(days), view });
-    for (const [k, v] of [["kind", kind], ["tag", tag], ["q", q], ["key", keyId ?? ""], ["narrative", narrative]] as const) if (v) s.set(k, v);
+    for (const [k, v] of [["kind", kind], ["tag", tag], ["q", q], ["project", keyId ?? ""], ["narrative", narrative]] as const) if (v) s.set(k, v);
     if (action) s.set("action", "1");
     if (claims) s.set("claims", "1");
     if (unread) s.set("unread", "1");

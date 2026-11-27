@@ -65,7 +65,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
     if (aiProblems.length) { go("ai"); return notifications.show({ color: "red", message: `Kategorisasi AI: ${aiProblems[0]}` }); }
     setBusy(true);
     try {
-      onCreated(await post("/api/admin/keys", { name, scope, classifier: aiEnabled ? aiDraft : null }) as CreatedKey);
+      onCreated(await post("/api/admin/projects", { name, scope, classifier: aiEnabled ? aiDraft : null }) as CreatedKey);
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
       setBusy(false);
@@ -75,7 +75,7 @@ function CreateWizard({ onCreated }: { onCreated: (key: CreatedKey) => void }) {
   const footer = (
     <>
       {index > 0 && <Button onDark variant="secondary" icon={IconArrowLeft} onClick={() => go(STEPS[index - 1])}>Kembali</Button>}
-      {index === 0 && <Button onDark variant="secondary" href="/project">Batal</Button>}
+      {index === 0 && <Button onDark variant="secondary" href="/projects">Batal</Button>}
       {step === "review" ? (
         <Button variant="primary" icon={IconKey} onClick={submit} loading={busy} disabled={!nameValid}>{busy ? "Membuat…" : "Buat proyek"}</Button>
       ) : (
@@ -164,13 +164,13 @@ function CreatedPanel({ created, onAnother }: { created: CreatedKey; onAnother: 
 
       <div className={classes.createFoot}>
         <Button onDark variant="secondary" onClick={onAnother}>Buat proyek lain</Button>
-        <Button variant="primary" href="/project">Selesai, ke daftar proyek</Button>
+        <Button variant="primary" href="/projects">Selesai, ke daftar proyek</Button>
       </div>
     </div>
   );
 }
 
-/** /project/new — step-by-step key creation, then the key value shown once. */
+/** /projects/new — step-by-step key creation, then the key value shown once. */
 export function CreateProject() {
   const [created, setCreated] = useState<CreatedKey | null>(null);
 
@@ -184,7 +184,7 @@ export function CreateProject() {
 
   return (
     <div className={classes.page}>
-      <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+      <Link href="/projects" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
       <header className={classes.titleRow}>
         <h1>{created ? "Proyek berhasil dibuat" : "Buat proyek"}</h1>
         <p>{created ? "Langkah terakhir: salin kuncinya." : "Beri akses baca ke aplikasi lain dalam beberapa langkah."}</p>

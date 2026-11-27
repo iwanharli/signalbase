@@ -75,7 +75,7 @@ export function AdvancedFilters({ type, open, onClose, escapeEnabled, filters: a
   useEffect(() => setDraft(applied), [open, appliedKey]);
   const onChange = (patch: Partial<MediaFilters>) => setDraft((d) => applyRules({ ...d, ...patch }, patch));
   const changed = (Object.keys(applied) as (keyof MediaFilters)[]).filter((k) => applied[k] !== filters[k]).length;
-  const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort, key: applied.key });
+  const resetDraft = () => setDraft({ ...defaultFilters(type), search: applied.search, sort: applied.sort, project: applied.project });
   const submit = () => { if (changed) apply(filters); onClose(); };
   const social = type === "social";
   const unanalyzed = filters.analyzed === "no";

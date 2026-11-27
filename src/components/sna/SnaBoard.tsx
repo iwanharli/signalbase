@@ -1,5 +1,5 @@
 "use client";
-// /analisis/sna — who the most active accounts mention, as a d3 force graph. Line colour = emotion of the posts.
+// /analysis/sna — who the most active accounts mention, as a d3 force graph. Line colour = emotion of the posts.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -14,6 +14,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { accountsPerIssue, ACCOUNT_LABEL, parseSnaFlow, SNA_FLOWS, WAVE_LABEL, dominantTone, filterGraph, DEFAULT_SNA_DAYS, DEFAULT_SNA_LIMIT, parseSnaDays, parseSnaLimit, SNA_LIMITS, SNA_PERIODS, TONE_COLOR, TONE_LABEL, type SnaGraph, type SnaLink, type SnaNode, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
+import { useProjectId } from "@/lib/useProjectId";
 import controlClasses from "../ui/controls.module.css";
 import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
@@ -248,7 +249,7 @@ export function SnaBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const keyId = params.get("key");
+  const keyId = useProjectId();
   // Within a project: only the accounts posting about one issue (its clustered posts) and/or posts carrying one label.
   const issueId = keyId ? params.get("issue") : null;
   const labelName = keyId ? params.get("label") : null;
@@ -304,13 +305,13 @@ export function SnaBoard() {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? `&view=isu${flow !== "langsung" ? `&flow=${flow}` : ""}` : ""}`);
-  const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/issue-clusters?key=${encodeURIComponent(keyId)}` : null);
-  const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/keys/${encodeURIComponent(keyId)}/labels` : null);
+  const res = useApi<SnaGraph>(`/api/admin/sna?days=${days}&limit=${limit}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}${filter}${issueView ? `&view=isu${flow !== "langsung" ? `&flow=${flow}` : ""}` : ""}`);
+  const issues = useApi<{ issues: { id: string; title: string | null; keywords: string[]; posts: number }[] }>(keyId ? `/api/admin/issue-clusters?project=${encodeURIComponent(keyId)}` : null);
+  const labels = useApi<{ options: string[]; counts: Record<string, number> }>(keyId ? `/api/admin/projects/${encodeURIComponent(keyId)}/labels` : null);
   const issueOptions = (issues.data?.issues ?? []).map((i) => ({ value: i.id, label: `${i.title ?? i.keywords.slice(0, 3).join(", ")} · ${formatNumber(i.posts)} post` }));
   const labelOptions = (labels.data?.options ?? []).map((l) => ({ value: l, label: `${l} · ${formatNumber(labels.data?.counts[l] ?? 0)}` }));
   const issueTitle = watchId ? undefined : issueOptions.find((o) => o.value === issueId)?.label.replace(/ · [\d.]+ post$/, "");
-  const watches = useApi<{ watches: SnaWatch[]; canManage: boolean }>(`/api/admin/sna/watches${keyId ? `?key=${encodeURIComponent(keyId)}` : ""}`);
+  const watches = useApi<{ watches: SnaWatch[]; canManage: boolean }>(`/api/admin/sna/watches${keyId ? `?project=${encodeURIComponent(keyId)}` : ""}`);
   const watch = watches.data?.watches.find((w) => w.id === watchId) ?? null;
   const graph = res.data;
   useEffect(() => setPicked(null), [graph]);

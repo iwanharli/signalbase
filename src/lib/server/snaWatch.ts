@@ -17,12 +17,12 @@ import type { SnaCodes } from "./snaFilter";
 const keyword = z.string().trim().toLowerCase().min(2, "Kata kunci minimal 2 karakter").max(200, "Kata kunci maksimal 200 karakter")
   .superRefine((k, ctx) => { const p = keywordProblem(k); if (p) ctx.addIssue({ code: "custom", message: `Kata kunci "${k}": ${p}` }); });
 export const watchInputSchema = z.object({
-  key: z.string().trim().min(1).nullable().default(null),
+  projectId: z.string().trim().min(1).nullable().default(null),
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(60, "Nama maksimal 60 karakter"),
   keywords: z.array(keyword).min(1, "Isi minimal satu kata kunci").max(10, "Maksimal 10 kata kunci").transform((a) => [...new Set(a)]),
 });
 
-export type WatchRow = { id: string; apiKeyId: string | null; name: string; keywords: string[]; createdBy: string; createdAt: Date };
+export type WatchRow = { id: string; projectId: string | null; name: string; keywords: string[]; createdBy: string; createdAt: Date };
 
 /**
  * The watch of ?watch= and the scope it reads, checked against the page's project: a project's watch only within that
@@ -32,7 +32,7 @@ export async function resolveWatch(q: URLSearchParams, view: OverviewView): Prom
   const id = q.get("watch")?.trim();
   if (!id) return null;
   const watch = await prisma.snaWatch.findUnique({ where: { id } });
-  if (!watch || watch.apiKeyId !== (view.key?.id ?? null)) return NextResponse.json({ error: "Pantauan tidak ditemukan di cakupan ini" }, { status: 404 });
+  if (!watch || watch.projectId !== (view.key?.id ?? null)) return NextResponse.json({ error: "Pantauan tidak ditemukan di cakupan ini" }, { status: 404 });
   const scope: KeyScope = view.key && view.scope
     ? { ...view.scope, alsoKeywords: watch.keywords }
     : { ...OPEN_SCOPE, keywords: watch.keywords };

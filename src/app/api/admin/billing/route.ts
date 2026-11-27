@@ -28,7 +28,7 @@ export const POST = adminRoute(async (req: Request, _ctx, username) => {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Data tagihan tidak valid" }, { status: 400 });
   const body = parsed.data;
-  const account = await prisma.admin.findFirst({ where: { id: body.accountId, role: "user" }, select: { id: true } });
-  if (!account) return NextResponse.json({ error: "Klien tidak ditemukan" }, { status: 404 });
+  const account = await prisma.account.findFirst({ where: { id: body.accountId, role: "user" }, select: { id: true } });
+  if (!account) return NextResponse.json({ error: "Instansi tidak ditemukan" }, { status: 404 });
   return NextResponse.json(await createInvoice(account.id, "instansi", body.billing as "monthly" | "yearly", username, { customMonthly: body.customMonthly, note: body.note }));
 });

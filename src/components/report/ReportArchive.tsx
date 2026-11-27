@@ -1,7 +1,7 @@
 "use client";
 // Laporan menu: the archive of executive reports the worker writes once a period is over (harian every morning, mingguan
 // on Monday, bulanan on the 1st), as cards with a cover, newest first. A card opens the stored report in a new tab
-// (/laporan?id=), where it can be downloaded as PDF or printed. A custom report over the hours up to now is still available.
+// (/report?id=), where it can be downloaded as PDF or printed. A custom report over the hours up to now is still available.
 import { useEffect, useState } from "react";
 import { Modal, SegmentedControl, Select, Skeleton, TagsInput, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -35,7 +35,7 @@ export function ReportArchive() {
   const [scope, setScope] = useState<string | null>(null);
   const { data, error, loading } = useApi<ArchiveResponse>(`/api/admin/reports?kind=${kind}${scope ? `&scope=${encodeURIComponent(scope)}` : ""}`);
   const [dialog, setDialog] = useState<"profile" | "custom" | null>(null);
-  const href = (id: string) => `/laporan?${new URLSearchParams({ id })}`;
+  const href = (id: string) => `/report?${new URLSearchParams({ id })}`;
 
   const reports = data?.kind === kind ? data.reports : [];
   const [latest, ...rest] = reports;
@@ -297,7 +297,7 @@ function CustomReport({ scopes, admin, onOpen }: { scopes: ArchiveResponse["scop
   const source = key ?? sources[0]?.value ?? null;
   const open = () => {
     if (!source) return;
-    window.open(`/laporan?${new URLSearchParams({ days, key: source, sifat: DEFAULT_SIFAT })}`, "_blank");
+    window.open(`/report?${new URLSearchParams({ days, project: source, sifat: DEFAULT_SIFAT })}`, "_blank");
     onOpen();
   };
   if (!sources.length) return <p className={c.note}>Belum ada proyek aktif.</p>;

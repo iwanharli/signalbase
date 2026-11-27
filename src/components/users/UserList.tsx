@@ -77,7 +77,7 @@ function AccessModal({ target, onClose, onSaved }: { target: { user: UserRow; ap
           </div>
         )}
         <TextInput label="Akses berlaku sampai" type="date" value={until} onChange={(e) => setUntil(e.currentTarget.value)}
-          description="Setelah tanggal ini klien tidak bisa membuka data proyeknya dan kunci API-nya berhenti. Kosongkan bila tanpa batas waktu." />
+          description="Setelah tanggal ini instansi tidak bisa membuka data proyeknya dan kunci API-nya berhenti. Kosongkan bila tanpa batas waktu." />
         <div className={u.quick}>
           {[[1, "+1 bulan"], [3, "+3 bulan"], [6, "+6 bulan"], [12, "+1 tahun"]].map(([m, label]) => (
             <button key={label} type="button" onClick={() => setUntil(plusMonths(m as number, target?.approve ? null : user?.planExpiresAt))}>{label}</button>
@@ -85,7 +85,7 @@ function AccessModal({ target, onClose, onSaved }: { target: { user: UserRow; ap
           <button type="button" onClick={() => setUntil("")}>Tanpa batas</button>
         </div>
         <Button variant="primary" onClick={save} loading={busy}>{target?.approve ? "Setujui dan aktifkan" : "Simpan masa akses"}</Button>
-        {target?.approve && <p className={classes.formHelp}>Setelah disetujui, buat proyeknya di halaman Proyek lalu berikan ke klien ini lewat tombol Proyek.</p>}
+        {target?.approve && <p className={classes.formHelp}>Setelah disetujui, buat proyeknya di halaman Proyek lalu berikan ke instansi ini lewat tombol Proyek.</p>}
       </Stack>
     </Modal>
   );
@@ -93,7 +93,7 @@ function AccessModal({ target, onClose, onSaved }: { target: { user: UserRow; ap
 
 type Kind = "client" | "viewer";
 const KIND_HELP: Record<Kind, string> = {
-  client: "Klien (Instansi): hanya melihat data proyek yang Anda berikan, sampai masa aksesnya berakhir.",
+  client: "Instansi: hanya melihat data proyek yang Anda berikan, sampai masa aksesnya berakhir.",
   viewer: "Viewer: melihat seluruh data seperti admin, tanpa bisa mengubah apa pun.",
 };
 
@@ -125,7 +125,7 @@ function CreateAccountModal({ opened, onClose, onSaved }: { opened: boolean; onC
     <Modal opened={opened} onClose={onClose} title="Tambah pengguna" centered radius="lg" size="md">
       <Stack gap="md">
         <div>
-          <SegmentedControl fullWidth value={kind} onChange={(v) => setKind(v as Kind)} data={[{ value: "client", label: "Klien" }, { value: "viewer", label: "Viewer" }]} />
+          <SegmentedControl fullWidth value={kind} onChange={(v) => setKind(v as Kind)} data={[{ value: "client", label: "Instansi" }, { value: "viewer", label: "Viewer" }]} />
           <p className={classes.formHelp}>{KIND_HELP[kind]}</p>
         </div>
         <TextInput label="Nama" value={form.name} onChange={(e) => set({ name: e.currentTarget.value })} />
@@ -189,7 +189,7 @@ function ProjectsModal({ user, onClose, onSaved }: { user: UserRow | null; onClo
     <Modal opened={!!user} onClose={onClose} title={user ? `Proyek ${user.name}` : ""} centered radius="lg" size="xl">
       <Stack gap="md">
         <p className={classes.formHelp}>
-          Centang proyek yang boleh dilihat klien ini (hanya lihat). Setiap proyek yang diberikan punya kunci API sendiri untuk klien ini; kuncinya hanya terlihat oleh admin, untuk dipasang di aplikasi klien. Kunci berhenti saat masa akses klien berakhir atau dicabut.
+          Centang proyek yang boleh dilihat instansi ini (hanya lihat). Setiap proyek yang diberikan punya kunci API sendiri untuk instansi ini; kuncinya hanya terlihat oleh admin, untuk dipasang di aplikasi instansi. Kunci berhenti saat masa akses instansi berakhir atau dicabut.
         </p>
         {!data.data ? <Skeleton h={160} radius="md" /> : data.data.projects.length ? (
           <Checkbox.Group value={chosen} onChange={setChosen}>
@@ -198,7 +198,7 @@ function ProjectsModal({ user, onClose, onSaved }: { user: UserRow | null; onClo
                 const a = p.access;
                 return (
                   <div key={p.id} className={u.project} data-given={a ? true : undefined}>
-                    <Checkbox value={p.id} label={<span className={classes.projectOption}><b>{p.name}</b><small>{p.keywords.length ? p.keywords.join(", ") : "semua data"} · {p.clients} klien</small></span>} />
+                    <Checkbox value={p.id} label={<span className={classes.projectOption}><b>{p.name}</b><small>{p.keywords.length ? p.keywords.join(", ") : "semua data"} · {p.clients} instansi</small></span>} />
                     {a && (
                       <div className={u.key}>
                         <span className={u.keyInfo}>
@@ -225,8 +225,8 @@ function ProjectsModal({ user, onClose, onSaved }: { user: UserRow | null; onClo
         icon={confirm?.action === "revoke" ? IconKeyOff : IconRefresh} tone={confirm?.action === "revoke" ? "danger" : "warning"}
         title={confirm?.action === "revoke" ? "Cabut kunci API?" : "Buat kunci API baru?"}
         description={confirm ? (confirm.action === "revoke"
-          ? `Aplikasi ${user?.name} yang memakai kunci ${confirm.project.name} langsung berhenti mendapat data. Klien tetap bisa melihat proyek di panel.`
-          : `Kunci lama ${user?.name} untuk ${confirm.project.name} langsung berhenti bekerja; pasang kunci baru di aplikasi klien.`) : ""}
+          ? `Aplikasi ${user?.name} yang memakai kunci ${confirm.project.name} langsung berhenti mendapat data. Instansi tetap bisa melihat proyek di panel.`
+          : `Kunci lama ${user?.name} untuk ${confirm.project.name} langsung berhenti bekerja; pasang kunci baru di aplikasi instansi.`) : ""}
         confirmLabel={confirm?.action === "revoke" ? "Cabut kunci" : "Buat kunci baru"} />
     </Modal>
   );
@@ -308,7 +308,7 @@ export function UserList() {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconUsers size={13} />Akun</span>
           <h1>Peng<em>guna</em></h1>
-          <p>Klien Instansi melihat data proyek yang Anda berikan sampai masa aksesnya berakhir; masing-masing punya kunci API sendiri per proyek. Pendaftar baru menunggu di sini sampai disetujui.</p>
+          <p>Instansi melihat data proyek yang Anda berikan sampai masa aksesnya berakhir; masing-masing punya kunci API sendiri per proyek. Pendaftar baru menunggu di sini sampai disetujui.</p>
         </div>
         <div className={classes.heroSide}>
           <div className={classes.stats}>
@@ -350,14 +350,14 @@ export function UserList() {
           )}
           {shownClients.length > 0 && (
             <div className={classes.group}>
-              {tab === "active" && <div className={classes.groupLabel}>Klien<span>{shownClients.length}</span></div>}
+              {tab === "active" && <div className={classes.groupLabel}>Instansi<span>{shownClients.length}</span></div>}
               {shownClients.map(renderRow)}
             </div>
           )}
         </> : (
           <div className={classes.empty}>
             <IconUserPlus size={24} />
-            <b>{tab === "pending" ? "Tidak ada pendaftaran yang menunggu" : tab === "active" ? "Belum ada klien aktif" : "Tidak ada akun nonaktif"}</b>
+            <b>{tab === "pending" ? "Tidak ada pendaftaran yang menunggu" : tab === "active" ? "Belum ada instansi aktif" : "Tidak ada akun nonaktif"}</b>
           </div>
         )}
       </section>

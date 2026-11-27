@@ -7,6 +7,6 @@ import { prisma } from "@/lib/server/db";
 export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   if (user.role === "user") return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
   const day = jakartaToday();
-  const rows = await prisma.apiKeyUsage.findMany({ where: { day }, select: { apiKeyId: true, count: true } });
-  return NextResponse.json({ day, perKey: Object.fromEntries(rows.map((r) => [r.apiKeyId, r.count])), used: null, limit: null, plan: null });
+  const rows = await prisma.projectUsage.findMany({ where: { day }, select: { projectId: true, count: true } });
+  return NextResponse.json({ day, perKey: Object.fromEntries(rows.map((r) => [r.projectId, r.count])), used: null, limit: null, plan: null });
 });

@@ -2,7 +2,7 @@
 // Only for the API keys listed in LOCAL_QW_KEYS (the KIPERMAS classifier); the model was trained on that key's own labels.
 // Posts at or above LOCAL_QW_MIN confidence are stored straight away; the rest still go to the AI provider. A service that is
 // down or slow sends everything to the AI provider as before (it never fails a batch).
-//   LOCAL_QW_URL=http://127.0.0.1:3725  LOCAL_QW_KEYS=<apiKeyId>[:<threshold>][,<apiKeyId>[:<threshold>]]  LOCAL_QW_MIN=0.8
+//   LOCAL_QW_URL=http://127.0.0.1:3725  LOCAL_QW_KEYS=<projectId>[:<threshold>][,<projectId>[:<threshold>]]  LOCAL_QW_MIN=0.8
 // A per-key threshold (e.g. `id-b:0.8`) overrides LOCAL_QW_MIN for that key only.
 import type { MediaType } from "@/lib/media/types";
 
@@ -13,11 +13,11 @@ const threshold = (v: string | undefined) => (v?.trim() && Number.isFinite(Numbe
 const keys = () => new Map((process.env.LOCAL_QW_KEYS ?? "").split(",").map((s) => s.trim()).filter(Boolean)
   .map((s) => { const [id, min] = s.split(":"); return [id.trim(), threshold(min)] as const; }));
 /** This key's confidence threshold; 0 = every post labelled by the local model (no DeepSeek). Empty/invalid = LOCAL_QW_MIN, then 0.8. */
-export const localQwMin = (apiKeyId?: string) =>
-  (apiKeyId ? keys().get(apiKeyId) : undefined) ?? threshold(process.env.LOCAL_QW_MIN) ?? 0.8;
+export const localQwMin = (projectId?: string) =>
+  (projectId ? keys().get(projectId) : undefined) ?? threshold(process.env.LOCAL_QW_MIN) ?? 0.8;
 
-export function usesLocalQw(apiKeyId: string) {
-  return !!process.env.LOCAL_QW_URL && keys().has(apiKeyId);
+export function usesLocalQw(projectId: string) {
+  return !!process.env.LOCAL_QW_URL && keys().has(projectId);
 }
 
 /** Local labels per item; null when the service is unavailable. */

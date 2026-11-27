@@ -1,5 +1,5 @@
 "use client";
-// Preview of /project: dark hero with counts, then the key table with Aktif/Dicabut tabs and search.
+// Preview of /projects: dark hero with counts, then the key table with Aktif/Dicabut tabs and search.
 import { IconKey, IconPlugConnected, IconSearch, IconSparkles } from "@tabler/icons-react";
 import { PROJECT_ROWS } from "./data";
 import c from "./preview.module.css";

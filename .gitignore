@@ -4,6 +4,7 @@
 /.next-b/
 /.next-active
 /.next-verify/
+/.next-check/
 /.next-design-review/
 /out/
 .DS_Store

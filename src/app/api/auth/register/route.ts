@@ -21,11 +21,11 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Data tidak valid" }, { status: 400 });
   const { name, username, password, institution, topics } = parsed.data;
-  if (await prisma.admin.findUnique({ where: { username }, select: { id: true } })) {
+  if (await prisma.account.findUnique({ where: { username }, select: { id: true } })) {
     return NextResponse.json({ error: "Username sudah dipakai" }, { status: 409 });
   }
   recent.set(ip, [...hits, Date.now()]);
-  await prisma.admin.create({ data: { name, username, role: "user", status: "pending", plan: "instansi", institution, requestedTopics: topics, passwordHash: await bcrypt.hash(password, 10) } });
+  await prisma.account.create({ data: { name, username, role: "user", status: "pending", plan: "instansi", institution, requestedTopics: topics, passwordHash: await bcrypt.hash(password, 10) } });
   // No session yet: an admin has to approve the account first (Pengguna page).
   return NextResponse.json({ ok: true, pending: true });
 }

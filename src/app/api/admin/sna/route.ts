@@ -8,7 +8,7 @@ import { snaCodes } from "@/lib/server/snaFilter";
 import { snaIssueGraph } from "@/lib/server/issueClusters/sna";
 import { resolveWatch, snaWatchGraph } from "@/lib/server/snaWatch";
 
-// SNA page: ?days=1|3|7&limit=25|50|100|200[&key=][&issue=&label=] (only that project's posts of the issue or label)
+// SNA page: ?days=1|3|7&limit=25|50|100|200[&project=][&issue=&label=] (only that project's posts of the issue or label)
 // [&watch=<id>] (an SNA watch: only posts matching its keywords too; with view=isu the watch is the one issue node)
 // [&flow=langsung|mention|rantai|gelombang] (issue view: how the accounts hang together, see lib/sna buildIssueGraph)
 // [&view=isu] (with a project: its issues as nodes and the accounts posting in them, instead of who mentions whom). Same key rules as /api/admin/stats (admin: whole bank or one key; user: own key, 403 when the plan expired).

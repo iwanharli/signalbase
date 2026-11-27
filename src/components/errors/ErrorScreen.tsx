@@ -106,7 +106,7 @@ export function ErrorScreen({ kind, digest, onRetry, inline, home = { href: "/",
         {kind === "server" && (
           <footer className={c.meta}>
             {digest && <span>Kode kesalahan <code>{digest}</code></span>}
-            <Link href="/kontak">Hubungi kami</Link>
+            <Link href="/contact">Hubungi kami</Link>
           </footer>
         )}
       </main>

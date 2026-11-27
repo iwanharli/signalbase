@@ -26,6 +26,7 @@ import { useInfiniteScroll, useMediaFeed } from "./useMediaFeed";
 import { COLUMNS_KEY, SOURCE_KEY, useCleanMediaUrl, useMediaFilters } from "./useMediaFilters";
 import { defaultFilters, type MediaFilters } from "@/lib/media/filters";
 import { useRole } from "../shell/RoleContext";
+import { useProjectId } from "@/lib/useProjectId";
 import classes from "./browser.module.css";
 import keyViewClasses from "./keyView.module.css";
 
@@ -49,12 +50,12 @@ function ScrollTopButton() {
 }
 
 /** Browse every post (social) or article (online) in the bank, with filters, infinite scroll and a detail modal.
- *  With ?key=<id> the page shows the bank as that API key sees it: its scope, and its AI categories. */
+ *  Under /projects/<id> the page shows the bank as that project sees it: its scope, and its AI categories. */
 type KeyView = { id: string; name: string; scope: KeyScope; aiEnabled: boolean };
 
 export function MediaBrowser(props: { type: MediaType }) {
   const ready = useCleanMediaUrl(props.type);
-  const projectId = useSearchParams().get("key") ?? "";
+  const projectId = useProjectId() ?? "";
   // Until the URL is clean, the same placeholder as the route's loading screen, so nothing blinks in between.
   if (!ready) return <MediaPageSkeleton type={props.type} />;
   // Remounted per project, so nothing loaded for one project (labels, AI categories, open post) carries over.
@@ -64,7 +65,7 @@ export function MediaBrowser(props: { type: MediaType }) {
 function ProjectBrowser({ type }: { type: MediaType }) {
   const role = useRole(); // viewers only read
   const searchParams = useSearchParams();
-  const keyId = searchParams.get("key");
+  const keyId = useProjectId();
   // Quick View (the card as before) or Original View (the post as its platform shows it); the choice is remembered in this browser.
   const [original, setOriginal] = useState(true); // Original View unless the user chose Quick
   useEffect(() => {
@@ -75,12 +76,12 @@ function ProjectBrowser({ type }: { type: MediaType }) {
     try { localStorage.setItem(SOURCE_KEY, source); } catch { /* ignore */ }
   };
   const originalView = type === "social" && original;
-  const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/keys/${keyId}/classifier` : null);
+  const keyInfo = useApi<KeyResponse>(keyId ? `/api/admin/projects/${keyId}/classifier` : null);
   const view: KeyView | null = keyInfo.data
     ? { id: keyInfo.data.key.id, name: keyInfo.data.key.name, scope: keyInfo.data.key.scope, aiEnabled: !!keyInfo.data.classifier?.enabled }
     : null;
   // Manual labels of the project (separate from AI categorisation): the dropdown on each card.
-  const labelSettings = useApi<LabelSettings>(keyId ? `/api/admin/keys/${keyId}/labels` : null);
+  const labelSettings = useApi<LabelSettings>(keyId ? `/api/admin/projects/${keyId}/labels` : null);
   const [, setLabelVersion] = useState(0);
   const labelContext = keyId && labelSettings.data ? { keyId, type, options: labelSettings.data.options, canLabel: labelSettings.data.canLabel, onLabelled: (code: string, labels: string[]) => {
     // The modal may hold a copy of the item (after an AI correction): update the feed's own object too, then re-render.
@@ -138,7 +139,7 @@ function ProjectBrowser({ type }: { type: MediaType }) {
   useEffect(() => {
     if (!itemCode) return;
     let stale = false;
-    api<{ items: MediaItem[] }>(`/api/admin/media/${type}?item=${encodeURIComponent(itemCode)}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`)
+    api<{ items: MediaItem[] }>(`/api/admin/media/${type}?item=${encodeURIComponent(itemCode)}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}`)
       .then((r) => { if (!stale && r.items[0]) setSelected(r.items[0]); })
       .catch(() => {});
     return () => { stale = true; };

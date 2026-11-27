@@ -46,9 +46,9 @@ const TYPE_NAMES: Record<MediaType, string> = { social: "medsos", online: "berit
 
 /** Why a project is idle, last printed per project: repeated only when it changes, not every minute. */
 const quiet = new Map<string, string>();
-function logIdle(apiKeyId: string, name: string, reason: string) {
-  if (quiet.get(apiKeyId) === reason) return;
-  quiet.set(apiKeyId, reason);
+function logIdle(projectId: string, name: string, reason: string) {
+  if (quiet.get(projectId) === reason) return;
+  quiet.set(projectId, reason);
   log(`${name}: ${reason}`);
 }
 
@@ -62,7 +62,7 @@ class Halt extends Error {
 
 /** Records a call's tokens for the panel and for the terminal summary. */
 function usageOf(run: Run) {
-  const record = recordUsage(run.row.apiKeyId, run.row.model);
+  const record = recordUsage(run.row.projectId, run.row.model);
   return (u: CallUsage) => { run.tally.calls++; run.tally.input += u.input; run.tally.output += u.output; record(u); };
 }
 
@@ -86,17 +86,17 @@ type Run = {
 };
 
 const todayInJakarta = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-const itemKey = (apiKeyId: string, type: MediaType, code: string) => ({ apiKeyId_type_code: { apiKeyId, type, code } });
+const itemKey = (projectId: string, type: MediaType, code: string) => ({ projectId_type_code: { projectId, type, code } });
 
-function recordUsage(apiKeyId: string, model: string) {
+function recordUsage(projectId: string, model: string) {
   return (u: CallUsage) => {
     const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
     const check = u.searches === undefined
       ? { checkInputTokens: 0, checkCachedTokens: 0, checkOutputTokens: 0, searches: 0 }
       : { checkInputTokens: u.input, checkCachedTokens: u.cached, checkOutputTokens: u.output, searches: u.searches };
     prisma.labelAiUsage.upsert({
-      where: { apiKeyId_hour_model: { apiKeyId, hour, model } },
-      create: { apiKeyId, hour, model, inputTokens: u.input, cachedTokens: u.cached, outputTokens: u.output, calls: 1, ...check },
+      where: { projectId_hour_model: { projectId, hour, model } },
+      create: { projectId, hour, model, inputTokens: u.input, cachedTokens: u.cached, outputTokens: u.output, calls: 1, ...check },
       update: { inputTokens: { increment: u.input }, cachedTokens: { increment: u.cached }, outputTokens: { increment: u.output }, calls: { increment: 1 },
         checkInputTokens: { increment: check.checkInputTokens }, checkCachedTokens: { increment: check.checkCachedTokens },
         checkOutputTokens: { increment: check.checkOutputTokens }, searches: { increment: check.searches },
@@ -125,25 +125,25 @@ export type ResultMeta = {
  * meanwhile writes that row too (item-labels route), so whichever comes second sees the other. Returns false when the
  * post was already decided.
  */
-export async function storeResult(apiKeyId: string, type: MediaType, code: string, publishedAt: Date, labels: CheckedLabel[], meta: ResultMeta) {
+export async function storeResult(projectId: string, type: MediaType, code: string, publishedAt: Date, labels: CheckedLabel[], meta: ResultMeta) {
   const { model } = meta;
   return prisma.$transaction(async (tx) => {
     const done = { status: labels.length ? "done" : "empty", model, publishedAt, error: null, retryAfter: null };
-    const created = await tx.labelAiItem.createMany({ data: [{ apiKeyId, type, code, attempts: 1, ...done }], skipDuplicates: true });
+    const created = await tx.labelAiItem.createMany({ data: [{ projectId, type, code, attempts: 1, ...done }], skipDuplicates: true });
     if (!created.count) {
-      const taken = await tx.labelAiItem.updateMany({ where: { apiKeyId, type, code, status: { in: ["failed", "waiting_text"] } }, data: done });
+      const taken = await tx.labelAiItem.updateMany({ where: { projectId, type, code, status: { in: ["failed", "waiting_text"] } }, data: done });
       if (!taken.count) return false;
     }
     // Labels a person gave before this ledger existed.
-    if (await tx.itemLabel.count({ where: { apiKeyId, type, code } })) {
-      await tx.labelAiItem.update({ where: itemKey(apiKeyId, type, code), data: { status: "human" } });
+    if (await tx.itemLabel.count({ where: { projectId, type, code } })) {
+      await tx.labelAiItem.update({ where: itemKey(projectId, type, code), data: { status: "human" } });
       return false;
     }
     // The choices may have changed while the model was answering.
-    const { manualLabels } = await tx.apiKey.findUniqueOrThrow({ where: { id: apiKeyId }, select: { manualLabels: true } });
+    const { manualLabels } = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { manualLabels: true } });
     await tx.itemLabel.createMany({
       data: labels.filter((l) => manualLabels.includes(l.label)).map((l) => ({
-        apiKeyId, type, code, label: l.label, setBy: "AI", source: "ai", score: l.score,
+        projectId, type, code, label: l.label, setBy: "AI", source: "ai", score: l.score,
         additionalData: { reason: l.reason, needsReview: needsReview(l), disputed: l.disputed, sources: l.sources, ...meta },
       })),
       skipDuplicates: true,
@@ -153,14 +153,14 @@ export async function storeResult(apiKeyId: string, type: MediaType, code: strin
 }
 
 /** Records a post that got no result: tried again later, up to the attempt limit. */
-async function storeMiss(apiKeyId: string, type: MediaType, item: { code: string; publishedAt: Date }, status: "failed" | "waiting_text", error: string | null) {
+async function storeMiss(projectId: string, type: MediaType, item: { code: string; publishedAt: Date }, status: "failed" | "waiting_text", error: string | null) {
   const retryAfter = new Date(Date.now() + (status === "failed" ? RETRY_MS : TEXT_RETRY_MS));
   const created = await prisma.labelAiItem.createMany({
-    data: [{ apiKeyId, type, code: item.code, publishedAt: item.publishedAt, status, attempts: 1, retryAfter, error }], skipDuplicates: true,
+    data: [{ projectId, type, code: item.code, publishedAt: item.publishedAt, status, attempts: 1, retryAfter, error }], skipDuplicates: true,
   });
   if (!created.count) {
     await prisma.labelAiItem.updateMany({
-      where: { apiKeyId, type, code: item.code, status: { in: ["failed", "waiting_text"] } },
+      where: { projectId, type, code: item.code, status: { in: ["failed", "waiting_text"] } },
       data: { status, retryAfter, error, attempts: { increment: 1 } },
     });
   }
@@ -176,7 +176,7 @@ async function send(run: Run, type: MediaType, posts: Sendable[]): Promise<void>
   // Counted before the call: a failed call may be billed too.
   run.todayCount += posts.length;
   run.budget -= posts.length;
-  await prisma.labelAi.update({ where: { apiKeyId: row.apiKeyId }, data: { todayDate: run.today, todayCount: run.todayCount, lastRunAt: new Date() } });
+  await prisma.labelAi.update({ where: { projectId: row.projectId }, data: { todayDate: run.today, todayCount: run.todayCount, lastRunAt: new Date() } });
   const startedAt = Date.now();
   const where = `${run.name} · ${TYPE_NAMES[type]}`;
   const seconds = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
@@ -200,7 +200,7 @@ async function send(run: Run, type: MediaType, posts: Sendable[]): Promise<void>
     if (posts.length === 1) {
       // With nothing succeeding and no sign it is only this post, don't blame it yet: wait and try again.
       if (!run.succeeded && row.errorStreak < 2) throw new Halt("wait", message);
-      await storeMiss(row.apiKeyId, type, posts[0], "failed", message);
+      await storeMiss(row.projectId, type, posts[0], "failed", message);
       run.tally.failed++;
       log(`${where}: post ${posts[0].code} dicatat gagal`);
       return;
@@ -217,7 +217,7 @@ async function send(run: Run, type: MediaType, posts: Sendable[]): Promise<void>
   for (const post of posts) {
     const labels = results.get(post.code);
     if (!labels) {
-      await storeMiss(row.apiKeyId, type, post, "failed", "AI tidak menjawab post ini dengan benar");
+      await storeMiss(row.projectId, type, post, "failed", "AI tidak menjawab post ini dengan benar");
       await count(run, 0, 1);
       missed++;
     } else if (labels.length) matched.push({ post, labels });
@@ -234,13 +234,13 @@ async function send(run: Run, type: MediaType, posts: Sendable[]): Promise<void>
 }
 
 const count = (run: Run, processed: number, failed: number) => prisma.labelAi.update({
-  where: { apiKeyId: run.row.apiKeyId }, data: { processed: { increment: processed }, failed: { increment: failed }, lastRunAt: new Date() },
+  where: { projectId: run.row.projectId }, data: { processed: { increment: processed }, failed: { increment: failed }, lastRunAt: new Date() },
 });
 
 /** Stores one post's labels with how they came about, and counts it. False: a person decided this post meanwhile. */
 async function save(run: Run, type: MediaType, post: Sendable, labels: CheckedLabel[], webSearch: boolean, searchQueries: string[]) {
   const { row } = run;
-  const stored = await storeResult(row.apiKeyId, type, post.code, post.publishedAt, labels, {
+  const stored = await storeResult(row.projectId, type, post.code, post.publishedAt, labels, {
     provider: row.provider, model: row.model, labeledAt: new Date().toISOString(),
     promptVersion: createHash("sha256").update(run.system + run.checkSystem).digest("hex").slice(0, 12),
     customPrompt: row.prompt !== null, input: post.input, webSearch, searchQueries,
@@ -253,7 +253,7 @@ async function save(run: Run, type: MediaType, post: Sendable, labels: CheckedLa
 async function check(run: Run, type: MediaType, post: Sendable, candidates: AiLabel[], where: string) {
   const { row } = run;
   // Searches take seconds each: a pause or a new setting takes effect before the next one.
-  const current = await prisma.labelAi.findUnique({ where: { apiKeyId: row.apiKeyId }, select: { enabled: true, savedAt: true } });
+  const current = await prisma.labelAi.findUnique({ where: { projectId: row.projectId }, select: { enabled: true, savedAt: true } });
   if (!current?.enabled || current.savedAt.getTime() !== row.savedAt.getTime()) throw new Changed();
   const startedAt = Date.now();
   const seconds = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
@@ -266,7 +266,7 @@ async function check(run: Run, type: MediaType, post: Sendable, candidates: AiLa
     log(`${where}: gagal (${seconds()}): ${message}`);
     if (kind !== "batch") throw new Halt(kind, message);
     if (++run.failedCalls > MAX_FAILED_CALLS) throw new Halt("wait", message);
-    await storeMiss(row.apiKeyId, type, post, "failed", message);
+    await storeMiss(row.projectId, type, post, "failed", message);
     await count(run, 0, 1);
     run.tally.failed++;
     return;
@@ -284,11 +284,11 @@ async function check(run: Run, type: MediaType, post: Sendable, candidates: AiLa
 
 /** Labels the posts of one page that still need it. Returns only when every one of them has been recorded. */
 async function processItems(run: Run, type: MediaType, items: MediaItem[]) {
-  const apiKeyId = run.row.apiKeyId;
+  const projectId = run.row.projectId;
   const codes = items.map((i) => i.code);
   const [ledger, labelled] = await Promise.all([
-    prisma.labelAiItem.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true, status: true, attempts: true, retryAfter: true } }),
-    prisma.itemLabel.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true } }),
+    prisma.labelAiItem.findMany({ where: { projectId, type, code: { in: codes } }, select: { code: true, status: true, attempts: true, retryAfter: true } }),
+    prisma.itemLabel.findMany({ where: { projectId, type, code: { in: codes } }, select: { code: true } }),
   ]);
   const seen = new Map(ledger.map((r) => [r.code, r]));
   const hasLabels = new Set(labelled.map((r) => r.code));
@@ -315,7 +315,7 @@ async function processItems(run: Run, type: MediaType, items: MediaItem[]) {
       input: { parts: parts.map((p) => p.name), characters: Math.min(text.length, MAX_ITEM_CHARS), truncated: text.length > MAX_ITEM_CHARS },
     });
     else {
-      await storeMiss(apiKeyId, type, { code: item.code, publishedAt }, "waiting_text", "Belum ada teks");
+      await storeMiss(projectId, type, { code: item.code, publishedAt }, "waiting_text", "Belum ada teks");
       run.tally.waiting++;
     }
   }
@@ -345,7 +345,7 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
   if (run.budget > 0) {
     const retry = await prisma.labelAiItem.findMany({
       where: {
-        apiKeyId: run.row.apiKeyId, type, retryAfter: { lte: new Date() },
+        projectId: run.row.projectId, type, retryAfter: { lte: new Date() },
         OR: [{ status: "failed", attempts: { lt: MAX_ATTEMPTS } }, { status: "waiting_text", attempts: { lt: MAX_TEXT_CHECKS } }],
       },
       orderBy: { retryAfter: "asc" }, take: pageSize(run), select: { code: true },
@@ -357,7 +357,7 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
       const found = new Set(items.map((i) => i.code));
       // Gone from the source: stop asking for it.
       await prisma.labelAiItem.updateMany({
-        where: { apiKeyId: run.row.apiKeyId, type, code: { in: codes.filter((c) => !found.has(c)) } },
+        where: { projectId: run.row.projectId, type, code: { in: codes.filter((c) => !found.has(c)) } },
         data: { status: "failed", attempts: MAX_ATTEMPTS, retryAfter: null, error: "Post tidak ditemukan lagi di sumber" },
       });
     }
@@ -386,7 +386,7 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
       cursor = page.next ?? null;
       const inWindow = page.items.filter((i) => new Date(i.publishedAt).getTime() >= floor);
       const known = new Set((await prisma.labelAiItem.findMany({
-        where: { apiKeyId: run.row.apiKeyId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
+        where: { projectId: run.row.projectId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
       })).map((r) => r.code));
       const unseen = inWindow.filter((i) => !known.has(i.code));
       for (let i = 0; i < unseen.length && run.budget > 0; i += BATCH_SIZE) await processItems(run, type, unseen.slice(i, i + Math.min(BATCH_SIZE, run.budget)));
@@ -397,20 +397,20 @@ async function labelType(run: Run, type: MediaType, state: TypeState, startFrom:
   }
 }
 
-export async function runLabelProject(apiKeyId: string) {
-  const row = await prisma.labelAi.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
-  if (!row?.enabled || row.apiKey.revokedAt) return;
+export async function runLabelProject(projectId: string) {
+  const row = await prisma.labelAi.findUnique({ where: { projectId }, include: { project: true } });
+  if (!row?.enabled || row.project.revokedAt) return;
   // The heartbeat the settings page shows, also while waiting or idle.
-  const beat = (data: Prisma.LabelAiUpdateManyMutationInput = {}) => prisma.labelAi.updateMany({ where: { apiKeyId }, data: { lastRunAt: new Date(), ...data } });
-  const name = row.apiKey.name;
+  const beat = (data: Prisma.LabelAiUpdateManyMutationInput = {}) => prisma.labelAi.updateMany({ where: { projectId }, data: { lastRunAt: new Date(), ...data } });
+  const name = row.project.name;
   // Paused (not switched off) while the project has clients and none is active; resumes by itself.
-  const paused = await aiPauseReason(apiKeyId);
+  const paused = await aiPauseReason(projectId);
   if (paused) {
-    logIdle(apiKeyId, name, "dijeda: tidak ada klien aktif");
+    logIdle(projectId, name, "dijeda: tidak ada instansi aktif");
     return void (await beat({ lastError: paused }));
   }
   if (row.retryAfter && row.retryAfter.getTime() > Date.now()) {
-    logIdle(apiKeyId, name, `menunggu sampai ${row.retryAfter.toLocaleTimeString("sv-SE", { timeZone: "Asia/Jakarta" })} WIB setelah error`);
+    logIdle(projectId, name, `menunggu sampai ${row.retryAfter.toLocaleTimeString("sv-SE", { timeZone: "Asia/Jakarta" })} WIB setelah error`);
     return void (await beat());
   }
   if (!labelAiProvider(row.provider).webSearch) {
@@ -418,9 +418,9 @@ export async function runLabelProject(apiKeyId: string) {
     log(`${name}: ${message}`);
     return void (await beat({ enabled: false, lastError: message }));
   }
-  const options = row.apiKey.manualLabels;
+  const options = row.project.manualLabels;
   if (!options.length) {
-    logIdle(apiKeyId, name, "belum ada pilihan label, dilewati");
+    logIdle(projectId, name, "belum ada pilihan label, dilewati");
     return void (await beat({ lastError: "Belum ada pilihan label di proyek ini." }));
   }
   const today = todayInJakarta();
@@ -430,20 +430,20 @@ export async function runLabelProject(apiKeyId: string) {
   const run: Run = {
     row, name, options, today, todayCount, failedCalls: 0, succeeded: false,
     tally: { sent: 0, labelled: 0, empty: 0, failed: 0, waiting: 0, human: 0, calls: 0, input: 0, output: 0 },
-    scope: await withImageCodes(apiKeyId, parseKeyScope(row.apiKey.scope, row.apiKey.keywords)),
+    scope: await withImageCodes(projectId, parseKeyScope(row.project.scope, row.project.keywords)),
     system: `${instructions}\n\n${labelOutputFormat(options)}`,
     checkSystem: searchSystem(instructions),
     budget: TICK_BUDGET, // no daily cap: the start date (range) bounds the work
   };
   const cursors = (row.cursors ?? {}) as Cursors;
-  const saveCursors = () => prisma.labelAi.updateMany({ where: { apiKeyId }, data: { cursors: cursors as Prisma.InputJsonValue, lastRunAt: new Date() } });
+  const saveCursors = () => prisma.labelAi.updateMany({ where: { projectId }, data: { cursors: cursors as Prisma.InputJsonValue, lastRunAt: new Date() } });
   // Settings saved during the run (pause, new key, new provider) win: don't write this run's verdict over them.
-  const verdict = (data: Prisma.LabelAiUpdateManyMutationInput) => prisma.labelAi.updateMany({ where: { apiKeyId, savedAt: row.savedAt }, data });
+  const verdict = (data: Prisma.LabelAiUpdateManyMutationInput) => prisma.labelAi.updateMany({ where: { projectId, savedAt: row.savedAt }, data });
   /** What this run did; silent about a run that found nothing, after saying so once. */
   const summary = () => {
     const t = run.tally;
     if (!t.sent && !t.calls && !t.waiting && !t.failed) return false;
-    quiet.delete(apiKeyId);
+    quiet.delete(projectId);
     log(`${name}: ringkasan → ${num(t.sent)} post diproses: ${num(t.labelled)} berlabel, ${num(t.empty)} tanpa label, ${num(t.failed)} gagal, ${num(t.waiting)} menunggu teks${t.human ? `, ${num(t.human)} dilewati` : ""} · ${t.calls} panggilan, token masuk ${num(t.input)} / keluar ${num(t.output)} · hari ini ${num(run.todayCount)}`);
     return true;
   };
@@ -460,21 +460,21 @@ export async function runLabelProject(apiKeyId: string) {
       } finally {
         run.budget += held;
       }
-      const current = await prisma.labelAi.findUnique({ where: { apiKeyId }, select: { enabled: true, savedAt: true } });
+      const current = await prisma.labelAi.findUnique({ where: { projectId }, select: { enabled: true, savedAt: true } });
       if (!current?.enabled || current.savedAt.getTime() !== row.savedAt.getTime()) break;
     }
     await saveCursors();
     await verdict({ lastError: null, errorStreak: 0, retryAfter: null, lastRunAt: new Date() });
     if (!summary()) {
       const history = types.every((t) => cursors[t]?.backfillDone) ? "data lama sudah selesai" : "data lama masih ditelusuri";
-      logIdle(apiKeyId, name, `tidak ada post yang perlu dilabeli (${history}); menunggu post baru`);
+      logIdle(projectId, name, `tidak ada post yang perlu dilabeli (${history}); menunggu post baru`);
     }
   } catch (error) {
     // A cursor only moves once its page is recorded, so what is left is picked up again.
     await saveCursors();
     const message = providerErrorMessage(error);
     summary();
-    quiet.delete(apiKeyId);
+    quiet.delete(projectId);
     if (error instanceof Changed) return void log(`${name}: pengaturan berubah, putaran dihentikan`);
     if (error instanceof Halt && error.kind === "pause") {
       log(`${name}: DIJEDA OTOMATIS: ${message}. Perbaiki, lalu aktifkan dan simpan lagi di halaman pengaturan label.`);
@@ -492,13 +492,13 @@ let turn = 0;
 /** One pass over every enabled project: provider accounts side by side, the projects of one account in turn. */
 export async function runLabelAi() {
   const rows = await prisma.labelAi.findMany({
-    where: { enabled: true, apiKey: { revokedAt: null } }, select: { apiKeyId: true, provider: true, keyEnc: true }, orderBy: { createdAt: "asc" },
+    where: { enabled: true, project: { revokedAt: null } }, select: { projectId: true, provider: true, keyEnc: true }, orderBy: { createdAt: "asc" },
   });
   if (!rows.length) logIdle("", "worker", "belum ada proyek dengan pelabelan AI aktif; menunggu");
   else quiet.delete("");
-  const groups = turnGroups(rows.map((r) => ({ apiKeyId: r.apiKeyId, providerKind: r.provider, providerBaseUrl: null, providerKeyEnc: r.keyEnc })), providerAccount, turn++);
+  const groups = turnGroups(rows.map((r) => ({ projectId: r.projectId, providerKind: r.provider, providerBaseUrl: null, providerKeyEnc: r.keyEnc })), providerAccount, turn++);
   await runPool(groups, PARALLEL_ACCOUNTS, async (group) => {
-    for (const { apiKeyId } of group) await runLabelProject(apiKeyId).catch((error) => console.error(`${clock()} [label-ai] ${apiKeyId}: proses gagal:`, error));
+    for (const { projectId } of group) await runLabelProject(projectId).catch((error) => console.error(`${clock()} [label-ai] ${projectId}: proses gagal:`, error));
   });
   return rows.length;
 }

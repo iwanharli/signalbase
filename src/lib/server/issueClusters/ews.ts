@@ -17,7 +17,7 @@ type Sample = { code: string; text: string; author: string | null; url: string |
 /** The project's active issues seen in the last `days` days (they cover at most the last 7), highest score first. */
 export async function projectIssues(keyId: string, days: OntDays): Promise<OntIssue[]> {
   const since = new Date(Date.now() - days * 86_400_000 + 7 * 3_600_000); // lastSeen is Jakarta wall clock stored as UTC
-  const rows = await prisma.issueCluster.findMany({ where: { apiKeyId: keyId, active: true, lastSeen: { gte: since } }, orderBy: { score: "desc" } });
+  const rows = await prisma.issueCluster.findMany({ where: { projectId: keyId, active: true, lastSeen: { gte: since } }, orderBy: { score: "desc" } });
   return rows.map((r): OntIssue => {
     const moods = (r.moods as [string, number][]) ?? [];
     const labelled = moods.reduce((s, [, n]) => s + n, 0);

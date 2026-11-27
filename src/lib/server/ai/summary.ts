@@ -113,7 +113,7 @@ type ScopeRef = { id: string; name: string; scope: KeyScope | undefined; keyword
 
 export async function resolveScope(id: string): Promise<ScopeRef | null> {
   if (id === BANK_SCOPE) return { id, name: BANK_NAME, scope: undefined, keywords: [] };
-  const key = await prisma.apiKey.findFirst({ where: { id, revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
+  const key = await prisma.project.findFirst({ where: { id, revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
   return key ? { id: key.id, name: key.name, scope: await withImageCodes(key.id, parseKeyScope(key.scope, key.keywords)), keywords: key.keywords } : null;
 }
 
@@ -154,7 +154,7 @@ async function dailyScopes(setting: AiSetting): Promise<ScopeRef[]> {
   const bank = (await resolveScope(BANK_SCOPE))!;
   if (!setting.includeProjects) return [bank];
   const paused = await pausedProjects(); // projects without an active client get no AI summary
-  const keys = (await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
+  const keys = (await prisma.project.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
     .filter((k) => !paused.has(k.id));
   return [bank, ...await Promise.all(keys.map(async (k) => ({ id: k.id, name: k.name, scope: await withImageCodes(k.id, parseKeyScope(k.scope, k.keywords)), keywords: k.keywords })))];
 }

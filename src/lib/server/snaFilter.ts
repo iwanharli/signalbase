@@ -13,12 +13,12 @@ export async function snaCodes(q: URLSearchParams, keyId: string | null): Promis
   if (!keyId) return NextResponse.json({ error: "Pilih proyek untuk memakai filter isu atau label" }, { status: 400 });
   let codes: string[] | null = null;
   if (issue) {
-    const row = await prisma.issueCluster.findFirst({ where: { id: issue, apiKeyId: keyId }, select: { codes: true } });
+    const row = await prisma.issueCluster.findFirst({ where: { id: issue, projectId: keyId }, select: { codes: true } });
     if (!row) return NextResponse.json({ error: "Isu tidak ditemukan di proyek ini" }, { status: 404 });
     codes = row.codes;
   }
   if (label) {
-    const rows = await prisma.itemLabel.findMany({ where: { apiKeyId: keyId, type: "social", label }, select: { code: true } });
+    const rows = await prisma.itemLabel.findMany({ where: { projectId: keyId, type: "social", label }, select: { code: true } });
     const labelled = new Set(rows.map((r) => r.code));
     codes = codes ? codes.filter((c) => labelled.has(c)) : [...labelled];
   }

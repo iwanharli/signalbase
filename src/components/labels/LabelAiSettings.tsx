@@ -1,5 +1,5 @@
 "use client";
-// /project/[id]/labels — AI settings of "Kustomisasi Label", saved per project.
+// /projects/[id]/settings/labels — AI settings of "Kustomisasi Label", saved per project.
 // The label worker (npm run label-ai) does the labelling; progress is as of page load.
 import { useState } from "react";
 import Link from "next/link";
@@ -13,16 +13,17 @@ import { apiKeyProblem } from "@/lib/ai/classifier";
 import { LABEL_AI_PROVIDERS, labelAiProvider, type LabelAiProgress, type LabelAiSaved, type LabelAiState } from "@/lib/ai/labelAi";
 import { daysAgo, RangeField } from "../classifier/ClassifierEditor";
 import { Button } from "../ui/Button";
+import { projectSettingsPath } from "@/lib/activeProject";
 import ai from "../classifier/classifierEditor.module.css";
 import card from "../classifier/projectClassifier.module.css";
 
 export function LabelAiSettings({ keyId }: { keyId: string }) {
-  const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
-  const project = useApi<{ key: { name: string } }>(`/api/admin/keys/${keyId}/classifier`);
+  const settings = useApi<LabelSettings>(`/api/admin/projects/${keyId}/labels`);
+  const project = useApi<{ key: { name: string } }>(`/api/admin/projects/${keyId}/classifier`);
   // Only asked for when this account may change them; the server refuses everyone else.
-  const stored = useApi<LabelAiState>(settings.data?.canEdit ? `/api/admin/keys/${keyId}/label-ai` : null);
+  const stored = useApi<LabelAiState>(settings.data?.canEdit ? `/api/admin/projects/${keyId}/label-ai` : null);
   const loadError = settings.error ?? stored.error;
-  const back = `/project/${keyId}?tab=labels`;
+  const back = `${projectSettingsPath(keyId)}?tab=labels`;
   const name = project.data?.key.name;
 
   return (
@@ -77,7 +78,7 @@ function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; lab
     setTest(null);
     setTesting(true);
     try {
-      setTest(await post(`/api/admin/keys/${keyId}/label-ai/test`, { provider: provider.id, model, apiKey }) as TestResult);
+      setTest(await post(`/api/admin/projects/${keyId}/label-ai/test`, { provider: provider.id, model, apiKey }) as TestResult);
     } catch (err) {
       setTest({ ok: false, ms: 0, error: (err as Error).message });
     } finally {
@@ -87,7 +88,7 @@ function LabelAiPanel({ keyId, labels, initial, progress }: { keyId: string; lab
   const save = async () => {
     setSaving(true);
     try {
-      const next = (await post(`/api/admin/keys/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom, enabled }, "PUT") as LabelAiState).saved!;
+      const next = (await post(`/api/admin/projects/${keyId}/label-ai`, { provider: provider.id, model, apiKey, prompt: edited, startFrom, enabled }, "PUT") as LabelAiState).saved!;
       setSaved(next); setEnabled(next.enabled); setModel(next.model); setEdited(next.prompt); setApiKey("");
       notifications.show({ color: "teal", message: "Pengaturan AI label disimpan" });
     } catch (err) {

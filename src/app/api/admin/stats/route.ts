@@ -8,8 +8,8 @@ import { overviewView } from "@/lib/server/overviewKey";
 // Overview page data: per media type the last 14 days of volume, the mood split of the
 // last 7 days and the newest items; plus the active API keys.
 // ?days=7|14|30 sets the volume and mood window for both (Command Center); default is 14 / 7 days.
-// Admins see the whole bank, or one key's view with ?key=. Users always see one of their own keys
-// (?key= or their oldest active key) and only their own keys are listed; with no key they get { noKey: true }.
+// Admins see the whole bank, or one key's view with ?project=. Users always see one of their own keys
+// (?project= or their oldest active key) and only their own keys are listed; with no key they get { noKey: true }.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const view = await overviewView(req, user);
   if (view instanceof Response) return view;

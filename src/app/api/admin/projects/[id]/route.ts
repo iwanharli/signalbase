@@ -1,0 +1,92 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { providerLabel } from "@/lib/ai/classifier";
+import { keyScopeSchema, labelImpact, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
+import { adminRoute } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/db";
+import { aiPausedFor, clientActive } from "@/lib/server/projectAccess";
+
+type Context = { params: Promise<{ id: string }> };
+
+const updateKeySchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  scope: keyScopeSchema,
+});
+
+const sameScope = (a: KeyScope, b: KeyScope) => JSON.stringify(a) === JSON.stringify(b);
+
+// One key with its scope and AI categorisation summary.
+export const GET = adminRoute(async (_req: Request, { params }: Context) => {
+  const { id } = await params;
+  const key = await prisma.project.findUnique({
+    where: { id },
+    include: {
+      classifier: true, _count: { select: { classifications: true } },
+      members: { orderBy: { createdAt: "asc" }, select: { account: { select: { id: true, name: true, status: true, planExpiresAt: true } } } },
+    },
+  });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+  return NextResponse.json({
+    id: key.id, name: key.name, prefix: key.prefix, createdBy: key.createdBy, createdAt: key.createdAt, lastUsedAt: key.lastUsedAt, revokedAt: key.revokedAt,
+    keywords: key.keywords, scope: parseKeyScope(key.scope, key.keywords),
+    copyable: !!key.keyEnc,
+    access: { ips: key.allowedIps, origins: key.allowedOrigins },
+    display: { analyzedFilter: key.showAnalyzedFilter, relevanceFilter: key.showRelevanceFilter },
+    // The clients given this project, and whether its AI is paused because none of them is active.
+    clients: key.members.map((m) => ({ id: m.account.id, name: m.account.name, active: clientActive(m.account) })),
+    aiPaused: aiPausedFor(key.members.map((m) => m.account)),
+    classifier: key.classifier && {
+      enabled: key.classifier.enabled, labelledOnly: key.classifier.labelledOnly, providerName: providerLabel(key.classifier.providerKind, key.classifier.providerBaseUrl), model: key.classifier.providerModel,
+      processed: key._count.classifications, lastError: key.classifier.lastError, lastRunAt: key.classifier.lastRunAt,
+    },
+  });
+});
+
+// Rename a key or change its scope. A scope change restarts the key's AI categorisation,
+// because the stored labels were made for the old set of items.
+export const PATCH = adminRoute(async (req: Request, { params }: Context) => {
+  const { id } = await params;
+  const parsed = updateKeySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const message = issue?.path[0] === "name" ? "Nama minimal 2 karakter" : issue?.path[1] === "keywords" ? issue.message : "Parameter cakupan tidak valid";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+  const key = await prisma.project.findUnique({ where: { id }, include: { classifier: { select: { projectId: true } } } });
+  if (!key) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
+  if (key.revokedAt) return NextResponse.json({ error: "Proyek yang sudah dicabut tidak bisa diubah" }, { status: 409 });
+
+  const scope: KeyScope = {
+    ...parsed.data.scope,
+    keywords: [...new Set(parsed.data.scope.keywords)],
+    provinces: [...new Set(parsed.data.scope.provinces)],
+    categories: [...new Set(parsed.data.scope.categories)],
+  };
+  const previous = parseKeyScope(key.scope, key.keywords);
+  const scopeChanged = !sameScope(scope, previous);
+  const { keywords, ...rest } = scope;
+  const impact = key.classifier ? labelImpact(scope, previous) : "none";
+  const restartAi = impact === "restart";
+  // "extend": labels stay; the worker walks the scope again from the start and labels only posts without a label.
+  const extendAi = impact === "extend";
+
+  await prisma.$transaction([
+    prisma.project.update({ where: { id }, data: { name: parsed.data.name, keywords, scope: rest } }),
+    ...(restartAi
+      ? [
+        prisma.classification.deleteMany({ where: { projectId: id } }),
+        prisma.classifier.update({ where: { projectId: id }, data: { cursors: {}, processed: 0, failed: 0, lastError: null } }),
+      ]
+      : extendAi
+        ? [prisma.classifier.update({ where: { projectId: id }, data: { cursors: {}, lastError: null } })]
+        : []),
+  ]);
+  return NextResponse.json({ ok: true, scopeChanged, aiRestarted: restartAi, aiExtended: extendAi });
+});
+
+// Revoking keeps the row so the list shows when and which key was cut off.
+export const DELETE = adminRoute(async (_req: Request, { params }: Context) => {
+  const { id } = await params;
+  await prisma.project.updateMany({ where: { id, revokedAt: null }, data: { revokedAt: new Date() } });
+  return NextResponse.json({ ok: true });
+});

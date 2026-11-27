@@ -5,14 +5,14 @@ import { overviewView } from "@/lib/server/overviewKey";
 
 const SHOWN = 30;
 
-// Issues found by clustering one project's social posts (worker `isu`), highest score first. ?key= is required; the same
+// Issues found by clustering one project's social posts (worker `isu`), highest score first. ?project= is required; the same
 // key rules as the EWS list (/api/admin/ontology): users only see their own projects.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const view = await overviewView(req, user);
   if (view instanceof Response) return view;
   if (!view.key) return NextResponse.json({ issues: [], updatedAt: null });
   const rows = await prisma.issueCluster.findMany({
-    where: { apiKeyId: view.key.id, active: true },
+    where: { projectId: view.key.id, active: true },
     orderBy: { score: "desc" },
     take: SHOWN,
     select: {

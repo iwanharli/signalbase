@@ -17,7 +17,7 @@ const profileSchema = z.object({
 /** Admins: the bank and any project; users: projects they see (reading) or own (changing). */
 async function allowed(scope: string | null, user: Parameters<typeof keyAccess>[0], write = false) {
   if (!scope) return false;
-  if (user.role !== "user") return scope === BANK_SCOPE || !!(await prisma.apiKey.findUnique({ where: { id: scope }, select: { id: true } }));
+  if (user.role !== "user") return scope === BANK_SCOPE || !!(await prisma.project.findUnique({ where: { id: scope }, select: { id: true } }));
   if (scope === BANK_SCOPE) return false;
   const access = await keyAccess(user, scope);
   return write ? access === "full" : access !== null;

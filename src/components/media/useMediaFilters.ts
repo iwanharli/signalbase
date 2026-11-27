@@ -4,6 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { countActive, countAdvanced, defaultFilters, filtersFromSearchParams, toSearchParams, savedFilterParams, savedFiltersKey, savedFilterValue, splitFilterUrl, type MediaFilters } from "@/lib/media/filters";
 import type { MediaType } from "@/lib/media/types";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import { useProjectId } from "@/lib/useProjectId";
+import { projectPath, splitProjectPath } from "@/lib/activeProject";
 
 const SEARCH_DEBOUNCE_MS = 1000;
 /** Fewer than MIN_SEARCH_CHARS typed: the word is probably unfinished and matches little, so wait longer before querying. */
@@ -18,7 +20,7 @@ const MIN_SEARCH_CHARS = 4;
  *   draft, already carries the right ones).
  */
 export function applyRules(next: MediaFilters, patch: Partial<MediaFilters>): MediaFilters {
-  if ("key" in patch && !("manualLabel" in patch)) return { ...next, aiCategory: null, manualLabel: null };
+  if ("project" in patch && !("manualLabel" in patch)) return { ...next, aiCategory: null, manualLabel: null };
   if (patch.analyzed === "no") return { ...next, mood: null, minLevel: "" };
   if (patch.relevance === "exclude") return { ...next, analyzed: "", mood: null, minLevel: "" };
   return next;
@@ -44,7 +46,7 @@ function load(type: MediaType, projectId: string | null): MediaFilters {
   const storageKey = savedFiltersKey(type, projectId);
   let value: string | null;
   try { value = localStorage.getItem(storageKey); } catch { value = memory.get(storageKey) ?? null; }
-  return { ...filtersFromSearchParams(savedFilterParams(value ?? "", type), type), key: projectId };
+  return { ...filtersFromSearchParams(savedFilterParams(value ?? "", type), type), project: projectId };
 }
 
 /**
@@ -65,7 +67,7 @@ export function useCleanMediaUrl(type: MediaType) {
     const url = new URL(window.location.href);
     const incoming = splitFilterUrl(url.searchParams, type);
     const source = incoming.rest.get("tampilan");
-    if (incoming.saved !== null) save(savedFiltersKey(type, incoming.rest.get("key")), incoming.saved);
+    if (incoming.saved !== null) save(savedFiltersKey(type, splitProjectPath(url.pathname).id), incoming.saved);
     if (source === "quick" || source === "asli") {
       try { localStorage.setItem(SOURCE_KEY, source); } catch { /* ignore */ }
     }
@@ -79,28 +81,27 @@ export function useCleanMediaUrl(type: MediaType) {
 /** Filter state of the media browser, remembered per media type and project. Mount only once useCleanMediaUrl is true
  *  and remount per project. */
 export function useMediaFilters(type: MediaType) {
-  const projectId = useSearchParams().get("key");
+  const projectId = useProjectId();
   const [stored, setStored] = useState(() => load(type, projectId));
   // The latest filters for updates made before the next render; not re-read from storage, which other tabs share.
   const latest = useRef(stored);
-  const filters = useMemo(() => ({ ...stored, key: projectId }), [stored, projectId]);
+  const filters = useMemo(() => ({ ...stored, project: projectId }), [stored, projectId]);
 
   const write = useCallback((next: MediaFilters) => {
-    save(savedFiltersKey(type, next.key), savedFilterValue(next, type));
-    if (next.key === projectId) {
+    save(savedFiltersKey(type, next.project), savedFilterValue(next, type));
+    if (next.project === projectId) {
       latest.current = next;
       setStored(next);
       return;
     }
     // Another project: only the URL changes here; the browser remounts and loads what was just saved for it.
     const url = new URL(window.location.href);
-    if (next.key) url.searchParams.set("key", next.key);
-    else url.searchParams.delete("key");
+    url.pathname = projectPath(next.project, splitProjectPath(url.pathname).page);
     window.history.pushState(null, "", url);
   }, [type, projectId]);
-  const update = useCallback((patch: Partial<MediaFilters>) => write(applyRules({ ...latest.current, key: projectId, ...patch }, patch)), [write, projectId]);
+  const update = useCallback((patch: Partial<MediaFilters>) => write(applyRules({ ...latest.current, project: projectId, ...patch }, patch)), [write, projectId]);
   // Reset clears the filters, not the project being viewed.
-  const reset = useCallback(() => write({ ...defaultFilters(type), key: projectId }), [type, write, projectId]);
+  const reset = useCallback(() => write({ ...defaultFilters(type), project: projectId }), [type, write, projectId]);
 
   // Typing in the search box shouldn't scan the bank on every keystroke.
   const typed = filters.search.trim();

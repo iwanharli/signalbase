@@ -6,7 +6,7 @@ import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { typeInsights } from "@/lib/server/insights";
 import { overviewView } from "@/lib/server/overviewKey";
 
-// Ringkasan "Analisis periode": ?type=social|online&days=7|14|30[&key=]. Same key rules as /api/admin/stats.
+// Ringkasan "Analisis periode": ?type=social|online&days=7|14|30[&project=]. Same key rules as /api/admin/stats.
 // { insights: null } when the key's scope leaves the type out.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const params = new URL(req.url).searchParams;

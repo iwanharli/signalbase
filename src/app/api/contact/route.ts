@@ -16,7 +16,7 @@ const schema = z.object({
 const recent = new Map<string, number[]>();
 const WINDOW = 60 * 60_000;
 
-// Public sales enquiry from /kontak. Stored for admins (Pengguna page); nothing is sent anywhere else.
+// Public sales enquiry from /contact. Stored for admins (Pengguna page); nothing is sent anywhere else.
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
   const hits = (recent.get(ip) ?? []).filter((t) => Date.now() - t < WINDOW);

@@ -11,6 +11,7 @@ import { post } from "@/lib/api-client";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
+import { projectPath } from "@/lib/activeProject";
 import classes from "./reviewPanel.module.css";
 
 type Rejected = { total: number; items: { type: "social" | "online"; code: string; source: string; publishedAt: string; text: string }[] };
@@ -18,16 +19,16 @@ type Rejected = { total: number; items: { type: "social" | "online"; code: strin
 export function ReviewPanel({ keyId, types, low, none, onRetried }: {
   keyId: string; types: ("social" | "online")[]; low: number; none: number; onRetried: () => void;
 }) {
-  const rejected = useApi<Rejected>(`/api/admin/keys/${keyId}/classifier/rejected`);
+  const rejected = useApi<Rejected>(`/api/admin/projects/${keyId}/classifier/rejected`);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const type = types[0] ?? "social";
-  const view = (aiCategory: string) => `/media/${type}?key=${keyId}&aiCategory=${encodeURIComponent(aiCategory)}`;
+  const view = (aiCategory: string) => `${projectPath(keyId, `/media/${type}`)}?aiCategory=${encodeURIComponent(aiCategory)}`;
 
   const retry = async () => {
     setBusy(true);
     try {
-      const r = await post(`/api/admin/keys/${keyId}/classifier/rejected`, {}) as { labelled: number; remaining: number };
+      const r = await post(`/api/admin/projects/${keyId}/classifier/rejected`, {}) as { labelled: number; remaining: number };
       notifications.show({ color: r.remaining ? "orange" : "teal", message: `${formatNumber(r.labelled)} berhasil dikategorikan${r.remaining ? `, ${formatNumber(r.remaining)} masih ditolak` : ""}` });
       rejected.reload();
       onRetried();

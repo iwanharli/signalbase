@@ -1,11 +1,11 @@
 "use client";
-import { saveActiveProject } from "@/lib/activeProject";
+import { projectPath, saveActiveProject } from "@/lib/activeProject";
 import type { Role } from "@/lib/session";
 // One-screen summary of Ringkasan: round charts only, no scrolling on a normal desktop viewport.
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Select } from "@mantine/core";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ChartLine, LayoutDashboard, Flame, Hash, Maximize2, Minimize2, MessagesSquare, Newspaper, Siren, Smile, KeyRound, UserRound, Zap } from "lucide-react";
@@ -19,6 +19,7 @@ import type { DailyCount, MoodCount } from "@/lib/media/types";
 import { type IssueSummary } from "@/lib/issues";
 import { useApi } from "@/lib/useApi";
 import { Segmented } from "../ui/controls";
+import { useProjectId } from "@/lib/useProjectId";
 import controlClasses from "../ui/controls.module.css";
 import { LogoMark } from "../Logo";
 import { Bars, Donut, Gauge, LineChart, TrendBars, type Slice } from "./charts";
@@ -47,20 +48,19 @@ function Panel({ title, icon: Icon, accent, children, className }: { title: stri
 
 export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string | null }) {
   const router = useRouter();
-  const params = useSearchParams();
-  const keyParam = params.get("key");
+  const keyParam = useProjectId();
   const [days, setDays] = useState<InsightPeriod>(7);
   const [full, setFull] = useState(false);
   const [fit, setFit] = useState(false);
   const page = useRef<HTMLDivElement>(null);
 
-  const stats = useApi<Stats>(`/api/admin/stats?days=${days}${keyParam ? `&key=${encodeURIComponent(keyParam)}` : ""}`);
+  const stats = useApi<Stats>(`/api/admin/stats?days=${days}${keyParam ? `&project=${encodeURIComponent(keyParam)}` : ""}`);
   const ready = stats.data && !stats.data.noKey;
   const kid = stats.data?.key?.id ?? null;
-  const q = (type: string) => (ready && stats.data && stats.data[type as "social" | "online"] ? `/api/admin/stats/insights?type=${type}&days=${days}${kid ? `&key=${encodeURIComponent(kid)}` : ""}` : null);
+  const q = (type: string) => (ready && stats.data && stats.data[type as "social" | "online"] ? `/api/admin/stats/insights?type=${type}&days=${days}${kid ? `&project=${encodeURIComponent(kid)}` : ""}` : null);
   const social = useApi<{ insights: Insights }>(q("social"));
   const online = useApi<{ insights: Insights }>(q("online"));
-  const issues = useApi<{ issues: IssueSummary[] }>(ready && stats.data?.online && (role !== "user" || kid) ? `/api/admin/issues?days=${days}&topik=nasional${kid ? `&key=${encodeURIComponent(kid)}` : ""}` : null);
+  const issues = useApi<{ issues: IssueSummary[] }>(ready && stats.data?.online && (role !== "user" || kid) ? `/api/admin/issues?days=${days}&topik=nasional${kid ? `&project=${encodeURIComponent(kid)}` : ""}` : null);
 
   const reloaders = useRef<(() => void)[]>([]);
   reloaders.current = [stats.reload, social.reload, online.reload, issues.reload].filter(Boolean) as (() => void)[];
@@ -88,7 +88,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
   const s = stats.data, si = social.data?.insights ?? null, oi = online.data?.insights ?? null;
   const loaded = s !== null;
   // Also the active project of the top bar, so leaving it for the whole bank sticks.
-  const setKey = useCallback((v: string | null) => { saveActiveProject(v); router.replace(v ? `/command-center?key=${v}` : "/command-center"); }, [router]);
+  const setKey = useCallback((v: string | null) => { saveActiveProject(v); router.replace(projectPath(v, "/command-center")); }, [router]);
 
     // Everything below follows the period: this period against the one right before it.
   const cur = [si?.current, oi?.current].filter((c): c is NonNullable<typeof c> => !!c), prev = [si?.previous, oi?.previous].filter((c): c is NonNullable<typeof c> => !!c);
@@ -104,7 +104,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
   const sd = lastDays(s?.social?.daily, days), od = lastDays(s?.online?.daily, days);
   const slices = (moods: MoodCount[] | undefined): Slice[] => [...(moods ?? [])].sort((a, b) => b.n - a.n).map((m) => ({ label: moodInfo(m.value).label, value: m.n, color: moodColorVar(m.value, 5) }));
   const words = [...(si?.keywords ?? []), ...(si?.hashtags ?? []), ...(oi?.keywords ?? [])].sort((a, b) => b.n - a.n).slice(0, 4).map((r) => ({ label: r.value, value: r.n }));
-  const topIssues = (issues.data?.issues ?? []).slice(0, 4).map((i) => ({ label: i.label || i.title, value: i.score, hint: formatNumber(i.score), onClick: () => router.push(`/isu?issue=${i.id}${kid ? `&key=${kid}` : ""}`) }));
+  const topIssues = (issues.data?.issues ?? []).slice(0, 4).map((i) => ({ label: i.label || i.title, value: i.score, hint: formatNumber(i.score), onClick: () => router.push(`${projectPath(kid, "/issues/media-online")}?issue=${i.id}`) }));
   const accounts = (si?.accounts ?? []).slice(0, 4).map((a) => ({ label: a.name || `@${a.username}`, value: a.n }));
   const outlets = (oi?.media ?? []).slice(0, 4).map((m) => ({ label: m.source, value: m.n }));
   const trendByDay = new Map<string, { pos: number; neu: number; neg: number }>();
@@ -120,7 +120,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
   });
 
   if (s?.noKey) return (
-    <div className={classes.page}><div className={classes.onboard}><KeyRound size={34} /><b>Command Center masih kosong</b><p>Buat proyek dan tentukan keyword agar ringkasan muncul di sini.</p><Link href="/project/new">Buat proyek & atur keyword</Link></div></div>
+    <div className={classes.page}><div className={classes.onboard}><KeyRound size={34} /><b>Command Center masih kosong</b><p>Buat proyek dan tentukan keyword agar ringkasan muncul di sini.</p><Link href="/projects/new">Buat proyek & atur keyword</Link></div></div>
   );
 
   const wait = !loaded || (!!q("social") && !social.data) || (!!q("online") && !online.data);
@@ -130,7 +130,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
     <div ref={page} className={classes.page} data-fit={fit || undefined} data-wait={wait || undefined}>
       <div className={classes.stage} aria-hidden>{showGlobe && <Globe token={mapToken} />}</div>
       <header className={classes.head}>
-        <Link href="/dashboard" className={classes.brand} aria-label={role === "user" ? "Signalbase, kembali ke Beranda" : "Signalbase, kembali ke Ringkasan"} title={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"}><LogoMark size={34} /><span>Signal<b>base</b></span></Link>
+        <Link href={projectPath(kid, "/dashboard")} className={classes.brand} aria-label={role === "user" ? "Signalbase, kembali ke Beranda" : "Signalbase, kembali ke Ringkasan"} title={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"}><LogoMark size={34} /><span>Signal<b>base</b></span></Link>
         <div><span className={classes.live}><i />Live · diperbarui {s ? dayjs(s.at).locale("id").format("HH:mm") : "—"}</span><h1>Command <em>Center</em></h1></div>
         <div className={classes.chips}>
           {s?.social && <span><MessagesSquare size={15} />Sosial <b>{formatNumber(si?.current.total ?? sum(s.social.daily))}</b>{delta(si) && <small data-down={delta(si)!.startsWith("-") || undefined}>{delta(si)}</small>}</span>}
@@ -143,7 +143,7 @@ export function CommandCenter({ role, mapToken }: { role: Role; mapToken: string
               comboboxProps={{ withinPortal: true, zIndex: 400 }} value={keyParam ?? (role !== "user" ? "" : kid ?? "")} onChange={(v) => setKey(v || null)}
               data={[...(role !== "user" ? [{ value: "", label: "Nasional" }] : []), ...s.keys.map((k) => ({ value: k.id, label: k.name }))]} />
           )}
-          <Link href="/dashboard" className={classes.iconBtn} aria-label={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"} title={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"}><LayoutDashboard size={17} /></Link>
+          <Link href={projectPath(kid, "/dashboard")} className={classes.iconBtn} aria-label={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"} title={role === "user" ? "Kembali ke Beranda" : "Kembali ke Ringkasan"}><LayoutDashboard size={17} /></Link>
           <button type="button" className={classes.iconBtn} onClick={toggleFull} aria-label={full ? "Keluar layar penuh" : "Layar penuh"}>{full ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
         </div>
       </header>

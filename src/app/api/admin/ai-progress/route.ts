@@ -17,45 +17,45 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
   // Clients only read their projects' data; AI operations are the admins' concern.
   if (user.role === "user") return NextResponse.json({ projects: [] }, { headers: { "Cache-Control": "no-store" } });
   const rows = await prisma.classifier.findMany({
-    where: { enabled: true, apiKey: { revokedAt: null } },
+    where: { enabled: true, project: { revokedAt: null } },
     select: {
-      apiKeyId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, lastRunAt: true, lastError: true,
-      apiKey: { select: { name: true, scope: true, keywords: true, members: { select: { account: { select: { name: true } } } } } },
+      projectId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, lastRunAt: true, lastError: true,
+      project: { select: { name: true, scope: true, keywords: true, members: { select: { account: { select: { name: true } } } } } },
     },
     orderBy: { createdAt: "asc" },
   });
   const counts = rows.length
-    ? await prisma.classification.groupBy({ by: ["apiKeyId", "type"], where: { apiKeyId: { in: rows.map((r) => r.apiKeyId) } }, _count: true })
+    ? await prisma.classification.groupBy({ by: ["projectId", "type"], where: { projectId: { in: rows.map((r) => r.projectId) } }, _count: true })
     : [];
   const labelRows = user.role === "viewer" ? [] : await prisma.labelAi.findMany({
-    where: { enabled: true, apiKey: { revokedAt: null } },
+    where: { enabled: true, project: { revokedAt: null } },
     select: {
-      apiKeyId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, lastRunAt: true, lastError: true,
-      apiKey: { select: { name: true, scope: true, keywords: true, members: { select: { account: { select: { name: true } } } } } },
+      projectId: true, startFrom: true, cursors: true, scopeCounts: true, todayCount: true, todayDate: true, lastRunAt: true, lastError: true,
+      project: { select: { name: true, scope: true, keywords: true, members: { select: { account: { select: { name: true } } } } } },
     },
     orderBy: { createdAt: "asc" },
   });
   const labelDone = labelRows.length
     ? await prisma.labelAiItem.groupBy({
-      by: ["apiKeyId", "type"], _count: true,
-      where: { AND: [CHECKED, { OR: labelRows.map((r) => ({ apiKeyId: r.apiKeyId, ...(r.startFrom ? { publishedAt: { gte: r.startFrom } } : {}) })) }] },
+      by: ["projectId", "type"], _count: true,
+      where: { AND: [CHECKED, { OR: labelRows.map((r) => ({ projectId: r.projectId, ...(r.startFrom ? { publishedAt: { gte: r.startFrom } } : {}) })) }] },
     })
     : [];
-  const doneOf = (id: string, type: MediaType) => counts.find((c) => c.apiKeyId === id && c.type === type)?._count ?? 0;
+  const doneOf = (id: string, type: MediaType) => counts.find((c) => c.projectId === id && c.type === type)?._count ?? 0;
   const now = Date.now(), day = today();
 
   const categorisation = rows.map((r) => {
-    const scope = parseKeyScope(r.apiKey.scope, r.apiKey.keywords);
+    const scope = parseKeyScope(r.project.scope, r.project.keywords);
     const cursors = (r.cursors ?? {}) as Partial<Record<MediaType, TypeCursor>>;
     // The counts the project page last made for this range (same numbers, so both show the same percent).
     const stored = scopeCountsFor(r.scopeCounts, JSON.stringify(scope), r.startFrom ? r.startFrom.toISOString() : "");
     const allowed = MEDIA_TYPES.filter((t) => allowsType(scope, t));
     const totals = allowed.map((t) => stored?.[t] ?? null);
     const types = allowed.map((type, i) =>
-      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.apiKeyId, type), total: totals[i] }));
+      typeProgress({ type, cursor: cursors[type], startFrom: r.startFrom, now, done: doneOf(r.projectId, type), total: totals[i] }));
     return {
       kind: "category" as const,
-      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.members.map((m) => m.account.name).join(", ") || null, ...overallProgress(types, totals), types,
+      id: r.projectId, name: r.project.name, owner: r.project.members.map((m) => m.account.name).join(", ") || null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: r.todayDate === day ? r.todayCount : 0,
       active: !!r.lastRunAt && now - r.lastRunAt.getTime() < ACTIVE_MS,
@@ -63,21 +63,21 @@ export const GET = adminRoute(async (_req: Request, _ctx, _username, user) => {
     };
   });
   const labelling = labelRows.map((r) => {
-    const scope = parseKeyScope(r.apiKey.scope, r.apiKey.keywords);
+    const scope = parseKeyScope(r.project.scope, r.project.keywords);
     const cursors = (r.cursors ?? {}) as Partial<Record<MediaType, TypeCursor>>;
     const stored = (r.scopeCounts as { counts?: Partial<Record<MediaType, number | null>> } | null)?.counts;
     // Keeps the cached post counts fresh; never waited for, since counting the source is slow.
-    labelTotals(r.apiKeyId).catch(() => {});
+    labelTotals(r.projectId).catch(() => {});
     const allowed = MEDIA_TYPES.filter((t) => allowsType(scope, t));
     const totals = allowed.map((t) => stored?.[t] ?? null);
     const types = allowed.map((type, i) => typeProgress({
       type, cursor: cursors[type], startFrom: r.startFrom, now, total: totals[i],
-      done: labelDone.find((c) => c.apiKeyId === r.apiKeyId && c.type === type)?._count ?? 0,
+      done: labelDone.find((c) => c.projectId === r.projectId && c.type === type)?._count ?? 0,
     }));
     const todayCount = r.todayDate === day ? r.todayCount : 0;
     return {
       kind: "label" as const,
-      id: r.apiKeyId, name: r.apiKey.name, owner: r.apiKey.members.map((m) => m.account.name).join(", ") || null, ...overallProgress(types, totals), types,
+      id: r.projectId, name: r.project.name, owner: r.project.members.map((m) => m.account.name).join(", ") || null, ...overallProgress(types, totals), types,
       done: types.reduce((s, t) => s + t.done, 0),
       today: todayCount,
       active: !!r.lastRunAt && now - r.lastRunAt.getTime() < ACTIVE_MS,

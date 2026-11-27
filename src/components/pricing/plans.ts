@@ -46,7 +46,7 @@ export const PLANS: Plan[] = [
   },
   {
     id: "instansi", name: "Instansi", tagline: "Untuk pemerintah dan korporat dengan kebutuhan data dan pendampingan khusus.", monthly: 7_000_000, startsFrom: true,
-    cta: { label: "Hubungi kami", href: "/kontak?plan=instansi" },
+    cta: { label: "Hubungi kami", href: "/contact?plan=instansi" },
     highlights: ["Proyek tanpa batas", "Seluruh arsip data", "Analisis terlengkap: skor, sinyal, faktor, topik & watchlist", "Kategorisasi AI otomatis dengan model enhancement", "Pendampingan & pelatihan tim", "SLA & dukungan prioritas"],
   },
 ];

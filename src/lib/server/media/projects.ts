@@ -19,7 +19,7 @@ type Project = { id: string; scope: KeyScope; signature: string };
 const isOpen = (s: KeyScope) => JSON.stringify(s) === JSON.stringify(OPEN_SCOPE);
 
 async function projects(): Promise<Project[]> {
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, scope: true, keywords: true } });
+  const keys = await prisma.project.findMany({ where: { revokedAt: null }, select: { id: true, scope: true, keywords: true } });
   return keys.map((k) => {
     const scope = parseKeyScope(k.scope, k.keywords);
     return { id: k.id, scope, signature: createHash("sha256").update(JSON.stringify(scope)).digest("hex").slice(0, 16) };
@@ -74,7 +74,7 @@ export async function backfillProjects() {
       // New scope: forget the old tags and walk all links again from the newest.
       if (sync) await prisma.$executeRaw`UPDATE "MediaLink" SET keys = array_remove(keys, ${p.id}) WHERE ${p.id} = ANY(keys)`;
       // …and match its keywords against every stored image text (a single SQL update).
-      const key = await prisma.apiKey.findUnique({ where: { id: p.id }, select: { keywords: true } });
+      const key = await prisma.project.findUnique({ where: { id: p.id }, select: { keywords: true } });
       await rematchProject(p.id, key?.keywords ?? []).catch((e) => console.warn(`[media] proyek ${p.id}: pencocokan teks gambar gagal`, (e as Error).message));
       sync = await prisma.mediaProjectSync.upsert({
         where: { keyId: p.id }, create: { keyId: p.id, signature: p.signature },

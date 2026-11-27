@@ -55,7 +55,7 @@ const todayInJakarta = () => new Date().toLocaleDateString("en-CA", { timeZone: 
 const itemText = (item: MediaItem) => [item.title, item.content].filter(Boolean).join("\n").trim();
 
 type Job = {
-  apiKeyId: string;
+  projectId: string;
   scope: KeyScope;
   provider: ProviderConfig & { model: string };
   /** Tried for a batch when the main provider fails it. */
@@ -84,12 +84,12 @@ const isFatal = (error: unknown) => /\((401|402|403|429)\)|tidak valid|tidak pun
 type Labelled = Awaited<ReturnType<typeof classifyBatch>>[number] & { model: string };
 
 /** Adds a request's tokens to this hour's total for the key and model, with the paying provider key's hint. Never fails the batch. */
-export function recordTokens(apiKeyId: string, model: string, keyHint: string | null) {
+export function recordTokens(projectId: string, model: string, keyHint: string | null) {
   return (u: TokenCount) => {
     const hour = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000);
     prisma.tokenUsage.upsert({
-      where: { apiKeyId_hour_model: { apiKeyId, hour, model } },
-      create: { apiKeyId, hour, model, inputTokens: u.input, outputTokens: u.output, calls: 1, keyHint },
+      where: { projectId_hour_model: { projectId, hour, model } },
+      create: { projectId, hour, model, inputTokens: u.input, outputTokens: u.output, calls: 1, keyHint },
       update: { inputTokens: { increment: u.input }, outputTokens: { increment: u.output }, calls: { increment: 1 }, keyHint },
     }).catch(() => {});
   };
@@ -98,12 +98,12 @@ export function recordTokens(apiKeyId: string, model: string, keyHint: string | 
 async function classifySplitting(job: Job, type: MediaType, items: { id: string; text: string }[]): Promise<Labelled[]> {
   if (!items.length) return [];
   try {
-    return (await classifyBatch(job.provider, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.provider.model, job.providerHint))).map((r) => ({ ...r, model: job.provider.model }));
+    return (await classifyBatch(job.provider, job.prompt, job.categories[type], items, recordTokens(job.projectId, job.provider.model, job.providerHint))).map((r) => ({ ...r, model: job.provider.model }));
   } catch (error) {
     // The fallback takes the whole batch first; only if it fails too is the batch split.
     if (job.fallback) {
       try {
-        return (await classifyBatch(job.fallback, job.prompt, job.categories[type], items, recordTokens(job.apiKeyId, job.fallback.model, job.fallbackHint))).map((r) => ({ ...r, model: job.fallback!.model }));
+        return (await classifyBatch(job.fallback, job.prompt, job.categories[type], items, recordTokens(job.projectId, job.fallback.model, job.fallbackHint))).map((r) => ({ ...r, model: job.fallback!.model }));
       } catch (fallbackError) {
         console.warn(`[classifier] cadangan gagal: ${providerErrorMessage(fallbackError)}`);
       }
@@ -125,7 +125,7 @@ async function classifySplitting(job: Job, type: MediaType, items: { id: string;
  *  walks the timeline again never pays twice for the same post. */
 async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const labelled = new Set((await prisma.classification.findMany({
-    where: { apiKeyId: job.apiKeyId, type, code: { in: items.map((i) => i.code) } }, select: { code: true },
+    where: { projectId: job.projectId, type, code: { in: items.map((i) => i.code) } }, select: { code: true },
   })).map((r) => r.code));
   const fresh = items.filter((i) => !labelled.has(i.code));
   if (!fresh.length) return { labelled: 0, skipped: 0, sent: 0 };
@@ -137,9 +137,9 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   let toProvider = classifiable.map((i) => ({ id: i.code, text: fullText(i) }));
   // The local model (IndoBERT) first for keys that use it: confident results are stored, the rest go to the AI provider.
   const local: Labelled[] = [];
-  if (usesLocalQw(job.apiKeyId)) {
+  if (usesLocalQw(job.projectId)) {
     const allowed = new Set(job.categories[type].map((c) => c.code));
-    const min = localQwMin(job.apiKeyId);
+    const min = localQwMin(job.projectId);
     const res = await localQw(type, toProvider);
     for (const l of res?.items ?? []) {
       if (l.confidence >= min && (allowed.has(l.category) || l.category === NO_CATEGORY)) {
@@ -155,7 +155,7 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
   const publishedAt = new Map(items.map((i) => [i.code, new Date(i.publishedAt)]));
   await prisma.classification.createMany({
     data: results.map((r) => ({
-      apiKeyId: job.apiKeyId, type, code: r.id, category: r.category, confidence: r.confidence, reason: r.reason,
+      projectId: job.projectId, type, code: r.id, category: r.category, confidence: r.confidence, reason: r.reason,
       publishedAt: publishedAt.get(r.id)!, model: r.model,
     })),
     skipDuplicates: true,
@@ -165,13 +165,13 @@ async function processBatch(job: Job, type: MediaType, items: MediaItem[]) {
 
 /** Runs up to `budget` items for one classifier. */
 type ClassifierRow = NonNullable<Awaited<ReturnType<typeof loadClassifier>>>;
-export const loadClassifier = (apiKeyId: string) => prisma.classifier.findUnique({ where: { apiKeyId }, include: { apiKey: true } });
+export const loadClassifier = (projectId: string) => prisma.classifier.findUnique({ where: { projectId }, include: { project: true } });
 
 export function buildJob(row: ClassifierRow): Job {
   const categories = Object.fromEntries(MEDIA_TYPES.map((t) => [t, categorySchema.array().parse(categoriesForType(row, t))])) as Record<MediaType, Category[]>;
   return {
-    apiKeyId: row.apiKeyId,
-    scope: parseKeyScope(row.apiKey.scope, row.apiKey.keywords),
+    projectId: row.projectId,
+    scope: parseKeyScope(row.project.scope, row.project.keywords),
     provider: providerConfig(row),
     fallback: fallbackConfig(row),
     providerHint: classifierKeyHint(row),
@@ -188,11 +188,11 @@ export function buildJob(row: ClassifierRow): Job {
  * Tries the items the provider refused again, now (admin "Coba lagi"). Items labelled this time leave the
  * rejected list; the rest stay on it. Returns how many were labelled and how many are still refused.
  */
-export async function retryRejected(apiKeyId: string) {
-  const row = await loadClassifier(apiKeyId);
+export async function retryRejected(projectId: string) {
+  const row = await loadClassifier(projectId);
   if (!row) throw new Error("Proyek ini belum memakai kategorisasi AI");
   const job = buildJob(row);
-  job.scope = await withImageCodes(row.apiKeyId, job.scope); // posts matching the keywords only in their image text too
+  job.scope = await withImageCodes(row.projectId, job.scope); // posts matching the keywords only in their image text too
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let labelled = 0;
   for (const type of MEDIA_TYPES) {
@@ -200,19 +200,19 @@ export async function retryRejected(apiKeyId: string) {
     if (!codes.length) continue;
     const items = await fetchItemsByCode(type, codes);
     for (let i = 0; i < items.length; i += PAGE_SIZE) labelled += (await processBatch(job, type, items.slice(i, i + PAGE_SIZE))).labelled;
-    const done = new Set((await prisma.classification.findMany({ where: { apiKeyId, type, code: { in: codes } }, select: { code: true } })).map((r) => r.code));
+    const done = new Set((await prisma.classification.findMany({ where: { projectId, type, code: { in: codes } }, select: { code: true } })).map((r) => r.code));
     cursors[type]!.rejected = codes.filter((c) => !done.has(c));
     if (!cursors[type]!.rejected!.length) cursors[type]!.rejectedSince = undefined;
   }
-  await prisma.classifier.update({ where: { apiKeyId }, data: { cursors: cursors as Prisma.InputJsonValue, processed: { increment: labelled } } });
+  await prisma.classifier.update({ where: { projectId }, data: { cursors: cursors as Prisma.InputJsonValue, processed: { increment: labelled } } });
   const remaining = MEDIA_TYPES.reduce((n, t) => n + (cursors[t]?.rejected?.length ?? 0), 0);
   return { labelled, remaining };
 }
 
 async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   const row = await loadClassifier(classifierId);
-  if (!row || !row.enabled || row.apiKey.revokedAt) return;
-  if (await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name)) return;
+  if (!row || !row.enabled || row.project.revokedAt) return;
+  if (await pauseIfOverBudget(row.projectId, row.minBalance, row.dailyBudget, row.project.name)) return;
   const platform = row.providerKind === "signalbase";
 
   const today = todayInJakarta();
@@ -220,21 +220,21 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   // No daily cap: each tick handles a fixed number of batches, so keys take turns and the pace stays steady.
   const started = Date.now();
   const normalBudget = BATCH_SIZE * MAX_BATCHES_PER_TICK;
-  const scope = parseKeyScope(row.apiKey.scope, row.apiKey.keywords);
+  const scope = parseKeyScope(row.project.scope, row.project.keywords);
   const backfilling = MEDIA_TYPES.some((t) => allowsType(scope, t) && !(row.cursors as Cursors | null)?.[t]?.backfillDone);
   let budget = backfilling ? BATCH_SIZE * BACKFILL_BATCHES_PER_TICK : normalBudget;
   let sentThisTick = 0;
   // The normal share is always processed; only the extra part is cut off by time.
   const overtime = () => sentThisTick >= normalBudget && (Date.now() - started > BACKFILL_MAX_MS || Date.now() > groupDeadline);
   // Paused while the project has clients and none of them is active (their subscriptions ended); resumes by itself.
-  const paused = await aiPauseReason(row.apiKeyId);
+  const paused = await aiPauseReason(row.projectId);
   if (paused) {
-    if (row.lastError !== paused) await prisma.classifier.update({ where: { apiKeyId: row.apiKeyId }, data: { lastError: paused, lastRunAt: new Date() } });
+    if (row.lastError !== paused) await prisma.classifier.update({ where: { projectId: row.projectId }, data: { lastError: paused, lastRunAt: new Date() } });
     return;
   }
 
   const job = buildJob(row);
-  job.scope = await withImageCodes(row.apiKeyId, job.scope); // posts matching the keywords only in their image text too
+  job.scope = await withImageCodes(row.projectId, job.scope); // posts matching the keywords only in their image text too
   const cursors: Cursors = (row.cursors as Cursors) ?? {};
   let processed = 0, failed = 0;
   let lastError: string | null = null;
@@ -251,7 +251,7 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
       job.rejected[t] = [];
     }
     await prisma.classifier.update({
-      where: { apiKeyId: row.apiKeyId },
+      where: { projectId: row.projectId },
       data: {
         cursors: cursors as Prisma.InputJsonValue,
         processed: { increment: p }, failed: { increment: f },
@@ -317,7 +317,7 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
           cursor = page.next ?? null;
           const inWindow = page.items.filter((i) => new Date(i.publishedAt).getTime() >= floor && itemText(i));
           const labelled = new Set((await prisma.classification.findMany({
-            where: { apiKeyId: job.apiKeyId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
+            where: { projectId: job.projectId, type, code: { in: inWindow.map((i) => i.code) } }, select: { code: true },
           })).map((r) => r.code));
           const refused = new Set(state.rejected ?? []);
           const missing = inWindow.filter((i) => !labelled.has(i.code) && !refused.has(i.code)).slice(0, budget);
@@ -336,18 +336,18 @@ async function runClassifier(classifierId: string, groupDeadline = Infinity) {
   } catch (error) {
     // Cursors only advance after a batch is stored, so the failed batch is retried next tick.
     lastError = providerErrorMessage(error);
-    console.error(`[classifier] ${row.apiKey.name}: ${lastError}`);
+    console.error(`[classifier] ${row.project.name}: ${lastError}`);
   }
   await save();
-  if (!platform) await snapshotIfDue(row.apiKeyId, providerConfig(row));
-  await pauseIfOverBudget(row.apiKeyId, row.minBalance, row.dailyBudget, row.apiKey.name);
+  if (!platform) await snapshotIfDue(row.projectId, providerConfig(row));
+  await pauseIfOverBudget(row.projectId, row.minBalance, row.dailyBudget, row.project.name);
 }
 
 /** Stops a classifier whose spending guard tripped; the reason is shown on the key. */
-async function pauseIfOverBudget(apiKeyId: string, minBalance: number | null, dailyBudget: number | null, name: string) {
-  const reason = await spendingStop(apiKeyId, minBalance, dailyBudget);
+async function pauseIfOverBudget(projectId: string, minBalance: number | null, dailyBudget: number | null, name: string) {
+  const reason = await spendingStop(projectId, minBalance, dailyBudget);
   if (!reason) return false;
-  await prisma.classifier.update({ where: { apiKeyId }, data: { enabled: false, lastError: reason } });
+  await prisma.classifier.update({ where: { projectId }, data: { enabled: false, lastError: reason } });
   console.warn(`[classifier] ${name}: ${reason}`);
   return true;
 }
@@ -357,16 +357,16 @@ let turn = 0;
 /** One pass over every enabled classifier: provider groups side by side, the keys of a group in turn. */
 export async function runClassifiers() {
   const rows = await prisma.classifier.findMany({
-    where: { enabled: true, apiKey: { revokedAt: null } },
-    select: { apiKeyId: true, providerKind: true, providerBaseUrl: true, providerKeyEnc: true },
+    where: { enabled: true, project: { revokedAt: null } },
+    select: { projectId: true, providerKind: true, providerBaseUrl: true, providerKeyEnc: true },
     orderBy: { createdAt: "asc" },
   });
   const groups = turnGroups(rows, providerAccount, turn++);
   await runPool(groups, parallelGroups(), async (group) => {
     const deadline = Date.now() + GROUP_BACKFILL_MS;
-    for (const { apiKeyId } of group) {
+    for (const { projectId } of group) {
       // One key failing (database hiccup, bad settings) must not stop the others of its group.
-      await runClassifier(apiKeyId, deadline).catch((error) => console.error(`[classifier] ${apiKeyId}: run failed:`, error));
+      await runClassifier(projectId, deadline).catch((error) => console.error(`[classifier] ${projectId}: run failed:`, error));
     }
   });
   return rows.length;

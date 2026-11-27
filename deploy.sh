@@ -36,7 +36,6 @@ git fetch -q origin main
 git reset -q --hard origin/main
 echo "▸ $(git log --oneline -1)"
 npm ci --no-audit --no-fund --loglevel=error
-npx prisma db push --skip-generate
 npx prisma generate >/dev/null
 
 active=$(cat .next-active 2>/dev/null || echo .next)
@@ -46,6 +45,15 @@ echo "▸ build → $next (live stays on $active)"
 # the type check; they are only for checking, never served, and the build writes them again.
 rm -rf .next*/types
 NODE_ENV=production NEXT_DIST_DIR="$next" npm run build
+
+# Database changes come after the build, so the live app is on the old schema for as short a time as possible.
+# prisma/sql/*.sql: renames that `db push` cannot do without dropping data; each file is safe to run again.
+for f in prisma/sql/*.sql; do
+  [ -e "$f" ] || continue
+  echo "▸ sql $f"
+  npx prisma db execute --file "$f" --schema prisma/schema.prisma >/dev/null
+done
+npx prisma db push --skip-generate
 
 switch_to() {
   NEXT_DIST_DIR="$1" pm2 restart "$PROCESS" --update-env >/dev/null

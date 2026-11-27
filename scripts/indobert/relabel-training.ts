@@ -1,7 +1,7 @@
 // Relabels the IndoBERT QW training data (label.jsonl for train_qw.py) with the classifier's current prompt + categories,
 // through the same provider and functions as the production worker (buildJob, classifyBatch), without reasons (not used for
 // training; half the cost). The cost is recorded as the project's TokenUsage.
-//   npx tsx --env-file=.env scripts/indobert/relabel-training.ts <apiKeyId> label.jsonl label-new.jsonl
+//   npx tsx --env-file=.env scripts/indobert/relabel-training.ts <projectId> label.jsonl label-new.jsonl
 // Resumable: posts already in the output file are skipped. previousCategory keeps the earlier label.
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { prisma } from "../../src/lib/server/db";
@@ -13,9 +13,9 @@ const BATCH = 20; // same as the worker
 const PARALLEL = 8;
 
 async function main() {
-  const [apiKeyId, input, output] = process.argv.slice(2);
-  if (!apiKeyId || !input || !output) throw new Error("Usage: relabel-training.ts <apiKeyId> in.jsonl out.jsonl");
-  const row = await loadClassifier(apiKeyId);
+  const [projectId, input, output] = process.argv.slice(2);
+  if (!projectId || !input || !output) throw new Error("Usage: relabel-training.ts <projectId> in.jsonl out.jsonl");
+  const row = await loadClassifier(projectId);
   if (!row) throw new Error("Classifier not found");
   const job = buildJob(row);
   const done = new Set(existsSync(output) ? readFileSync(output, "utf8").split("\n").filter(Boolean).map((l) => (JSON.parse(l) as Row).code) : []);
@@ -26,7 +26,7 @@ async function main() {
   });
   console.log(`${rows.length} posts to relabel (${done.size} already done), ${batches.length} batches, model ${job.provider.model}`);
   let next = 0, ok = 0, changed = 0, failed = 0;
-  const onUsage = recordTokens(apiKeyId, job.provider.model, job.providerHint);
+  const onUsage = recordTokens(projectId, job.provider.model, job.providerHint);
   await Promise.all(Array.from({ length: PARALLEL }, async () => {
     while (next < batches.length) {
       const part = batches[next++];

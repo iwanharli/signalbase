@@ -14,7 +14,7 @@ export const OPTIONS = (req: Request) => apiPreflight(req);
 export const GET = apiRoute(async (req, _ctx: unknown, { keyId }) => {
   const days = Math.min(90, Math.max(1, Number(new URL(req.url).searchParams.get("days")) || 30));
   const since = new Date(Date.now() - days * 86_400_000);
-  const classifier = await prisma.classifier.findUnique({ where: { apiKeyId: keyId }, select: { providerModel: true, providerKind: true, providerKeyHint: true } });
+  const classifier = await prisma.classifier.findUnique({ where: { projectId: keyId }, select: { providerModel: true, providerKind: true, providerKeyHint: true } });
   const hint = classifier ? classifierKeyHint(classifier) : null;
   // Tokens and balances of other keys (e.g. a key that used to be shared) are left out, so nothing is counted twice.
   const keyFrom = await keySince(keyId, hint);
@@ -23,15 +23,15 @@ export const GET = apiRoute(async (req, _ctx: unknown, { keyId }) => {
     prisma.$queryRaw<{ day: string; model: string; input: number; output: number; calls: number }[]>`
       select to_char(hour + interval '7 hours', 'YYYY-MM-DD') as day, model,
         sum("inputTokens")::float input, sum("outputTokens")::float output, sum(calls)::int calls
-      from "TokenUsage" where "apiKeyId" = ${keyId} and hour >= ${since} and "keyHint" = ${hint ?? ""}
+      from "TokenUsage" where "projectId" = ${keyId} and hour >= ${since} and "keyHint" = ${hint ?? ""}
       group by 1, 2 order by 1`,
     keyFrom ? prisma.$queryRaw<{ day: string; currency: string; total: number }[]>`
       select distinct on (1, 2) to_char(at + interval '7 hours', 'YYYY-MM-DD') as day, currency, total
-      from "BalanceSnapshot" where "apiKeyId" = ${keyId} and at >= ${balanceFrom}
+      from "BalanceSnapshot" where "projectId" = ${keyId} and at >= ${balanceFrom}
       order by 1, 2, at desc` : [],
     prisma.$queryRaw<{ day: string; local: boolean; n: number }[]>`
       select to_char("createdAt" + interval '7 hours', 'YYYY-MM-DD') as day, model like 'indobert%' as local, count(*)::int n
-      from "Classification" where "apiKeyId" = ${keyId} and "createdAt" >= ${since}
+      from "Classification" where "projectId" = ${keyId} and "createdAt" >= ${since}
       group by 1, 2 order by 1`,
   ]);
   return NextResponse.json({

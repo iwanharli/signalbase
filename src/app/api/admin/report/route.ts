@@ -6,15 +6,15 @@ import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { overviewView } from "@/lib/server/overviewKey";
 import { reportSection } from "@/lib/server/report";
 
-// Custom executive report, the hours up to now: ?days=1|3|7[&key=<project id>|all]. Same key rules as /api/admin/stats;
+// Custom executive report, the hours up to now: ?days=1|3|7[&project=<project id>|all]. Same key rules as /api/admin/stats;
 // key=all is the whole bank for an admin and one section per own project (up to MAX_REPORT_PROJECTS) for a user.
 // The daily archive reports are stored snapshots, see /api/admin/reports.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const url = new URL(req.url);
   const days = Number(url.searchParams.get("days") ?? 1);
   if (!isReportDays(days)) return NextResponse.json({ error: "days harus 1, 3, atau 7" }, { status: 400 });
-  const all = url.searchParams.get("key") === "all";
-  if (all) url.searchParams.delete("key");
+  const all = url.searchParams.get("project") === "all";
+  if (all) url.searchParams.delete("project");
   const view = await overviewView(all ? new Request(url) : req, user);
   if (view instanceof Response) return view;
   if (view.noKey) return NextResponse.json({ error: "Belum ada proyek" }, { status: 404 });

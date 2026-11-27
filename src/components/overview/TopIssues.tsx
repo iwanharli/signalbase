@@ -7,13 +7,14 @@ import { IconArrowRight, IconMessages, IconTrendingUp, IconWorldWww } from "@tab
 import type { IssueSummary } from "@/lib/issues";
 import { formatNumber } from "@/lib/media/labels";
 import { useApi } from "@/lib/useApi";
+import { projectPath } from "@/lib/activeProject";
 import c from "./insights.module.css";
 
 const SHOWN = 3;
 type Cluster = { id: string; title: string | null; keywords: string[]; posts: number; authors: number; negShare: number; growth: number };
 
 export function TopIssues({ keyId, period, social, online }: { keyId: string | null; period: number; social: boolean; online: boolean }) {
-  const withKey = keyId ? `key=${encodeURIComponent(keyId)}` : "";
+  const withKey = keyId ? `project=${encodeURIComponent(keyId)}` : "";
   const clusters = useApi<{ issues: Cluster[] }>(social && keyId ? `/api/admin/issue-clusters?${withKey}` : null);
   const news = useApi<{ issues: IssueSummary[] }>(online ? `/api/admin/issues?days=${period}&topik=nasional${withKey ? `&${withKey}` : ""}` : null);
   const showSocial = social && !!keyId;
@@ -21,19 +22,19 @@ export function TopIssues({ keyId, period, social, online }: { keyId: string | n
   return (
     <div className={c.topIssues} data-cols={showSocial && online ? 2 : 1}>
       {showSocial && (
-        <IssueColumn icon={IconMessages} title="Isu media sosial" more={`/isu/ews?${withKey}`} loading={!clusters.data && !clusters.error}
+        <IssueColumn icon={IconMessages} title="Isu media sosial" more={projectPath(keyId, "/issues/media-social")} loading={!clusters.data && !clusters.error}
           empty="Belum ada isu media sosial yang terbentuk."
           rows={(clusters.data?.issues ?? []).slice(0, SHOWN).map((i) => ({
-            id: i.id, title: i.title || i.keywords.slice(0, 4).join(", "), href: `/isu/ews?${withKey}&issue=${encodeURIComponent(i.id)}`,
+            id: i.id, title: i.title || i.keywords.slice(0, 4).join(", "), href: `${projectPath(keyId, "/analysis/sna")}?issue=${encodeURIComponent(i.id)}`,
             meta: `${formatNumber(i.posts)} post · ${formatNumber(i.authors)} akun · ${Math.round(i.negShare * 100)}% negatif`,
             hot: i.growth >= 1.5,
           }))} />
       )}
       {online && (
-        <IssueColumn icon={IconWorldWww} title="Isu media online" more={`/isu?${withKey ? `${withKey}&` : ""}days=${period}`} loading={!news.data && !news.error}
+        <IssueColumn icon={IconWorldWww} title="Isu media online" more={`${projectPath(keyId, "/issues/media-online")}?days=${period}`} loading={!news.data && !news.error}
           empty={`Belum ada isu berita dalam ${period} hari terakhir.`}
           rows={(news.data?.issues ?? []).slice(0, SHOWN).map((i) => ({
-            id: i.id, title: i.label || i.title, href: `/isu?${withKey ? `${withKey}&` : ""}days=${period}&issue=${encodeURIComponent(i.id)}`,
+            id: i.id, title: i.label || i.title, href: `${projectPath(keyId, "/issues/media-online")}?days=${period}&issue=${encodeURIComponent(i.id)}`,
             meta: `${formatNumber(i.newsCount)} berita${i.active ? " · masih berkembang" : ""}`,
             hot: i.active,
           }))} />

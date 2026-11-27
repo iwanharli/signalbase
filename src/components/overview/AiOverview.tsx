@@ -10,13 +10,14 @@ import { formatNumber, MEDIA_TYPE_LABEL } from "@/lib/media/labels";
 import { labelColor } from "@/lib/media/manualLabels";
 import type { MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
+import { projectPath } from "@/lib/activeProject";
 import c from "./aiOverview.module.css";
 
 type Part<R> = { types: { type: MediaType; done: boolean; total: number; rows: R[] }[] } | null;
 type Overview = { categorisation: Part<{ code: string; label: string; n: number }>; labelling: Part<{ label: string | null; n: number }> };
 
 export function AiOverview({ keyId }: { keyId: string }) {
-  const { data } = useApi<Overview>(`/api/admin/keys/${encodeURIComponent(keyId)}/ai-overview`);
+  const { data } = useApi<Overview>(`/api/admin/projects/${encodeURIComponent(keyId)}/ai-overview`);
   if (data && !data.categorisation && !data.labelling) return null;
   const both = !!data?.categorisation && !!data?.labelling;
   return (
@@ -26,7 +27,7 @@ export function AiOverview({ keyId }: { keyId: string }) {
           <Card icon={IconRobot} title="Kategorisasi AI" note="Kategori tiap post dan berita menurut AI proyek ini." part={data.categorisation}
             row={(r, type, total) => ({
               key: r.code, label: r.label, n: r.n, share: total ? r.n / total : 0, none: r.code === NO_CATEGORY,
-              mark: r.code === NO_CATEGORY ? "—" : r.code, href: `/media/${type}?key=${encodeURIComponent(keyId)}&aiCategory=${encodeURIComponent(r.code)}&analyzed=&relevance=&from=`,
+              mark: r.code === NO_CATEGORY ? "—" : r.code, href: `${projectPath(keyId, `/media/${type}`)}?aiCategory=${encodeURIComponent(r.code)}&analyzed=&relevance=&from=`,
             })} />
         )}
         {data.labelling && (
@@ -36,7 +37,7 @@ export function AiOverview({ keyId }: { keyId: string }) {
               return {
                 key: r.label ?? "none", label: r.label ?? "Tidak ada label cocok", n: r.n, share: total ? r.n / total : 0, none: !r.label,
                 color: r.label ? `var(--mantine-color-${labelColor(options, r.label)}-6)` : undefined,
-                href: r.label ? `/media/${type}?key=${encodeURIComponent(keyId)}&label=${encodeURIComponent(r.label)}&analyzed=&relevance=&from=` : null,
+                href: r.label ? `${projectPath(keyId, `/media/${type}`)}?label=${encodeURIComponent(r.label)}&analyzed=&relevance=&from=` : null,
               };
             }} />
         )}

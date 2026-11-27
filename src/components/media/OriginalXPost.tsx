@@ -70,7 +70,8 @@ function PreviewContent({ post, quoted = false, inCard = false }: { post: XPostP
     </div>}
     <Lightbox images={images} index={viewing} onClose={() => setViewing(null)} />
     {post.quoted && <PreviewContent post={post.quoted} quoted />}
-    {quoted ? <time className={classes.quoteTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time> : <time className={classes.xTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time>}
+    {/* In a card the footer already shows when it was posted. */}
+    {quoted ? <time className={classes.quoteTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time> : !inCard && <time className={classes.xTime} dateTime={post.createdAt}>{formatWibDate(post.createdAt)}</time>}
     </PostContent>
   </article>
     {!quoted && post.replyTo && <ReplyContext key={post.replyTo.id} reply={post.replyTo} />}

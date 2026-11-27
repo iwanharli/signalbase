@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Menu, UnstyledButton } from "@mantine/core";
 import { IconCheck, IconChevronDown, IconDatabase, IconFolder, IconSettings } from "@tabler/icons-react";
-import { isProjectPage, readActiveProject, saveActiveProject } from "@/lib/activeProject";
+import { isProjectPage, projectPath, projectSettingsPath, readActiveProject, saveActiveProject, splitProjectPath } from "@/lib/activeProject";
 import type { Role } from "@/lib/session";
 import { useApi } from "@/lib/useApi";
 import classes from "./projectSwitcher.module.css";
@@ -18,13 +18,14 @@ export function ProjectSwitcher({ role }: { role: Role }) {
   const path = usePathname();
   const params = useSearchParams();
   const router = useRouter();
-  const { data } = useApi<Project[]>("/api/admin/keys");
+  const { data } = useApi<Project[]>("/api/admin/projects");
   const projects = (data ?? []).filter((p) => !p.revokedAt).sort((a, b) => a.name.localeCompare(b.name, "id"));
   const staff = role !== "user";
-  const scoped = isProjectPage(path);
+  const { id: pathId, page } = splitProjectPath(path);
+  const scoped = isProjectPage(page);
   const [saved, setSaved] = useState<string | null>(null);
   useEffect(() => setSaved(readActiveProject()), [path, params]);
-  const activeId = (scoped ? params.get("key") : null) ?? saved;
+  const activeId = (scoped ? pathId : null) ?? saved;
   const active = projects.find((p) => p.id === activeId) ?? null;
 
   const choose = (id: string | null) => {
@@ -35,8 +36,8 @@ export function ProjectSwitcher({ role }: { role: Role }) {
     const next = new URLSearchParams();
     const topic = params.get("topik");
     if (topic) next.set("topik", topic);
-    if (id) next.set("key", id);
-    router.push(next.size ? `${path}?${next}` : path);
+    const target = projectPath(id, page);
+    router.push(next.size ? `${target}?${next}` : target);
   };
 
   // A remembered project that is gone (deleted, or another account's) is forgotten.
@@ -69,7 +70,7 @@ export function ProjectSwitcher({ role }: { role: Role }) {
         ))}
         {staff && (<>
           <Menu.Divider />
-          <Menu.Item component={Link} href={active ? `/project/${active.id}` : "/project"} leftSection={<IconSettings size={16} />}>{active ? "Pengaturan proyek" : "Kelola proyek"}</Menu.Item>
+          <Menu.Item component={Link} href={active ? projectSettingsPath(active.id) : "/projects"} leftSection={<IconSettings size={16} />}>{active ? "Pengaturan proyek" : "Kelola proyek"}</Menu.Item>
         </>)}
       </Menu.Dropdown>
     </Menu>

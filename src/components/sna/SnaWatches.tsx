@@ -53,7 +53,7 @@ function WatchDialog({ portalTarget, opened, onClose, keyId, watches, onChanged,
   const save = async () => {
     setSaving(true);
     try {
-      const { watch } = (await post("/api/admin/sna/watches", { key: keyId, name, keywords })) as { watch: SnaWatch };
+      const { watch } = (await post("/api/admin/sna/watches", { projectId: keyId, name, keywords })) as { watch: SnaWatch };
       notifications.show({ color: "teal", message: `Pantauan "${watch.name}" dibuat. Jaringannya sedang dimuat.` });
       setName("");
       setKeywords([]);

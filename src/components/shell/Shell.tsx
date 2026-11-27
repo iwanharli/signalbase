@@ -12,11 +12,11 @@ import { MediaAlertsBell } from "./MediaAlertsBell";
 import { MediaWorkerAlert } from "./MediaWorkerAlert";
 import { RoleProvider } from "./RoleContext";
 import { ProjectSwitcher } from "./ProjectSwitcher";
-import { saveActiveProject } from "@/lib/activeProject";
+import { isProjectPage, projectPath, saveActiveProject, splitProjectPath } from "@/lib/activeProject";
 import { SAVED_FILTERS_PREFIX } from "@/lib/media/filters";
 import classes from "./shell.module.css";
 
-type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[]; /** Active only on this exact path (a sibling lives below it). */ exact?: boolean;
+type NavItem = { href: string; label: string; icon: typeof IconFlame; children?: NavItem[];
   /** Shown to admins only (features still on trial). */ adminOnly?: boolean;
   /** Hidden from clients (admins and viewers see it). */ staffOnly?: boolean };
 
@@ -25,18 +25,18 @@ const NAV: NavItem[] = [
   { href: "/dashboard", label: "Ringkasan", icon: IconLayoutDashboard },
   { href: "/media/social", label: "Media Sosial", icon: IconMessages },
   { href: "/media/online", label: "Media Online", icon: IconWorldWww },
-  { href: "/isu", label: "Isu", icon: IconFlame, children: [
-    { href: "/isu", label: "Isu Media Online", icon: IconWorldWww, exact: true },
-    { href: "/isu/ews", label: "Isu EWS Sosmed", icon: IconBellRinging },
+  { href: "/issues/media-online", label: "Isu", icon: IconFlame, children: [
+    { href: "/issues/media-online", label: "Isu Media Online", icon: IconWorldWww },
+    { href: "/issues/media-social", label: "Isu Media Sosial", icon: IconBellRinging },
   ] },
-  { href: "/analisis", label: "Analisis", icon: IconChartDots3, children: [
-    { href: "/analisis/sna", label: "SNA", icon: IconChartDots3 },
-    { href: "/analisis/ontologi", label: "Ontologi", icon: IconHierarchy2 },
-    { href: "/analisis/media", label: "Media visual", icon: IconPhotoScan },
+  { href: "/analysis/sna", label: "Analisis", icon: IconChartDots3, children: [
+    { href: "/analysis/sna", label: "SNA", icon: IconChartDots3 },
+    { href: "/analysis/ontology", label: "Ontologi", icon: IconHierarchy2 },
+    { href: "/analysis/media", label: "Media visual", icon: IconPhotoScan },
   ] },
-  { href: "/laporan-eksekutif", label: "Laporan", icon: IconFileDescription },
+  { href: "/reports", label: "Laporan", icon: IconFileDescription },
   // Projects are set up by admins; clients only use the projects given to them.
-  { href: "/project", label: "Proyek", icon: IconKey, staffOnly: true },
+  { href: "/projects", label: "Proyek", icon: IconKey, staffOnly: true },
 ];
 /** Secondary pages: icon buttons on the right (inMenu: only in the account menu). */
 const TOOLS = [
@@ -46,16 +46,22 @@ const TOOLS = [
   { href: "/ai", label: "Pengaturan AI", icon: IconSparkles, adminOnly: true },
 ];
 
-const isActive = (href: string, path: string) => (href === "/" ? path === "/" : path.startsWith(href));
-/** Like isActive, but a link with ?topik= is active only for that topic (a bare /isu is the default topic). */
-const isActiveTopic = (href: string, path: string, topic: string | null, exact = false) => {
+/** `path` is the page without its /projects/<id> prefix (see Shell). An item with children is active on any of them. */
+const isActive = (item: { href: string; children?: NavItem[] }, path: string): boolean =>
+  item.children ? item.children.some((c) => isActive(c, path)) : path.startsWith(item.href.split("?")[0]);
+/** Like isActive, but a link with ?topik= is active only for that topic (none = the default topic). */
+const isActiveTopic = (href: string, path: string, topic: string | null) => {
   const [base, query] = href.split("?");
-  return (exact ? path === base : path.startsWith(base)) && (new URLSearchParams(query).get("topik") ?? DEFAULT_ISSUE_TOPIC) === (topic ?? DEFAULT_ISSUE_TOPIC);
+  return path.startsWith(base) && (new URLSearchParams(query).get("topik") ?? DEFAULT_ISSUE_TOPIC) === (topic ?? DEFAULT_ISSUE_TOPIC);
 };
 
 export function Shell({ name, username, role, children }: { name: string; username: string; role: Role; children: React.ReactNode }) {
   const path = usePathname();
-  const bare = path === "/command-center"; // stands alone, like a separate page: no top bar
+  // Data pages of a project live under /projects/<id>: menu links stay in that project, and are matched without the prefix.
+  const { id: projectId, page } = splitProjectPath(path);
+  const here = isProjectPage(page) ? page : path;
+  const to = (href: string) => (isProjectPage(href) ? projectPath(projectId, href) : href);
+  const bare = page === "/command-center"; // stands alone, like a separate page: no top bar
   const topic = useSearchParams().get("topik");
   const nav = NAV
     .filter((i) => !(i.staffOnly && role === "user"))
@@ -110,7 +116,7 @@ export function Shell({ name, username, role, children }: { name: string; userna
       {!bare && <header className={classes.bar} data-scrolled={scrolled || undefined}>
         <div className={classes.frame} data-crowded={role !== "user" || undefined}>
           <div className={classes.start}>
-            <Link href="/dashboard" className={classes.brand} aria-label="Signalbase">
+            <Link href={to("/dashboard")} className={classes.brand} aria-label="Signalbase">
               <span className={classes.mark}><LogoMark size={32} /></span>
               <span className={classes.brandText}>Signal<b>base</b></span>
             </Link>
@@ -121,7 +127,7 @@ export function Shell({ name, username, role, children }: { name: string; userna
             {pill && <span className={classes.pill} style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} />}
             {nav.map((i) => {
               const link = (
-                <Link key={i.href} href={i.href} className={classes.link} aria-label={i.label} title={i.label} aria-current={isActive(i.href, path) ? "page" : undefined} data-active={isActive(i.href, path) || undefined}>
+                <Link key={i.href} href={to(i.href)} className={classes.link} aria-label={i.label} title={i.label} aria-current={isActive(i, here) ? "page" : undefined} data-active={isActive(i, here) || undefined}>
                   <i.icon size={17} stroke={1.8} /><span>{i.label}</span>
                 </Link>
               );
@@ -131,8 +137,8 @@ export function Shell({ name, username, role, children }: { name: string; userna
                   <Menu.Target>{link}</Menu.Target>
                   <Menu.Dropdown>
                     {i.children.map((c) => (
-                      <Menu.Item key={c.href} component={Link} href={c.href} leftSection={<c.icon size={16} />} data-active={isActiveTopic(c.href, path, topic, c.exact) || undefined}
-                        style={isActiveTopic(c.href, path, topic, c.exact) ? { fontWeight: 700, color: "var(--mantine-color-violet-7)" } : undefined}>{c.label}</Menu.Item>
+                      <Menu.Item key={c.href} component={Link} href={to(c.href)} leftSection={<c.icon size={16} />} data-active={isActiveTopic(c.href, here, topic) || undefined}
+                        style={isActiveTopic(c.href, here, topic) ? { fontWeight: 700, color: "var(--mantine-color-violet-7)" } : undefined}>{c.label}</Menu.Item>
                     ))}
                   </Menu.Dropdown>
                 </Menu>
@@ -145,7 +151,7 @@ export function Shell({ name, username, role, children }: { name: string; userna
             <MediaAlertsBell />
             {barTools.filter((t) => !("inMenu" in t)).map((t) => (
               <Tooltip key={t.href} label={t.label} withArrow openDelay={250}>
-                <Link href={t.href} className={classes.iconLink} aria-label={t.label} data-active={isActive(t.href, path) || undefined}><t.icon size={18} stroke={1.8} /></Link>
+                <Link href={to(t.href)} className={classes.iconLink} aria-label={t.label} data-active={isActive(t, here) || undefined}><t.icon size={18} stroke={1.8} /></Link>
               </Tooltip>
             ))}
             <ThemeToggle />
@@ -160,7 +166,7 @@ export function Shell({ name, username, role, children }: { name: string; userna
               <Menu.Dropdown>
                 <div className={classes.menuHead}>
                   <Avatar size={38} radius="xl" variant="gradient" gradient={{ from: "violet", to: "cyan", deg: 135 }}>{name.charAt(0)}</Avatar>
-                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "Klien"}</small></div>
+                  <div><b>{name}</b><small>@{username} · {role === "admin" ? "Admin" : role === "viewer" ? "Viewer" : "Pengguna"}</small></div>
                 </div>
                 <Menu.Divider />
                 {barTools.filter((t) => "inMenu" in t).map((t) => (
@@ -177,7 +183,7 @@ export function Shell({ name, username, role, children }: { name: string; userna
 
         <nav id="main-mobile-navigation" aria-label="Navigasi utama" className={classes.sheet} data-open={open || undefined} inert={!open} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); document.querySelector<HTMLButtonElement>('[aria-controls="main-mobile-navigation"]')?.focus(); } }}>
           {[...nav.flatMap((i) => i.children ?? [i]), ...barTools].map((i, n) => (
-            <Link key={i.href} href={i.href} className={classes.sheetLink} aria-current={isActiveTopic(i.href, path, topic, (i as NavItem).exact) ? "page" : undefined} data-active={isActiveTopic(i.href, path, topic, (i as NavItem).exact) || undefined} style={{ transitionDelay: open ? `${n * 40}ms` : "0ms" }}>
+            <Link key={i.href} href={to(i.href)} className={classes.sheetLink} aria-current={isActiveTopic(i.href, here, topic) ? "page" : undefined} data-active={isActiveTopic(i.href, here, topic) || undefined} style={{ transitionDelay: open ? `${n * 40}ms` : "0ms" }}>
               <i.icon size={19} stroke={1.8} />{i.label}
             </Link>
           ))}

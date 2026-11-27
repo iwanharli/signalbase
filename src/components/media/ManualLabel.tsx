@@ -33,7 +33,7 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
   const change = async (label: string | null, on = false) => {
     setBusy(true);
     try {
-      const { labels } = await post(`/api/admin/keys/${ctx.keyId}/item-labels`, { type: ctx.type, code: item.code, label, on }, "PUT") as { labels: string[] };
+      const { labels } = await post(`/api/admin/projects/${ctx.keyId}/item-labels`, { type: ctx.type, code: item.code, label, on }, "PUT") as { labels: string[] };
       setValues(labels);
       item.manualLabels = labels; // the feed shares this object, so the labels survive re-renders
       // A label a person just put on or took off is no longer the AI's.

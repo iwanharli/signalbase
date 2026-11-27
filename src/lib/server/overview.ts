@@ -58,7 +58,7 @@ async function warmAll() {
   await step("bank stats", () => Promise.all([typeStats("social"), typeStats("online")]));
   await step("bank insights 7", () => Promise.all([typeInsights("social", 7), typeInsights("online", 7)]));
   await step("bank sna", () => snaGraph(1, DEFAULT_SNA_LIMIT));
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
+  const keys = await prisma.project.findMany({ where: { revokedAt: null }, select: { id: true, name: true, scope: true, keywords: true } });
   // With the items each project matches by image text, so the warmed caches are the ones its pages ask for.
   const scopes = await Promise.all(keys.map((key) => withImageCodes(key.id, parseKeyScope(key.scope, key.keywords))));
   for (const [i, scope] of scopes.entries()) {

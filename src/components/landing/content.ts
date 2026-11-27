@@ -10,18 +10,18 @@ export const SITE_URL = "https://signalbase.kecup.in";
 
 /** Top-bar links: one page each. */
 export const NAV_LINKS = [
-  { href: "/fitur", label: "Fitur", icon: IconSparkles },
-  { href: "/integrasi", label: "Integrasi", icon: IconPlugConnected },
-  { href: "/solusi", label: "Solusi", icon: IconLayersIntersect },
+  { href: "/features", label: "Fitur", icon: IconSparkles },
+  { href: "/integration", label: "Integrasi", icon: IconPlugConnected },
+  { href: "/solutions", label: "Solusi", icon: IconLayersIntersect },
   { href: "/pricing", label: "Harga", icon: IconTag },
   { href: "/faq", label: "FAQ", icon: IconHelpCircle },
 ].filter((l) => PRICING_PUBLIC || l.href !== "/pricing");
 
 /** Home page cards that lead to the detailed pages. */
 export const EXPLORE = [
-  { href: "/fitur", icon: IconSparkles, label: "FITUR", title: "Dari eksplorasi sampai kategorisasi AI.", text: "Pencarian, filter, analisis emosi dan isi, serta kategori AI yang Anda tentukan sendiri." },
-  { href: "/integrasi", icon: IconPlugConnected, label: "INTEGRASI", title: "Data yang sama, langsung di aplikasi Anda.", text: "API JSON dengan cakupan per proyek: daftar konten, ringkasan, dan tren kategori." },
-  { href: "/solusi", icon: IconLayersIntersect, label: "SOLUSI", title: "Untuk humas, layanan publik, dan produk.", text: "Contoh cara organisasi memakai Signalbase untuk pertanyaan yang berbeda." },
+  { href: "/features", icon: IconSparkles, label: "FITUR", title: "Dari eksplorasi sampai kategorisasi AI.", text: "Pencarian, filter, analisis emosi dan isi, serta kategori AI yang Anda tentukan sendiri." },
+  { href: "/integration", icon: IconPlugConnected, label: "INTEGRASI", title: "Data yang sama, langsung di aplikasi Anda.", text: "API JSON dengan cakupan per proyek: daftar konten, ringkasan, dan tren kategori." },
+  { href: "/solutions", icon: IconLayersIntersect, label: "SOLUSI", title: "Untuk humas, layanan publik, dan produk.", text: "Contoh cara organisasi memakai Signalbase untuk pertanyaan yang berbeda." },
   { href: "/pricing", icon: IconKey, label: "HARGA", title: "Mulai dengan trial 7 hari.", text: "Pilih Starter, Pro, atau Instansi sesuai jumlah isu dan kebutuhan analisis Anda." },
 ].filter((e) => PRICING_PUBLIC || e.href !== "/pricing");
 

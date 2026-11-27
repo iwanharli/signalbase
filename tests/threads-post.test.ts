@@ -41,7 +41,16 @@ test('wrong-post and transient errors are not cached', async () => {
     return Response.json({ type: 'rich', provider_name: 'Threads', html: '<blockquote data-text-post-permalink="https://threads.com/t/OtherPost123"></blockquote>' });
   };
   try {
-    for (let n = 0; n < 2; n++) await assert.rejects(originalThreadsPost('https://threads.com/t/Expected123'));
+    for (let n = 0; n < 2; n++) assert.equal(await originalThreadsPost('https://threads.com/t/Expected123'), null);
     assert.equal(calls, 2);
+  } finally { globalThis.fetch = original; }
+});
+test('a post Threads refuses (4xx) is null and cached; the card shows the stored copy', async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return Response.json({ error: { code: 24 } }, { status: 400 }); };
+  try {
+    for (let n = 0; n < 2; n++) assert.equal(await originalThreadsPost('https://threads.com/t/Refused123'), null);
+    assert.equal(calls, 1);
   } finally { globalThis.fetch = original; }
 });

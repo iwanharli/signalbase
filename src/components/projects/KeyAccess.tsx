@@ -37,7 +37,7 @@ export function KeyAccess({ keyId, saved, onSaved }: { keyId: string; saved: Key
   const save = async () => {
     setBusy(true);
     try {
-      await post(`/api/admin/keys/${keyId}/access`, { ips, origins }, "PUT");
+      await post(`/api/admin/projects/${keyId}/access`, { ips, origins }, "PUT");
       notifications.show({ color: "teal", message: ips.length || origins.length ? "Pembatasan akses disimpan" : "Kunci bisa dipakai dari mana saja" });
       onSaved();
     } catch (err) {

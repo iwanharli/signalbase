@@ -7,59 +7,52 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Panel account. role "admin" manages everything; role "user" signs up, waits for an admin to approve,
-// then manages only their own API keys.
-model Admin {
-  id             String          @id @default(uuid())
-  username       String          @unique
-  name           String
-  passwordHash   String
-  role           String          @default("admin") // "admin" | "user"
-  status         String          @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
+// Panel account. role "admin" manages everything; role "user" (a client) signs up, waits for an admin to approve,
+// then uses the projects an admin gives it (ProjectMember).
+model Account {
+  id              String          @id @default(uuid())
+  username        String          @unique
+  name            String
+  passwordHash    String
+  role            String          @default("admin") // "admin" | "user"
+  status          String          @default("active") // "pending" (signed up, waiting for an admin) | "active" | "suspended"
   /// Plan of a client ("user") account: "instansi" (the only plan offered). Unused for limits: clients have none.
-  plan           String?
+  plan            String?
   /// End of the client's subscription; after it the client loses access to its projects and their API keys stop.
   /// null = no end date.
-  planExpiresAt  DateTime?
+  planExpiresAt   DateTime?
   /// Sign-up details for the admin who approves: the institution and what it wants monitored.
   institution     String?
   requestedTopics String?
-  /// Unused since 2026-11-26 (self-serve plans and sub-accounts were removed); kept so no data is dropped.
-  requestedPlan  String?
-  demo           Boolean         @default(false)
-  parentId       String?
-  parent         Admin?          @relation("SubAccounts", fields: [parentId], references: [id], onDelete: Cascade)
-  subAccounts    Admin[]         @relation("SubAccounts")
-  invoices       Invoice[]
+  invoices        Invoice[]
   /// Projects an admin gave this client (with one API key per client and project).
-  sharedProjects ProjectMember[]
-  createdAt      DateTime        @default(now())
+  sharedProjects  ProjectMember[]
+  createdAt       DateTime        @default(now())
 }
 
-model ApiKey {
-  id             String    @id @default(uuid())
-  name           String
-  prefix         String
-  hash           String    @unique
-  keyEnc         String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
-  keywords       String[]  @default([]) // empty = whole bank; else items must mention one
-  scope          Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
-  ownerId        String? // unused since 2026-11-26: projects belong to admins and reach clients through ProjectMember
-  createdBy      String? // admin username; null for keys made before this was recorded
-  createdAt      DateTime  @default(now())
-  lastUsedAt     DateTime?
-  revokedAt      DateTime?
-  showAuthors    Boolean   @default(false) // unused: author details are now always returned
-  allowedIps     String[]  @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
-  allowedOrigins String[]  @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
+// A monitored project: its keywords and fixed scope, and its own API key (hash/keyEnc) for the public API.
+model Project {
+  id                  String    @id @default(uuid())
+  name                String
+  prefix              String
+  hash                String    @unique
+  keyEnc              String? // the full key, AES-256-GCM (lib/server/secrets.ts), so admins can copy it later; null for keys made before this
+  keywords            String[]  @default([]) // empty = whole bank; else items must mention one
+  scope               Json      @default("{}") // other fixed restrictions, see lib/media/keyScope.ts
+  createdBy           String? // admin username; null for keys made before this was recorded
+  createdAt           DateTime  @default(now())
+  lastUsedAt          DateTime?
+  revokedAt           DateTime?
+  allowedIps          String[]  @default([]) // empty = any IP; else "1.2.3.4", "1.2.3.0/24" or IPv6 (lib/keyAccess.ts)
+  allowedOrigins      String[]  @default([]) // empty = any site; else "app.example.id" or "*.example.id" (browser calls)
   /// Media pages: show the "Label emosi" (analysed or not) filter in the filter drawer for this project. Off: the drawer hides it.
-  showAnalyzedFilter Boolean @default(false)
+  showAnalyzedFilter  Boolean   @default(false)
   /// Media pages: show the "Relevansi" filter in the filter drawer for this project. Off: hidden (default still hides irrelevant posts).
-  showRelevanceFilter Boolean @default(false)
+  showRelevanceFilter Boolean   @default(false)
 
   classifier      Classifier?
   classifications Classification[]
-  usage           ApiKeyUsage[]
+  usage           ProjectUsage[]
   balances        BalanceSnapshot[]
   tokenUsage      TokenUsage[]
   members         ProjectMember[]
@@ -71,11 +64,11 @@ model ApiKey {
   labelAiUsage    LabelAiUsage[]
 }
 
-// AI categorisation settings and progress for one API key.
+// AI categorisation settings and progress for one project.
 model Classifier {
-  apiKeyId         String    @id
-  apiKey           ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  // The AI service this key uses, with its own credentials.
+  projectId        String    @id
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // The AI service this project uses, with its own credentials.
   providerKind     String // "anthropic" | "openai_compatible"
   providerBaseUrl  String? // openai_compatible only, e.g. https://api.deepseek.com
   providerModel    String
@@ -93,7 +86,7 @@ model Classifier {
   onlineCategories Json? // online news' own categories; null = same as `categories`
   minBalance       Float?    @default(1) // pause when provider credit drops below this; null = no floor
   dailyBudget      Float? // pause once today's spend reaches this; null = no cap
-  // Item counts for the key's whole scope ({ social, online, at }); counting takes ~25 s, so it is kept here.
+  // Item counts for the project's whole scope ({ social, online, at }); counting takes ~25 s, so it is kept here.
   scopeCounts      Json?
   labelledOnly     Boolean   @default(false) // API returns only items the AI has labelled
   startFrom        DateTime? // oldest publish time to label; null = the whole scope. Newer items are always labelled.
@@ -109,10 +102,10 @@ model Classifier {
   updatedAt        DateTime  @updatedAt
 }
 
-// One item's category for one API key.
+// One item's category for one project.
 model Classification {
-  apiKeyId    String
-  apiKey      ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   type        String // "social" | "online"
   code        String // item code in the source database
   category    String // a category code, or "none"
@@ -124,26 +117,26 @@ model Classification {
   correctedBy String?
   createdAt   DateTime @default(now())
 
-  @@id([apiKeyId, type, code])
-  @@index([apiKeyId, type, category, publishedAt])
+  @@id([projectId, type, code])
+  @@index([projectId, type, category, publishedAt])
 }
 
 // Provider credit over time, recorded by the worker and on manual refresh; spend = drops between snapshots.
 model BalanceSnapshot {
-  id       Int      @id @default(autoincrement())
-  apiKeyId String
-  apiKey   ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  currency String
-  total    Float
-  at       DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  currency  String
+  total     Float
+  at        DateTime @default(now())
 
-  @@index([apiKeyId, at])
+  @@index([projectId, at])
 }
 
-// Tokens the AI provider billed per key, hour, and model; works for every provider (no balance API needed).
+// Tokens the AI provider billed per project, hour, and model; works for every provider (no balance API needed).
 model TokenUsage {
-  apiKeyId     String
-  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   hour         DateTime // start of the hour (UTC)
   model        String
   inputTokens  Int      @default(0)
@@ -151,17 +144,17 @@ model TokenUsage {
   calls        Int      @default(0)
   keyHint      String? // last 4 characters of the paying provider key (since 16 Nov 2026); null = before it was recorded
 
-  @@id([apiKeyId, hour, model])
+  @@id([projectId, hour, model])
 }
 
-// Public API calls per key per day (Jakarta date). Summed over an account's keys for its daily plan limit.
-model ApiKeyUsage {
-  apiKeyId String
-  day      String // YYYY-MM-DD, Asia/Jakarta
-  count    Int    @default(0)
-  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+// Public API calls per project per day (Jakarta date), through the project's own key.
+model ProjectUsage {
+  projectId String
+  day       String // YYYY-MM-DD, Asia/Jakarta
+  count     Int     @default(0)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@id([apiKeyId, day])
+  @@id([projectId, day])
   @@index([day])
 }
 
@@ -185,7 +178,7 @@ model Invoice {
   id          String    @id @default(uuid())
   number      String    @unique // SB-2026-0001
   accountId   String
-  account     Admin     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   kind        String    @default("plan") // plan | topup (extra Signalbase AI posts for one month)
   plan        String // starter | pro | instansi (for a top-up: the plan it was bought on)
   billing     String // monthly | yearly (top-up: monthly)
@@ -204,15 +197,6 @@ model Invoice {
 
   @@index([accountId, createdAt])
   @@index([status, createdAt])
-}
-
-// Extra Signalbase AI posts bought for one month (paid top-up invoices), on top of the plan's monthly quota.
-model AiCredit {
-  accountId String
-  month     String // YYYY-MM, Asia/Jakarta
-  posts     Int    @default(0)
-
-  @@id([accountId, month])
 }
 
 // Platform AI settings (one row, id "global"): the provider behind Ringkasan AI, its schedule, and token prices for cost tracking.
@@ -236,10 +220,10 @@ model AiSetting {
   updatedAt        DateTime @updatedAt
 }
 
-// One AI summary of one scope ("bank" or an API key id) for one complete Jakarta data day (written the morning after).
+// One AI summary of one scope ("bank" or a project id) for one complete Jakarta data day (written the morning after).
 model AiSummary {
   id        String   @id @default(uuid())
-  scope     String // "bank" | ApiKey.id
+  scope     String // "bank" | Project.id
   scopeName String // name when written, so history stays readable after a project is removed
   day       String // data day YYYY-MM-DD, Asia/Jakarta (normally yesterday when written)
   status    String // "ok" | "failed"
@@ -274,12 +258,12 @@ model AiUsageLog {
   @@index([at])
 }
 
-// Executive report snapshot of one scope ("bank" or an API key id) for one complete period, written by the worker once the
+// Executive report snapshot of one scope ("bank" or a project id) for one complete period, written by the worker once the
 // period is over: harian (one Jakarta day), mingguan (Monday-Sunday) or bulanan (a calendar month). `data` is the ReportData
 // the print page renders; `cover` holds the few numbers the archive cards show.
 model ArchivedReport {
   id        String   @id @default(uuid())
-  scope     String // "bank" | ApiKey.id
+  scope     String // "bank" | Project.id
   scopeName String // name when written, so the archive stays readable after a project is renamed or removed
   kind      String // "harian" | "mingguan" | "bulanan"
   start     String // first data day YYYY-MM-DD, Asia/Jakarta
@@ -292,11 +276,11 @@ model ArchivedReport {
   @@index([scope, kind, day])
 }
 
-// Who an executive report is written for, per scope ("bank" or an API key id): the reader's position and name, the
+// Who an executive report is written for, per scope ("bank" or a project id): the reader's position and name, the
 // institution whose decisions the report serves ("lensa"), its region, coordination partners and the classification.
 // Read when a report is written and copied into it, so the archive keeps what was printed at the time.
 model ReportProfile {
-  scope          String   @id // "bank" | ApiKey.id
+  scope          String   @id // "bank" | Project.id
   recipientTitle String   @default("") // "Kapolda Riau"
   recipientName  String   @default("") // "Irjen Pol Dr. …"
   institution    String   @default("") // "Polda Riau": the institution the analysis is written for
@@ -311,12 +295,12 @@ model ReportProfile {
 /// (media, insights, issues, reports) but cannot change, revoke or copy it; plan limits and quotas stay with the owner.
 /// A client's access to a project, given by an admin: the client sees the project's data (read only) and the project
 /// answers the public API through this client's own key, which only admins see. The key stops with the client's
-/// subscription or when an admin revokes it; the project's own key (ApiKey.hash) stays the internal/admin key.
+/// subscription or when an admin revokes it; the project's own key (Project.hash) stays the internal/admin key.
 model ProjectMember {
-  apiKeyId      String
-  apiKey        ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   accountId     String
-  account       Admin     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt     DateTime  @default(now())
   createdBy     String?
   keyPrefix     String?
@@ -326,25 +310,24 @@ model ProjectMember {
   keyLastUsedAt DateTime?
   keyRevokedAt  DateTime?
 
-  @@id([apiKeyId, accountId])
+  @@id([projectId, accountId])
   @@index([accountId])
   @@index([keyHash])
 }
 
 /// AI labelling settings of one project ("Kustomisasi Label"), with its own provider key.
 model LabelAi {
-  apiKeyId  String    @id
-  apiKey    ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  provider  String // "deepseek" | "grok"; the address follows from it, see lib/ai/labelAi.ts
-  model     String
-  keyEnc    String // AES-256-GCM, see lib/server/secrets.ts
-  keyHint   String // last 4 characters, for display only
-  prompt    String? // null = the default built from the project's labels
-  startFrom DateTime? // oldest publish time to label; null = the whole scope
-  updatedBy String
-  savedAt   DateTime  @default(now()) // last save by a person (updatedAt also moves with the worker)
-  enabled    Boolean @default(false)
-  dailyLimit Int     @default(500) // unused since 26 Nov 2026 (no daily cap; the start date bounds the work); kept so db push drops nothing
+  projectId   String    @id
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  provider    String // "deepseek" | "grok"; the address follows from it, see lib/ai/labelAi.ts
+  model       String
+  keyEnc      String // AES-256-GCM, see lib/server/secrets.ts
+  keyHint     String // last 4 characters, for display only
+  prompt      String? // null = the default built from the project's labels
+  startFrom   DateTime? // oldest publish time to label; null = the whole scope
+  updatedBy   String
+  savedAt     DateTime  @default(now()) // last save by a person (updatedAt also moves with the worker)
+  enabled     Boolean   @default(false)
   // Worker state. Cursors per media type: { social: { newest, oldest, backfillDone, ... } }
   cursors     Json      @default("{}")
   processed   Int       @default(0)
@@ -357,14 +340,14 @@ model LabelAi {
   lastRunAt   DateTime?
   /// Posts in the labelling range, cached because counting the source is slow.
   scopeCounts Json?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 /// What AI labelling has done with each post of a project, or that a person decided it.
 model LabelAiItem {
-  apiKeyId    String
-  apiKey      ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   type        String // "social" | "online"
   code        String
   status      String // "done" | "empty" (no label fits) | "failed" | "waiting_text" | "human" (AI leaves it alone)
@@ -376,38 +359,38 @@ model LabelAiItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@id([apiKeyId, type, code])
-  @@index([apiKeyId, type, status, retryAfter])
+  @@id([projectId, type, code])
+  @@index([projectId, type, status, retryAfter])
 }
 
 /// Tokens of AI labelling per hour and model, kept apart from categorisation's.
 model LabelAiUsage {
-  apiKeyId     String
-  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  hour         DateTime
-  model        String
-  inputTokens  Int      @default(0)
-  cachedTokens Int      @default(0)
-  outputTokens Int      @default(0)
-  calls        Int      @default(0)
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  hour              DateTime
+  model             String
+  inputTokens       Int      @default(0)
+  cachedTokens      Int      @default(0)
+  outputTokens      Int      @default(0)
+  calls             Int      @default(0)
   // The source check's share of the tokens above (0 for rows from before it was kept apart), and its billable searches.
-  checkInputTokens  Int @default(0)
-  checkCachedTokens Int @default(0)
-  checkOutputTokens Int @default(0)
-  searches          Int @default(0)
+  checkInputTokens  Int      @default(0)
+  checkCachedTokens Int      @default(0)
+  checkOutputTokens Int      @default(0)
+  searches          Int      @default(0)
 
-  @@id([apiKeyId, hour, model])
+  @@id([projectId, hour, model])
 }
 
 /// One label of one post or article within one project; an item can carry several (one row each).
 model ItemLabel {
-  apiKeyId  String
-  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  type      String // "social" | "online"
-  code      String
-  label     String
-  setBy     String // username
-  source    String   @default("human") // "human" | "ai"
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type           String // "social" | "online"
+  code           String
+  label          String
+  setBy          String // username
+  source         String   @default("human") // "human" | "ai"
   /// AI confidence 0-100; null for a label a person gave.
   score          Int?
   additionalData Json?    @map("additional_data")
@@ -415,55 +398,55 @@ model ItemLabel {
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt
 
-  @@id([apiKeyId, type, code, label])
-  @@index([apiKeyId, label])
+  @@id([projectId, type, code, label])
+  @@index([projectId, label])
 }
 
 /// One image analysed by the local media worker (npm run media): news images, X photos/video thumbnails and YouTube
 /// thumbnails. Only the URL and the results are kept; the file itself is downloaded, analysed and discarded. One image
 /// used by many posts (syndicated news photos) is analysed once (MediaLink holds where it appears).
 model MediaAsset {
-  id            String      @id @default(uuid())
-  urlHash       String      @unique // sha256 of url
-  url           String
-  kind          String // "news" | "x_photo" | "x_video" | "youtube" | "instagram" | "threads"
-  status        String      @default("pending") // "pending" | "done" | "failed" (retried) | "gone" (404/expired, not retried)
-  error         String?
-  attempts      Int         @default(0)
+  id               String      @id @default(uuid())
+  urlHash          String      @unique // sha256 of url
+  url              String
+  kind             String // "news" | "x_photo" | "x_video" | "youtube" | "instagram" | "threads"
+  status           String      @default("pending") // "pending" | "done" | "failed" (retried) | "gone" (404/expired, not retried)
+  error            String?
+  attempts         Int         @default(0)
   /// After a failure, not retried before this (5 min, 30 min, 2 h), so a passing outage doesn't use up the attempts.
-  nextAttemptAt DateTime?
+  nextAttemptAt    DateTime?
   /// A news outlet's default picture (the same image on ≥5 of its articles): hidden from the media page.
-  placeholder   Boolean     @default(false)
+  placeholder      Boolean     @default(false)
   /// Images whose dHash differs by ≤ NEAR_TWIN_BITS share a group (the id of its first image): the same picture
   /// re-encoded, resized or with a small overlay, shared under different URLs. Set by the worker after analysis.
-  twinGroup     String?
-  width         Int?
-  height        Int?
-  dhash         String? // 64-bit difference hash (hex): the same picture re-encoded or resized gets the same or a close hash
-  ocrText       String? // text read from the image ("" = none), outlet watermarks removed
-  ocrWords      Int         @default(0)
+  twinGroup        String?
+  width            Int?
+  height           Int?
+  dhash            String? // 64-bit difference hash (hex): the same picture re-encoded or resized gets the same or a close hash
+  ocrText          String? // text read from the image ("" = none), outlet watermarks removed
+  ocrWords         Int         @default(0)
   /// OCR lines with size and position ([{ t, h, cy }], relative to the image height), for keyText.
-  ocrLines      Json?
+  ocrLines         Json?
   /// Text was found but couldn't be read (mostly low-confidence lines): usually non-Latin script (Arabic, Cyrillic, Chinese).
-  unreadText    Boolean     @default(false)
+  unreadText       Boolean     @default(false)
   /// "Teks penting": ocrText without app chrome (likes, "Lihat N balasan", times, handles), camera stamps, small background
   /// text and lines already in the post's caption. Used by the cards, the "Ada teks" filter and the search.
-  keyText       String?
-  keyWords      Int         @default(0)
+  keyText          String?
+  keyWords         Int         @default(0)
   /// Derived from keyText (src/lib/mediaVisual.ts), recomputed when TEXT_RULES_VERSION changes:
   /// a call to action (action word + date/time/place), the narrative key (same message on different pictures), and
   /// lines with numeric claims to check.
-  actionCall    Json?
-  narrative     String?
-  claims        String[]
-  textRules     Int         @default(0)
+  actionCall       Json?
+  narrative        String?
+  claims           String[]
+  textRules        Int         @default(0)
   /// Caption/title of the first item using the image (≤1000 chars), to drop OCR text that only repeats it.
-  context       String?
-  tags          Json? // [{ tag, score }] best visual tags (CLIP, zero-shot)
-  tagList       String[] // the tag codes, for filtering
-  sensitive     String[] // tags that mark possibly sensitive content (shown as "perlu ditinjau")
-  model         String?
-  analyzedAt    DateTime?
+  context          String?
+  tags             Json? // [{ tag, score }] best visual tags (CLIP, zero-shot)
+  tagList          String[] // the tag codes, for filtering
+  sensitive        String[] // tags that mark possibly sensitive content (shown as "perlu ditinjau")
+  model            String?
+  analyzedAt       DateTime?
   /// The video this image is the poster of (X video, Instagram Reel): its speech is transcribed (scripts/media/asr_service.py).
   videoUrl         String?
   /// null = no video; "pending" | "done" | "failed" | "none" (no audio track, or too old when its turn came)
@@ -472,8 +455,8 @@ model MediaAsset {
   transcript       String?
   transcriptLang   String?
   transcriptAt     DateTime?
-  createdAt     DateTime    @default(now())
-  links         MediaLink[]
+  createdAt        DateTime    @default(now())
+  links            MediaLink[]
 
   @@index([transcriptStatus, createdAt])
   @@index([status, createdAt])
@@ -493,7 +476,7 @@ model MediaLink {
   asset       MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
   source      String // platform (twitter, youtube) or outlet
   publishedAt DateTime
-  /// Projects (ApiKey ids) whose scope includes this item, set by the worker when the item is collected and
+  /// Projects (Project ids) whose scope includes this item, set by the worker when the item is collected and
   /// backfilled when a project is created or its scope changes (MediaProjectSync). The media page filters on it.
   keys        String[]   @default([])
   /// Projects that match this item only through the text in its image (not its caption). The source-database
@@ -540,7 +523,7 @@ model MediaWorkerState {
 /// Rewritten every run; a cluster that carries on keeps its id (and its AI title) when most of its posts are the same.
 model IssueCluster {
   id        String   @id @default(uuid())
-  apiKeyId  String
+  projectId String
   active    Boolean  @default(true) // false: not found in the latest run (kept for its history, hidden)
   codes     String[] // member post codes (newest first, capped)
   posts     Int
@@ -562,29 +545,29 @@ model IssueCluster {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([apiKeyId, active, score])
+  @@index([projectId, active, score])
 }
 
 /// An ad hoc SNA watch ("pantauan"): a named set of keywords, e.g. "Listyo makar" = listyo, makar, sadap. Within a
-/// project (apiKeyId) it reads that project's posts that also match one of its keywords; without (admins) the whole bank.
+/// project (projectId) it reads that project's posts that also match one of its keywords; without (admins) the whole bank.
 model SnaWatch {
   id        String   @id @default(uuid())
-  apiKeyId  String? // null = whole bank (admins only)
+  projectId String? // null = whole bank (admins only)
   name      String
   keywords  String[] // same rules as project keywords: words, phrases or AND / OR expressions; any one matches
   createdBy String // username
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([apiKeyId])
+  @@index([projectId])
 }
 
-/// Public API calls per client key and day (the project total stays in ApiKeyUsage).
+/// Public API calls per client key and day (the project total stays in ProjectUsage).
 model ProjectAccessUsage {
-  apiKeyId  String
+  projectId String
   accountId String
   day       String // YYYY-MM-DD, Jakarta
   count     Int    @default(0)
 
-  @@id([apiKeyId, accountId, day])
+  @@id([projectId, accountId, day])
 }

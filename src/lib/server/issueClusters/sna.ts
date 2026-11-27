@@ -12,7 +12,7 @@ const cache = sharedCache<SnaGraph>("sna-isu", { ttlMs: 60_000, maxEntries: 50, 
 /** `issueId`: only that issue; `only`: posts limited further (label filter, already intersected with the issue's posts). */
 export async function snaIssueGraph(keyId: string, days: SnaDays, limit: SnaLimit, only: SnaCodes, issueId: string | null, flow: SnaFlow = "langsung"): Promise<SnaGraph> {
   const issues = await prisma.issueCluster.findMany({
-    where: { apiKeyId: keyId, active: true, ...(issueId ? { id: issueId } : {}) },
+    where: { projectId: keyId, active: true, ...(issueId ? { id: issueId } : {}) },
     orderBy: { score: "desc" }, take: issueId ? 1 : ISSUES_SHOWN,
     select: { id: true, title: true, keywords: true, posts: true, codes: true, updatedAt: true },
   });

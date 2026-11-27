@@ -13,6 +13,7 @@ import { useApi } from "@/lib/useApi";
 import { Button } from "../ui/Button";
 import { LabelAiProgress } from "./LabelAiProgress";
 import { BalanceUsage } from "../aiUsage/BalanceUsage";
+import { projectPath, projectSettingsPath } from "@/lib/activeProject";
 import c from "./manualLabelSettings.module.css";
 
 type Row = { id: number; original: string | null; name: string; removed: boolean };
@@ -24,7 +25,7 @@ const colorVar = (options: string[], label: string) => `var(--mantine-color-${la
 const REFRESH_MS = 30_000;
 
 export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resultType: MediaType }) {
-  const settings = useApi<LabelSettings>(`/api/admin/keys/${keyId}/labels`);
+  const settings = useApi<LabelSettings>(`/api/admin/projects/${keyId}/labels`);
   const [rows, setRows] = useState<Row[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -98,7 +99,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
     const moves = keep.filter((r) => r.original && tidy(r.name) !== r.original).map((r) => ({ from: r.original!, to: tidy(r.name) }));
     setBusy(true);
     try {
-      const res = (await post(`/api/admin/keys/${keyId}/labels`, { options: normalizeLabels(options), renames: moves }, "PUT")) as { removed: number; renamed: number };
+      const res = (await post(`/api/admin/projects/${keyId}/labels`, { options: normalizeLabels(options), renames: moves }, "PUT")) as { removed: number; renamed: number };
       const notes = [res.renamed && `${res.renamed} label diganti nama`, res.removed && `${res.removed} label dilepas dari post`].filter(Boolean);
       notifications.show({ color: "teal", message: `Label disimpan${notes.length ? `. ${notes.join(", ")}.` : ""}` });
       setConfirming(null);
@@ -120,8 +121,8 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
           <IconRobot size={18} />
           <span><b>Pelabelan AI</b><small>AI memilih label untuk tiap post secara otomatis</small></span>
           {/* Every labelled item: the page's default "analysed" and "relevant" filters would hide some, so both are cleared. */}
-          <Button size="sm" variant="secondary" icon={IconEye} href={`/media/${resultType}?key=${keyId}&label=${ANY_LABEL}&analyzed=&relevance=`}>Lihat hasil</Button>
-          <Button size="sm" variant="primary" iconRight={IconArrowRight} href={`/project/${keyId}/labels`}>Pengaturan</Button>
+          <Button size="sm" variant="secondary" icon={IconEye} href={`${projectPath(keyId, `/media/${resultType}`)}?label=${ANY_LABEL}&analyzed=&relevance=`}>Lihat hasil</Button>
+          <Button size="sm" variant="primary" iconRight={IconArrowRight} href={projectSettingsPath(keyId, "labels")}>Pengaturan</Button>
         </div>
       )}
 
@@ -189,7 +190,7 @@ export function ManualLabelSettings({ keyId, resultType }: { keyId: string; resu
 
       <p className={c.note}>
         Label tampil di bagian atas setiap kartu Media Sosial dan Media Online saat dilihat lewat proyek ini, dengan warna sesuai urutan di sini.
-        Hanya admin yang memberi label; klien dan viewer melihat labelnya. Terpisah dari kategorisasi AI.
+        Hanya admin yang memberi label; instansi dan viewer melihat labelnya. Terpisah dari kategorisasi AI.
       </p>
 
       {canEdit && (dirty || removedRows.length > 0) && (

@@ -13,7 +13,7 @@ import { categoriesForType } from "@/lib/ai/classifier";
 
 /** A classifier as the panel sees it: the provider key itself is never returned, only its last four characters. */
 export const publicClassifier = (c: Classifier) => ({
-  apiKeyId: c.apiKeyId,
+  projectId: c.projectId,
   provider: { kind: c.providerKind, baseUrl: c.providerBaseUrl, model: c.providerModel, apiKeyHint: c.providerKeyHint },
   fallback: c.fallbackKind ? { kind: c.fallbackKind, baseUrl: c.fallbackBaseUrl, model: c.fallbackModel, apiKeyHint: c.fallbackKeyHint } : null,
   enabled: c.enabled, prompt: c.prompt, categories: c.categories, onlineCategories: c.onlineCategories, labelledOnly: c.labelledOnly, minBalance: c.minBalance, dailyBudget: c.dailyBudget, startFrom: c.startFrom,
@@ -42,8 +42,8 @@ export const fallbackConfig = (c: Pick<Classifier, "fallbackKind" | "fallbackBas
  * Creates or updates a key's classifier. A new provider key replaces the stored one; an empty one keeps it.
  * Changing the prompt, categories, provider, or model restarts labelling from scratch.
  */
-export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
-  const existing = await prisma.classifier.findUnique({ where: { apiKeyId } });
+export async function saveClassifier(projectId: string, input: ClassifierInput) {
+  const existing = await prisma.classifier.findUnique({ where: { projectId } });
   const platform = input.provider.kind === "signalbase";
   if (!existing && !input.provider.apiKey && !platform) throw new MissingProviderKeyError();
 
@@ -71,7 +71,7 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
     minBalance: platform ? null : input.minBalance, dailyBudget: platform ? null : input.dailyBudget, startFrom };
 
   if (!existing) {
-    return prisma.classifier.create({ data: { apiKeyId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });
+    return prisma.classifier.create({ data: { projectId, ...data, providerKeyEnc: provider.providerKeyEnc!, providerKeyHint: provider.providerKeyHint! } });
   }
   // Prompt or provider changes invalidate every result; a category list only invalidates its own media type.
   const sharedChanged = existing.prompt !== input.prompt
@@ -93,10 +93,10 @@ export async function saveClassifier(apiKeyId: string, input: ClassifierInput) {
     for (const type of restart) {
       // Manual corrections survive a restart while their category still exists in the new list.
       const codes = [...(categoriesForType({ categories: input.categories, onlineCategories: input.onlineCategories }, type) as { code: string }[]).map((c) => c.code), "none"];
-      removed += (await tx.classification.deleteMany({ where: { apiKeyId, type, OR: [{ manual: false }, { category: { notIn: codes } }] } })).count;
+      removed += (await tx.classification.deleteMany({ where: { projectId, type, OR: [{ manual: false }, { category: { notIn: codes } }] } })).count;
     }
     return tx.classifier.update({
-      where: { apiKeyId },
+      where: { projectId },
       data: {
         ...data, cursors: cursors as Prisma.InputJsonValue,
         // Turning it back on clears an automatic pause message.

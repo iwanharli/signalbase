@@ -7,9 +7,10 @@ Bank data media — panel dan API yang membuka koleksi post media sosial dan ber
 - Pakai skill `ponytail` (kode) dan `caveman` (gaya jawaban) dari `.claude/skills/`.
   Sumber: `DietrichGebert/ponytail@96608e0`, `JuliusBrussee/caveman@2e068f7`.
 - Ikuti struktur dan konvensi yang sudah ada di repo ini.
-- Kode dalam bahasa Inggris: nama file, folder, fungsi, komponen, variabel, class CSS, komentar, nama test, skrip.
-  Tetap bahasa Indonesia: teks antarmuka, URL halaman, parameter URL, kunci JSON keluaran AI/laporan tersimpan,
-  nilai data (kode tag, emosi, kategori), variabel env dan nama proses PM2 yang sudah ada.
+- Kode dalam bahasa Inggris: nama file, folder, fungsi, komponen, variabel, class CSS, komentar, nama test, skrip,
+  URL halaman dan route API (proyek di path: `/projects/<id>/…`; alamat lama dialihkan di `lib/activeProject.ts`).
+  Tetap bahasa Indonesia: teks antarmuka, parameter URL yang sudah ada (`topik`, `tampilan`, `untuk`, `sifat`),
+  kunci JSON keluaran AI/laporan tersimpan, nilai data (kode tag, emosi, kategori), variabel env dan nama proses PM2 yang sudah ada.
 - Jalankan formatter/linter dan test sebelum menyatakan selesai. Test: belum ada test otomatis; tambahkan untuk logika non-trivial.
 
 ## Git

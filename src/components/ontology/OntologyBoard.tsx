@@ -1,5 +1,5 @@
 "use client";
-// /analisis/ontologi — early-warning issues and the actors / targets they name, as a d3 force graph (same layout as /analisis/sna).
+// /analysis/ontology — early-warning issues and the actors / targets they name, as a d3 force graph (same layout as /analysis/sna).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tooltip } from "@mantine/core";
@@ -14,6 +14,7 @@ import { useApi } from "@/lib/useApi";
 import { Segmented } from "../ui/controls";
 import { Button } from "../ui/Button";
 import { NetworkHeader } from "../sna/NetworkHeader";
+import { useProjectId } from "@/lib/useProjectId";
 import classes from "../sna/sna.module.css";
 import { OntologyPanel } from "./OntologyPanel";
 
@@ -150,7 +151,7 @@ export function OntologyBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const keyId = params.get("key");
+  const keyId = useProjectId();
   const days = parseOntDays(params.get("days")) ?? DEFAULT_ONT_DAYS;
   const [picked, setPicked] = useState<string | null>(null);
   const [locked, setLocked] = useState(true);
@@ -176,7 +177,7 @@ export function OntologyBoard() {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }, [params, pathname, router]);
 
-  const res = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontology?days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`);
+  const res = useApi<{ days: number; issues: OntIssue[] }>(`/api/admin/ontology?days=${days}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}`);
   const issues = useMemo(() => res.data?.issues ?? [], [res.data]);
   useEffect(() => { setPicked(null); }, [res.data]);
   useEffect(() => setOff([]), [days, keyId]);

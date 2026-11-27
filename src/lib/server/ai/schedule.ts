@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { decryptSecret } from "../secrets";
 
-type Row = { apiKeyId: string; providerKind: string; providerBaseUrl: string | null; providerKeyEnc: string };
+type Row = { projectId: string; providerKind: string; providerBaseUrl: string | null; providerKeyEnc: string };
 
 /** Which provider account pays for this classifier. The stored key is sealed with a random IV, so it is compared opened. */
 export function providerAccount(row: Row) {
@@ -12,7 +12,7 @@ export function providerAccount(row: Row) {
     const key = decryptSecret(row.providerKeyEnc);
     return `${row.providerKind}|${row.providerBaseUrl ?? ""}|${createHash("sha256").update(key).digest("hex")}`;
   } catch {
-    return `key|${row.apiKeyId}`; // unreadable key: its own group (its run reports the error)
+    return `key|${row.projectId}`; // unreadable key: its own group (its run reports the error)
   }
 }
 

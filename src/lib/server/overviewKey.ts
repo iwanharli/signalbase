@@ -9,13 +9,13 @@ import { withImageCodes } from "./media/textSignals";
 type KeyRow = { id: string; name: string; keywords: string[]; scope: unknown; lastUsedAt: Date | null };
 export type OverviewView = { keys: KeyRow[]; key: KeyRow | null; scope: KeyScope | undefined; noKey: boolean };
 
-/** Admins: the whole bank, or one key with ?key=. Users: one of their own keys (?key= or their oldest active one).
+/** Admins: the whole bank, or one key with ?project=. Users: one of their own keys (?project= or their oldest active one).
  *  Returns a Response for an expired plan or a key the caller may not see. */
 export async function overviewView(req: Request, user: PanelUser): Promise<OverviewView | Response> {
-  const requested = new URL(req.url).searchParams.get("key");
+  const requested = new URL(req.url).searchParams.get("project");
   const isUser = user.role === "user";
   if (isUser && (await accountPlan(user.id)).expired) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
-  const keys = await prisma.apiKey.findMany({
+  const keys = await prisma.project.findMany({
     where: { revokedAt: null, ...(isUser ? visibleKeys(user.id) : {}) },
     orderBy: { createdAt: isUser ? "asc" : "desc" },
     select: { id: true, name: true, keywords: true, scope: true, lastUsedAt: true },

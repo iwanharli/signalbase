@@ -24,7 +24,7 @@ export function Hero() {
         <p>Satukan percakapan media sosial dan pemberitaan.<br className={c.desktopBreak} /> Pahami konteksnya dengan AI. Hubungkan insight ke aplikasi Anda.</p>
         <div className={c.heroActions}>
           <a href="#platform" className={c.primary}>Jelajahi Signalbase <IconArrowRight size={18} /></a>
-          <Link href="/integrasi" className={c.secondary}><IconCode size={18} />Kenali API-nya</Link>
+          <Link href="/integration" className={c.secondary}><IconCode size={18} />Kenali API-nya</Link>
         </div>
         <div className={c.heroTrust}>{HERO_TRUST.map((t) => <span key={t}><IconCheck size={14} />{t}</span>)}</div>
       </div>
@@ -201,11 +201,11 @@ export function LandingFooter() {
         <Link href="/" aria-label="Signalbase beranda"><Brand /></Link>
         <p>Media intelligence. <br />Connected to your world.</p>
       </div>
-      <div><b>Platform</b><Link href="/fitur">Fitur</Link><Link href="/integrasi">Integrasi API</Link><Link href="/solusi">Solusi</Link>{PRICING_PUBLIC && <Link href="/pricing">Harga</Link>}</div>
+      <div><b>Platform</b><Link href="/features">Fitur</Link><Link href="/integration">Integrasi API</Link><Link href="/solutions">Solusi</Link>{PRICING_PUBLIC && <Link href="/pricing">Harga</Link>}</div>
       <div><b>Jelajahi</b><Link href="/faq">Pertanyaan umum</Link><Link href="/login">Masuk</Link><Link href="/register">Daftar</Link><Link href="/docs">Dokumentasi ↗</Link><a href={BROCHURE_URL} download={BROCHURE_FILENAME}>Product knowledge (PDF)</a></div>
       <div className={c.footerBottom}>
         <span>© {new Date().getFullYear()} Signalbase.</span>
-        <span className={c.legalLinks}><Link href="/syarat">Syarat & Ketentuan</Link><Link href="/privasi">Kebijakan Privasi</Link><Link href="/kontak">Hubungi kami</Link></span>
+        <span className={c.legalLinks}><Link href="/terms">Syarat & Ketentuan</Link><Link href="/privacy">Kebijakan Privasi</Link><Link href="/contact">Hubungi kami</Link></span>
         <a href="#main">Kembali ke atas ↑</a>
       </div>
     </footer>

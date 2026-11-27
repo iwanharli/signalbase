@@ -26,6 +26,7 @@ import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { PlatformMark } from "../media/PlatformIcon";
 import { CardHelp, type CardHelpId } from "./CardHelp";
+import { projectPath, projectSettingsPath } from "@/lib/activeProject";
 import c from "./insights.module.css";
 
 dayjs.extend(relativeTime);
@@ -85,9 +86,7 @@ function cleanText(item: MediaItem) {
 
 /** Link into the media browser, keeping the project being viewed. */
 function mediaHref(type: MediaType, keyId: string | null, params: Record<string, string>) {
-  const q = new URLSearchParams(params);
-  if (keyId) q.set("key", keyId);
-  return `/media/${type}?${q}`;
+  return `${projectPath(keyId, `/media/${type}`)}?${new URLSearchParams(params)}`;
 }
 
 /** Ranked lists from one or both types, summed per value; each value links to the type it mostly comes from. */
@@ -584,7 +583,7 @@ export type ProjectSummary = { id: string; name: string; keywords: string[]; las
 
 /** Insights of another project, loaded only when its group is opened (cached on the server like the viewed one). */
 function useProjectData(projectId: string, types: MediaType[], period: InsightPeriod, enabled: boolean): ViewData | null | undefined {
-  const url = (t: MediaType) => (enabled && types.includes(t) ? `/api/admin/stats/insights?type=${t}&days=${period}&key=${encodeURIComponent(projectId)}` : null);
+  const url = (t: MediaType) => (enabled && types.includes(t) ? `/api/admin/stats/insights?type=${t}&days=${period}&project=${encodeURIComponent(projectId)}` : null);
   const social = useApi<Response>(url("social"));
   const online = useApi<Response>(url("online"));
   if (!enabled) return undefined;
@@ -623,8 +622,8 @@ function ProjectGroup({ project, viewed, data, open, onToggle, keywordHref }: {
             <div className={c.kwChips}>{project.keywords.length ? project.keywords.map((k) => <span key={k}>{k}</span>) : <span>semua data</span>}</div>
           )}
           <div className={c.groupLinks}>
-            {!viewed && <Link href={`/dashboard?key=${project.id}`}>Lihat Ringkasan proyek <IconArrowRight size={12} /></Link>}
-            {admin && <Link href={`/project/${project.id}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>}
+            {!viewed && <Link href={projectPath(project.id, "/dashboard")}>Lihat Ringkasan proyek <IconArrowRight size={12} /></Link>}
+            {admin && <Link href={`${projectSettingsPath(project.id)}?tab=keywords`}><IconEdit size={12} />Ubah keyword</Link>}
           </div>
         </div>
       )}
@@ -645,7 +644,7 @@ function ProjectCard({ project, others, data, types, period, from }: {
       <header className={c.projectHead}>
         <span><IconPlugConnected size={16} /></span>
         <div><h3>Keyword per proyek<CardHelp id="projectKeywords" /></h3><p>Penyebutan dan porsi negatif, {period} hari terakhir</p></div>
-        {admin && <Link href="/project" className={c.projectEdit}>Kelola</Link>}
+        {admin && <Link href="/projects" className={c.projectEdit}>Kelola</Link>}
       </header>
       <div className={c.groups}>
         <ProjectGroup project={project} viewed data={data ?? undefined} open={openIds.has(project.id)} onToggle={() => toggle(project.id)} keywordHref={hrefFor(project.id)} />
@@ -672,7 +671,7 @@ function OtherProject({ project, types, period, open, onToggle, keywordHref }: {
 /** Insights of the chosen view and period. Both types are always fetched (the 7-day ones are kept warm on the server),
  *  so switching the view is instant. `hasSocial`/`hasOnline` are false until the scope is known. */
 export function useInsights(keyId: string | null, hasSocial: boolean, hasOnline: boolean, view: View, period: InsightPeriod) {
-  const url = (t: MediaType) => `/api/admin/stats/insights?type=${t}&days=${period}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`;
+  const url = (t: MediaType) => `/api/admin/stats/insights?type=${t}&days=${period}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}`;
   const social = useApi<Response>(hasSocial ? url("social") : null);
   const online = useApi<Response>(hasOnline ? url("online") : null);
   const wanted: MediaType[] = view === "all" ? (["social", "online"] as const).filter((t) => (t === "social" ? hasSocial : hasOnline)) : [view];

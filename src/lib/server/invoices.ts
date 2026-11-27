@@ -25,7 +25,7 @@ function addMonths(date: Date, months: number) {
  * it has ended or has no end date set).
  */
 export async function createInvoice(accountId: string, plan: PlanId, billing: Billing, createdBy: string, opts: { customMonthly?: number | null; note?: string | null } = {}) {
-  const account = await prisma.admin.findUniqueOrThrow({ where: { id: accountId }, select: { planExpiresAt: true } });
+  const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId }, select: { planExpiresAt: true } });
   const now = new Date();
   const periodStart = account.planExpiresAt && account.planExpiresAt > now ? account.planExpiresAt : now;
   const periodEnd = addMonths(periodStart, billing === "yearly" ? 12 : 1);
@@ -49,7 +49,7 @@ export async function markPaid(invoiceId: string) {
     const inv = await tx.invoice.findUnique({ where: { id: invoiceId } });
     if (!inv || inv.status !== "unpaid") return null;
     await tx.invoice.update({ where: { id: invoiceId }, data: { status: "paid", paidAt: new Date() } });
-    await tx.admin.update({ where: { id: inv.accountId }, data: { plan: inv.plan, planExpiresAt: inv.periodEnd } });
+    await tx.account.update({ where: { id: inv.accountId }, data: { plan: inv.plan, planExpiresAt: inv.periodEnd } });
     return inv;
   });
 }

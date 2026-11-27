@@ -20,7 +20,7 @@ type Project = { id: string; query: string };
 
 /** Projects with keywords and their full-text query (the same one the source database uses for captions). */
 async function keywordProjects(): Promise<Project[]> {
-  const keys = await prisma.apiKey.findMany({ where: { revokedAt: null }, select: { id: true, keywords: true } });
+  const keys = await prisma.project.findMany({ where: { revokedAt: null }, select: { id: true, keywords: true } });
   return keys.map((k) => ({ id: k.id, query: keywordQuery(k.keywords) })).filter((p) => p.query);
 }
 

@@ -20,9 +20,9 @@ export const classifierKeyHint = (c: { providerKind: string; providerKeyHint: st
 
 /** When that key was first recorded paying for this project's tokens; earlier balances belong to another key. Null if never.
  *  shortcut: keyHint is only recorded since 16 Nov 2026, so even a key that never changed shows balances from that date. */
-export async function keySince(apiKeyId: string, hint: string | null) {
+export async function keySince(projectId: string, hint: string | null) {
   if (!hint) return null;
-  const row = await prisma.tokenUsage.findFirst({ where: { apiKeyId, keyHint: hint }, orderBy: { hour: "asc" }, select: { hour: true } });
+  const row = await prisma.tokenUsage.findFirst({ where: { projectId, keyHint: hint }, orderBy: { hour: "asc" }, select: { hour: true } });
   return row?.hour ?? null;
 }
 
@@ -40,24 +40,3 @@ export function platformProvider(tier: string): ProviderConfig | null {
 
 export const NOT_CONFIGURED = "Signalbase AI belum diaktifkan di server. Hubungi admin.";
 
-/** Current month in Jakarta, YYYY-MM. */
-export const monthKey = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }).slice(0, 7);
-
-/** First day of the current month in Jakarta, as a Date. */
-function monthStart() {
-  return new Date(`${monthKey()}-01T00:00:00+07:00`);
-}
-
-/** This month's Signalbase AI quota for an account: the plan's posts plus paid top-ups; null = unlimited. */
-export async function aiQuota(ownerId: string, planPosts: number | null) {
-  if (planPosts === null) return null;
-  const credit = await prisma.aiCredit.findUnique({ where: { accountId_month: { accountId: ownerId, month: monthKey() } }, select: { posts: true } });
-  return planPosts + (credit?.posts ?? 0);
-}
-
-/** Posts labelled by Signalbase AI this month for all keys of an account (manual corrections not counted). */
-export function platformPostsThisMonth(ownerId: string) {
-  return prisma.classification.count({
-    where: { manual: false, createdAt: { gte: monthStart() }, apiKey: { ownerId, classifier: { providerKind: "signalbase" } } },
-  });
-}

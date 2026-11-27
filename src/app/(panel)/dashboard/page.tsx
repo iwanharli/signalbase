@@ -1,9 +1,11 @@
 import { Overview } from "@/components/overview/Overview";
 import { getSession } from "@/lib/server/auth";
+import { clientToProject } from "@/lib/server/projectPages";
 import { roleOf } from "@/lib/session";
 
-// Admins: the whole bank (or one key with ?key=). Users: their own keys, or onboarding when they have none.
-export default async function Page() {
+/** Whole bank (staff). Clients go to the Beranda of their first project (/projects/<id>), or see onboarding without one. */
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getSession();
-  return <Overview name={session?.name ?? ""} role={session ? roleOf(session) : "admin"} />;
+  const page = <Overview name={session?.name ?? ""} role={session ? roleOf(session) : "admin"} />;
+  return (await clientToProject("/dashboard", await searchParams, null, undefined, page)) ?? page;
 }

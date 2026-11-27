@@ -29,7 +29,7 @@ export function MediaWorkerAlert() {
   if (!problem) return null;
   return (
     <Tooltip label={`${problem}. Klik untuk melihat status.`} withArrow openDelay={150}>
-      <Link href="/analisis/media" className={`${classes.iconLink} ${classes.alertLink}`} aria-label={problem}><IconPhotoExclamation size={18} stroke={1.8} /></Link>
+      <Link href="/analysis/media" className={`${classes.iconLink} ${classes.alertLink}`} aria-label={problem}><IconPhotoExclamation size={18} stroke={1.8} /></Link>
     </Tooltip>
   );
 }

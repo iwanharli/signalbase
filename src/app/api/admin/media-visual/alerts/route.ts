@@ -16,7 +16,7 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const opts = ALERT_DAYS.includes(days as (typeof ALERT_DAYS)[number]) ? { hours: days * 24, perKind: ALERTS_PAGE_PER_KIND } : {};
   try {
     if (user.role !== "user") return NextResponse.json({ alerts: await mediaAlerts(null, opts), keyId: null });
-    const keys = await prisma.apiKey.findMany({ where: { ...visibleKeys(user.id), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } });
+    const keys = await prisma.project.findMany({ where: { ...visibleKeys(user.id), revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true } });
     const ids = keys.map((k) => k.id);
     return NextResponse.json({ alerts: await mediaAlerts(ids, opts), keyId: ids[0] ?? null });
   } catch (e) {

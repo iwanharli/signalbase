@@ -9,7 +9,7 @@ const PROJECTS = [{ name: "Polisi", keywords: ["polisi"] }];
 const prisma = new PrismaClient();
 async function main() {
   for (const { name, keywords } of PROJECTS) {
-    if (await prisma.apiKey.findFirst({ where: { name, revokedAt: null } })) { console.log(`Dilewati (sudah ada): ${name}`); continue; }
+    if (await prisma.project.findFirst({ where: { name, revokedAt: null } })) { console.log(`Dilewati (sudah ada): ${name}`); continue; }
     const { prefix } = await createKey(name, keyScopeSchema.parse({ keywords }), "seed");
     console.log(`Proyek dibuat: ${name} (${prefix}••••)`);
   }

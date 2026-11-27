@@ -1,4 +1,4 @@
-// Public Integrasi page (/integrasi): everything a developer needs to judge and start with the API.
+// Public Integrasi page (/integration): everything a developer needs to judge and start with the API.
 // Endpoints, parameters, fields and errors come from src/lib/media/apiReference.ts, shared with the panel docs.
 import Link from "next/link";
 import {

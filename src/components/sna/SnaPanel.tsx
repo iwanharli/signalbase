@@ -8,6 +8,7 @@ import { formatNumber, sourceLabel } from "@/lib/media/labels";
 import { ACCOUNT_LABEL, dominantTone, nodeCounts, TONE_COLOR, TONE_LABEL, toneOf, type SnaAccount, type SnaGraph, type SnaNode, type SnaRole, type Tone } from "@/lib/sna";
 import { useApi } from "@/lib/useApi";
 import { fromNow } from "@/lib/dates";
+import { projectPath } from "@/lib/activeProject";
 import classes from "./sna.module.css";
 
 const TONES: Tone[] = ["negative", "neutral", "positive", "unknown"];
@@ -33,13 +34,13 @@ export function SnaPanel({ node, graph, days, keyId, filter = "", authors = fals
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const account = useApi<SnaAccount>(`/api/admin/sna/account?username=${encodeURIComponent(node.id)}&role=${role}&days=${days}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}${filter}`);
+  const account = useApi<SnaAccount>(`/api/admin/sna/account?username=${encodeURIComponent(node.id)}&role=${role}&days=${days}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}${filter}`);
   const counts = nodeCounts(graph.links, node.id, role);
   const total = TONES.reduce((n, t) => n + counts[t], 0) || 1;
   const related = graph.links.filter((l) => (role !== "child" ? l.source : l.target) === node.id).sort((a, b) => b.n - a.n);
   const buckets = account.data?.buckets ?? [];
   const peak = Math.max(1, ...buckets.map((b) => b.n));
-  const mediaHref = `/media/social?q=${encodeURIComponent(node.id)}${keyId ? `&key=${encodeURIComponent(keyId)}` : ""}`;
+  const mediaHref = `${projectPath(keyId, "/media/social")}?q=${encodeURIComponent(node.id)}`;
 
   return (
     <aside className={classes.panel} aria-label={`Detail @${node.id}`}>

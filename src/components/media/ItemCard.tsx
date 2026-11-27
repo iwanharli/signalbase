@@ -14,7 +14,7 @@ import { ManualLabelPicker } from "./ManualLabel";
 import { PostText } from "./PostText";
 import { PlatformIcon } from "./PlatformIcon";
 import { PostTypeBadge } from "./PostTypeBadge";
-import { SourceLink } from "./SourceLink";
+import { ProfileLink, SourceLink } from "./SourceLink";
 import classes from "./card.module.css";
 
 const MAX_CARD_TAGS = 3;
@@ -74,6 +74,7 @@ export function CardFooter({ item, type, onOpen, children, notice }: { item: Med
         {notice}
       </div>
       <div className={classes.footerActions}>
+        {type === "social" && <ProfileLink item={item} />}
         <SourceLink item={item} type={type} />
         <button type="button" className={classes.detailHint} aria-label={`Lihat detail: ${item.title || item.content?.slice(0, 100) || sourceLabel(item.source)}`} onClick={(event) => { event.stopPropagation(); onOpen(item); }}>Detail <IconArrowRight size={13} aria-hidden /></button>
       </div>

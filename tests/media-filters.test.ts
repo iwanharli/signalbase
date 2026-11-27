@@ -38,24 +38,25 @@ test("online image restriction survives a shared URL", () => {
   assert.deepEqual(filtersFromSearchParams(browserFilterParams(filters, "online"), "online"), filters);
 });
 
-test("the viewed project survives a shared URL as ?key= and is not counted as a filter", () => {
-  const filters = { ...defaultFilters("social"), key: "k1" };
-  assert.deepEqual(filtersFromSearchParams(browserFilterParams(filters, "social"), "social"), filters);
-  assert.equal(toSearchParams(filters).get("key"), "k1");
+test("the viewed project goes to the API but not into the browser URL, and is not counted as a filter", () => {
+  const filters = { ...defaultFilters("social"), project: "k1" };
+  assert.deepEqual(filtersFromSearchParams(browserFilterParams(filters, "social"), "social"), { ...filters, project: null });
+  assert.equal(toSearchParams(filters).get("project"), "k1");
   assert.equal(countAdvanced(filters, "social"), 0);
 });
 
 test("switching project drops its label and AI category; an applied draft keeps what it names", () => {
-  const current = { ...defaultFilters("social"), key: "k1", manualLabel: "Hoaks", aiCategory: "QW3" };
-  const switched = applyRules({ ...current, key: "k2" }, { key: "k2" });
-  assert.deepEqual([switched.key, switched.manualLabel, switched.aiCategory], ["k2", null, null]);
+  const current = { ...defaultFilters("social"), project: "k1", manualLabel: "Hoaks", aiCategory: "QW3" };
+  const switched = applyRules({ ...current, project: "k2" }, { project: "k2" });
+  assert.deepEqual([switched.project, switched.manualLabel, switched.aiCategory], ["k2", null, null]);
   assert.equal(applyRules(current, current).manualLabel, "Hoaks");
 });
 
 test("default filters stay out of the browser URL, and every non-default choice survives a reload", () => {
   for (const type of ["social", "online"] as const) {
     assert.equal(browserFilterParams(defaultFilters(type), type).toString(), "");
-    assert.equal(browserFilterParams({ ...defaultFilters(type), key: "k1" }, type).toString(), "key=k1");
+    assert.equal(browserFilterParams({ ...defaultFilters(type), project: "k1" }, type).toString(), "", "the project is in the path");
+    assert.equal(toSearchParams({ ...defaultFilters(type), project: "k1" }).get("project"), "k1", "API requests name it");
   }
   assert.equal(browserFilterParams({ ...defaultFilters("social"), analyzed: "", relevance: "" }, "social").toString(), "analyzed=&relevance=");
   for (const patch of [{ sort: "oldest" }, { analyzed: "no" }, { analyzed: "" }, { relevance: "exclude" }, { relevance: "" }] as const) {
@@ -65,10 +66,10 @@ test("default filters stay out of the browser URL, and every non-default choice 
 });
 
 test("saved filters: defaults save nothing, the project is not part of them, and choices restore", () => {
-  assert.equal(savedFilterValue({ ...defaultFilters("social"), key: "k1" }, "social"), "");
-  const filters = { ...defaultFilters("social"), key: "k1", search: "polisi", sort: "oldest" as const, relevance: "" as const, from: "2026-01-02", to: "2026-01-09" };
+  assert.equal(savedFilterValue({ ...defaultFilters("social"), project: "k1" }, "social"), "");
+  const filters = { ...defaultFilters("social"), project: "k1", search: "polisi", sort: "oldest" as const, relevance: "" as const, from: "2026-01-02", to: "2026-01-09" };
   const restored = filtersFromSearchParams(savedFilterParams(savedFilterValue(filters, "social"), "social"), "social");
-  assert.deepEqual(restored, { ...filters, key: null });
+  assert.deepEqual(restored, { ...filters, project: null });
 });
 
 test("saved filters: a quick range is saved as its length and restored relative to today", () => {

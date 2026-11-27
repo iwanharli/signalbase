@@ -28,7 +28,7 @@ export function InvoiceAdmin({ accounts, onPlanChanged }: { accounts: Account[];
     setBusy(inv.id);
     try {
       await post(`/api/admin/billing/${inv.id}`, { action }, "PATCH");
-      notifications.show({ color: action === "paid" ? "teal" : "orange", message: action === "paid" ? `${inv.number} lunas; masa akses klien diperpanjang` : `${inv.number} dibatalkan` });
+      notifications.show({ color: action === "paid" ? "teal" : "orange", message: action === "paid" ? `${inv.number} lunas; masa akses instansi diperpanjang` : `${inv.number} dibatalkan` });
       list.reload();
       if (action === "paid") onPlanChanged();
     } catch (err) {
@@ -67,7 +67,7 @@ export function InvoiceAdmin({ accounts, onPlanChanged }: { accounts: Account[];
 
       {creating && (
         <div className={classes.form}>
-          <Select label="Klien" searchable placeholder="Pilih klien" value={accountId} onChange={setAccountId}
+          <Select label="Instansi" searchable placeholder="Pilih instansi" value={accountId} onChange={setAccountId}
             data={accounts.filter((a) => a.status !== "pending").map((a) => ({ value: a.id, label: `${a.name} (@${a.username})` }))} />
           <Select label="Periode" value={billing} onChange={(v) => v && setBilling(v as Billing)} data={BILLINGS.map((b) => ({ value: b, label: BILLING_LABEL[b] }))} />
           <NumberInput label="Harga per bulan (Rp)" value={custom} onChange={setCustom} min={100_000} step={500_000} thousandSeparator="." decimalSeparator="," />

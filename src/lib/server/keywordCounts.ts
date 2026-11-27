@@ -35,7 +35,7 @@ async function countType(type: MediaType, scope: KeyScope, from: string) {
 
 /** null when the project does not exist. */
 export async function keywordCounts(id: string, days: number): Promise<KeywordCounts | null> {
-  const key = await prisma.apiKey.findUnique({ where: { id }, select: { scope: true, keywords: true } });
+  const key = await prisma.project.findUnique({ where: { id }, select: { scope: true, keywords: true } });
   if (!key) return null;
   const scope = parseKeyScope(key.scope, key.keywords);
   const from = fromDay(days);

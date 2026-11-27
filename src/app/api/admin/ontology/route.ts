@@ -6,7 +6,7 @@ import { ontologyIssues } from "@/lib/server/bank/ontology";
 import { projectIssues } from "@/lib/server/issueClusters/ews";
 import { overviewView } from "@/lib/server/overviewKey";
 
-// Ontologi and EWS pages: ?days=1|3|7|14|30[&key=]. Same key rules as /api/admin/sna. With a project: its own issues,
+// Ontologi and EWS pages: ?days=1|3|7|14|30[&project=]. Same key rules as /api/admin/sna. With a project: its own issues,
 // clustered from its posts (server/issueClusters); without: the bank's early-warning alerts.
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const days = parseOntDays(new URL(req.url).searchParams.get("days"));

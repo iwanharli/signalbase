@@ -14,6 +14,7 @@ import { MEDIA_TYPES, type MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
 import { BalanceCard } from "../aiUsage/BalanceCard";
 import { ClassifierEditor, draftProblems, emptyDraft, estimateUrl, money, type ClassifierDraft, type Estimate } from "./ClassifierEditor";
+import { projectSettingsPath } from "@/lib/activeProject";
 import classes from "./projectClassifier.module.css";
 import { RestartConfirm, type RestartRequest } from "./RestartConfirm";
 import { ReviewPanel } from "./ReviewPanel";
@@ -147,7 +148,7 @@ function ProgressSkeleton() {
  * panel. Shown on the project page under the Kategorisasi AI card; refreshes while open. Nothing unless it is switched on.
  */
 export function ClassifierResults({ keyId }: { keyId: string }) {
-  const data = useApi<Response>(`/api/admin/keys/${keyId}/classifier`);
+  const data = useApi<Response>(`/api/admin/projects/${keyId}/classifier`);
   const reload = data.reload;
   useEffect(() => {
     const timer = setInterval(reload, REFRESH_MS);
@@ -172,9 +173,9 @@ export function ClassifierResults({ keyId }: { keyId: string }) {
   );
 }
 
-/** /project/[id]/ai — set up AI categorisation for an existing key and watch its progress. */
+/** /projects/[id]/settings/ai — set up AI categorisation for an existing key and watch its progress. */
 export function ProjectClassifier({ keyId }: { keyId: string }) {
-  const data = useApi<Response>(`/api/admin/keys/${keyId}/classifier`);
+  const data = useApi<Response>(`/api/admin/projects/${keyId}/classifier`);
   const [draft, setDraft] = useState<ClassifierDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [restart, setRestart] = useState<RestartRequest | null>(null);
@@ -221,7 +222,7 @@ export function ProjectClassifier({ keyId }: { keyId: string }) {
     const stored = data.data?.classifier;
     setBusy(true);
     try {
-      await post(`/api/admin/keys/${keyId}/classifier`, next, "PUT");
+      await post(`/api/admin/projects/${keyId}/classifier`, next, "PUT");
       setDraft(next);
       const title = stored ? "Pengaturan disimpan" : "Kategorisasi AI diaktifkan";
       const id = notifications.show({ color: "teal", title, message: "Menghitung data yang akan dikategorikan…", loading: true, autoClose: false });
@@ -244,7 +245,7 @@ export function ProjectClassifier({ keyId }: { keyId: string }) {
   const remove = async () => {
     setBusy(true);
     try {
-      await api(`/api/admin/keys/${keyId}/classifier`, { method: "DELETE" });
+      await api(`/api/admin/projects/${keyId}/classifier`, { method: "DELETE" });
       setDraft(emptyDraft());
       data.reload();
     } finally {
@@ -263,7 +264,7 @@ export function ProjectClassifier({ keyId }: { keyId: string }) {
       <ConfirmDialog opened={confirmRemove} onClose={() => setConfirmRemove(false)} onConfirm={remove} loading={busy} icon={IconTrash}
         title="Matikan kategorisasi AI?" confirmLabel="Matikan & hapus"
         description={<>Semua hasil kategorisasi untuk proyek ini ({formatNumber(data.data?.counts.reduce((sum, c) => sum + c.n, 0) ?? 0)} item) dihapus dan pengaturan penyedia AI dilepas. Data di bank sumber tidak berubah.</>} />
-      <Link href={`/project/${keyId}`} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail proyek"}</Link>
+      <Link href={projectSettingsPath(keyId)} className={classes.back}><IconArrowLeft size={16} />{key?.name ?? "Detail proyek"}</Link>
       <header className={classes.title}>
         <span className={classes.icon}><IconRobot size={22} /></span>
         <div>
@@ -281,13 +282,13 @@ export function ProjectClassifier({ keyId }: { keyId: string }) {
       {key?.revokedAt && <div className={classes.error}><IconAlertTriangle size={16} />Proyek ini sudah dicabut, kategorisasi tidak berjalan.</div>}
 
       {/* Progress and review live on the project page (Kategorisasi AI tab, ClassifierResults); this page is the settings. */}
-      {state?.enabled && <Link href={`/project/${keyId}?tab=ai`} className={classes.resultsLink}><IconChartBar size={15} />Lihat progres dan hasil kategorisasi</Link>}
+      {state?.enabled && <Link href={`${projectSettingsPath(keyId)}?tab=ai`} className={classes.resultsLink}><IconChartBar size={15} />Lihat progres dan hasil kategorisasi</Link>}
 
       <div className={classes.layout} data-single={state ? true : undefined}>
         <section className={classes.editorCard}>
           {!draft ? <EditorSkeleton /> : (
             <>
-              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} fallbackKeyHint={state?.fallback?.apiKeyHint} apiKeyId={keyId} types={types} />
+              <ClassifierEditor draft={draft} onChange={setDraft} storedKeyHint={state?.provider.apiKeyHint} fallbackKeyHint={state?.fallback?.apiKeyHint} projectId={keyId} types={types} />
               <footer className={classes.actions}>
                 {state && (
                   <>

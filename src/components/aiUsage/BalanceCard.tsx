@@ -18,7 +18,7 @@ const money = (amount: number, currency: string) => {
 
 /** `onDark` for dark panels. Balance is fetched live when shown and on refresh. */
 export function BalanceCard({ keyId, onDark, compact }: { keyId: string; onDark?: boolean; compact?: boolean }) {
-  const balance = useApi<Balance>(`/api/admin/keys/${keyId}/classifier/balance`);
+  const balance = useApi<Balance>(`/api/admin/projects/${keyId}/classifier/balance`);
   const data = balance.data;
   const refresh = (
     <Button size="sm" variant="subtle" onDark={onDark} iconOnly icon={IconRefresh} onClick={balance.reload} loading={balance.loading}>Perbarui saldo</Button>

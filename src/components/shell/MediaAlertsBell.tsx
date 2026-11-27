@@ -74,7 +74,7 @@ export function MediaAlertsBell() {
             })}
           </ul>
         )}
-        <Link href="/notifikasi" className={classes.alertsAll} onClick={() => setOpen(false)}>Lihat semua notifikasi<IconArrowRight size={14} aria-hidden /></Link>
+        <Link href="/notifications" className={classes.alertsAll} onClick={() => setOpen(false)}>Lihat semua notifikasi<IconArrowRight size={14} aria-hidden /></Link>
       </Popover.Dropdown>
     </Popover>
   );

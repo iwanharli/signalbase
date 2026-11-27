@@ -2,13 +2,12 @@
 import { isExpired, limitsFor, type PlanLimits } from "../plans";
 import { prisma } from "./db";
 
-/** demo: a demo account (or a sub-account of one): billing is hidden from it. */
-export type AccountPlan = { plan: string | null; expiresAt: Date | null; expired: boolean; limits: PlanLimits; demo: boolean };
+export type AccountPlan = { plan: string | null; expiresAt: Date | null; expired: boolean; limits: PlanLimits };
 
 /** The subscription an account works under. */
 export async function accountPlan(accountId: string): Promise<AccountPlan> {
-  const a = await prisma.admin.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true, demo: true } });
-  return { plan: a?.plan ?? null, expiresAt: a?.planExpiresAt ?? null, expired: isExpired(a?.planExpiresAt), limits: limitsFor(a?.plan), demo: !!a?.demo };
+  const a = await prisma.account.findUnique({ where: { id: accountId }, select: { plan: true, planExpiresAt: true } });
+  return { plan: a?.plan ?? null, expiresAt: a?.planExpiresAt ?? null, expired: isExpired(a?.planExpiresAt), limits: limitsFor(a?.plan) };
 }
 
 /** Message shown to a client whose subscription has ended (no prices: money matters are handled by admins). */

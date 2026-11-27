@@ -48,17 +48,17 @@ Signalbase **tidak menyalin** data media: setiap permintaan membaca database sum
   - **modal detail** per item: teks lengkap, analisis AI (ringkasan, target, skor emosi, sinyal/topik, faktor, relevansi), kategori, lokasi, tautan sumber;
   - **bar statistik** menempel di bawah topbar: total pasti, jumlah ditampilkan, rentang, status analisis, bahasa, sumber, dan sebaran emosi/sentimen yang bisa diklik sebagai filter;
   - **filter cepat**: pencarian (tekan `/`; `polisi or polri` atau `polisi | polri` = salah satu kata, kata dalam satu alternatif harus muncul semua; query dikirim 1 detik setelah berhenti mengetik, 2 detik bila teks masih kurang dari 4 karakter), rentang 24 jam / 7 / 30 hari / semua, urutan terbaru/terlama;
-  - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi. Pilihan **Proyek / Isu** membuka halaman sebagai proyek itu (`?key=<id>`: seluruh cakupan, label manual, kategori AI);
-  - **filter tersimpan** di browser per jenis media dan proyek, tetap setelah muat ulang; alamat hanya memuat `?key=`. Tombol merah **Reset filter** (juga “Reset ke awal”) mengembalikan bawaan tanpa melepas proyek.
-- **SNA** (`/analisis/sna`) — graf jaringan d3: akun top poster (pilih maks. 25/50/100/200) ↔ akun yang mereka sebut, garis dan ikon berwarna menurut emosi post; rentang 1/3/7 hari; klik node membuka panel (ringkasan, postingan, mention); legenda dengan toggle emosi, kunci graf, layar penuh.
-- **Ontologi** (`/analisis/ontologi`) — graf d3 isu EWS (tabel `alerts`) ↔ aktor/target, tampilan sama dengan SNA; filter proyek berdasarkan kata kunci di aktor/target.
+  - **filter lanjutan** (drawer kiri): status analisis, relevansi AI, emosi/sentimen, intensitas minimal, platform/media, kategori, jenis post, bahasa, hanya bergambar, rentang tanggal, provinsi. Pilihan **Proyek / Isu** membuka halaman sebagai proyek itu (`/projects/<id>/…`: seluruh cakupan, label manual, kategori AI);
+  - **filter tersimpan** di browser per jenis media dan proyek, tetap setelah muat ulang; alamat hanya memuat path proyek (`/projects/<id>/…`). Tombol merah **Reset filter** (juga “Reset ke awal”) mengembalikan bawaan tanpa melepas proyek.
+- **SNA** (`/analysis/sna`) — graf jaringan d3: akun top poster (pilih maks. 25/50/100/200) ↔ akun yang mereka sebut, garis dan ikon berwarna menurut emosi post; rentang 1/3/7 hari; klik node membuka panel (ringkasan, postingan, mention); legenda dengan toggle emosi, kunci graf, layar penuh.
+- **Ontologi** (`/analysis/ontology`) — graf d3 isu EWS (tabel `alerts`) ↔ aktor/target, tampilan sama dengan SNA; filter proyek berdasarkan kata kunci di aktor/target.
 - **Command Center** (`/command-center`) — rangkuman Ringkasan dalam satu layar tanpa scroll, latar bola dunia Mapbox (`MAPBOX_TOKEN`), kartu kaca, dengan grafik sederhana (donat emosi/sentimen, garis volume, tiga cincin perbandingan dengan periode sebelumnya, batang kata kunci dan isu); segar otomatis tiap 60 detik, bisa layar penuh.
-- **Isu** (`/isu`, submenu **Isu Media Online** dan **Isu EWS Sosmed** (`/isu/ews`, alert dari tabel `alerts`)) — berita online yang sejenis dikelompokkan menjadi isu dan diurutkan dari yang paling ramai:
+- **Isu** (`/issues/media-online`, submenu **Isu Media Online** dan **Isu Media Sosial** (`/issues/media-social`, alert dari tabel `alerts`)) — berita online yang sejenis dikelompokkan menjadi isu dan diurutkan dari yang paling ramai:
   - periode 3 hari, 7 hari (bawaan), 14 hari, atau 1 bulan; daftar peringkat berskor di kiri, berita di balik isu terpilih di kanan (kartu bergambar per hari, saring per sumber, *Sebelumnya/Berikutnya*, pintasan `↑` `↓` `j` `k` `/`);
   - *Isu Polisi* hanya memuat isu yang judulnya mengandung `polisi`, `polri`, atau `polda` (daftar kata di `ISSUE_TOPICS`, `src/lib/issues.ts`);
   - isu spam (zodiak, iklan, harga emas, emas antam, dll.) dilewati (`SPAM_TERMS` di berkas yang sama);
   - akun user hanya melihat isu yang judulnya cocok dengan kata kunci proyek yang dipilih.
-- **Laporan eksekutif** — tombol "Laporan eksekutif" di Ringkasan membuka halaman A4 `/laporan` dengan tombol Download PDF (langsung terunduh, dibuat di browser) dan Cetak (1/3/7 hari, Untuk, Sifat). Sumber data bisa semua (admin) / semua proyek saya (user) atau satu proyek. Memuat juga peringatan dini, isu media online, engagement/hashtag, dan aktor/target/wilayah isu EWS. Data: `GET /api/admin/report`.
+- **Laporan eksekutif** — tombol "Laporan eksekutif" di Ringkasan membuka halaman A4 `/report` dengan tombol Download PDF (langsung terunduh, dibuat di browser) dan Cetak (1/3/7 hari, Untuk, Sifat). Sumber data bisa semua (admin) / semua proyek saya (user) atau satu proyek. Memuat juga peringatan dini, isu media online, engagement/hashtag, dan aktor/target/wilayah isu EWS. Data: `GET /api/admin/report`.
 - **Kunci API** — buat kunci (ditampilkan sekali), batasi dengan kata kunci, cabut, lihat terakhir dipakai.
 - **Dokumentasi API** — referensi endpoint di dalam panel.
 
@@ -130,12 +130,12 @@ Kuota per paket ada di `src/lib/plans.ts` (`aiPostsPerMonth`). Tanpa variabel in
 cp .env.example .env          # lalu isi nilainya (lihat tabel di bawah)
 createdb signalbase
 npm install
-npx prisma db push            # buat tabel Admin & ApiKey
+npx prisma db push            # buat tabel (Account, Project, …)
 npm run db:seed               # buat admin pertama dari ADMIN_USERNAME / ADMIN_PASSWORD
 npm run dev                   # http://localhost:3100
 ```
 
-> Seed hanya membuat admin bila tabel admin masih kosong. Untuk mengganti password admin yang sudah ada, perbarui `passwordHash` (bcrypt) di tabel `Admin`.
+> Seed hanya membuat admin bila tabel admin masih kosong. Untuk mengganti password admin yang sudah ada, perbarui `passwordHash` (bcrypt) di tabel `Account`.
 
 ---
 
@@ -181,23 +181,23 @@ npm run dev                   # http://localhost:3100
 | Login | `/login` | Satu halaman masuk untuk admin dan user. 5 kali gagal per 15 menit → dikunci sementara. |
 | Daftar | `/register` | Pendaftaran mandiri, selalu role **user** dan menunggu persetujuan admin sebelum bisa masuk. User hanya melihat media lewat kunci API miliknya (wajib keyword), tanpa Ringkasan bank. |
 | Beranda publik | `/` | Hero, pratinjau panel interaktif, sumber data, kartu menuju halaman detail. |
-| Fitur · Integrasi · Solusi · FAQ | `/fitur` `/integrasi` `/solusi` `/faq` | Halaman publik terpisah; satu layout (navbar, footer) di `src/app/(public)/layout.tsx`, teks di `src/components/landing/content.ts`. |
+| Fitur · Integrasi · Solusi · FAQ | `/features` `/integration` `/solutions` `/faq` | Halaman publik terpisah; satu layout (navbar, footer) di `src/app/(public)/layout.tsx`, teks di `src/components/landing/content.ts`. |
 | Harga | `/pricing` | Paket Coba, Starter, Pro, Instansi (bulanan/tahunan) dan tabel perbandingan. Isi di `src/components/pricing/plans.ts`; batas paket (proyek, keyword, panggilan harian, kuota AI, masa aktif) ditegakkan di `src/lib/plans.ts`. |
 | Product knowledge | `/signalbase-product-knowledge.pdf` | Brosur PDF 9 halaman dari data website yang sama. Setelah mengubah `content.ts` atau `plans.ts`, jalankan `npm run brochure` lalu commit PDF-nya. |
 | Ringkasan | `/dashboard` | Statistik bank 7/14 hari, sinyal terbaru, aplikasi terhubung. |
-| Media Sosial | `/media/social` | Jelajah post (`?key=<id>` = lewat proyek). Link berfilter seperti `?mood=marah` diterapkan dan disimpan, lalu URL dibersihkan. |
+| Media Sosial | `/media/social` | Jelajah post (`/projects/<id>/media/social` = lewat proyek). Link berfilter seperti `?mood=marah` diterapkan dan disimpan, lalu URL dibersihkan. |
 | Media Online | `/media/online` | Jelajah berita. |
-| Command Center | `/command-center` | Ringkasan satu layar dari data Ringkasan + Isu (`?key=<id>` untuk admin melihat satu proyek). Grafik Chart.js di `src/components/commandCenter/`. Logo/atribusi Mapbox di pojok peta disembunyikan lewat CSS demi tampilan; ketentuan Mapbox meminta atribusi tetap tampil, jadi pertimbangkan menampilkannya lagi (hapus aturan `.stage :global(.mapboxgl-ctrl-bottom-left)` di `commandCenter.module.css`) atau mencantumkan "© Mapbox © OpenStreetMap" di tempat lain. |
-| SNA | `/analisis/sna` | Graf d3 (`src/components/sna/`); data dari `GET /api/admin/sna?days=1\|3\|7&limit=25\|50\|100\|200[&key=]` dan `GET /api/admin/sna/account?username=&role=hub\|child&days=[&key=]` untuk panel (`src/lib/server/bank/sna.ts`, tabel `post_main` + `post_mentioned`). |
-| Ontologi | `/analisis/ontologi` | Graf d3 isu (alert EWS, tabel `alerts`) ↔ aktor/target (`src/components/ontologi/`); data dari `GET /api/admin/ontologi?days=1\|3\|7\|14\|30[&key=]` (`src/lib/server/bank/ontologi.ts`). Filter proyek: aktor/target mengandung kata kunci. |
-| Isu Media Online | `/isu` | Isu berita periode `?days=` (3, 7, 14, 30), dipilih lewat `?issue=<id>`. Akun user wajib lewat proyek (`?key=<id>`, otomatis dipilih) yang mencakup media online. |
-| Isu Polisi (tanpa menu) | `/isu?topik=polisi` | Sama dengan Isu Media Online, tetapi hanya isu berjudul polisi/polri/polda; masih bisa dibuka lewat URL. |
-| Isu EWS Sosmed | `/isu/ews` | Alert EWS dari tabel `alerts` (`src/components/ews/`), data dari `GET /api/admin/ontologi?days=1\|3\|7\|14\|30[&key=]`; tata letak sama dengan Isu Media Online. Filter proyek: aktor/target mengandung kata kunci. |
+| Command Center | `/command-center` | Ringkasan satu layar dari data Ringkasan + Isu (`/projects/<id>/command-center` = satu proyek). Grafik Chart.js di `src/components/commandCenter/`. Logo/atribusi Mapbox di pojok peta disembunyikan lewat CSS demi tampilan; ketentuan Mapbox meminta atribusi tetap tampil, jadi pertimbangkan menampilkannya lagi (hapus aturan `.stage :global(.mapboxgl-ctrl-bottom-left)` di `commandCenter.module.css`) atau mencantumkan "© Mapbox © OpenStreetMap" di tempat lain. |
+| SNA | `/analysis/sna` | Graf d3 (`src/components/sna/`); data dari `GET /api/admin/sna?days=1\|3\|7&limit=25\|50\|100\|200[&project=]` dan `GET /api/admin/sna/account?username=&role=hub\|child&days=[&project=]` untuk panel (`src/lib/server/bank/sna.ts`, tabel `post_main` + `post_mentioned`). |
+| Ontologi | `/analysis/ontology` | Graf d3 isu (alert EWS, tabel `alerts`) ↔ aktor/target (`src/components/ontology/`); data dari `GET /api/admin/ontology?days=1\|3\|7\|14\|30[&project=]` (`src/lib/server/bank/ontologi.ts`). Filter proyek: aktor/target mengandung kata kunci. |
+| Isu Media Online | `/issues/media-online` | Isu berita periode `?days=` (3, 7, 14, 30), dipilih lewat `?issue=<id>`. Akun user wajib lewat proyek (`/projects/<id>/issues/media-online`, otomatis dipilih) yang mencakup media online. |
+| Isu Polisi (tanpa menu) | `/issues/media-online?topik=polisi` | Sama dengan Isu Media Online, tetapi hanya isu berjudul polisi/polri/polda; masih bisa dibuka lewat URL. |
+| Isu Media Sosial | `/issues/media-social` | Alert EWS dari tabel `alerts` (`src/components/issues/SocialIssues.tsx`), data dari `GET /api/admin/ontology?days=1\|3\|7\|14\|30[&project=]`; tata letak sama dengan Isu Media Online. Filter proyek: aktor/target mengandung kata kunci. |
 | Pengguna | `/users` | Khusus admin: setujui/tolak pendaftar, nonaktifkan atau aktifkan kembali akun user (kunci API akun nonaktif ditolak). |
-| Kunci API | `/project` | Daftar kunci: cakupan, terakhir dipakai, cabut. |
-| Buat kunci | `/project/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
-| Detail kunci | `/project/[id]` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
-| Kategorisasi AI kunci | `/project/[id]/ai` | Penyedia, prompt, kategori, progres, dan sebaran per kategori. |
+| Proyek | `/projects` | Daftar proyek: cakupan, terakhir dipakai, cabut. |
+| Buat proyek | `/projects/new` | Nama, kata kunci (diketik sendiri), dan parameter cakupan tetap: jenis media, status analisis, relevansi, bahasa, provinsi, kategori, intensitas min. Kunci ditampilkan sekali beserta contoh curl. |
+| Pengaturan proyek | `/projects/[id]/settings` | Ubah nama, kata kunci, dan parameter cakupan tanpa mengganti nilai kunci; ringkasan kategorisasi AI; cabut kunci. Mengubah cakupan mengulang kategorisasi AI kunci itu. |
+| Kategorisasi AI proyek | `/projects/[id]/settings/ai` | Penyedia, prompt, kategori, progres, dan sebaran per kategori. |
 | Dokumentasi API | `/docs` | Referensi API di dalam panel. |
 
 ### Aturan filter yang saling terkait
@@ -227,7 +227,7 @@ curl -H "Authorization: Bearer $SIGNALBASE_KEY" \
 
 ## Sumber data & pemetaan kolom
 
-**Isu** (halaman `/isu`) dibaca dari dua tabel tambahan di database sumber: `news_issues` (`id`, `title`, `label`, `score`, `status` `active`/`closed`, `first_seen_at`, `last_seen_at`) dan `news_issue_items` (`issue_id`, `news_code`), yang digabung dengan `news_main` lewat `news_code`. Kolom `news_issues.news_count` tidak sinkron dengan isi tabel item, jadi jumlah berita dihitung dari `news_issue_items`. Daftar dibatasi 200 isu teratas menurut `score`.
+**Isu** (halaman `/issues/media-online`) dibaca dari dua tabel tambahan di database sumber: `news_issues` (`id`, `title`, `label`, `score`, `status` `active`/`closed`, `first_seen_at`, `last_seen_at`) dan `news_issue_items` (`issue_id`, `news_code`), yang digabung dengan `news_main` lewat `news_code`. Kolom `news_issues.news_count` tidak sinkron dengan isi tabel item, jadi jumlah berita dihitung dari `news_issue_items`. Daftar dibatasi 200 isu teratas menurut `score`.
 
 | Field API | Media sosial (`post_main` p + `post_analyses` a) | Media online (`news_main` n + `news_analyses` a) |
 |---|---|---|
@@ -359,7 +359,8 @@ src/
 ├── middleware.ts                 Penjaga halaman panel & API admin
 └── theme.ts                      Tema Mantine
 prisma/
-├── schema.prisma                 Admin, ApiKey
+├── schema.prisma                 Model database (Account, Project, …)
+├── sql/                          SQL yang tidak bisa lewat db push (dijalankan deploy.sh)
 ├── seed.ts                       Admin pertama
 └── seed-projects.ts              Proyek contoh "Polisi" (tanpa AI)
 tests/                            Tes node:test (npm test)
@@ -377,7 +378,7 @@ tests/                            Tes node:test (npm test)
 ## Konvensi
 
 - Nama di kode (fungsi, variabel, tipe, class CSS) memakai **bahasa Inggris**; teks yang tampil ke pengguna memakai **bahasa Indonesia**.
-- Route dan nilai di URL/API juga berbahasa Inggris (`/media/social`, `/project`, `/docs`). URL lama (`/kunci-api`, `/dokumentasi`, `/media/sosial`) dialihkan otomatis, dan API v1 tetap menerima `sosial` sebagai alias `social`.
+- Route dan nilai di URL/API juga berbahasa Inggris (`/media/social`, `/projects`, `/docs`). URL lama (`/kunci-api`, `/dokumentasi`, `/media/sosial`) dialihkan otomatis, dan API v1 tetap menerima `sosial` sebagai alias `social`.
 - Satu komponen = satu file; CSS Modules per komponen. Kontrol dan bagian yang dipakai ulang ada di `controls.tsx` / `itemParts.tsx`.
 - Logika domain (aturan filter, pemetaan kolom, label) berada di `lib/`, bukan di komponen.
 - Sebelum commit: `npx tsc --noEmit && npm run lint`.
@@ -388,7 +389,7 @@ tests/                            Tes node:test (npm test)
 
 Setiap kunci API bisa diberi kategorisasi AI: setiap post/berita dalam cakupan kunci mendapat **satu kategori** (atau `none`) yang dikirim lewat API sebagai `classification`, bisa difilter dengan `aiCategory`, dan diringkas di `view=summary`.
 
-1. **Per kunci** — saat membuat kunci (`/project/new`, langkah *Kategorisasi AI*) atau dari halaman AI kunci (`/project/[id]/ai`): pilih penyedia (Claude lewat SDK resmi Anthropic, DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI `/chat/completions`), isi model dan **API key penyedia milik kunci itu sendiri**, lalu prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**). Setiap kunci bisa memakai penyedia dan API key AI yang berbeda.
+1. **Per kunci** — saat membuat kunci (`/projects/new`, langkah *Kategorisasi AI*) atau dari halaman AI kunci (`/projects/[id]/settings/ai`): pilih penyedia (Claude lewat SDK resmi Anthropic, DeepSeek, OpenAI, atau endpoint lain yang kompatibel OpenAI `/chat/completions`), isi model dan **API key penyedia milik kunci itu sendiri**, lalu prompt dan daftar kategori (ada preset **8 Quick Win Kapolri**). Setiap kunci bisa memakai penyedia dan API key AI yang berbeda.
 2. **Kredensial** — API key penyedia disimpan terenkripsi AES-256-GCM (kunci enkripsi diturunkan dari `AUTH_SECRET`; mengganti `AUTH_SECRET` berarti API key penyedia harus diisi ulang) dan tidak pernah dikembalikan ke browser, hanya empat karakter terakhirnya. Tombol *Uji koneksi* mengirim dua contoh teks memakai isian form (atau API key yang sudah tersimpan bila kolomnya dikosongkan).
 3. **Worker** — proses terpisah `npm run classifier` (PM2 `signalbase-classifier`). Tiap menit, untuk setiap kunci aktif: data baru lebih dulu, lalu mundur ke data lama sampai seluruh cakupan selesai. Item dikirim 20 per permintaan; progres disimpan sebagai cursor sehingga worker bisa dihentikan dan dilanjutkan kapan saja.
 
@@ -428,7 +429,7 @@ npm run classifier       # worker kategorisasi AI (PM2: pm2 start npm --name sig
 
 ## Catatan sementara (hardcode, jangan lupa)
 
-- **Proyek "slog" disembunyikan** dari filter proyek di `/isu/ews` saja (`/isu` tidak terpengaruh): proyek yang namanya mengandung kata `slog` (tanpa membedakan huruf besar/kecil) tidak muncul di dropdown. Hardcode di `isHiddenEwsProject` (`src/lib/issues.ts`); hanya menyembunyikan pilihan, bukan membatasi akses (URL `?key=<id>` tetap bisa dibuka). Ganti menjadi pengaturan per proyek bila perlu lebih dari satu.
+- **Proyek "slog" disembunyikan** dari filter proyek di `/issues/media-social` saja (`/issues/media-online` tidak terpengaruh): proyek yang namanya mengandung kata `slog` (tanpa membedakan huruf besar/kecil) tidak muncul di dropdown. Hardcode di `isHiddenEwsProject` (`src/lib/issues.ts`); hanya menyembunyikan pilihan, bukan membatasi akses (URL `/projects/<id>/…` tetap bisa dibuka). Ganti menjadi pengaturan per proyek bila perlu lebih dari satu.
 
 ## Pemecahan masalah
 

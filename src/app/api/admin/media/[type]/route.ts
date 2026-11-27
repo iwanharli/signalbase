@@ -17,7 +17,7 @@ const PAGE_SIZE = 24;
 
 type Context = { params: Promise<{ type: string }> };
 
-// Panel browser over the bank, optionally as seen through one API key (?key=).
+// Panel browser over the bank, optionally as seen through one API key (?project=).
 //   ?view=options → filter choices
 //   ?view=count   → exact total (slow, cached; fetched separately so the list isn't blocked)
 //   ?view=moods   → the mood breakdown (slow on broad scopes, cached; fetched separately for the same reason)
@@ -41,7 +41,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       query = clampHistory(query, plan.limits.historyDays);
     }
 
-    const resolved = await resolveScope(query.get("key"), user);
+    const resolved = await resolveScope(query.get("project"), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     const { keyId } = resolved;
     // A search also finds items whose image text matches it (media worker; nothing changes without ?q=).

@@ -7,7 +7,7 @@ import { overviewView } from "@/lib/server/overviewKey";
 
 const HISTORY_DAYS = 30;
 
-// Ringkasan AI of the scope the Ringkasan / Beranda page is looking through (same ?key= rules as /api/admin/stats).
+// Ringkasan AI of the scope the Ringkasan / Beranda page is looking through (same ?project= rules as /api/admin/stats).
 // Each summary covers one complete data day (normally yesterday). ?day=YYYY-MM-DD picks an earlier one (default: the newest).
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const view = await overviewView(req, user);

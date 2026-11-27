@@ -18,19 +18,19 @@ test("active client: approved, not suspended, access not expired (or unlimited)"
 });
 
 test("a project's AI is paused only when it has clients and none is active", () => {
-  assert.equal(aiPausedFor([]), false, "proyek tanpa klien mengikuti saklar admin");
+  assert.equal(aiPausedFor([]), false, "proyek tanpa instansi mengikuti saklar admin");
   assert.equal(aiPausedFor([ended]), true);
   assert.equal(aiPausedFor([ended, suspended]), true);
-  assert.equal(aiPausedFor([ended, active]), false, "satu klien aktif cukup");
+  assert.equal(aiPausedFor([ended, active]), false, "satu instansi aktif cukup");
   assert.equal(aiPausedFor([noEnd]), false);
 });
 
 test("clientMayWrite: clients may only correct labels and AI categories", async () => {
   const { clientMayWrite } = await import("../src/lib/server/auth");
-  assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/item-labels"));
-  assert.ok(clientMayWrite("PUT", "/api/admin/keys/abc/classifications"));
-  assert.ok(!clientMayWrite("POST", "/api/admin/keys/abc/item-labels"));
-  assert.ok(!clientMayWrite("PUT", "/api/admin/keys/abc/labels"));
-  assert.ok(!clientMayWrite("PATCH", "/api/admin/keys/abc"));
-  assert.ok(!clientMayWrite("PUT", "/api/admin/keys/abc/item-labels/x"));
+  assert.ok(clientMayWrite("PUT", "/api/admin/projects/abc/item-labels"));
+  assert.ok(clientMayWrite("PUT", "/api/admin/projects/abc/classifications"));
+  assert.ok(!clientMayWrite("POST", "/api/admin/projects/abc/item-labels"));
+  assert.ok(!clientMayWrite("PUT", "/api/admin/projects/abc/labels"));
+  assert.ok(!clientMayWrite("PATCH", "/api/admin/projects/abc"));
+  assert.ok(!clientMayWrite("PUT", "/api/admin/projects/abc/item-labels/x"));
 });

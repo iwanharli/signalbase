@@ -2,7 +2,6 @@
 import { KeywordsPill } from "./KeywordsPill";
 import type { Role } from "@/lib/session";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, Skeleton } from "@mantine/core";
 import { IconArrowRight, IconMail, IconEdit, IconKey, IconMessages, IconPlugConnected, IconSearch, IconWorldWww } from "@tabler/icons-react";
@@ -14,6 +13,8 @@ import { sourceLabel } from "@/lib/media/labels";
 import { moodInfo } from "@/lib/media/mood";
 import type { MediaItem, MediaType } from "@/lib/media/types";
 import { useApi } from "@/lib/useApi";
+import { useProjectId } from "@/lib/useProjectId";
+import { projectPath, projectSettingsPath } from "@/lib/activeProject";
 import classes from "./overview.module.css";
 import { AiSummary } from "./AiSummary";
 import { CardHelp } from "./CardHelp";
@@ -59,15 +60,17 @@ function useFitItems(count: number) {
 }
 
 /** Newest items of one media type. fill: as tall as the card beside it, showing as many whole items as fit. */
-function LatestFeed({ type, items, keyQuery, scoped, fill }: { type: MediaType; items: MediaItem[] | null; keyQuery: string; scoped: boolean; fill?: boolean }) {
+function LatestFeed({ type, items, projectId, fill }: { type: MediaType; items: MediaItem[] | null; projectId: string | null; fill?: boolean }) {
   const f = FEED[type];
+  const scoped = !!projectId;
+  const href = projectPath(projectId, `/media/${type}`);
   const Icon = TYPE_ICON[type];
   const { box, fit } = useFitItems(items?.length ?? 0);
   return (
     <section className={classes.panel} data-fill={fill || undefined}>
       <header className={classes.panelHead}>
         <div><h3>{f.title}<CardHelp id={type === "social" ? "latestSocial" : "latestOnline"} /></h3><p>{scoped ? `${f.what} terbaru yang menyebut keyword proyek ini` : `${f.what} paling baru yang masuk ke bank`}</p></div>
-        <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Lihat semua <IconArrowRight size={14} /></Link>
+        <Link href={href} className={classes.more}>Lihat semua <IconArrowRight size={14} /></Link>
       </header>
       <div className={classes.feedWrap}>
       <div className={classes.feed} ref={fill ? box : undefined}>
@@ -75,7 +78,7 @@ function LatestFeed({ type, items, keyQuery, scoped, fill }: { type: MediaType; 
         {items?.map((item, i) => {
           const mood = item.mood ? moodInfo(item.mood) : null;
           return (
-            <Link key={item.code} href={`/media/${type}${keyQuery}${keyQuery ? "&" : "?"}item=${encodeURIComponent(item.code)}`} className={classes.feedItem}
+            <Link key={item.code} href={`${href}?item=${encodeURIComponent(item.code)}`} className={classes.feedItem}
               data-hidden={(fill && i >= fit) || undefined} style={{ animationDelay: `${i * 60}ms` }}>
               <span className={classes.feedIcon} data-t={type}><Icon size={16} /></span>
               <span className={classes.feedBody}>
@@ -109,15 +112,15 @@ function Onboarding({ name }: { name: string }) {
       <p>Beranda masih kosong karena belum ada proyek untuk akun ini. Begitu admin memberikannya, data langsung muncul di sini.</p>
       <ol>{steps.map((s, i) => <li key={s.title} style={{ animationDelay: `${i * 90}ms` }}><span><s.icon size={20} /></span><b>{i + 1}. {s.title}</b><small>{s.text}</small></li>)}</ol>
       <div className={classes.onboardActions}>
-        <Link href="/kontak" className={classes.primaryLink}><IconMail size={16} />Hubungi admin Signalbase</Link>
+        <Link href="/contact" className={classes.primaryLink}><IconMail size={16} />Hubungi admin Signalbase</Link>
       </div>
     </section>
   );
 }
 
 export function Overview({ name, role }: { name: string; role: Role }) {
-  const keyId = useSearchParams().get("key");
-  const { data, error } = useApi<OverviewStats>(`/api/admin/stats${keyId ? `?key=${encodeURIComponent(keyId)}` : ""}`);
+  const keyId = useProjectId();
+  const { data, error } = useApi<OverviewStats>(`/api/admin/stats${keyId ? `?project=${encodeURIComponent(keyId)}` : ""}`);
   const [chosenView, setView] = useState<View>("all");
   const [period, setPeriod] = useState<InsightPeriod>(7);
   const hasSocial = !!data && data.social !== null, hasOnline = !!data && data.online !== null;
@@ -138,7 +141,6 @@ export function Overview({ name, role }: { name: string; role: Role }) {
   }, [data?.noKey]);
 
   if (data?.noKey) return <div className={classes.page}><Onboarding name={name} /></div>;
-  const keyQuery = key ? `?key=${key.id}` : "";
   const own = role === "user";
   const filters = <FilterControls view={view} onView={setView} period={period} onPeriod={setPeriod} both={both} />;
   const at = insights.data?.at ?? data?.at;
@@ -158,7 +160,7 @@ export function Overview({ name, role }: { name: string; role: Role }) {
               <h1>Sinyal untuk <em>keyword {own ? "Anda" : "proyek ini"}</em></h1>
               {/* The project's keywords are an admin's business: clients don't see them, only admins edit them. */}
               {!own && <div className={classes.heroKw}>{key.keywords.map((w) => <span key={w}>{w}</span>)}
-                {role === "admin" && <Link href={`/project/${key.id}`} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link>}</div>}
+                {role === "admin" && <Link href={projectSettingsPath(key.id)} className={classes.heroEdit}><IconEdit size={13} />Ubah</Link>}</div>}
             </> : <>
               {/* The date waits for the client data, so a server in another time zone can't render a different day. */}
               <span className={classes.live}><i />{data ? dayjs().locale("id").format("dddd, D MMMM YYYY") : "Ringkasan"}</span>
@@ -183,8 +185,8 @@ export function Overview({ name, role }: { name: string; role: Role }) {
       {data && <Insights keyId={key?.id ?? null} view={view} period={period} data={insights.data} error={insights.error} wanted={insights.wanted} projects={data.keys}
         latest={(hasSocial || hasOnline) && (
           <div className={classes.two} data-single={!both || undefined}>
-            {hasSocial && <LatestFeed type="social" items={data.social!.latest} keyQuery={keyQuery} scoped={!!key} />}
-            {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} fill={both} />}
+            {hasSocial && <LatestFeed type="social" items={data.social!.latest} projectId={key?.id ?? null} />}
+            {hasOnline && <LatestFeed type="online" items={data.online!.latest} projectId={key?.id ?? null} fill={both} />}
           </div>
         )} />}
     </div>

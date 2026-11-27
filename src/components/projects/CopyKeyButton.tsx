@@ -24,7 +24,7 @@ export function CopyKeyButton({ keyId, secretUrl, copyable, size = "sm", onDark,
   const copy = async () => {
     setState("loading");
     try {
-      const { key } = await api<{ key: string }>(secretUrl ?? `/api/admin/keys/${keyId}/secret`, { cache: "no-store" });
+      const { key } = await api<{ key: string }>(secretUrl ?? `/api/admin/projects/${keyId}/secret`, { cache: "no-store" });
       await navigator.clipboard.writeText(key);
       setState("copied");
       setTimeout(() => setState("idle"), COPIED_MS);

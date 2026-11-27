@@ -47,7 +47,7 @@ export function KeywordTable({ keyId, scope, saved, onChange, disabled }: {
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const counts = useApi<CountsResponse>(`/api/admin/keys/${keyId}/keyword-counts?days=${range}`);
+  const counts = useApi<CountsResponse>(`/api/admin/projects/${keyId}/keyword-counts?days=${range}`);
   const byKeyword = useMemo(() => new Map((counts.data?.keywords ?? []).map((k) => [k.keyword, k])), [counts.data]);
   const loading = !counts.data && !counts.error;
   const social = !scope.types.length || scope.types.includes("social");

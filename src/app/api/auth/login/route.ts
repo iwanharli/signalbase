@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const recent = (fails.get(user) ?? []).filter((t) => Date.now() - t < WINDOW);
   if (recent.length >= 5) return NextResponse.json({ error: "Terlalu banyak percobaan gagal. Coba lagi dalam 15 menit." }, { status: 429 });
 
-  const admin = user ? await prisma.admin.findUnique({ where: { username: user } }) : null;
+  const admin = user ? await prisma.account.findUnique({ where: { username: user } }) : null;
   if (!admin || !(await bcrypt.compare(String(password ?? ""), admin.passwordHash))) {
     fails.set(user, [...recent, Date.now()]);
     return NextResponse.json({ error: "Username atau kata sandi salah." }, { status: 401 });

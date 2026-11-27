@@ -28,8 +28,8 @@ const RANGE_PRESETS = [
 ] as const;
 
 /** Item counts in the key's scope from `startFrom` (exact time, as the worker uses), or the whole scope. */
-export const estimateUrl = (apiKeyId: string, startFrom: string | null) =>
-  `/api/admin/keys/${apiKeyId}/classifier/estimate${startFrom ? `?since=${encodeURIComponent(startFrom)}` : ""}`;
+export const estimateUrl = (projectId: string, startFrom: string | null) =>
+  `/api/admin/projects/${projectId}/classifier/estimate${startFrom ? `?since=${encodeURIComponent(startFrom)}` : ""}`;
 
 export type Estimate = {
   social: number | null; online: number | null; done: number; doneByType: Record<"social" | "online", number>; remaining: number;
@@ -42,8 +42,8 @@ export const money = (amount: number, currency: string) => {
 };
 
 /** Items in the key's keywords and scope from the start date: what categorisation will cover. */
-function EstimateLine({ apiKeyId, startFrom }: { apiKeyId: string; startFrom: string | null }) {
-  const estimate = useApi<Estimate>(estimateUrl(apiKeyId, startFrom));
+function EstimateLine({ projectId, startFrom }: { projectId: string; startFrom: string | null }) {
+  const estimate = useApi<Estimate>(estimateUrl(projectId, startFrom));
   const d = estimate.data;
   const total = d ? (d.social ?? 0) + (d.online ?? 0) : 0;
   return (
@@ -68,7 +68,7 @@ function EstimateLine({ apiKeyId, startFrom }: { apiKeyId: string; startFrom: st
 }
 
 /** Where labelling starts: a recent window, a chosen date, or the whole scope; new items are always added. */
-export function RangeField({ value, onChange, apiKeyId, defaultChoice }: { value: string | null; onChange: (value: string | null) => void; apiKeyId?: string | null;
+export function RangeField({ value, onChange, projectId, defaultChoice }: { value: string | null; onChange: (value: string | null) => void; projectId?: string | null;
   /** Preset highlighted at first; otherwise a date shows as "Tanggal tertentu". */
   defaultChoice?: string }) {
   const [choice, setChoice] = useState<string>(defaultChoice ?? (value ? "custom" : "all"));
@@ -96,7 +96,7 @@ export function RangeField({ value, onChange, apiKeyId, defaultChoice }: { value
           ? <>Post sejak <b>{dayjs(value).locale("id").format("D MMMM YYYY")}</b> sampai <b>terbaru</b>, dan seterusnya berkala.</>
           : <>Semua post dalam cakupan, dari yang <b>terbaru</b> mundur ke paling lama. Bisa memakan banyak kredit.</>}
       </p>
-      {apiKeyId && <EstimateLine apiKeyId={apiKeyId} startFrom={value} />}
+      {projectId && <EstimateLine projectId={projectId} startFrom={value} />}
     </div>
   );
 }
@@ -146,12 +146,12 @@ export function draftProblems(draft: ClassifierDraft, hasStoredKey = false) {
 }
 
 /** Copies the stored provider key; fetched only on click. */
-function CopyProviderKey({ apiKeyId, slot }: { apiKeyId: string; slot: "primary" | "fallback" }) {
+function CopyProviderKey({ projectId, slot }: { projectId: string; slot: "primary" | "fallback" }) {
   const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
   const copy = async () => {
     setState("loading");
     try {
-      const { apiKey } = await api<{ apiKey: string }>(`/api/admin/keys/${apiKeyId}/classifier/provider-key?slot=${slot}`);
+      const { apiKey } = await api<{ apiKey: string }>(`/api/admin/projects/${projectId}/classifier/provider-key?slot=${slot}`);
       await navigator.clipboard.writeText(apiKey);
       setState("copied");
       setTimeout(() => setState("idle"), 1600);
@@ -167,8 +167,8 @@ function CopyProviderKey({ apiKeyId, slot }: { apiKeyId: string; slot: "primary"
 }
 
 /** Provider, model, endpoint and API key of one key's categorisation, with a connection test. */
-function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "primary" }: {
-  provider: ProviderDraft; onChange: (p: ProviderDraft) => void; storedKeyHint?: string | null; apiKeyId?: string | null;
+function ProviderFields({ provider, onChange, storedKeyHint, projectId, slot = "primary" }: {
+  provider: ProviderDraft; onChange: (p: ProviderDraft) => void; storedKeyHint?: string | null; projectId?: string | null;
   /** Which stored key the test and copy button use when the key field is empty. */
   slot?: "primary" | "fallback";
 }) {
@@ -182,7 +182,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
     setTesting(true);
     setTest(null);
     try {
-      setTest(await post("/api/admin/ai-test", { provider, apiKeyId: apiKeyId ?? null, slot }) as TestResult);
+      setTest(await post("/api/admin/ai-test", { provider, projectId: projectId ?? null, slot }) as TestResult);
     } catch (err) {
       setTest({ ok: false, ms: 0, error: (err as Error).message });
     } finally {
@@ -215,7 +215,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
           : <div />}
       </div>
       <PasswordInput classNames={inputClasses}
-        label={<span className={classes.keyLabel}>API key penyedia AI{storedKeyHint && apiKeyId && <CopyProviderKey apiKeyId={apiKeyId} slot={slot} />}</span>} value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
+        label={<span className={classes.keyLabel}>API key penyedia AI{storedKeyHint && projectId && <CopyProviderKey projectId={projectId} slot={slot} />}</span>} value={provider.apiKey} onChange={(e) => onChange({ ...provider, apiKey: e.currentTarget.value })}
         placeholder={storedKeyHint ? `Tersimpan ••••${storedKeyHint} — kosongkan bila tidak diganti` : "Tempel API key"}
         leftSection={<IconShieldLock size={15} />}
         // Not a login field: stop browsers and password managers from filling in the admin password.
@@ -234,7 +234,7 @@ function ProviderFields({ provider, onChange, storedKeyHint, apiKeyId, slot = "p
   );
 }
 
-export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHint, apiKeyId, types }: {
+export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHint, projectId, types }: {
   draft: ClassifierDraft;
   onChange: (draft: ClassifierDraft) => void;
   /** Last four characters of the saved provider key, when editing. */
@@ -242,7 +242,7 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHi
   /** Last four characters of the saved fallback key. */
   fallbackKeyHint?: string | null;
   /** The Signalbase API key being edited, so the connection test can use its saved provider key. */
-  apiKeyId?: string | null;
+  projectId?: string | null;
   /** Media types in the key's scope, for the prompt test. */
   types?: ("social" | "online")[];
 }) {
@@ -252,7 +252,7 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHi
 
   return (
     <div className={classes.editor}>
-      <ProviderFields provider={draft.provider} onChange={(provider) => update({ provider })} storedKeyHint={storedKeyHint} apiKeyId={apiKeyId} />
+      <ProviderFields provider={draft.provider} onChange={(provider) => update({ provider })} storedKeyHint={storedKeyHint} projectId={projectId} />
 
       <div className={classes.sameToggle}>
         <Switch checked={!!draft.fallback} onChange={(e) => update({ fallback: e.currentTarget.checked ? providerFromPreset("claude") : null })} color="violet" size="md"
@@ -263,13 +263,13 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHi
           classNames={{ label: classes.switchLabel, description: classes.switchDescription }} />
         {draft.fallback && (
           <div className={classes.fallbackFields}>
-            <ProviderFields provider={draft.fallback} onChange={(fallback) => update({ fallback })} storedKeyHint={fallbackKeyHint} apiKeyId={apiKeyId} slot="fallback" />
+            <ProviderFields provider={draft.fallback} onChange={(fallback) => update({ fallback })} storedKeyHint={fallbackKeyHint} projectId={projectId} slot="fallback" />
           </div>
         )}
       </div>
 
 
-      <RangeField value={draft.startFrom} onChange={(startFrom) => update({ startFrom })} apiKeyId={apiKeyId} />
+      <RangeField value={draft.startFrom} onChange={(startFrom) => update({ startFrom })} projectId={projectId} />
 
       <div className={classes.sameToggle}>
         <Switch checked={draft.labelledOnly} onChange={(e) => update({ labelledOnly: e.currentTarget.checked })} color="violet" size="md"
@@ -330,7 +330,7 @@ export function ClassifierEditor({ draft, onChange, storedKeyHint, fallbackKeyHi
         </>
       )}
 
-      {apiKeyId && <PromptPreview apiKeyId={apiKeyId} draft={draft} types={types ?? ["social", "online"]} />}
+      {projectId && <PromptPreview projectId={projectId} draft={draft} types={types ?? ["social", "online"]} />}
 
       <p className={classes.hint}>
         Data dikategorikan dari yang terbaru mundur ke tanggal mulai, sekitar 100 item per menit. Memajukan tanggal mulai tidak menghapus hasil; memundurkannya melanjutkan ke data yang lebih lama.

@@ -48,7 +48,7 @@ const H = 170, PAD = { top: 12, right: 8, bottom: 26, left: 52 };
 export function BalanceUsage({ keyId, labelling }: { keyId: string; labelling?: boolean }) {
   const [days, setDays] = useState<string>("7");
   const [mode, setMode] = useState<Mode>("balance");
-  const usage = useApi<Usage>(`/api/admin/keys/${keyId}/${labelling ? "label-ai" : "classifier"}/usage?days=${days}`);
+  const usage = useApi<Usage>(`/api/admin/projects/${keyId}/${labelling ? "label-ai" : "classifier"}/usage?days=${days}`);
   const [hover, setHover] = useState<number | null>(null);
   const refresh = usage.reload;
   useEffect(() => {

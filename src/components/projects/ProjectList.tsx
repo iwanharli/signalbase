@@ -11,6 +11,7 @@ import { Button, ButtonGroup, StatusPill } from "../ui/Button";
 import { CopyKeyButton } from "./CopyKeyButton";
 import { formatDate, fromNow } from "@/lib/dates";
 import { isRecentlyUsed, scopeRestrictions, useProvinceNames, type ProjectRow } from "./shared";
+import { projectPath, projectSettingsPath } from "@/lib/activeProject";
 import classes from "./projectList.module.css";
 import { Tip } from "../ui/Tip";
 import { useRole } from "../shell/RoleContext";
@@ -18,7 +19,7 @@ import { useRole } from "../shell/RoleContext";
 type Filter = "active" | "revoked";
 
 /** The media browser as this key sees it, on the first media type it may read. */
-const viewHref = (key: ProjectRow) => `/media/${key.scope.types[0] ?? "social"}?key=${key.id}`;
+const viewHref = (key: ProjectRow) => projectPath(key.id, `/media/${key.scope.types[0] ?? "social"}`);
 
 function AiCell({ apiKey }: { apiKey: ProjectRow }) {
   const ai = apiKey.classifier;
@@ -40,7 +41,7 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: Projec
   const revoked = !!apiKey.revokedAt;
   const recent = isRecentlyUsed(apiKey);
   const restrictions = scopeRestrictions(apiKey.scope, provinceName);
-  const href = `/project/${apiKey.id}`;
+  const href = projectSettingsPath(apiKey.id);
 
   return (
     <div className={classes.row} role="row" data-revoked={revoked || undefined}>
@@ -64,7 +65,7 @@ function KeyRow({ apiKey, provinceName, onRevoke, callsToday }: { apiKey: Projec
 
       <div className={classes.cell} role="cell" data-label="AI"><AiCell apiKey={apiKey} /></div>
 
-      <div className={classes.cell} role="cell" data-label="Klien">
+      <div className={classes.cell} role="cell" data-label="Instansi">
         {apiKey.clients?.length
           ? <Tip label={apiKey.clients.map((c) => `${c.name}${c.active ? "" : " (tidak aktif)"}`).join(", ")}>
               <span className={classes.chips}>
@@ -115,10 +116,10 @@ function RevokeModal({ apiKey, onCancel, onConfirm, busy }: { apiKey: ProjectRow
 /** Today's API calls per project (/api/admin/usage). */
 type Usage = { day: string; perKey: Record<string, number> };
 
-/** /project — every key as a row; creating and editing happen on their own pages. */
+/** /projects — every project as a row; creating and editing happen on their own pages. */
 export function ProjectList() {
   const role = useRole(); // viewers are read-only: no "Buat proyek"
-  const keys = useApi<ProjectRow[]>("/api/admin/keys");
+  const keys = useApi<ProjectRow[]>("/api/admin/projects");
   const usage = useApi<Usage>("/api/admin/usage");
   const provinceName = useProvinceNames();
   const [filter, setFilter] = useState<Filter>("active");
@@ -140,7 +141,7 @@ export function ProjectList() {
     if (!revoking) return;
     setBusy(true);
     try {
-      await api(`/api/admin/keys/${revoking.id}`, { method: "DELETE" });
+      await api(`/api/admin/projects/${revoking.id}`, { method: "DELETE" });
       notifications.show({ color: "gray", message: `Proyek "${revoking.name}" dicabut` });
       setRevoking(null);
       keys.reload();
@@ -158,7 +159,7 @@ export function ProjectList() {
         <div className={classes.heroText}>
           <span className={classes.badge}><IconKey size={13} />Pemantauan & API</span>
           <h1>Pro<em>yek</em></h1>
-          <p>Proyek dibuat dan diatur admin: keyword, cakupan data, dan kategorisasi AI. Berikan proyek ke klien di halaman Pengguna; tiap klien mendapat kunci API sendiri. Kunci di sini adalah kunci internal proyek.</p>
+          <p>Proyek dibuat dan diatur admin: keyword, cakupan data, dan kategorisasi AI. Berikan proyek ke instansi di halaman Pengguna; tiap instansi mendapat kunci API sendiri. Kunci di sini adalah kunci internal proyek.</p>
         </div>
         <div className={classes.heroSide}>
           <div className={classes.stats}>
@@ -166,7 +167,7 @@ export function ProjectList() {
             <div><b>{keys.data ? usedToday : "—"}</b><span>Dipakai 24 jam</span></div>
             <div><b>{keys.data ? withAi : "—"}</b><span>Dengan AI</span></div>
           </div>
-          {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/project/new">Buat proyek</Button>}
+          {role !== "viewer" && <Button variant="primary" icon={IconPlus} href="/projects/new">Buat proyek</Button>}
         </div>
       </header>
 
@@ -188,7 +189,7 @@ export function ProjectList() {
 
         <div className={classes.head} role="row">
           <span role="columnheader">Proyek</span><span role="columnheader">Kata kunci</span><span role="columnheader">Cakupan</span>
-          <span role="columnheader"><IconRobot size={13} />AI</span><span role="columnheader">Klien</span><span role="columnheader">Terakhir dipakai</span><span role="columnheader">Aksi</span>
+          <span role="columnheader"><IconRobot size={13} />AI</span><span role="columnheader">Instansi</span><span role="columnheader">Terakhir dipakai</span><span role="columnheader">Aksi</span>
         </div>
 
         {!keys.data ? (
@@ -199,7 +200,7 @@ export function ProjectList() {
           <div className={classes.empty}>
             <IconKey size={24} />
             <b>{term ? "Tidak ada proyek yang cocok" : filter === "active" ? "Belum ada proyek aktif" : "Belum ada proyek yang dicabut"}</b>
-            {!term && filter === "active" && role !== "viewer" && <Button variant="primary" size="sm" icon={IconPlus} href="/project/new">Buat proyek</Button>}
+            {!term && filter === "active" && role !== "viewer" && <Button variant="primary" size="sm" icon={IconPlus} href="/projects/new">Buat proyek</Button>}
           </div>
         )}
       </section>

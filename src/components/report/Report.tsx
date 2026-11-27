@@ -1,6 +1,6 @@
 "use client";
 // Executive report as A4 pages for the browser's print dialog ("Simpan sebagai PDF"). Opened from Ringkasan with
-// ?days=&key=&untuk=&sifat= (custom report, the hours up to now) or ?id=&untuk=&sifat= (a stored archive report: a whole day, week or month).
+// ?days=&project=&untuk=&sifat= (custom report, the hours up to now) or ?id=&untuk=&sifat= (a stored archive report: a whole day, week or month).
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
@@ -486,10 +486,10 @@ export function Report({ author }: { author: string }) {
     setSaving(true); setSaveError(null);
     savePdf(document.title).catch(() => setSaveError("PDF gagal dibuat. Coba lagi, atau pakai Cetak lalu Simpan sebagai PDF.")).finally(() => setSaving(false));
   };
-  const id = sp.get("id"), days = sp.get("days") ?? "1", key = sp.get("key");
+  const id = sp.get("id"), days = sp.get("days") ?? "1", key = sp.get("project");
   const { data, error } = useApi<ReportData | BriefData>(id
     ? `/api/admin/reports/${encodeURIComponent(id)}`
-    : `/api/admin/report?days=${encodeURIComponent(days)}${key ? `&key=${encodeURIComponent(key)}` : ""}`);
+    : `/api/admin/report?days=${encodeURIComponent(days)}${key ? `&project=${encodeURIComponent(key)}` : ""}`);
   useEffect(() => {
     if (!data) return;
     // The PDF file name, also the suggested one when printing.

@@ -13,7 +13,7 @@ import classes from "./promptPreview.module.css";
 type Result = { code: string; source: string; publishedAt: string; text: string; category: string | null; confidence: number | null; reason: string | null; saved: string | null };
 type Type = "social" | "online";
 
-export function PromptPreview({ apiKeyId, draft, types }: { apiKeyId: string; draft: ClassifierDraft; types: Type[] }) {
+export function PromptPreview({ projectId, draft, types }: { projectId: string; draft: ClassifierDraft; types: Type[] }) {
   const [type, setType] = useState<Type>(types[0] ?? "social");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ items: Result[]; ms: number; type: Type } | null>(null);
@@ -24,7 +24,7 @@ export function PromptPreview({ apiKeyId, draft, types }: { apiKeyId: string; dr
   const run = async () => {
     setBusy(true); setError(null);
     try {
-      const res = await post(`/api/admin/keys/${apiKeyId}/classifier/preview`, {
+      const res = await post(`/api/admin/projects/${projectId}/classifier/preview`, {
         provider: draft.provider, prompt: draft.prompt, categories: draft.categories, onlineCategories: draft.onlineCategories, type, size: 10,
       }) as { items: Result[]; ms: number };
       setResult({ ...res, type });

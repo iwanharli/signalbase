@@ -63,7 +63,7 @@ export type MediaItem = {
   author?: Author | null;
   /** AI category, present only when browsing through an API key that uses AI categorisation. */
   classification?: ItemClassification | null;
-  /** Panel: labels within the project being viewed (?key=), in the project's order; absent without a project. Not AI
+  /** Panel: labels within the project being viewed (/projects/<id>), in the project's order; absent without a project. Not AI
    *  categorisation. */
   manualLabels?: string[];
   /** Panel: AI's confidence (0-100), reason and source links for the labels it gave, by label. */

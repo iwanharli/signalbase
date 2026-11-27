@@ -15,7 +15,7 @@ export const AiCorrectionContext = createContext<(Correction & { type: MediaType
 
 /** Saves a category for one item; shared by the card menu and the detail panel. */
 export async function saveCategory(correction: Correction, type: MediaType, item: MediaItem, value: string) {
-  const res = await post(`/api/admin/keys/${correction.keyId}/classifications`, { type, code: item.code, category: value }, "PUT") as { category: string; correctedBy: string; reason: string | null };
+  const res = await post(`/api/admin/projects/${correction.keyId}/classifications`, { type, code: item.code, category: value }, "PUT") as { category: string; correctedBy: string; reason: string | null };
   const label = value === NO_CATEGORY ? "Tidak termasuk" : correction.categories.find((c) => c.code === value)?.label ?? value;
   correction.onSaved(item.code, { ...(item.classification ?? {}), category: res.category, label, confidence: null, reason: res.reason, manual: true, correctedBy: res.correctedBy });
   return label;

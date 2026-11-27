@@ -10,8 +10,8 @@ import { aiPlanProblem } from "./providerPolicy";
 export class LabelAiError extends Error {}
 
 /** Why this account may not manage a project's AI labelling, or null. Only its owner and admins may. */
-export async function labelAiBlocked(user: PanelUser, apiKeyId: string) {
-  return user.role !== "viewer" && (await keyAccess(user, apiKeyId)) === "full" ? null : "Hanya pemilik proyek atau admin yang dapat mengatur AI label.";
+export async function labelAiBlocked(user: PanelUser, projectId: string) {
+  return user.role !== "viewer" && (await keyAccess(user, projectId)) === "full" ? null : "Hanya pemilik proyek atau admin yang dapat mengatur AI label.";
 }
 
 /** AI labelling always uses the project's own key, so only plans that allow one may use it. */
@@ -36,7 +36,7 @@ export function labelAiConfig(provider: string, model: string, apiKeyEnc: string
   return { kind: "openai_compatible", baseUrl: labelAiProvider(provider).baseUrl, model, apiKeyEnc };
 }
 
-export async function saveLabelAi(apiKeyId: string, input: LabelAiInput, username: string) {
+export async function saveLabelAi(projectId: string, input: LabelAiInput, username: string) {
   const data = {
     provider: input.provider, model: input.model, prompt: input.prompt, startFrom: input.startFrom ? new Date(input.startFrom) : null,
     enabled: input.enabled, updatedBy: username, savedAt: new Date(),
@@ -45,11 +45,11 @@ export async function saveLabelAi(apiKeyId: string, input: LabelAiInput, usernam
   };
   if (input.apiKey) {
     const key = { keyEnc: encryptSecret(input.apiKey), keyHint: secretHint(input.apiKey) };
-    return prisma.labelAi.upsert({ where: { apiKeyId }, create: { apiKeyId, ...data, ...key }, update: { ...data, ...key } });
+    return prisma.labelAi.upsert({ where: { projectId }, create: { projectId, ...data, ...key }, update: { ...data, ...key } });
   }
-  storedKeyFor(await prisma.labelAi.findUnique({ where: { apiKeyId } }), input.provider);
+  storedKeyFor(await prisma.labelAi.findUnique({ where: { projectId } }), input.provider);
   // The provider is part of the condition: a save made meanwhile must not pair its key with this provider.
-  const { count } = await prisma.labelAi.updateMany({ where: { apiKeyId, provider: input.provider }, data });
+  const { count } = await prisma.labelAi.updateMany({ where: { projectId, provider: input.provider }, data });
   if (!count) throw new LabelAiError("Pengaturan baru saja diubah. Muat ulang halaman, lalu simpan lagi.");
-  return prisma.labelAi.findUniqueOrThrow({ where: { apiKeyId } });
+  return prisma.labelAi.findUniqueOrThrow({ where: { projectId } });
 }

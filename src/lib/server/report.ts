@@ -76,7 +76,7 @@ type ScopeRef = { id: string; name: string; scope: KeyScope | undefined; project
 /** The bank and every active project with an active client (or none): the scopes that get archive reports. */
 export async function reportScopes(): Promise<ScopeRef[]> {
   const paused = await pausedProjects(); // their reports carry AI narratives: none while no client is active
-  const keys = (await prisma.apiKey.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
+  const keys = (await prisma.project.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, scope: true, keywords: true } }))
     .filter((k) => !paused.has(k.id));
   return [
     { id: BANK_SCOPE, name: BANK_NAME, scope: undefined, project: null },

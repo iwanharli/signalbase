@@ -1,6 +1,7 @@
 // Media visual page (Analisis → Media visual): labels and shapes shared by the API and the page. The tags come from the
 // local media worker (scripts/media/media_analysis.py); their codes must match TAGS there.
 import type { MediaItem, MediaType } from "./media/types";
+import { projectPath } from "@/lib/activeProject";
 
 export const VISUAL_TAGS: Record<string, string> = {
   demo: "Demo / unjuk rasa", kerumunan: "Kerumunan", kericuhan: "Kericuhan", kebakaran: "Kebakaran", senjata: "Senjata",
@@ -69,8 +70,7 @@ export function alertHref(a: VisualAlert, keyId?: string | null, days: number = 
   if (a.kind === "action") p.set("action", "1");
   else if (a.kind === "sensitive") p.set("sensitive", "1");
   else p.set("narrative", a.id);
-  if (keyId) p.set("key", keyId);
-  return `/analisis/media?${p}`;
+  return `${projectPath(keyId ?? null, "/analysis/media")}?${p}`;
 }
 /** Notifications newer than the last time the bell was opened. */
 export const unseenAlerts = (alerts: VisualAlert[], seenAt: string | null) => (seenAt ? alerts.filter((a) => a.at > seenAt) : alerts).length;

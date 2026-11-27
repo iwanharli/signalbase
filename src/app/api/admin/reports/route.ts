@@ -32,7 +32,7 @@ export type ArchiveResponse = {
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const admin = user.role !== "user";
   const params = new URL(req.url).searchParams;
-  const keys = await prisma.apiKey.findMany({
+  const keys = await prisma.project.findMany({
     where: admin ? { revokedAt: null } : { ...visibleKeys(user.id), revokedAt: null },
     orderBy: { createdAt: "asc" }, select: { id: true, name: true },
   });

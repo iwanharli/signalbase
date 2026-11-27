@@ -5,12 +5,12 @@ import { prisma } from "./db";
 import { accountPlan, EXPIRED_MESSAGE } from "./plan";
 import { withImageCodes } from "./media/textSignals";
 
-/** The scope to browse with: the whole bank, or one API key's view of it when ?key= is given. */
+/** The scope to browse with: the whole bank, or one API key's view of it when ?project= is given. */
 export async function resolveScope(keyId: string | null, user: PanelUser): Promise<{ scope: KeyScope; keyId: string | null } | { error: string; status: number }> {
   // Users only ever see the bank through one of their own keys.
   if (!keyId) return user.role === "user" ? { error: "Pilih proyek dulu", status: 400 } : { scope: OPEN_SCOPE, keyId: null };
   if (!(await canSeeKey(user, keyId))) return { error: "Proyek tidak ditemukan", status: 404 };
-  const key = await prisma.apiKey.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
+  const key = await prisma.project.findUnique({ where: { id: keyId }, select: { id: true, scope: true, keywords: true } });
   if (!key) return { error: "Proyek tidak ditemukan", status: 404 };
   return { scope: await withImageCodes(key.id, parseKeyScope(key.scope, key.keywords)), keyId: key.id };
 }
@@ -24,7 +24,7 @@ export async function issueView(query: URLSearchParams, user: PanelUser): Promis
     if (plan.expired) return fail(EXPIRED_MESSAGE, 403, { expired: true });
     historyDays = plan.limits.historyDays;
   }
-  const resolved = await resolveScope(query.get("key"), user);
+  const resolved = await resolveScope(query.get("project"), user);
   if ("error" in resolved) return fail(resolved.error, resolved.status);
   // Issues are built from online news.
   if (!allowsType(resolved.scope, "online")) return fail("Proyek ini tidak punya akses ke media online", 403);

@@ -22,7 +22,7 @@ test("a stored key is only used with the provider it was entered for", () => {
 
 test("the panel never receives the stored key", () => {
   const now = new Date();
-  const out = publicLabelAi({ apiKeyId: "p", provider: "grok", model: "m", keyEnc: "sealed-secret", keyHint: "abcd", prompt: null, startFrom: null, updatedBy: "u", createdAt: now, updatedAt: now, savedAt: now, enabled: false, dailyLimit: 500,
+  const out = publicLabelAi({ projectId: "p", provider: "grok", model: "m", keyEnc: "sealed-secret", keyHint: "abcd", prompt: null, startFrom: null, updatedBy: "u", createdAt: now, updatedAt: now, savedAt: now, enabled: false, 
     cursors: {}, processed: 0, failed: 0, todayCount: 0, todayDate: "", errorStreak: 0, retryAfter: null, lastError: null, lastRunAt: null, scopeCounts: null });
   assert.doesNotMatch(JSON.stringify(out), /sealed-secret|keyEnc/);
 });

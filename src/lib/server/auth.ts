@@ -17,13 +17,13 @@ const ADMIN_ONLY = ["/api/admin/users", "/api/admin/contact", "/api/admin/ai-set
 /** Viewers read like admins but never change anything, see settings, or reveal secrets. */
 const VIEWER_BLOCKED = [...ADMIN_ONLY, "/api/admin/ai-test"];
 /** The only writes a client may make, on a project given to them: label a post, correct its AI category. */
-const CLIENT_CORRECTIONS = /^\/api\/admin\/keys\/[^/]+\/(item-labels|classifications)$/;
+const CLIENT_CORRECTIONS = /^\/api\/admin\/projects\/[^/]+\/(item-labels|classifications)$/;
 export const clientMayWrite = (method: string, path: string) => method === "PUT" && CLIENT_CORRECTIONS.test(path);
 
 /** A client ("user") account still allowed in: approved and not suspended. Checked on every request, so suspending a
  *  client cuts off an open session at once. */
 export async function isActiveAccount(id: string) {
-  const account = await prisma.admin.findUnique({ where: { id }, select: { status: true } });
+  const account = await prisma.account.findUnique({ where: { id }, select: { status: true } });
   return account?.status === "active";
 }
 
@@ -35,7 +35,7 @@ export const visibleKeys = (accountId: string) => ({ members: { some: { accountI
 export async function keyAccess(user: PanelUser, keyId: string): Promise<"full" | "read" | null> {
   if (user.role === "admin") return "full";
   if (user.role === "viewer") return "read";
-  const member = await prisma.projectMember.findUnique({ where: { apiKeyId_accountId: { apiKeyId: keyId, accountId: user.id } }, select: { accountId: true } });
+  const member = await prisma.projectMember.findUnique({ where: { projectId_accountId: { projectId: keyId, accountId: user.id } }, select: { accountId: true } });
   return member ? "read" : null;
 }
 
@@ -46,7 +46,7 @@ export async function canSeeKey(user: PanelUser, keyId: string) {
 
 // Wraps panel route handlers; middleware already guards sign-in, this is defence in depth.
 // Client ("user") accounts mostly read: the account must be active and its subscription running, nothing may be changed
-// except labels and AI category corrections of their projects (clientMayWrite), admin-only APIs are blocked, and /api/admin/keys/<id>/… only answers for a project
+// except labels and AI category corrections of their projects (clientMayWrite), admin-only APIs are blocked, and /api/admin/projects/<id>/… only answers for a project
 // given to the client and never its secrets. So every route is covered in one place.
 export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, user: PanelUser) => Promise<Response>) {
   return async (req: Request, ctx: C) => {
@@ -59,13 +59,13 @@ export function adminRoute<C>(handler: (req: Request, ctx: C, username: string, 
       if (VIEWER_BLOCKED.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Tidak tersedia untuk akun viewer" }, { status: 403 });
     }
     if (user.role === "user") {
-      const account = await prisma.admin.findUnique({ where: { id: user.id }, select: { status: true, planExpiresAt: true } });
+      const account = await prisma.account.findUnique({ where: { id: user.id }, select: { status: true, planExpiresAt: true } });
       if (account?.status !== "active") return NextResponse.json({ error: "Akun tidak aktif" }, { status: 401 });
       if (isExpired(account.planExpiresAt)) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
       const path = new URL(req.url).pathname;
-      if (req.method !== "GET" && req.method !== "HEAD" && !clientMayWrite(req.method, path)) return NextResponse.json({ error: "Akun klien hanya dapat melihat data" }, { status: 403 });
+      if (req.method !== "GET" && req.method !== "HEAD" && !clientMayWrite(req.method, path)) return NextResponse.json({ error: "Akun Anda hanya dapat melihat data" }, { status: 403 });
       if (ADMIN_ONLY.some((p) => path.startsWith(p)) || isSecretPath(path)) return NextResponse.json({ error: "Khusus admin" }, { status: 403 });
-      const keyId = path.match(/^\/api\/admin\/keys\/([^/]+)/)?.[1];
+      const keyId = path.match(/^\/api\/admin\/projects\/([^/]+)/)?.[1];
       if (keyId && !(await keyAccess(user, decodeURIComponent(keyId)))) return NextResponse.json({ error: "Proyek tidak ditemukan" }, { status: 404 });
     }
     return handler(req, ctx, session.username, user);

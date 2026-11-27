@@ -1,4 +1,4 @@
-// Shared by the report page (/laporan) and its API: the data the printed executive report is built from.
+// Shared by the report page (/report) and its API: the data the printed executive report is built from.
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import type { Insights } from "./media/insights";

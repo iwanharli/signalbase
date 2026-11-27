@@ -17,7 +17,7 @@ export const seesAll = (role: Role) => role !== "user";
 export function isSecretPath(path: string) {
   // %XX is decoded first, so an encoded spelling cannot slip past.
   const plain = path.replace(/%([0-9a-f]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
-  return /^\/api\/admin\/keys\/[^/]+\/(secret|classifier\/provider-key)/.test(plain);
+  return /^\/api\/admin\/projects\/[^/]+\/(secret|classifier\/provider-key)/.test(plain);
 }
 
 export async function signSession(s: Session) {

@@ -20,8 +20,8 @@ export function OriginalThreadsPost({ post, fallback, onStatus, view }: { post: 
   useEffect(() => {
     const controller = new AbortController();
     setState('loading'); setRendered(false); setHeight(500);
-    api<{ post: { url: string } }>(`/api/admin/threads-post?url=${encodeURIComponent(post.url)}`, { signal: controller.signal })
-      .then(() => { if (!controller.signal.aborted) setState('ready'); })
+    api<{ post: { url: string } | null }>(`/api/admin/threads-post?url=${encodeURIComponent(post.url)}`, { signal: controller.signal })
+      .then((res) => { if (!controller.signal.aborted) setState(res.post ? 'ready' : 'failed'); })
       .catch(() => { if (!controller.signal.aborted) setState('failed'); });
     return () => controller.abort();
   }, [post.url, attempt]);

@@ -10,12 +10,13 @@ import dayjs from "dayjs";
 import "dayjs/locale/id";
 import type { ProgressState, TypeProgress } from "@/lib/ai/progress";
 import { formatNumber } from "@/lib/media/labels";
+import { projectSettingsPath } from "@/lib/activeProject";
 import classes from "./aiProgressDock.module.css";
 
 type Kind = "category" | "label";
 const KINDS: Record<Kind, { title: string; href: (id: string) => string }> = {
-  category: { title: "Kategorisasi AI", href: (id) => `/project/${id}/ai` },
-  label: { title: "Pelabelan AI", href: (id) => `/project/${id}?tab=labels` },
+  category: { title: "Kategorisasi AI", href: (id) => projectSettingsPath(id, "ai") },
+  label: { title: "Pelabelan AI", href: (id) => `${projectSettingsPath(id)}?tab=labels` },
 };
 
 type Project = {

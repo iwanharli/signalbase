@@ -1,4 +1,4 @@
-// Frame shared by every public page (/, /fitur, /integrasi, /solusi, /pricing, /faq): nav, footer and scroll fade-ins.
+// Frame shared by every public page (/, /features, /integration, /solutions, /pricing, /faq): nav, footer and scroll fade-ins.
 import { LandingNav } from "./LandingNav";
 import { Reveal } from "./Reveal";
 import { LandingFooter } from "./sections";

@@ -1,5 +1,5 @@
 "use client";
-// Sales enquiry form on /kontak. The plan the visitor came from (?plan=instansi) is sent along.
+// Sales enquiry form on /contact. The plan the visitor came from (?plan=instansi) is sent along.
 import { useState } from "react";
 import Link from "next/link";
 import { IconCheck, IconSend } from "@tabler/icons-react";
@@ -54,7 +54,7 @@ export function ContactForm() {
       </label>
       {error && <p className={c.error}>{error}</p>}
       <button type="submit" className={c.submit} disabled={busy}><IconSend size={17} />{busy ? "Mengirim…" : "Kirim permintaan"}</button>
-      <small className={c.note}>Data ini hanya dipakai untuk menghubungi Anda terkait Signalbase. Lihat <Link href="/privasi">kebijakan privasi</Link>.</small>
+      <small className={c.note}>Data ini hanya dipakai untuk menghubungi Anda terkait Signalbase. Lihat <Link href="/privacy">kebijakan privasi</Link>.</small>
     </form>
   );
 }

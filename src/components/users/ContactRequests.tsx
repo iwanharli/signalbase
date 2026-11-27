@@ -1,5 +1,5 @@
 "use client";
-// Admin: sales enquiries sent from /kontak, open ones first.
+// Admin: sales enquiries sent from /contact, open ones first.
 import { Skeleton } from "@mantine/core";
 import { IconCheck, IconMail, IconRotate } from "@tabler/icons-react";
 import { post } from "@/lib/api-client";

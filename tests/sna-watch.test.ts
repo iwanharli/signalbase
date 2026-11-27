@@ -16,7 +16,7 @@ test("watch within a project: a post must match the project keywords AND one of 
 
 test("watch validation: keywords tidied, duplicates dropped, broken expressions refused", () => {
   const ok = watchInputSchema.parse({ name: "Isu Listyo makar", keywords: [" Listyo", "makar", "makar", "listyo AND sadap"] });
-  assert.equal(ok.key, null);
+  assert.equal(ok.projectId, null);
   assert.deepEqual(ok.keywords, ["listyo", "makar", "listyo and sadap"]);
   assert.equal(watchInputSchema.safeParse({ name: "X", keywords: ["makar"] }).success, false);
   assert.equal(watchInputSchema.safeParse({ name: "Isu", keywords: [] }).success, false);

@@ -9,11 +9,11 @@ type Context = { params: Promise<{ id: string }> };
 
 /** Every active project, whether this client was given it, and (if so) its key for the client and its API calls. */
 async function load(id: string) {
-  const account = await prisma.admin.findFirst({ where: { id, role: "user" }, select: { id: true } });
+  const account = await prisma.account.findFirst({ where: { id, role: "user" }, select: { id: true } });
   if (!account) return null;
   const since = new Date(Date.now() - 29 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
   const [projects, usage] = await Promise.all([
-    prisma.apiKey.findMany({
+    prisma.project.findMany({
       where: { revokedAt: null },
       orderBy: { name: "asc" },
       select: {
@@ -22,10 +22,10 @@ async function load(id: string) {
         _count: { select: { members: true } },
       },
     }),
-    prisma.projectAccessUsage.groupBy({ by: ["apiKeyId", "day"], where: { accountId: id, day: { gte: since } }, _sum: { count: true } }),
+    prisma.projectAccessUsage.groupBy({ by: ["projectId", "day"], where: { accountId: id, day: { gte: since } }, _sum: { count: true } }),
   ]);
   const today = jakartaToday();
-  const calls = (keyId: string, onlyToday: boolean) => usage.filter((u) => u.apiKeyId === keyId && (!onlyToday || u.day === today)).reduce((n, u) => n + (u._sum.count ?? 0), 0);
+  const calls = (keyId: string, onlyToday: boolean) => usage.filter((u) => u.projectId === keyId && (!onlyToday || u.day === today)).reduce((n, u) => n + (u._sum.count ?? 0), 0);
   return projects.map((p) => {
     const m = p.members[0];
     return {
@@ -41,7 +41,7 @@ async function load(id: string) {
 // Admin only (ADMIN_ONLY covers /api/admin/users).
 export const GET = adminRoute(async (_req: Request, { params }: Context) => {
   const projects = await load((await params).id);
-  if (!projects) return NextResponse.json({ error: "Klien tidak ditemukan" }, { status: 404 });
+  if (!projects) return NextResponse.json({ error: "Instansi tidak ditemukan" }, { status: 404 });
   return NextResponse.json({ projects });
 });
 
@@ -52,12 +52,12 @@ const bodySchema = z.object({ projectIds: z.array(z.string().uuid()).max(500) })
 export const PUT = adminRoute(async (req: Request, { params }: Context, username) => {
   const { id } = await params;
   const projects = await load(id);
-  if (!projects) return NextResponse.json({ error: "Klien tidak ditemukan" }, { status: 404 });
+  if (!projects) return NextResponse.json({ error: "Instansi tidak ditemukan" }, { status: 404 });
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Daftar proyek tidak valid" }, { status: 400 });
   const wanted = new Set(parsed.data.projectIds);
   for (const p of projects) if (wanted.has(p.id) && !p.access) await grantAccess(p.id, id, username);
   const remove = projects.filter((p) => p.access && !wanted.has(p.id)).map((p) => p.id);
-  if (remove.length) await prisma.projectMember.deleteMany({ where: { accountId: id, apiKeyId: { in: remove } } });
+  if (remove.length) await prisma.projectMember.deleteMany({ where: { accountId: id, projectId: { in: remove } } });
   return NextResponse.json({ ok: true, projects: await load(id) });
 });

@@ -175,8 +175,8 @@ test("not claims: view/like counts, dashcam speeds, 3T regions, Rp inside a word
 test("bell: links to the signal on the Media visual page, unseen = newer than the last opening", async () => {
   const { alertHref, unseenAlerts } = await import("../src/lib/mediaVisual");
   const a = (kind: "action" | "narrative" | "sensitive", at: string, id = "x") => ({ kind, id, text: "", at });
-  assert.equal(alertHref(a("action", "2026-11-19T10:00:00Z")), "/analisis/media?days=1&text=all&action=1");
-  assert.equal(alertHref(a("narrative", "2026-11-19T10:00:00Z", "tolak ruu polri sekarang juga"), "k1"), "/analisis/media?days=1&text=all&narrative=tolak+ruu+polri+sekarang+juga&key=k1");
+  assert.equal(alertHref(a("action", "2026-11-19T10:00:00Z")), "/analysis/media?days=1&text=all&action=1");
+  assert.equal(alertHref(a("narrative", "2026-11-19T10:00:00Z", "tolak ruu polri sekarang juga"), "k1"), "/projects/k1/analysis/media?days=1&text=all&narrative=tolak+ruu+polri+sekarang+juga");
   const list = [a("action", "2026-11-19T10:00:00Z"), a("sensitive", "2026-11-19T08:00:00Z")];
   assert.equal(unseenAlerts(list, null), 2);
   assert.equal(unseenAlerts(list, "2026-11-19T09:00:00Z"), 1);

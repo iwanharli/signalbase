@@ -39,22 +39,22 @@ export async function providerBalance(config: ProviderConfig): Promise<Balance> 
 }
 
 /** Stores the balance for the usage chart. Skips a write when nothing changed in the last `minGapMs`. */
-export async function recordBalance(apiKeyId: string, balance: Balance, minGapMs = 0) {
+export async function recordBalance(projectId: string, balance: Balance, minGapMs = 0) {
   if (!balance.supported) return;
   const { prisma } = await import("../db");
   for (const b of balance.balances) {
-    const last = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId, currency: b.currency }, orderBy: { at: "desc" } });
+    const last = await prisma.balanceSnapshot.findFirst({ where: { projectId, currency: b.currency }, orderBy: { at: "desc" } });
     if (last && last.total === b.total && Date.now() - last.at.getTime() < Math.max(minGapMs, 10 * 60_000)) continue;
-    await prisma.balanceSnapshot.create({ data: { apiKeyId, currency: b.currency, total: b.total } });
+    await prisma.balanceSnapshot.create({ data: { projectId, currency: b.currency, total: b.total } });
   }
 }
 
 /** Balance at most every `everyMs` while the worker runs; failures never stop labelling. */
-export async function snapshotIfDue(apiKeyId: string, config: ProviderConfig, everyMs = 15 * 60_000) {
+export async function snapshotIfDue(projectId: string, config: ProviderConfig, everyMs = 15 * 60_000) {
   const { prisma } = await import("../db");
-  const last = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId }, orderBy: { at: "desc" }, select: { at: true } });
+  const last = await prisma.balanceSnapshot.findFirst({ where: { projectId }, orderBy: { at: "desc" }, select: { at: true } });
   if (last && Date.now() - last.at.getTime() < everyMs) return;
-  try { await recordBalance(apiKeyId, await providerBalance(config)); } catch { /* shown on the balance card instead */ }
+  try { await recordBalance(projectId, await providerBalance(config)); } catch { /* shown on the balance card instead */ }
 }
 
 export type UsageBucket = { start: string; spent: number; topUp: number };
@@ -74,15 +74,15 @@ export function usageBuckets(points: { total: number; at: Date }[], from: Date, 
 }
 
 /** Average credit per labelled item, from balance drops and the items labelled between those snapshots (last 30 days). */
-export async function costPerItem(apiKeyId: string): Promise<{ currency: string; perItem: number; sample: number } | null> {
+export async function costPerItem(projectId: string): Promise<{ currency: string; perItem: number; sample: number } | null> {
   const { prisma } = await import("../db");
   const since = new Date(Date.now() - 30 * 24 * 3_600_000);
-  const snapshots = await prisma.balanceSnapshot.findMany({ where: { apiKeyId, at: { gte: since } }, orderBy: { at: "asc" } });
+  const snapshots = await prisma.balanceSnapshot.findMany({ where: { projectId, at: { gte: since } }, orderBy: { at: "asc" } });
   let spent = 0, items = 0;
   for (let i = 1; i < snapshots.length; i++) {
     const [a, b] = [snapshots[i - 1], snapshots[i]];
     if (a.currency !== b.currency || b.total >= a.total) continue;
-    const labelled = await prisma.classification.count({ where: { apiKeyId, createdAt: { gt: a.at, lte: b.at } } });
+    const labelled = await prisma.classification.count({ where: { projectId, createdAt: { gt: a.at, lte: b.at } } });
     if (!labelled) continue;
     spent += a.total - b.total; items += labelled;
   }
@@ -94,17 +94,17 @@ export async function costPerItem(apiKeyId: string): Promise<{ currency: string;
 export const AUTO_PAUSE_PREFIX = "Dijeda otomatis";
 
 /** Why the classifier must stop now, from recorded balances: credit below the floor or today's spend at the cap. */
-export async function spendingStop(apiKeyId: string, minBalance: number | null, dailyBudget: number | null): Promise<string | null> {
+export async function spendingStop(projectId: string, minBalance: number | null, dailyBudget: number | null): Promise<string | null> {
   if (minBalance == null && dailyBudget == null) return null;
   const { prisma } = await import("../db");
-  const latest = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId }, orderBy: { at: "desc" } });
+  const latest = await prisma.balanceSnapshot.findFirst({ where: { projectId }, orderBy: { at: "desc" } });
   if (!latest) return null;
   const fmt = (n: number) => `${latest.currency} ${n.toFixed(2)}`;
   if (minBalance != null && latest.total < minBalance) return `${AUTO_PAUSE_PREFIX}: saldo ${fmt(latest.total)} di bawah batas ${fmt(minBalance)}. Isi saldo lalu lanjutkan.`;
   if (dailyBudget != null) {
     const midnight = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" })}T00:00:00+07:00`);
-    const points = await prisma.balanceSnapshot.findMany({ where: { apiKeyId, currency: latest.currency, at: { gte: midnight } }, orderBy: { at: "asc" } });
-    const before = await prisma.balanceSnapshot.findFirst({ where: { apiKeyId, currency: latest.currency, at: { lt: midnight } }, orderBy: { at: "desc" } });
+    const points = await prisma.balanceSnapshot.findMany({ where: { projectId, currency: latest.currency, at: { gte: midnight } }, orderBy: { at: "asc" } });
+    const before = await prisma.balanceSnapshot.findFirst({ where: { projectId, currency: latest.currency, at: { lt: midnight } }, orderBy: { at: "desc" } });
     const series = before ? [before, ...points] : points;
     let spent = 0;
     for (let i = 1; i < series.length; i++) spent += Math.max(0, series[i - 1].total - series[i].total);

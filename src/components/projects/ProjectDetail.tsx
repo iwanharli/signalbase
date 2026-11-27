@@ -22,6 +22,7 @@ import { ManualLabelSettings } from "../labels/ManualLabelSettings";
 import { DataToggle, keyInputClasses, ScopeParams } from "./ScopeFields";
 import { formatDate, fromNow } from "@/lib/dates";
 import { scopeRestrictions, useProvinceNames } from "./shared";
+import { projectPath, projectSettingsPath } from "@/lib/activeProject";
 import classes from "./projects.module.css";
 import { BalanceUsage } from "../aiUsage/BalanceUsage";
 import { AiCosts } from "../aiUsage/AiCosts";
@@ -49,7 +50,7 @@ function aiStatus(ai: KeyDetail["classifier"]) {
 /** AI tab: status, provider, progress and the provider balance, with links to the full settings. */
 function AiOverview({ detail }: { detail: KeyDetail }) {
   const ai = detail.classifier;
-  const settings = `/project/${detail.id}/ai`;
+  const settings = projectSettingsPath(detail.id, "ai");
   if (!ai) {
     return (
       <div className={classes.aiEmpty}>
@@ -76,7 +77,7 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
         </div>
         <BalanceCard keyId={detail.id} onDark compact />
         <div className={classes.aiActions}>
-          <Button size="sm" onDark variant="secondary" icon={IconEye} href={`/media/${detail.scope.types[0] ?? "social"}?key=${detail.id}`}>Lihat hasil</Button>
+          <Button size="sm" onDark variant="secondary" icon={IconEye} href={projectPath(detail.id, `/media/${detail.scope.types[0] ?? "social"}`)}>Lihat hasil</Button>
           <Button size="sm" variant="primary" iconRight={IconArrowRight} href={settings}>Pengaturan</Button>
         </div>
       </div>
@@ -87,10 +88,10 @@ function AiOverview({ detail }: { detail: KeyDetail }) {
   );
 }
 
-/** /project/[id] — a key's overview and settings, grouped in a side sub-menu. */
+/** /projects/[id]/settings — a project's overview and settings, grouped in a side sub-menu. */
 export function ProjectDetail({ keyId }: { keyId: string }) {
   const router = useRouter();
-  const detail = useApi<KeyDetail>(`/api/admin/keys/${keyId}`);
+  const detail = useApi<KeyDetail>(`/api/admin/projects/${keyId}`);
   const provinceName = useProvinceNames();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -108,7 +109,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
   const saveDisplay = async (change: { analyzedFilter?: boolean; relevanceFilter?: boolean }, name: string, on: boolean) => {
     setDisplayBusy(true);
     try {
-      await post(`/api/admin/keys/${keyId}/display`, change, "PUT");
+      await post(`/api/admin/projects/${keyId}/display`, change, "PUT");
       await detail.reload();
       notifications.show({ color: "teal", message: `Filter ${name} ${on ? "ditampilkan" : "disembunyikan"}` });
     } catch (e) {
@@ -228,9 +229,9 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
     try {
       let aiRestarted = false, aiExtended = false;
       if (nameChanged || scopeChanged) {
-        ({ aiRestarted, aiExtended } = await post(`/api/admin/keys/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean; aiExtended: boolean });
+        ({ aiRestarted, aiExtended } = await post(`/api/admin/projects/${keyId}`, { name, scope }, "PATCH") as { aiRestarted: boolean; aiExtended: boolean });
       }
-      if (labelledChanged) await post(`/api/admin/keys/${keyId}/labelled-only`, { value: labelled }, "PUT");
+      if (labelledChanged) await post(`/api/admin/projects/${keyId}/labelled-only`, { value: labelled }, "PUT");
       notifications.show({ color: "teal", message: aiRestarted ? "Disimpan. Kategorisasi AI diulang dari awal." : aiExtended ? "Disimpan. Label tetap; post tambahan akan dilabeli bertahap." : "Perubahan disimpan" });
       setConfirmSave(null);
       setLabelledOnly(null);
@@ -246,7 +247,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
   const rotate = async () => {
     setBusy(true);
     try {
-      const { key } = await post(`/api/admin/keys/${keyId}/rotate`, {}) as { key: string };
+      const { key } = await post(`/api/admin/projects/${keyId}/rotate`, {}) as { key: string };
       setConfirmRotate(false);
       setRotated(key);
       await detail.reload();
@@ -260,9 +261,9 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
   const revoke = async () => {
     setBusy(true);
     try {
-      await api(`/api/admin/keys/${keyId}`, { method: "DELETE" });
+      await api(`/api/admin/projects/${keyId}`, { method: "DELETE" });
       notifications.show({ color: "gray", message: `Proyek "${data?.name}" dicabut` });
-      router.push("/project");
+      router.push("/projects");
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
       setBusy(false);
@@ -272,7 +273,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
   if (detail.error) {
     return (
       <div className={classes.page}>
-        <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+        <Link href="/projects" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
         <div className={classes.empty}><b>{detail.error}</b></div>
       </div>
     );
@@ -290,7 +291,7 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
 
   return (
     <div className={classes.page} data-dirty={(dirty && !revoked) || undefined}>
-      <Link href="/project" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
+      <Link href="/projects" className={classes.back}><IconArrowLeft size={16} />Proyek</Link>
 
       {!ready ? <Skeleton h={120} radius={22} /> : (
         <header className={classes.detailHero}>
@@ -305,15 +306,15 @@ export function ProjectDetail({ keyId }: { keyId: string }) {
             <ul className={classes.heroMeta}>
               <li><IconCalendar size={13} />Dibuat {formatDate(data.createdAt)}{data.createdBy && <> oleh <b>{data.createdBy}</b></>}</li>
               <li><IconClock size={13} />{data.lastUsedAt ? `Dipakai ${fromNow(data.lastUsedAt)}` : "Belum pernah dipakai"}</li>
-              <li><IconRobot size={13} />AI {data.aiPaused ? "dijeda: tidak ada klien aktif" : aiStatus(data.classifier).text.toLowerCase()}</li>
+              <li><IconRobot size={13} />AI {data.aiPaused ? "dijeda: tidak ada instansi aktif" : aiStatus(data.classifier).text.toLowerCase()}</li>
               <li><IconUsers size={13} />{data.clients.length
-                ? <>Klien: {data.clients.map((c, i) => <span key={c.id}>{i ? ", " : ""}<b style={c.active ? undefined : { opacity: .55, textDecoration: "line-through" }}>{c.name}</b></span>)}</>
-                : <>Belum diberikan ke klien · <Link href="/users" style={{ color: "inherit" }}>atur di Pengguna</Link></>}</li>
+                ? <>Instansi: {data.clients.map((c, i) => <span key={c.id}>{i ? ", " : ""}<b style={c.active ? undefined : { opacity: .55, textDecoration: "line-through" }}>{c.name}</b></span>)}</>
+                : <>Belum diberikan ke instansi · <Link href="/users" style={{ color: "inherit" }}>atur di Pengguna</Link></>}</li>
             </ul>
           </div>
           {!revoked && (
             <div className={classes.heroActions}>
-              <Button onDark variant="secondary" icon={IconEye} href={`/media/${data.scope.types[0] ?? "social"}?key=${data.id}`}>Lihat data</Button>
+              <Button onDark variant="secondary" icon={IconEye} href={projectPath(data.id, `/media/${data.scope.types[0] ?? "social"}`)}>Lihat data</Button>
               <CopyKeyButton keyId={data.id} copyable={data.copyable} size="md" onDark label="Salin kunci" />
             </div>
           )}

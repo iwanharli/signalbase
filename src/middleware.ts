@@ -1,32 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, verifySession } from "@/lib/session";
-import { isProjectPage, PROJECT_COOKIE } from "@/lib/activeProject";
+import { isProjectPage, legacyProjectUrl, PROJECT_COOKIE, projectPath, splitProjectPath } from "@/lib/activeProject";
 
 // Guards the panel and its API. /api/v1 uses API keys instead (checked in the route).
 /** Marketing pages anyone can open. */
-const PUBLIC_PAGES = new Set(["/", "/fitur", "/integrasi", "/solusi", "/pricing", "/faq", "/kontak", "/syarat", "/privasi"]);
+const PUBLIC_PAGES = new Set(["/", "/features", "/integration", "/solutions", "/pricing", "/faq", "/contact", "/terms", "/privacy"]);
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
+  // Addresses from before 27 Nov 2026 (Indonesian paths, ?key=, /project/…) move first, signed in or not.
+  const legacy = pathname.startsWith("/api/") ? null : legacyProjectUrl(pathname, searchParams);
+  if (legacy) return NextResponse.redirect(new URL(legacy, publicOrigin(req)));
   if (PUBLIC_PAGES.has(pathname) || pathname === "/login" || pathname === "/register" || pathname.startsWith("/api/auth/") || pathname === "/api/contact" || pathname.startsWith("/api/v1/")) return NextResponse.next();
   if (await verifySession(req.cookies.get(COOKIE)?.value)) return pageWithProject(req);
   if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.redirect(new URL("/login", publicOrigin(req)));
 }
 
-// Project pages follow the project picked in the top bar: ?key= in the URL becomes the active project,
-// and a page opened without one gets the active project added.
+// Project pages follow the project picked in the top bar: /projects/<id>/… makes <id> the active project, and a whole-bank
+// data page opened while a project is active moves to that project's page.
 function pageWithProject(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
-  if (pathname.startsWith("/api/") || !isProjectPage(pathname)) return NextResponse.next();
-  const key = searchParams.get("key"), saved = req.cookies.get(PROJECT_COOKIE)?.value;
-  if (!key && saved) {
-    const next = new URLSearchParams(searchParams);
-    next.set("key", saved);
-    return NextResponse.redirect(new URL(`${pathname}?${next}`, publicOrigin(req)));
+  if (pathname.startsWith("/api/")) return NextResponse.next();
+  const saved = req.cookies.get(PROJECT_COOKIE)?.value;
+  if (isProjectPage(pathname) && saved) {
+    const qs = searchParams.toString();
+    return NextResponse.redirect(new URL(`${projectPath(saved, pathname)}${qs ? `?${qs}` : ""}`, publicOrigin(req)));
   }
+  const { id, page } = splitProjectPath(pathname);
   const res = NextResponse.next();
-  if (key && key !== saved) res.cookies.set(PROJECT_COOKIE, key, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
+  if (id && id !== saved && isProjectPage(page)) res.cookies.set(PROJECT_COOKIE, id, { path: "/", maxAge: 31_536_000, sameSite: "lax" });
   return res;
 }
 
