@@ -3,7 +3,7 @@ import { allowsType } from "@/lib/media/keyScope";
 import { isMediaType } from "@/lib/media/types";
 import { categoryPage, classificationsFor, effectiveCategoryFilter, keyCategories } from "@/lib/server/ai/classifications";
 import { adminRoute } from "@/lib/server/auth";
-import { itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
+import { aiCheckedCodes, itemLabelsFor, labelPage, projectLabels } from "@/lib/server/manualLabels";
 import { countExact, fetchItemsByCode, filterCodes, filterOptions, listItems, moodBreakdown } from "@/lib/server/bank";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { accountPlan, clampHistory, EXPIRED_MESSAGE } from "@/lib/server/plan";
@@ -92,11 +92,12 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
     }
 
     const codes = items.map((item) => item.code);
-    const [labels, metadata, manual] = await Promise.all([
+    const [labels, metadata, manual, checked] = await Promise.all([
       categories ? classificationsFor(keyId!, type, codes, categories, type === "social") : null,
       type === "social" ? socialMetadata(codes, keyId ? scope.keywords : []) : null,
       // Manual labels of the project (separate from AI categorisation).
       keyId ? projectLabels(keyId).then((options) => itemLabelsFor(keyId, type, codes, options ?? [])) : null,
+      keyId ? aiCheckedCodes(keyId, type, codes) : null,
     ]);
     // "Kata kunci di gambar": on the page, items the project matches by image text whose own text doesn't match.
     const viaImage = items.map((i) => i.code).filter((c) => scope.imageCodes?.[type]?.includes(c));
@@ -112,6 +113,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
         ...(manual ? {
           manualLabels: manual.get(item.code)?.map((e) => e.label) ?? [],
+          ...(checked?.has(item.code) && !manual.get(item.code)?.length ? { aiChecked: true } : {}),
           aiLabels: Object.fromEntries((manual.get(item.code) ?? []).filter((e) => e.source === "ai").map((e) => [e.label, { score: e.score, reason: e.reason ?? null, needsReview: e.needsReview, sources: e.sources ?? [] }])),
         } : {}),
         ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),

@@ -41,3 +41,8 @@
 .note ul { margin: 6px 0 0; padding-left: 16px; }
 .note a { color: var(--mantine-color-anchor); overflow-wrap: anywhere; }
 .note small { color: var(--mantine-color-dimmed); }
+
+/* ✓ "Sudah dicek AI": the label AI looked at the item and no label fits. */
+.aiChecked { display: inline-grid; place-items: center; flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; color: #0f766e;
+  background: color-mix(in srgb, var(--mantine-color-teal-5) 22%, transparent); border: 1px solid color-mix(in srgb, var(--mantine-color-teal-5) 45%, transparent); cursor: help; }
+:global([data-mantine-color-scheme="dark"]) .aiChecked { color: var(--mantine-color-teal-3); }

@@ -68,6 +68,12 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
       }) : <span className={classes.pill}><IconTag size={13} /><span>{ctx.canLabel ? "Beri label" : "Belum diberi label"}</span>{tail}</span>}
     </button>
   );
+  // Checked by the label AI, no label fits: a small ✓ (not a label, so it is in no filter count or export).
+  const checked = !set && item.aiChecked ? (
+    <span className={classes.aiChecked} title="Sudah dicek AI · tidak ada label yang cocok" aria-label="Sudah dicek AI, tidak ada label yang cocok" role="img">
+      <IconCheck size={12} stroke={3} />
+    </span>
+  ) : null;
 
   // The detail panel also spells out what the AI said and where its search found support.
   const notes = panel ? values.flatMap((value) => (item.aiLabels?.[value] ? [{ value, ...item.aiLabels[value] }] : [])) : [];
@@ -77,7 +83,9 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
     <div className={classes.bar} data-set={set || undefined} data-bleed={bleed || undefined} data-panel={panel || undefined}
       onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {leading ?? <span className={classes.caption}>Label</span>}
-      {ctx.canLabel ? (
+      {checked}
+      {/* Read only: a checked item shows only the ✓, not "Belum diberi label". */}
+      {!ctx.canLabel && checked ? null : ctx.canLabel ? (
         <Menu position="bottom-start" shadow="md" radius="md" width={220} withinPortal closeOnItemClick={false}>
           <Menu.Target>{pill}</Menu.Target>
           <Menu.Dropdown>

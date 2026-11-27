@@ -17,6 +17,13 @@ export async function projectLabels(projectId: string): Promise<string[] | null>
 }
 
 /** Labels per item code for the given items, in the project's order; unlabelled items are absent. */
+/** Items of the page the label AI has checked and found no label for ("Sudah dicek, tanpa label"). */
+export async function aiCheckedCodes(projectId: string, type: MediaType, codes: string[]) {
+  if (!codes.length) return new Set<string>();
+  const rows = await prisma.labelAiItem.findMany({ where: { projectId, type, code: { in: codes }, status: "empty" }, select: { code: true } });
+  return new Set(rows.map((r) => r.code));
+}
+
 export async function itemLabelsFor(projectId: string, type: MediaType, codes: string[], options: string[]) {
   const byCode = new Map<string, ItemLabelEntry[]>();
   if (!codes.length) return byCode;

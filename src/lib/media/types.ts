@@ -66,6 +66,8 @@ export type MediaItem = {
   /** Panel: labels within the project being viewed (/projects/<id>), in the project's order; absent without a project. Not AI
    *  categorisation. */
   manualLabels?: string[];
+  /** Panel: the label AI checked this item and no label fits (LabelAiItem "empty"); shown as a ✓ on the card. */
+  aiChecked?: boolean;
   /** Panel: AI's confidence (0-100), reason and source links for the labels it gave, by label. */
   aiLabels?: Record<string, { score: number | null; reason: string | null; needsReview?: boolean; sources?: { url: string; title: string }[] }>;
   /** Shown through a project whose keywords appear only in the item's image text (media worker), not in its text. */
