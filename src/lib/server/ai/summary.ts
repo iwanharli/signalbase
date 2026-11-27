@@ -10,6 +10,7 @@ import { completeJson, providerErrorMessage, type CallUsage, type ProviderConfig
 import { buildInput, SYSTEM_PROMPT, type PreviousSummary } from "./summaryInput";
 import { withImageCodes } from "../media/textSignals";
 import { pausedProjects } from "../projectAccess";
+import { wellFormed } from "@/lib/ai/clip";
 
 export const BANK_SCOPE = "bank";
 const BANK_NAME = "Seluruh bank data";
@@ -121,11 +122,15 @@ export async function resolveScope(id: string): Promise<ScopeRef | null> {
 export async function writeSummary(setting: AiSetting, ref: ScopeRef, day = dataDay()) {
   const prior = await prisma.aiSummary.findUnique({ where: { scope_day: { scope: ref.id, day } }, select: { attempts: true } });
   let attempts = (prior?.attempts ?? 0) + 1;
-  const save = (data: { status: string; content?: SummaryContent; error?: string | null }) => prisma.aiSummary.upsert({
-    where: { scope_day: { scope: ref.id, day } },
-    create: { scope: ref.id, scopeName: ref.name, day, model: setting.providerModel, attempts, ...data, content: data.content as Prisma.InputJsonValue },
-    update: { scopeName: ref.name, model: setting.providerModel, attempts, ...data, content: data.content as Prisma.InputJsonValue },
-  });
+  // wellFormed: a model can cut an emoji in half; a lone surrogate makes the whole JSON write fail.
+  const save = (raw: { status: string; content?: SummaryContent; error?: string | null }) => {
+    const data = wellFormed(raw);
+    return prisma.aiSummary.upsert({
+      where: { scope_day: { scope: ref.id, day } },
+      create: { scope: ref.id, scopeName: ref.name, day, model: setting.providerModel, attempts, ...data, content: data.content as Prisma.InputJsonValue },
+      update: { scopeName: ref.name, model: setting.providerModel, attempts, ...data, content: data.content as Prisma.InputJsonValue },
+    });
+  };
   try {
     const input = await buildInput(ref.scope, ref.name, ref.keywords, day, await previousSummary(ref.id, day));
     if (!input) {

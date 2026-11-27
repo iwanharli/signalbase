@@ -5,7 +5,7 @@
 // of Pengaturan AI, within its monthly budget. Nothing runs without KLASTER_URL.
 import { request } from "node:http";
 import { z } from "zod";
-import { clip, schemaIssues } from "@/lib/ai/clip";
+import { clip, schemaIssues, wellFormed } from "@/lib/ai/clip";
 import { clusterStats, issueScore, matchClusters, MIN_AUTHORS, needsTitle, type ClusterPost } from "@/lib/issueClusters";
 import { allowsType, parseKeyScope } from "@/lib/media/keyScope";
 import type { Prisma } from "@prisma/client";
@@ -92,7 +92,7 @@ async function writeTitles(projectId: string, name: string) {
       const parsed = titleSchema.safeParse(raw);
       if (!parsed.success) { await logCall(false, `Jawaban model tidak sesuai format: ${schemaIssues(parsed.error.issues)}`.slice(0, 500)); continue; }
       await logCall(true, null);
-      await prisma.issueCluster.update({ where: { id: c.id }, data: { title: parsed.data.judul, summary: parsed.data.ringkasan || null, actors: parsed.data.aktor, targets: parsed.data.target, titledAt: c.posts } });
+      await prisma.issueCluster.update({ where: { id: c.id }, data: wellFormed({ title: parsed.data.judul, summary: parsed.data.ringkasan || null, actors: parsed.data.aktor, targets: parsed.data.target, titledAt: c.posts }) });
     } catch (error) {
       log(`${name}: judul isu gagal: ${providerErrorMessage(error)}`);
       return; // provider trouble: try again next run
@@ -125,7 +125,7 @@ async function runProject(key: { id: string; name: string; scope: unknown; keywo
   const data = (c: (typeof found)[number]) => ({
     codes: c.codes, posts: c.stats.posts, authors: c.stats.authors, negShare: c.stats.negShare, growth: c.stats.growth, score: c.score,
     keywords: c.keywords, perDay: c.stats.perDay as Prisma.InputJsonValue, moods: c.stats.moods as Prisma.InputJsonValue,
-    samples: c.samples as Prisma.InputJsonValue, firstSeen: new Date(`${c.stats.firstSeen}Z`), lastSeen: new Date(`${c.stats.lastSeen}Z`), active: true,
+    samples: wellFormed(c.samples) as Prisma.InputJsonValue, firstSeen: new Date(`${c.stats.firstSeen}Z`), lastSeen: new Date(`${c.stats.lastSeen}Z`), active: true,
   });
   await prisma.$transaction([
     prisma.issueCluster.updateMany({ where: { projectId: key.id, active: true, id: { notIn: [...carried.values()] } }, data: { active: false } }),

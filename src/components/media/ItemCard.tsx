@@ -36,7 +36,9 @@ const authorName = (item: MediaItem) => item.author?.name?.trim().replace(/^[-â€
 export function PostAuthor({ item, type }: { item: MediaItem; type: MediaType }) {
   const author = authorName(item);
   const publisher = sourceLabel(item.source);
-  const handle = item.author?.username ? `@${item.author.username.replace(/^@/, "")}` : null;
+  const username = item.author?.username?.replace(/^@/, "") || null;
+  // The handle only when it says something the name does not (many accounts use their username as name).
+  const handle = username && author?.replace(/^@/, "").toLowerCase() !== username.toLowerCase() ? `@${username}` : null;
   return (
     <div className={classes.platformName}>
       {type === "social" && <PlatformIcon source={item.source} />}

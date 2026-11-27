@@ -10,7 +10,7 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const p = new URL(req.url).searchParams;
   const id = p.get("id") ?? "";
   if (!/^[A-Za-z0-9-]{1,64}$/.test(id)) return NextResponse.json({ error: "id tidak valid" }, { status: 400 });
-  const resolved = await resolveScope(p.get("project"), user);
+  const resolved = await resolveScope((p.get("project") ?? p.get("key")), user);
   if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   try {
     return NextResponse.json(await twinsOf(id, resolved.keyId));

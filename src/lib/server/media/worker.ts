@@ -18,6 +18,10 @@ import { metaPost } from "@/lib/media/metaPost";
 import { backfillProjects, cleanupOldMedia, ensureMediaIndexes, tagItems } from "./projects";
 import { groupUngrouped, twinGroupFor } from "./twins";
 import { applyTextSignals, applyTranscript, computeKeyText, refreshTextSignals } from "./textSignals";
+import { clip, wellFormed } from "@/lib/ai/clip";
+
+/** Text for the database: at most `max` characters, never half an emoji (a stray surrogate half fails the whole write). */
+const safeText = (s: string, max: number) => wellFormed(clip(s, max));
 
 const SERVICE = () => process.env.MEDIA_SERVICE_URL ?? "http://127.0.0.1:3726";
 /** Speech-to-text service (scripts/media/asr_service.py); optional: without it videos simply wait. */
@@ -252,7 +256,7 @@ async function store(found: Found[]) {
       const video = position === 0 && f.video && f.video.length <= 2000 ? f.video : null;
       const asset = await prisma.mediaAsset.upsert({
         where: { urlHash: sha(url) },
-        create: { urlHash: sha(url), url, kind: f.kind, context: f.context?.slice(0, 1000) ?? null, ...(video ? { videoUrl: video, transcriptStatus: "pending" } : {}) },
+        create: { urlHash: sha(url), url, kind: f.kind, context: f.context ? safeText(f.context, 1000) : null, ...(video ? { videoUrl: video, transcriptStatus: "pending" } : {}) },
         update: {}, select: { id: true, videoUrl: true },
       });
       if (video && !asset.videoUrl) await prisma.mediaAsset.update({ where: { id: asset.id }, data: { videoUrl: video, transcriptStatus: "pending" } });
@@ -298,7 +302,7 @@ async function analyzePending() {
       });
       const body = await res.json() as Analysis & { error?: string; gone?: boolean };
       if (!res.ok) {
-        await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: body.gone ? "gone" : "failed", error: body.error?.slice(0, 300) ?? `HTTP ${res.status}`, ...failed(a) } });
+        await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: body.gone ? "gone" : "failed", error: body.error ? safeText(body.error, 300) : `HTTP ${res.status}`, ...failed(a) } });
         return;
       }
       await serial(() => saveAnalysis(a, body));
@@ -312,7 +316,7 @@ async function analyzePending() {
         console.warn(`[media] ${lastError}`);
         return;
       }
-      await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: "failed", error: String(e).slice(0, 300), ...failed(a) } });
+      await prisma.mediaAsset.update({ where: { id: a.id }, data: { status: "failed", error: safeText(String(e), 300), ...failed(a) } });
     }
   };
   const lane = async () => {
@@ -329,7 +333,7 @@ async function saveAnalysis(a: { id: string; attempts: number; context: string |
     data: {
       ocrLines: body.ocrLines ?? [], unreadText: body.unreadText ?? false, keyText: key.text, keyWords: key.words,
       status: "done", error: null, attempts: a.attempts + 1, nextAttemptAt: null, width: body.width, height: body.height, dhash: body.dhash,
-      ocrText: body.ocrText.slice(0, 5000), ocrWords: body.ocrWords, tags: body.tags, tagList: body.tags.map((t) => t.tag),
+      ocrText: safeText(body.ocrText, 5000), ocrWords: body.ocrWords, tags: body.tags, tagList: body.tags.map((t) => t.tag),
       sensitive: body.sensitive, model: body.model, analyzedAt: new Date(), twinGroup: body.dhash ? await twinGroupFor(a.id, body.dhash) : null,
     },
   });
@@ -361,7 +365,7 @@ export async function runMediaTick() {
             collected[name] += found.length;
           }
         } catch (e) {
-          lastError = `${name}: ${(e as Error).message}`.slice(0, 300);
+          lastError = safeText(`${name}: ${(e as Error).message}`, 300);
           console.error(`[media] ${name} gagal:`, (e as Error).message);
         }
       }
@@ -455,7 +459,7 @@ async function transcribePending(collecting: () => boolean = () => false) {
       if (!body.gone) console.warn(`[media] transkripsi ${a.id} gagal: ${body.error ?? res.status}`);
       continue;
     }
-    const text = body.text?.trim().slice(0, 5000) ?? "";
+    const text = safeText(body.text?.trim() ?? "", 5000);
     await prisma.mediaAsset.update({
       where: { id: a.id },
       data: { transcriptStatus: body.audio ? "done" : "none", transcript: text, transcriptLang: body.language, transcriptAt: new Date() },

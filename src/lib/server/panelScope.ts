@@ -24,7 +24,7 @@ export async function issueView(query: URLSearchParams, user: PanelUser): Promis
     if (plan.expired) return fail(EXPIRED_MESSAGE, 403, { expired: true });
     historyDays = plan.limits.historyDays;
   }
-  const resolved = await resolveScope(query.get("project"), user);
+  const resolved = await resolveScope((query.get("project") ?? query.get("key")), user);
   if ("error" in resolved) return fail(resolved.error, resolved.status);
   // Issues are built from online news.
   if (!allowsType(resolved.scope, "online")) return fail("Proyek ini tidak punya akses ke media online", 403);

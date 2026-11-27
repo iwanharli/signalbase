@@ -41,7 +41,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
       query = clampHistory(query, plan.limits.historyDays);
     }
 
-    const resolved = await resolveScope(query.get("project"), user);
+    const resolved = await resolveScope((query.get("project") ?? query.get("key")), user);
     if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     const { keyId } = resolved;
     // A search also finds items whose image text matches it (media worker; nothing changes without ?q=).

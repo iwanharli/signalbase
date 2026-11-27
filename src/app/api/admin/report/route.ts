@@ -13,8 +13,8 @@ export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const url = new URL(req.url);
   const days = Number(url.searchParams.get("days") ?? 1);
   if (!isReportDays(days)) return NextResponse.json({ error: "days harus 1, 3, atau 7" }, { status: 400 });
-  const all = url.searchParams.get("project") === "all";
-  if (all) url.searchParams.delete("project");
+  const all = (url.searchParams.get("project") ?? url.searchParams.get("key")) === "all";
+  if (all) { url.searchParams.delete("project"); url.searchParams.delete("key"); }
   const view = await overviewView(all ? new Request(url) : req, user);
   if (view instanceof Response) return view;
   if (view.noKey) return NextResponse.json({ error: "Belum ada proyek" }, { status: 404 });

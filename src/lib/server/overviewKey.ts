@@ -12,7 +12,9 @@ export type OverviewView = { keys: KeyRow[]; key: KeyRow | null; scope: KeyScope
 /** Admins: the whole bank, or one key with ?project=. Users: one of their own keys (?project= or their oldest active one).
  *  Returns a Response for an expired plan or a key the caller may not see. */
 export async function overviewView(req: Request, user: PanelUser): Promise<OverviewView | Response> {
-  const requested = new URL(req.url).searchParams.get("project");
+  const params = new URL(req.url).searchParams;
+  // "key": the parameter before 27 Nov 2026, still sent by pages opened before that deploy.
+  const requested = params.get("project") ?? params.get("key");
   const isUser = user.role === "user";
   if (isUser && (await accountPlan(user.id)).expired) return NextResponse.json({ error: EXPIRED_MESSAGE, expired: true }, { status: 403 });
   const keys = await prisma.project.findMany({

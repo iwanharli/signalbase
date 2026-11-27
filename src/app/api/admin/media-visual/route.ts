@@ -15,7 +15,7 @@ import { resolveScope } from "@/lib/server/panelScope";
 export const GET = adminRoute(async (req: Request, _ctx, _username, user) => {
   const p = new URL(req.url).searchParams;
   const days = parseVisualDays(p.get("days"));
-  const resolved = await resolveScope(p.get("project"), user);
+  const resolved = await resolveScope((p.get("project") ?? p.get("key")), user);
   if ("error" in resolved) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   const kind = p.get("kind");
   const tag = p.get("tag");
