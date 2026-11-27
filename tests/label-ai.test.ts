@@ -75,11 +75,12 @@ test("labels are only checked by a search that ran, and keep only URLs the searc
   const verdict = (label: string, confidence: number, disputed: boolean, sources: string[]) => ({ label, confidence, disputed, sources, reason: "r" });
   const out = parseVerdict("Hasil: " + JSON.stringify({ labels: [
     verdict("hoaks", 90, false, ["https://a.id/1", "https://karangan.id", "https://a.id/1"]),
-    verdict("Provokasi", 20, true, []),
-    verdict("SARA", 10, false, []),
+    verdict("Provokasi", 55, true, []),
+    verdict("SARA", 10, true, []),
     verdict("Label lain", 99, false, []),
   ] }), candidates, reply.results);
-  assert.deepEqual(out.map((l) => [l.label, l.score, l.sources.map((s) => s.url), needsReview(l)]), [["Hoaks", 90, ["https://a.id/1"], false], ["Provokasi", 20, [], true]]);
+  // SARA scored 10 after the check: dropped even though disputed (the sources showed it does not apply).
+  assert.deepEqual(out.map((l) => [l.label, l.score, l.sources.map((s) => s.url), needsReview(l)]), [["Hoaks", 90, ["https://a.id/1"], false], ["Provokasi", 55, [], true]]);
   assert.throws(() => parseVerdict(JSON.stringify({ labels: [verdict("Hoaks", 90, false, [])] }), candidates, reply.results), /semua label/);
   assert.throws(() => parseVerdict("tidak ada", candidates, reply.results), /JSON/);
 });

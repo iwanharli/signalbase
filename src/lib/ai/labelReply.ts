@@ -104,8 +104,9 @@ const verdictSchema = z.object({
 
 /**
  * The checked verdict on the labels the first pass chose. Every one of them must be answered. A source is kept only when
- * its URL is one the search returned. A label scored below the minimum is dropped, unless a source disputes it: then a
- * person decides.
+ * its URL is one the search returned. A label scored below the minimum after the check is dropped, also when a source
+ * disputes it: a low score there means the sources showed the label does not apply (a "Hoaks" whose claim the news
+ * confirms). A disputed label that still scores high enough is kept for a person to look at (needsReview).
  */
 export function parseVerdict(text: string, candidates: AiLabel[], results: Map<string, Source>): CheckedLabel[] {
   const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
@@ -116,7 +117,7 @@ export function parseVerdict(text: string, candidates: AiLabel[], results: Map<s
   return candidates.flatMap((candidate) => {
     const v = parsed.data.labels.find((l) => l.label.trim().toLocaleLowerCase("id") === candidate.label.toLocaleLowerCase("id"));
     if (!v) throw new Error("Jawaban hasil pencarian tidak menilai semua label");
-    if (v.confidence < MIN_LABEL_SCORE && !v.disputed) return [];
+    if (v.confidence < MIN_LABEL_SCORE) return [];
     const sources = [...new Set(v.sources)].flatMap((url) => results.get(url) ?? []).slice(0, MAX_SOURCES);
     return [{ label: candidate.label, score: v.confidence, reason: v.reason.slice(0, 300), disputed: v.disputed, sources }];
   });

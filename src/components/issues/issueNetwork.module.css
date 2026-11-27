@@ -20,7 +20,7 @@
 .close:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
 
 /* .body .stage beats the SNA page's desktop rule (sna.module.css: absolute over the whole screen), which would cover the header. */
-.body .stage { position: relative; inset: auto; flex: 1; height: auto; min-height: 0; border-radius: 0; border: 0; box-shadow: none; --top: 12px; --bar-h: 44px; }
+.body .stage { position: relative; inset: auto; flex: 1; height: auto; min-height: 0; border-radius: 0; border: 0; box-shadow: none; --top: 12px; --bar-h: 60px; }
 
 .toolbar { position: absolute; z-index: 3; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px;
   border-radius: 14px; background: rgba(15,13,36,.78); border: 1px solid rgba(167,139,250,.2); backdrop-filter: blur(14px); }

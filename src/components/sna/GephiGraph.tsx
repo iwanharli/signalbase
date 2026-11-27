@@ -39,6 +39,59 @@ function drawHover(ctx: CanvasRenderingContext2D, data: { x: number; y: number; 
   ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.fillText(data.label, x, data.y + 0.5);
 }
 
+
+/** Room between two nodes, in screen pixels. */
+const NODE_GAP = 6;
+
+/**
+ * Pushes overlapping nodes apart. Sigma fits the whole graph into the box and draws sizes in screen pixels, so the
+ * distance two nodes need is converted to graph units through the graph's extent. A spatial grid keeps it near-linear;
+ * a few rounds settle chains of collisions. `rowsFixed` (tree): only sideways, so the rows stay rows.
+ */
+function separate(g: Graph<NodeAttrs>, boxPx: number, rowsFixed: boolean) {
+  const ids = g.nodes();
+  if (ids.length < 2) return;
+  for (let round = 0; round < 8; round++) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxSize = 0;
+    for (const id of ids) {
+      const a = g.getNodeAttributes(id);
+      minX = Math.min(minX, a.x); maxX = Math.max(maxX, a.x); minY = Math.min(minY, a.y); maxY = Math.max(maxY, a.y);
+      maxSize = Math.max(maxSize, a.size);
+    }
+    const unit = Math.max(maxX - minX, maxY - minY, 1e-6) / Math.max(160, boxPx - 60); // graph units per screen pixel
+    const cell = (2 * maxSize + NODE_GAP) * unit;
+    const grid = new Map<string, string[]>();
+    for (const id of ids) {
+      const a = g.getNodeAttributes(id);
+      const key = `${Math.floor(a.x / cell)}|${Math.floor(a.y / cell)}`;
+      grid.set(key, [...(grid.get(key) ?? []), id]);
+    }
+    let moved = false;
+    for (const id of ids) {
+      const a = g.getNodeAttributes(id);
+      const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        for (const other of grid.get(`${cx + dx}|${cy + dy}`) ?? []) {
+          if (other <= id) continue;
+          const b = g.getNodeAttributes(other);
+          const need = (a.size + b.size + NODE_GAP) * unit;
+          let vx = b.x - a.x, vy = rowsFixed ? 0 : b.y - a.y;
+          if (rowsFixed && Math.abs(b.y - a.y) >= need) continue;
+          let d = Math.hypot(vx, vy);
+          if (d >= need) continue;
+          // Same spot: a fixed direction from the ids, so the result does not change between renders.
+          if (d < 1e-9) { const t = (id.length * 31 + other.length * 17) % 360 * Math.PI / 180; vx = rowsFixed ? 1 : Math.cos(t); vy = rowsFixed ? 0 : Math.sin(t); d = 1; }
+          const push = (need - d) / 2 / d;
+          a.x -= vx * push; b.x += vx * push;
+          if (!rowsFixed) { a.y -= vy * push; b.y += vy * push; }
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+}
+
 export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null, bridgeTitle = "Akun jembatan" }: {
   graph: SnaGraph; analysis: NetworkAnalysis; picked: string | null; onPick: (id: string | null) => void; color: GephiColor; size: GephiSize;
   /** "Susun pohon": fixed positions instead of ForceAtlas2. */
@@ -99,25 +152,20 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     return { g, colorOf, tones, legend };
   }, [graph, analysis]);
 
-  // Positions: the tree's (sigma's y axis points up, the tree's down), or back to ForceAtlas2's.
+  // Positions (the tree's, sigma's y axis pointing up, or ForceAtlas2's) and sizes (the chosen measure), then nodes pushed
+  // apart so none overlaps on screen, whatever the layout, size measure or filter.
   useEffect(() => {
     const { g } = built;
     g.forEachNode((id, a) => {
       const p = layout?.pos.get(id);
       // In the tree the issues stand side by side in one row: their titles are cut shorter so they do not run together.
       const label = a.kind === "issue" ? short(a.full, layout ? 16 : 42) : a.label;
-      g.mergeNodeAttributes(id, p ? { x: p.x, y: -p.y, label } : { x: a.fx, y: a.fy, label });
+      g.mergeNodeAttributes(id, { ...(p ? { x: p.x, y: -p.y } : { x: a.fx, y: a.fy }), label, size: size === "betweenness" ? a.btw : a.eng });
     });
+    separate(g, Math.min(box.current?.clientWidth || 900, box.current?.clientHeight || 600), !!layout);
     sigmaRef.current?.refresh();
     sigmaRef.current?.getCamera().animatedReset({ duration: 300 });
-  }, [built, layout]);
-
-  // Node sizes follow the chosen measure.
-  useEffect(() => {
-    const { g } = built;
-    g.forEachNode((id, a) => g.setNodeAttribute(id, "size", size === "betweenness" ? a.btw : a.eng));
-    sigmaRef.current?.refresh();
-  }, [built, size]);
+  }, [built, layout, size]);
 
   // Node colours follow the chosen colouring.
   useEffect(() => {
