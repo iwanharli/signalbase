@@ -33,3 +33,20 @@ test("ontologies: a social issue with the issues sharing its actors or targets; 
   assert.deepEqual(sna.nodes.map((n) => [n.kind, n.name ?? n.title]), [["issue", "BSU"], ["hub", "Ekonomi"], ["child", "Jawa Barat"]]);
   assert.equal(sna.links.length, 2);
 });
+
+test("limitNodes: the issue stays, then the heaviest nodes; links only between kept nodes; null keeps all", async () => {
+  const { limitNodes } = await import("../src/lib/issueNetwork");
+  const g = {
+    nodes: [
+      { id: "i", kind: "issue" as const, posts: 10, mentions: 0 },
+      { id: "a", kind: "hub" as const, posts: 5, mentions: 0, engagement: 100 },
+      { id: "b", kind: "hub" as const, posts: 1, mentions: 0, engagement: 1 },
+      { id: "c", kind: "child" as const, posts: 0, mentions: 3, engagement: 50 },
+    ],
+    links: [["i", "a"], ["i", "b"], ["a", "c"]].map(([source, target]) => ({ source, target, n: 1, tone: "neutral" as const, counts: { negative: 0, neutral: 1, positive: 0, unknown: 0 } })),
+  };
+  const two = limitNodes(g, 2);
+  assert.deepEqual(two.nodes.map((n) => n.id), ["i", "a", "c"]);
+  assert.deepEqual(two.links.map((l) => `${l.source}-${l.target}`), ["i-a", "a-c"]);
+  assert.equal(limitNodes(g, null), g);
+});

@@ -5,6 +5,12 @@ import { prisma } from "./db";
 
 export type SnaCodes = { codes: string[]; key: string } | null;
 
+/** Items of one type carrying a label (manual or AI) in a project, for the issue network's label filter. */
+export async function labelledCodes(projectId: string, type: "social" | "online", label: string) {
+  const rows = await prisma.itemLabel.findMany({ where: { projectId, type, label }, select: { code: true } });
+  return { label, codes: [...new Set(rows.map((r) => r.code))] };
+}
+
 /** The post codes the graph is limited to, null when no filter is set, or an error response. */
 export async function snaCodes(q: URLSearchParams, keyId: string | null): Promise<SnaCodes | Response> {
   const issue = q.get("issue")?.trim() || null;

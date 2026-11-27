@@ -8,8 +8,9 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Modal, Skeleton } from "@mantine/core";
 import { Tooltip } from "@mantine/core";
-import { IconBinaryTree2, IconChartDots3, IconHierarchy2, IconRefresh, IconSearch, IconX } from "@tabler/icons-react";
-import { ontologyAsSna } from "@/lib/issueNetwork";
+import { IconBinaryTree2, IconChartDots3, IconHierarchy2, IconLayoutGrid, IconRefresh, IconSearch, IconX } from "@tabler/icons-react";
+import { Select } from "@mantine/core";
+import { limitNodes, ontologyAsSna } from "@/lib/issueNetwork";
 import { formatNumber } from "@/lib/media/labels";
 import type { OntGraph } from "@/lib/ontology";
 import { ACCOUNT_LABEL, filterGraph, KIND_COLOR, SNA_FLOWS, TONE_COLOR, TONE_LABEL, type SnaFlow, type SnaGraph, type SnaView, type Tone } from "@/lib/sna";
@@ -17,6 +18,7 @@ import { TREE_COMPACT, treeLayout } from "@/lib/snaTree";
 import type { NetworkAnalysis } from "@/lib/snaNetwork";
 import { useApi } from "@/lib/useApi";
 import { Segmented } from "../ui/controls";
+import controls from "../ui/controls.module.css";
 import type { GephiColor, GephiSize } from "../sna/GephiGraph";
 import { SnaFlowGuide } from "../sna/SnaFlowGuide";
 import { MenuRow, ViewMenu } from "../sna/ViewMenu";
@@ -37,11 +39,14 @@ const SIZES: { value: GephiSize; label: string }[] = [{ value: "engagement", lab
 const VIEWS = [{ value: "isu", label: "Isu" }, { value: "mention", label: "Mention" }] as const;
 const FLOWS = SNA_FLOWS.map((f) => ({ value: f.value, label: f.label }));
 const TONES: Tone[] = ["negative", "neutral", "positive"];
+const LIMITS = [{ value: "25", label: "25 node" }, { value: "50", label: "50 node" }, { value: "100", label: "100 node" }, { value: "200", label: "200 node" }, { value: "semua", label: "Semua node" }];
 
 export type NetworkTab = "sna" | "ontologi";
 
-export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology, initialTab = "sna" }: {
+export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology, initialTab = "sna", projectId = null }: {
   opened: boolean; onClose: () => void; kind: NetworkKind;
+  /** The project the page shows: its labels filter the network (none on the whole-bank pages). */
+  projectId?: string | null;
   /** The tab it opens on. */
   initialTab?: NetworkTab;
   /** The issue's network API (null while closed): { sna, ontology? }. */
@@ -56,7 +61,13 @@ export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology
   const [view, setView] = useState<SnaView>("isu");
   const [flow, setFlow] = useState<SnaFlow>("langsung");
   const social = kind === "social";
-  const fetchUrl = url && social ? `${url}${url.includes("?") ? "&" : "?"}view=${view}${view === "isu" ? `&flow=${flow}` : ""}` : url;
+  const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [limit, setLimit] = useState("semua");
+  const [tidy, setTidy] = useState(0);
+  const extra = [social ? `view=${view}${view === "isu" ? `&flow=${flow}` : ""}` : "", labelFilter ? `label=${encodeURIComponent(labelFilter)}` : ""].filter(Boolean).join("&");
+  const fetchUrl = url && extra ? `${url}${url.includes("?") ? "&" : "?"}${extra}` : url;
+  const labels = useApi<{ options: string[]; counts: Record<string, number> }>(opened && projectId ? `/api/admin/projects/${encodeURIComponent(projectId)}/labels` : null);
+  const labelOptions = (labels.data?.options ?? []).map((l) => ({ value: l, label: `${l} · ${formatNumber(labels.data?.counts[l] ?? 0)}` }));
   const res = useApi<{ sna: SnaGraph; ontology?: OntGraph }>(opened ? fetchUrl : null);
   const [off, setOff] = useState<Tone[]>([]);
   const [tree, setTree] = useState(false);
@@ -69,17 +80,21 @@ export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   useEffect(() => { setPicked(null); setQuery(""); }, [tab, url, view, flow]);
-  useEffect(() => { if (!opened) { setView("isu"); setFlow("langsung"); setOff([]); setTree(false); } }, [opened]);
+  useEffect(() => { if (!opened) { setView("isu"); setFlow("langsung"); setOff([]); setTree(false); setLabelFilter(null); setLimit("semua"); } }, [opened]);
 
   const ont = ontology ?? res.data?.ontology ?? null;
   // Ontology edges carry the role, not an emotion: colour them by type instead.
   const colorMode: GephiColor = tab === "ontologi" && color === "emosi" ? "jenis" : color;
   // Data of the current request only: while another view or flow loads, the old map is not shown as the new one.
   const snaGraph = res.loading ? null : res.data?.sna ?? null;
-  const graph = useMemo<SnaGraph | null>(() => (tab === "sna" ? (snaGraph ? filterGraph(snaGraph, off) : null) : ont ? ontologyAsSna(ont) : null), [tab, snaGraph, ont, off]);
+  const graph = useMemo<SnaGraph | null>(() => {
+    const max = limit === "semua" ? null : Number(limit);
+    if (tab === "ontologi") return ont ? limitNodes(ontologyAsSna(ont), max) : null;
+    return snaGraph ? limitNodes(filterGraph(snaGraph, off), max) : null;
+  }, [tab, snaGraph, ont, off, limit]);
   const canTree = tab === "sna" && view === "isu" && !!graph?.nodes.some((n) => n.kind === "issue") && graph.nodes.length > 1;
   const layout = useMemo(() => (tree && canTree && graph ? treeLayout(graph, TREE_COMPACT) : null), [tree, canTree, graph]);
-  const changed = (colorMode !== (tab === "ontologi" ? "jenis" : "klaster") ? 1 : 0) + (size !== "engagement" ? 1 : 0) + (flow !== "langsung" ? 1 : 0) + off.length;
+  const changed = (colorMode !== (tab === "ontologi" ? "jenis" : "klaster") ? 1 : 0) + (size !== "engagement" ? 1 : 0) + (flow !== "langsung" ? 1 : 0);
 
   const [analysis, setAnalysis] = useState<{ of: SnaGraph; a: NetworkAnalysis } | null>(null);
   useEffect(() => {
@@ -136,28 +151,38 @@ export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology
               </ul>
             )}
           </div>
+          <Select aria-label="Jumlah node" w={150} data={LIMITS} value={limit} onChange={(v) => setLimit(v ?? "semua")} allowDeselect={false}
+            classNames={{ input: controls.selectInput, section: controls.selectSection, dropdown: controls.selectDropdown, option: controls.selectOption }} comboboxProps={{ withinPortal: false }} />
+          {tab === "sna" && (
+            <div className={sna.tones} role="group" aria-label="Emosi yang ditampilkan">
+              {TONES.map((t) => {
+                const on = !off.includes(t);
+                return (
+                  <button key={t} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan ${TONE_LABEL[t].toLowerCase()}` : `Tampilkan ${TONE_LABEL[t].toLowerCase()}`}
+                    onClick={() => setOff(on ? [...off, t] : off.filter((x) => x !== t))}>
+                    <i style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {tab === "sna" && projectId && (
+            <Select aria-label="Label" w={170} clearable placeholder={labelOptions.length ? "Semua label" : "Belum ada label"} disabled={!labelOptions.length && !labelFilter}
+              data={labelOptions} value={labelFilter} onChange={setLabelFilter}
+              classNames={{ input: controls.selectInput, section: controls.selectSection, dropdown: controls.selectDropdown, option: controls.selectOption }} comboboxProps={{ withinPortal: false }} />
+          )}
           {graph && <span className={c.stat}><b>{formatNumber(graph.nodes.length)}</b> node · <b>{formatNumber(graph.links.length)}</b> hubungan</span>}
           <div className={sna.barEnd}>
             <ViewMenu changed={changed}>
               <MenuRow label="Warna node"><Segmented label="Warna" options={tab === "ontologi" ? COLORS.filter((o) => o.value !== "emosi") : COLORS} value={colorMode} onChange={(v) => setColor(v as GephiColor)} /></MenuRow>
               <MenuRow label="Ukuran node"><Segmented label="Ukuran node" options={SIZES} value={size} onChange={(v) => setSize(v as GephiSize)} /></MenuRow>
               {social && tab === "sna" && view === "isu" && <MenuRow label="Alur"><Segmented label="Alur" options={FLOWS} value={flow} onChange={(v) => setFlow(v as SnaFlow)} /></MenuRow>}
-              {tab === "sna" && (
-                <MenuRow label="Emosi">
-                  <div className={sna.tones} role="group" aria-label="Emosi yang ditampilkan">
-                    {TONES.map((t) => {
-                      const on = !off.includes(t);
-                      return (
-                        <button key={t} type="button" aria-pressed={on} data-off={!on || undefined} title={on ? `Sembunyikan ${TONE_LABEL[t].toLowerCase()}` : `Tampilkan ${TONE_LABEL[t].toLowerCase()}`}
-                          onClick={() => setOff(on ? [...off, t] : off.filter((x) => x !== t))}>
-                          <i style={{ background: TONE_COLOR[t] }} />{TONE_LABEL[t]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </MenuRow>
-              )}
             </ViewMenu>
+            {graph && graph.nodes.length > 1 && (
+              <Tooltip label="Rapikan node: kembalikan susunan dan pisahkan yang bertumpuk" withinPortal={false} position="bottom" withArrow>
+                <button type="button" className={sna.tool} aria-label="Rapikan node" onClick={() => setTidy((n) => n + 1)}><IconLayoutGrid size={16} /></button>
+              </Tooltip>
+            )}
             {canTree && (
               <Tooltip label={tree ? "Kembali ke susunan bebas" : "Susun pohon: isu di atas, akunnya di bawah"} withinPortal={false} position="bottom" withArrow>
                 <button type="button" className={sna.tool} aria-pressed={tree} aria-label="Susun pohon" data-active={tree || undefined} onClick={() => setTree(!tree)}><IconBinaryTree2 size={16} /></button>
@@ -176,10 +201,13 @@ export function IssueNetwork({ opened, onClose, kind, url, title, meta, ontology
         ) : social && tab === "sna" && view === "mention" && graph.links.length === 0 ? (
           <div className={c.state}><b>Tidak ada mention</b><p>Post isu ini tidak menyebut atau membalas akun lain. Gunakan tampilan Isu untuk melihat siapa saja yang membahasnya.</p>
             <button type="button" className={c.retry} onClick={() => setView("isu")}>Ke tampilan Isu</button></div>
+        ) : labelFilter && graph.nodes.length <= 1 ? (
+          <div className={c.state}><b>Tidak ada post berlabel {labelFilter}</b><p>Isu ini tidak punya post dengan label tersebut di proyek ini.</p>
+            <button type="button" className={c.retry} onClick={() => setLabelFilter(null)}>Semua label</button></div>
         ) : graph.nodes.length <= 1 ? (
           <div className={c.state}><b>Belum ada jaringan</b><p>{tab === "sna" ? "Belum ada akun atau media yang tercatat untuk isu ini." : "Isu ini belum menyebut aktor, target, topik, atau wilayah."}</p></div>
         ) : (
-          <GephiGraph graph={graph} analysis={ready} picked={picked} onPick={setPicked} color={colorMode} size={size} layout={layout}
+          <GephiGraph graph={graph} analysis={ready} picked={picked} onPick={setPicked} color={colorMode} size={size} layout={layout} tidy={tidy}
             bridgeTitle={tab === "sna" ? (kind === "social" ? "Akun jembatan" : "Simpul jembatan") : "Entitas jembatan"} />
         )}
 

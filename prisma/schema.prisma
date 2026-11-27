@@ -359,7 +359,11 @@ model LabelAiItem {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  /// Normalised text fingerprint (lib/ai/labelSkip textKey): a later copy of the same text takes this post's result.
+  textKey String?
+
   @@id([projectId, type, code])
+  @@index([projectId, type, textKey])
   @@index([projectId, type, status, retryAfter])
 }
 

@@ -92,12 +92,14 @@ function separate(g: Graph<NodeAttrs>, boxPx: number, rowsFixed: boolean) {
   }
 }
 
-export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null, bridgeTitle = "Akun jembatan" }: {
+export function GephiGraph({ graph, analysis, picked, onPick, color, size, layout = null, bridgeTitle = "Akun jembatan", tidy = 0 }: {
   graph: SnaGraph; analysis: NetworkAnalysis; picked: string | null; onPick: (id: string | null) => void; color: GephiColor; size: GephiSize;
   /** "Susun pohon": fixed positions instead of ForceAtlas2. */
   layout?: TreeLayout | null;
   /** Heading of the bridge list ("Akun jembatan"; other networks name their nodes differently). */
   bridgeTitle?: string;
+  /** Bumped by a "Rapikan node" button: dragged nodes go back to the layout, apart and centred. */
+  tidy?: number;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigmaRef = useRef<Sigma<NodeAttrs> | null>(null);
@@ -165,7 +167,7 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     separate(g, Math.min(box.current?.clientWidth || 900, box.current?.clientHeight || 600), !!layout);
     sigmaRef.current?.refresh();
     sigmaRef.current?.getCamera().animatedReset({ duration: 300 });
-  }, [built, layout, size]);
+  }, [built, layout, size, tidy]);
 
   // Node colours follow the chosen colouring.
   useEffect(() => {
@@ -222,6 +224,44 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     });
     sigmaRef.current = sigma;
 
+    // Issue nodes drawn apart from accounts: a soft glow, a white and a dashed ring, and an "ISU" tag above, redrawn with
+    // every frame on a canvas over sigma's own (added after sigma, so it sits on top; sigma itself draws plain discs).
+    const canvas = document.createElement("canvas");
+    canvas.className = classes.gephiOverlay;
+    canvas.setAttribute("aria-hidden", "true");
+    el.appendChild(canvas);
+    const paintIssues = () => {
+      const ratio = window.devicePixelRatio || 1, w = el.clientWidth, h = el.clientHeight;
+      if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) { canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const on = lit();
+      g.forEachNode((id, a) => {
+        if (a.kind !== "issue") return;
+        const d = sigma.getNodeDisplayData(id);
+        if (!d || d.hidden) return;
+        const p = sigma.framedGraphToViewport({ x: d.x, y: d.y });
+        const r = sigma.scaleSize(d.size);
+        const dim = !!on && !on.has(id);
+        ctx.globalAlpha = dim ? 0.25 : 1;
+        const glow = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * 2.1);
+        glow.addColorStop(0, "rgba(251,113,133,.45)"); glow.addColorStop(1, "rgba(251,113,133,0)");
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.1, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = "#ffffff"; ctx.beginPath(); ctx.arc(p.x, p.y, r + 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#fb7185"; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(p.x, p.y, r + 7, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = "800 10px Inter, system-ui, sans-serif";
+        const tag = "ISU", tw = ctx.measureText(tag).width + 14, ty = p.y - r - 22;
+        const grad = ctx.createLinearGradient(p.x - tw / 2, 0, p.x + tw / 2, 0);
+        grad.addColorStop(0, "#f43f5e"); grad.addColorStop(1, "#7c3aed");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(p.x - tw / 2, ty, tw, 16, 8); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(tag, p.x, ty + 8.5);
+        ctx.globalAlpha = 1;
+      });
+    };
+    sigma.on("afterRender", paintIssues);
+
     // Hover lights a node and its neighbours; click opens it (as in the classic view); dragging moves it.
     let dragged: string | null = null, moved = false;
     sigma.on("enterNode", ({ node }) => { hoverRef.current = node; el.style.cursor = "pointer"; sigma.refresh({ skipIndexation: true }); });
@@ -242,7 +282,7 @@ export function GephiGraph({ graph, analysis, picked, onPick, color, size, layou
     sigma.on("upStage", release);
     sigma.on("clickNode", ({ node }) => { if (!moved) pickRef.current(node); });
     sigma.on("clickStage", () => pickRef.current(null));
-    return () => { sigma.kill(); sigmaRef.current = null; };
+    return () => { sigma.kill(); canvas.remove(); sigmaRef.current = null; };
   }, [built]);
 
   useEffect(() => { pickedRef.current = picked; sigmaRef.current?.refresh({ skipIndexation: true }); }, [picked]);

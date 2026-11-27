@@ -113,7 +113,7 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
         ...(labels ? { classification: labels.get(item.code) ?? null } : {}),
         ...(manual ? {
           manualLabels: manual.get(item.code)?.map((e) => e.label) ?? [],
-          ...(checked?.has(item.code) && !manual.get(item.code)?.length ? { aiChecked: true } : {}),
+          ...(checked?.has(item.code) && !manual.get(item.code)?.length ? { aiChecked: true, ...(checked.get(item.code) ? { aiCheckedNote: checked.get(item.code) } : {}) } : {}),
           aiLabels: Object.fromEntries((manual.get(item.code) ?? []).filter((e) => e.source === "ai").map((e) => [e.label, { score: e.score, reason: e.reason ?? null, needsReview: e.needsReview, sources: e.sources ?? [] }])),
         } : {}),
         ...(metadata?.has(item.code) ? { socialMetadata: metadata.get(item.code) } : {}),

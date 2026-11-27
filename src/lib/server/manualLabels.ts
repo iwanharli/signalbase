@@ -1,6 +1,7 @@
 // Manual labels of a project, as the panel and the public API read them. Separate from AI categorisation.
 import { Prisma } from "@prisma/client";
 import { ANY_CATEGORY, LOW_CONFIDENCE, LOW_CONFIDENCE_FILTER } from "@/lib/ai/classifier";
+import { SKIP_NOTE, type SkipReason } from "@/lib/ai/labelSkip";
 import { AI_LABELS, AI_NO_LABEL, AI_REVIEW, ANY_LABEL, sortLabels, type ItemLabelEntry } from "@/lib/media/manualLabels";
 import type { KeyScope } from "@/lib/media/keyScope";
 import type { MediaType } from "@/lib/media/types";
@@ -17,11 +18,12 @@ export async function projectLabels(projectId: string): Promise<string[] | null>
 }
 
 /** Labels per item code for the given items, in the project's order; unlabelled items are absent. */
-/** Items of the page the label AI has checked and found no label for ("Sudah dicek, tanpa label"). */
+/** Items of the page the label AI has checked and found no label for ("Sudah dicek, tanpa label"), with why when a rule
+ *  passed it over (lib/ai/labelSkip) rather than the model reading it: code → note, "" for a post the model read. */
 export async function aiCheckedCodes(projectId: string, type: MediaType, codes: string[]) {
-  if (!codes.length) return new Set<string>();
-  const rows = await prisma.labelAiItem.findMany({ where: { projectId, type, code: { in: codes }, status: "empty" }, select: { code: true } });
-  return new Set(rows.map((r) => r.code));
+  if (!codes.length) return new Map<string, string>();
+  const rows = await prisma.labelAiItem.findMany({ where: { projectId, type, code: { in: codes }, status: "empty" }, select: { code: true, model: true } });
+  return new Map(rows.map((r) => [r.code, r.model?.startsWith("aturan:") ? SKIP_NOTE[r.model.slice(7) as SkipReason] ?? "" : ""]));
 }
 
 export async function itemLabelsFor(projectId: string, type: MediaType, codes: string[], options: string[]) {

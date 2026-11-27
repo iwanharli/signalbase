@@ -311,7 +311,7 @@ export function OnlineIssues() {
           )}
         </div>
         {selected && (
-          <IssueNetwork opened={network !== null} onClose={() => setNetwork(null)} kind="online" initialTab={network ?? "sna"} title={selected.label || selected.title}
+          <IssueNetwork projectId={keyId} opened={network !== null} onClose={() => setNetwork(null)} kind="online" initialTab={network ?? "sna"} title={selected.label || selected.title}
             url={`/api/admin/issues/${encodeURIComponent(selected.id)}/network?topik=${topic}${keyId ? `&project=${encodeURIComponent(keyId)}` : ""}`}
             meta={<>{formatNumber(selected.newsCount)} berita · skor {formatNumber(selected.score)} · terakhir muncul {fromNow(selected.lastSeenAt)}</>} />
         )}

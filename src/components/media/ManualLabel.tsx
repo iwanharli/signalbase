@@ -70,7 +70,8 @@ export function ManualLabelPicker({ item, bleed, panel, leading }: { item: Media
   );
   // Checked by the label AI, no label fits: a small ✓ (not a label, so it is in no filter count or export).
   const checked = !set && item.aiChecked ? (
-    <span className={classes.aiChecked} title="Sudah dicek AI · tidak ada label yang cocok" aria-label="Sudah dicek AI, tidak ada label yang cocok" role="img">
+    <span className={classes.aiChecked} role="img" aria-label="Sudah dicek AI, tidak ada label yang cocok"
+      title={item.aiCheckedNote ? `Sudah dicek AI · dilewati: ${item.aiCheckedNote}` : "Sudah dicek AI · tidak ada label yang cocok"}>
       <IconCheck size={12} stroke={3} />
     </span>
   ) : null;

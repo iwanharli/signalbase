@@ -4,7 +4,8 @@ import { adminRoute } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
 import { findIssue } from "@/lib/server/bank/issues";
 import { onlineIssueGraph } from "@/lib/server/issueNetwork";
-import { issueView } from "@/lib/server/panelScope";
+import { issueView, resolveScope } from "@/lib/server/panelScope";
+import { labelledCodes } from "@/lib/server/snaFilter";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -21,7 +22,10 @@ export const GET = adminRoute(async (req: Request, { params }: Context, _usernam
   try {
     const issue = await findIssue(id, view.keywords, topic);
     if (!issue) return NextResponse.json({ error: "Isu tidak ditemukan" }, { status: 404 });
-    return NextResponse.json(await onlineIssueGraph(issue));
+    const label = query.get("label")?.trim();
+    const resolved = label ? await resolveScope(query.get("project") ?? query.get("key"), user) : null;
+    const projectId = resolved && "keyId" in resolved ? resolved.keyId : null;
+    return NextResponse.json(await onlineIssueGraph(issue, label && projectId ? await labelledCodes(projectId, "online", label) : null));
   } catch (e) {
     return sourceErrorResponse(e, "issues/network");
   }

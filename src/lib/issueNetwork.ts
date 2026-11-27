@@ -108,3 +108,16 @@ export function ontologyAsSna(g: OntGraph): SnaGraph {
     }),
   };
 }
+
+/** The issue's node(s) and the `max` other nodes that weigh most (reach, then posts and mentions), with the links
+ *  between them; nodes left with no link drop out. null = every node. */
+export function limitNodes(g: SnaGraph, max: number | null): SnaGraph {
+  const others = g.nodes.filter((n) => n.kind !== "issue");
+  if (max === null || others.length <= max) return g;
+  const weight = (n: SnaNode) => (n.engagement ?? 0) + n.posts + n.mentions;
+  const kept = new Set([...g.nodes.filter((n) => n.kind === "issue").map((n) => n.id),
+    ...[...others].sort((a, b) => weight(b) - weight(a) || a.id.localeCompare(b.id)).slice(0, max).map((n) => n.id)]);
+  const links = g.links.filter((l) => kept.has(l.source) && kept.has(l.target));
+  const linked = new Set(links.flatMap((l) => [l.source, l.target]));
+  return { nodes: g.nodes.filter((n) => kept.has(n.id) && (n.kind === "issue" || linked.has(n.id))), links };
+}

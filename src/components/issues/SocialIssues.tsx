@@ -256,7 +256,7 @@ export function SocialIssues() {
           )}
         </div>
         {selected && (
-          <IssueNetwork opened={network !== null} onClose={() => setNetwork(null)} kind="social" initialTab={network ?? "sna"} title={selected.title}
+          <IssueNetwork projectId={keyId} opened={network !== null} onClose={() => setNetwork(null)} kind="social" initialTab={network ?? "sna"} title={selected.title}
             url={`/api/admin/ontology/${encodeURIComponent(selected.id)}/network${keyId ? `?project=${encodeURIComponent(keyId)}` : ""}`}
             ontology={relatedOntology(issues, selected.id)}
             meta={<><span style={{ color: levelColor(selected.level), fontWeight: 800 }}>{selected.level}</span>· skor {formatNumber(selected.score)} · {formatNumber(selected.postCount)} post · dikirim {fromNow(selected.sentAt)}</>} />

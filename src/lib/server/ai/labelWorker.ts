@@ -7,6 +7,7 @@ import type { LabelAi, Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { labelAiProvider } from "@/lib/ai/labelAi";
 import { backoffMs, labelErrorKind, needsReview, parseLabelReply, reachesFurther, type AiLabel, type CheckedLabel } from "@/lib/ai/labelReply";
+import { COPY_MODEL, RULE_MODEL, skipReason, textKey, type SkipReason } from "@/lib/ai/labelSkip";
 import { allowsType, parseKeyScope, type KeyScope } from "@/lib/media/keyScope";
 import { defaultLabelPrompt, labelOutputFormat, syncLabelList } from "@/lib/media/manualLabels";
 import { MEDIA_TYPES, type MediaItem, type MediaType } from "@/lib/media/types";
@@ -82,7 +83,9 @@ type Run = {
   failedCalls: number;
   succeeded: boolean;
   /** What this run did, for the terminal summary. */
-  tally: { sent: number; labelled: number; empty: number; failed: number; waiting: number; human: number; calls: number; input: number; output: number };
+  tally: { sent: number; labelled: number; empty: number; failed: number; waiting: number; human: number; calls: number; input: number; output: number;
+    /** Passed over by a rule (labelSkip) / copied from the same text, both without a call. */
+    skipped: number; copied: number };
 };
 
 const todayInJakarta = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -125,10 +128,10 @@ export type ResultMeta = {
  * meanwhile writes that row too (item-labels route), so whichever comes second sees the other. Returns false when the
  * post was already decided.
  */
-export async function storeResult(projectId: string, type: MediaType, code: string, publishedAt: Date, labels: CheckedLabel[], meta: ResultMeta) {
+export async function storeResult(projectId: string, type: MediaType, code: string, publishedAt: Date, labels: CheckedLabel[], meta: ResultMeta, key: string | null = null) {
   const { model } = meta;
   return prisma.$transaction(async (tx) => {
-    const done = { status: labels.length ? "done" : "empty", model, publishedAt, error: null, retryAfter: null };
+    const done = { status: labels.length ? "done" : "empty", model, publishedAt, error: null, retryAfter: null, textKey: key };
     const created = await tx.labelAiItem.createMany({ data: [{ projectId, type, code, attempts: 1, ...done }], skipDuplicates: true });
     if (!created.count) {
       const taken = await tx.labelAiItem.updateMany({ where: { projectId, type, code, status: { in: ["failed", "waiting_text"] } }, data: done });
@@ -152,6 +155,37 @@ export async function storeResult(projectId: string, type: MediaType, code: stri
   });
 }
 
+/** Takes the ledger row for a post decided without the model (a rule or a copy). False: already decided (a person, or
+ *  an earlier run). */
+async function takeLedger(tx: Prisma.TransactionClient, projectId: string, type: MediaType, code: string, data: { status: string; model: string; publishedAt: Date; textKey: string | null }) {
+  const done = { ...data, error: null, retryAfter: null };
+  const created = await tx.labelAiItem.createMany({ data: [{ projectId, type, code, attempts: 1, ...done }], skipDuplicates: true });
+  if (!created.count && !(await tx.labelAiItem.updateMany({ where: { projectId, type, code, status: { in: ["failed", "waiting_text"] } }, data: done })).count) return false;
+  if (await tx.itemLabel.count({ where: { projectId, type, code } })) {
+    await tx.labelAiItem.update({ where: itemKey(projectId, type, code), data: { status: "human" } });
+    return false;
+  }
+  return true;
+}
+
+/** A post the model need not read (labelSkip): recorded as checked, no label, no call. */
+const storeSkip = (projectId: string, type: MediaType, item: { code: string; publishedAt: Date }, reason: SkipReason, key: string | null) =>
+  prisma.$transaction((tx) => takeLedger(tx, projectId, type, item.code, { status: "empty", model: RULE_MODEL(reason), publishedAt: item.publishedAt, textKey: key }));
+
+/** A copy of a post already checked: its result (labels with their scores and reasons) without a call. */
+async function storeCopy(projectId: string, type: MediaType, item: { code: string; publishedAt: Date }, key: string, from: { code: string; status: string }) {
+  return prisma.$transaction(async (tx) => {
+    if (!(await takeLedger(tx, projectId, type, item.code, { status: from.status, model: COPY_MODEL, publishedAt: item.publishedAt, textKey: key }))) return false;
+    const labels = await tx.itemLabel.findMany({ where: { projectId, type, code: from.code, source: "ai" } });
+    await tx.itemLabel.createMany({
+      data: labels.map((l) => ({ projectId, type, code: item.code, label: l.label, setBy: "AI", source: "ai", score: l.score,
+        additionalData: { ...(l.additionalData as object | null), copiedFrom: from.code } })),
+      skipDuplicates: true,
+    });
+    return true;
+  });
+}
+
 /** Records a post that got no result: tried again later, up to the attempt limit. */
 async function storeMiss(projectId: string, type: MediaType, item: { code: string; publishedAt: Date }, status: "failed" | "waiting_text", error: string | null) {
   const retryAfter = new Date(Date.now() + (status === "failed" ? RETRY_MS : TEXT_RETRY_MS));
@@ -166,7 +200,7 @@ async function storeMiss(projectId: string, type: MediaType, item: { code: strin
   }
 }
 
-type Sendable = { code: string; text: string; publishedAt: Date; input: NonNullable<ResultMeta["input"]> };
+type Sendable = { code: string; text: string; publishedAt: Date; input: NonNullable<ResultMeta["input"]>; key: string | null };
 
 /** One provider call for these posts; each result is stored at once. A rejected or garbled batch is split. */
 async function send(run: Run, type: MediaType, posts: Sendable[]): Promise<void> {
@@ -244,7 +278,7 @@ async function save(run: Run, type: MediaType, post: Sendable, labels: CheckedLa
     provider: row.provider, model: row.model, labeledAt: new Date().toISOString(),
     promptVersion: createHash("sha256").update(run.system + run.checkSystem).digest("hex").slice(0, 12),
     customPrompt: row.prompt !== null, input: post.input, webSearch, searchQueries,
-  });
+  }, post.key);
   if (stored) await count(run, 1, 0);
   return stored;
 }
@@ -301,16 +335,36 @@ async function processItems(run: Run, type: MediaType, items: MediaItem[]) {
   if (!due.length) return;
   const images = await imageTextFor(type, due.map((i) => i.code));
   const posts: Sendable[] = [];
+  // Copies of posts already checked take their result (same text fingerprint, see lib/ai/labelSkip).
+  const texts = new Map(due.map((item) => [item.code, [item.title, item.content, images.get(item.code)].filter((p) => p?.trim()).join("\n").trim()]));
+  const keys = new Map([...texts].map(([code, text]) => [code, textKey(text)]));
+  const wanted = [...new Set([...keys.values()].filter((k): k is string => !!k))];
+  const originals = new Map((wanted.length ? await prisma.labelAiItem.findMany({
+    where: { projectId, type, textKey: { in: wanted }, status: { in: ["done", "empty"] }, model: { not: COPY_MODEL } },
+    select: { code: true, status: true, textKey: true }, orderBy: { createdAt: "asc" },
+  }) : []).map((r) => [r.textKey!, r]));
   for (const item of due) {
+    const all = texts.get(item.code) ?? "";
+    const key = keys.get(item.code) ?? null;
+    const publishedAt = new Date(item.publishedAt);
+    const original = key ? originals.get(key) : undefined;
+    if (all && original && original.code !== item.code) {
+      if (await storeCopy(projectId, type, { code: item.code, publishedAt }, key!, original)) { await count(run, 1, 0); run.tally.copied++; }
+      continue;
+    }
+    const reason = all ? skipReason(item, all) : null;
+    if (reason) {
+      if (await storeSkip(projectId, type, { code: item.code, publishedAt }, reason, key)) { await count(run, 1, 0); run.tally.skipped++; }
+      continue;
+    }
     const imageText = images.get(item.code);
     const parts = [
       { name: "judul", value: item.title }, { name: "isi", value: item.content },
       { name: "teks gambar", value: imageText ? `[Teks di gambar] ${imageText}` : "" },
     ].filter((p) => p.value?.trim());
     const text = parts.map((p) => p.value).join("\n").trim();
-    const publishedAt = new Date(item.publishedAt);
     if (text) posts.push({
-      code: item.code, text: text.slice(0, MAX_ITEM_CHARS), publishedAt,
+      code: item.code, text: text.slice(0, MAX_ITEM_CHARS), publishedAt, key,
       // `parts` lists what the post had; a cut text may end before the last of them.
       input: { parts: parts.map((p) => p.name), characters: Math.min(text.length, MAX_ITEM_CHARS), truncated: text.length > MAX_ITEM_CHARS },
     });
@@ -429,7 +483,7 @@ export async function runLabelProject(projectId: string) {
   const instructions = syncLabelList(row.prompt ?? defaultLabelPrompt(options), options);
   const run: Run = {
     row, name, options, today, todayCount, failedCalls: 0, succeeded: false,
-    tally: { sent: 0, labelled: 0, empty: 0, failed: 0, waiting: 0, human: 0, calls: 0, input: 0, output: 0 },
+    tally: { sent: 0, labelled: 0, empty: 0, failed: 0, waiting: 0, human: 0, calls: 0, input: 0, output: 0, skipped: 0, copied: 0 },
     scope: await withImageCodes(projectId, parseKeyScope(row.project.scope, row.project.keywords)),
     system: `${instructions}\n\n${labelOutputFormat(options)}`,
     checkSystem: searchSystem(instructions),
@@ -442,9 +496,9 @@ export async function runLabelProject(projectId: string) {
   /** What this run did; silent about a run that found nothing, after saying so once. */
   const summary = () => {
     const t = run.tally;
-    if (!t.sent && !t.calls && !t.waiting && !t.failed) return false;
+    if (!t.sent && !t.calls && !t.waiting && !t.failed && !t.skipped && !t.copied) return false;
     quiet.delete(projectId);
-    log(`${name}: ringkasan → ${num(t.sent)} post diproses: ${num(t.labelled)} berlabel, ${num(t.empty)} tanpa label, ${num(t.failed)} gagal, ${num(t.waiting)} menunggu teks${t.human ? `, ${num(t.human)} dilewati` : ""} · ${t.calls} panggilan, token masuk ${num(t.input)} / keluar ${num(t.output)} · hari ini ${num(run.todayCount)}`);
+    log(`${name}: ringkasan → ${num(t.sent)} post diproses: ${num(t.labelled)} berlabel, ${num(t.empty)} tanpa label, ${num(t.failed)} gagal, ${num(t.waiting)} menunggu teks${t.skipped ? `, ${num(t.skipped)} dilewati aturan` : ""}${t.copied ? `, ${num(t.copied)} salinan` : ""}${t.human ? `, ${num(t.human)} dilewati` : ""} · ${t.calls} panggilan, token masuk ${num(t.input)} / keluar ${num(t.output)} · hari ini ${num(run.todayCount)}`);
     return true;
   };
   try {
