@@ -34,6 +34,12 @@
 
 /* Feed */
 .feed { display: flex; flex-direction: column; gap: 6px; }
+/* fill (Media Online beside Sosial Media): the list takes no height of its own, so the row is as tall as the social card,
+   and shows only the items that fit whole in what is left (the rest are hidden, not cut). */
+.feedWrap { display: flex; flex-direction: column; }
+.panel[data-fill] .feedWrap { flex: 1; position: relative; min-height: 120px; }
+.panel[data-fill] .feed { position: absolute; inset: 0; overflow: hidden; }
+.feedItem[data-hidden] { visibility: hidden; }
 .feedItem { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; text-decoration: none; color: inherit;
   transition: background 180ms, transform 180ms; animation: slide 500ms cubic-bezier(.2,.8,.2,1) both; }
 .feedItem:hover { background: var(--mantine-color-gray-0); transform: translateX(3px); }

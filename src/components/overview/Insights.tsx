@@ -4,6 +4,7 @@
 // topics, engagement, top accounts/outlets, the project's keywords and hashtags. Both types are always fetched, so
 // "Semua" is merged in the browser. Loads apart from the rest of the page because the grouped scans take a few seconds
 // when the cache is cold.
+import { AiOverview } from "./AiOverview";
 import { TopIssues } from "./TopIssues";
 import { useRole } from "../RoleContext";
 import { useState } from "react";
@@ -709,6 +710,9 @@ export function Insights({ keyId, view, period, data, error, wanted, projects = 
           {data ? <RankedList items={data.categories} label={topicLabel} href={(r) => href(r, { category: r.value })} /> : <Skeleton h={260} radius="md" />}
         </Panel>
       </div>
+
+      {/* The project's AI categorisation and labelling, when an admin has switched them on. */}
+      {keyId && <AiOverview keyId={keyId} />}
 
       {latest}
 

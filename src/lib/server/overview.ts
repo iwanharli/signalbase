@@ -15,7 +15,8 @@ import { KEYWORD_RANGES, keywordCounts } from "./keywordCounts";
 
 export type TypeStats = { daily: DailyCount[]; moods: MoodCount[]; latest: MediaItem[] };
 
-const LATEST_PER_TYPE = 4;
+/** Latest signals on Beranda: news headlines are short; the page shows as many as fit beside the social card. */
+const LATEST_PER_TYPE = { social: 4, online: 12 } as const;
 /** The media page's first request (one extra row tells whether a next page exists); must match the media route. */
 const MEDIA_FIRST_PAGE = 25;
 const WARM_EVERY_MS = 90_000;
@@ -37,7 +38,7 @@ export function typeStats(type: MediaType, scope?: KeyScope, days?: number): Pro
       dailyVolume(type, days ?? 14, scope),
       moodBreakdown(type, new URLSearchParams({ from: weekStart }), s),
       // Latest signals as the media pages list them by default (analysed, and for social not marked not relevant).
-      listItems(type, new URLSearchParams(), berandaScope(type, s), { limit: LATEST_PER_TYPE, offset: 0 }),
+      listItems(type, new URLSearchParams(), berandaScope(type, s), { limit: LATEST_PER_TYPE[type], offset: 0 }),
     ]);
     return { daily, moods, latest };
   });

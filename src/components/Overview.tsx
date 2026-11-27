@@ -1,7 +1,7 @@
 "use client";
 import { KeywordsPill } from "./overview/KeywordsPill";
 import type { Role } from "@/lib/session";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, Skeleton } from "@mantine/core";
@@ -36,22 +36,47 @@ const FEED = {
   online: { title: "Sinyal Terbaru Media Online", what: "Berita", empty: "Belum ada berita yang menyebut keyword ini." },
 } as const;
 
-/** Newest items of one media type. */
-function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items: MediaItem[] | null; keyQuery: string; scoped: boolean }) {
+/** Keeps only the items that fit whole in the box (as tall as the card beside it): no cut text, no empty space. */
+function useFitItems(count: number) {
+  const box = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(count);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const limit = el.clientHeight;
+      const rows = [...el.children] as HTMLElement[];
+      let n = 0;
+      for (const row of rows) { if (row.offsetTop + row.offsetHeight <= limit + 1) n++; else break; }
+      setFit(Math.max(1, n));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [count]);
+  return { box, fit };
+}
+
+/** Newest items of one media type. fill: as tall as the card beside it, showing as many whole items as fit. */
+function LatestFeed({ type, items, keyQuery, scoped, fill }: { type: MediaType; items: MediaItem[] | null; keyQuery: string; scoped: boolean; fill?: boolean }) {
   const f = FEED[type];
   const Icon = TYPE_ICON[type];
+  const { box, fit } = useFitItems(items?.length ?? 0);
   return (
-    <section className={classes.panel}>
+    <section className={classes.panel} data-fill={fill || undefined}>
       <header className={classes.panelHead}>
         <div><h3>{f.title}<CardHelp id={type === "social" ? "latestSocial" : "latestOnline"} /></h3><p>{scoped ? `${f.what} terbaru yang menyebut keyword proyek ini` : `${f.what} paling baru yang masuk ke bank`}</p></div>
         <Link href={`/media/${type}${keyQuery}`} className={classes.more}>Lihat semua <IconArrowRight size={14} /></Link>
       </header>
-      <div className={classes.feed}>
+      <div className={classes.feedWrap}>
+      <div className={classes.feed} ref={fill ? box : undefined}>
         {!items && Array.from({ length: 4 }, (_, i) => <Skeleton key={i} h={58} radius="md" />)}
         {items?.map((item, i) => {
           const mood = item.mood ? moodInfo(item.mood) : null;
           return (
-            <Link key={item.code} href={`/media/${type}${keyQuery}${keyQuery ? "&" : "?"}item=${encodeURIComponent(item.code)}`} className={classes.feedItem} style={{ animationDelay: `${i * 60}ms` }}>
+            <Link key={item.code} href={`/media/${type}${keyQuery}${keyQuery ? "&" : "?"}item=${encodeURIComponent(item.code)}`} className={classes.feedItem}
+              data-hidden={(fill && i >= fit) || undefined} style={{ animationDelay: `${i * 60}ms` }}>
               <span className={classes.feedIcon} data-t={type}><Icon size={16} /></span>
               <span className={classes.feedBody}>
                 <span className={classes.feedText}>{item.title ?? item.content}</span>
@@ -64,6 +89,7 @@ function LatestFeed({ type, items, keyQuery, scoped }: { type: MediaType; items:
           );
         })}
         {items && !items.length && <p className={classes.empty}>{f.empty}</p>}
+      </div>
       </div>
     </section>
   );
@@ -158,7 +184,7 @@ export function Overview({ name, role }: { name: string; role: Role }) {
         latest={(hasSocial || hasOnline) && (
           <div className={classes.two} data-single={!both || undefined}>
             {hasSocial && <LatestFeed type="social" items={data.social!.latest} keyQuery={keyQuery} scoped={!!key} />}
-            {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} />}
+            {hasOnline && <LatestFeed type="online" items={data.online!.latest} keyQuery={keyQuery} scoped={!!key} fill={both} />}
           </div>
         )} />}
     </div>
