@@ -11,7 +11,7 @@ import c from "./issueToolbar.module.css";
 export type IssueSort = "skor" | "terbaru" | "volume";
 export const SORT_OPTIONS: { value: IssueSort; label: string }[] = [{ value: "skor", label: "Skor" }, { value: "terbaru", label: "Terbaru" }, { value: "volume", label: "Volume" }];
 
-/** One filter chip: on = its issues are shown. `color` tints it (a CSS colour). */
+/** One filter chip: on = only issues matching it are listed (chips combine; none on = every issue). `color` tints it. */
 export type IssueChip = { key: string; label: string; count: number | null; on: boolean; color: string; title?: string; onToggle: () => void };
 
 export function IssueToolbar({ periods, days, onDays, sort, onSort, chips, extra, search, onSearch, searchRef, placeholder, shown, total, onReset }: {
@@ -41,7 +41,7 @@ export function IssueToolbar({ periods, days, onDays, sort, onSort, chips, extra
           <span className={c.chipsLabel}><IconAdjustmentsHorizontal size={14} />Filter</span>
           {chips.map((ch) => (
             <button key={ch.key} type="button" style={{ "--c": ch.color } as React.CSSProperties} data-active={ch.on || undefined} aria-pressed={ch.on}
-              title={ch.title ?? (ch.on ? `Sembunyikan ${ch.label}` : `Tampilkan ${ch.label}`)} onClick={ch.onToggle}>
+              title={ch.title ?? (ch.on ? `Hapus filter ${ch.label}` : `Hanya ${ch.label}`)} onClick={ch.onToggle}>
               <i />{ch.label}<b>{ch.count === null ? "–" : formatNumber(ch.count)}</b>
             </button>
           ))}

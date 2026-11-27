@@ -1,11 +1,11 @@
 // The network of one issue, for the full-screen "Jaringan isu" view on the issue pages. Pure: the server fetches the rows,
 // the browser draws the result with the Gephi map (components/sna/GephiGraph). No node limit: every account, outlet or
 // entity of the issue is in it.
-//   Social issue (early-warning cluster): the issue, every account that posted in it, and the accounts they mention.
+//   Social issue: the SNA page's issue view (lib/sna buildIssueGraph, with its flows) or its mention view.
 //   Online issue (news cluster): the issue, the outlets that reported it, and their journalists.
 //   Ontology: an issue with its actors and targets (social, plus the other issues naming them) or its topics and regions (online).
 import { buildOntology, issueNodeId, entityId, type OntGraph, type OntIssue } from "./ontology";
-import { buildGraph, dominantTone, toneOf, type SnaGraph, type SnaHub, type SnaLink, type SnaNode, type SnaRow, type Tone } from "./sna";
+import { buildGraph, dominantTone, type SnaGraph, type SnaHub, type SnaLink, type SnaNode, type SnaRow, type Tone } from "./sna";
 
 const emptyCounts = (): Record<Tone, number> => ({ negative: 0, neutral: 0, positive: 0, unknown: 0 });
 export const ISSUE_NODE = "issue";
@@ -13,24 +13,16 @@ export const ISSUE_NODE = "issue";
 /** One account in a social issue, with the emotion of its posts in it. */
 export type IssueAuthorRow = { username: string; source: string; emotion: string | null; n: number; eng: number };
 
-/** Social issue: the issue node, every posting account linked to it (tone = emotions of its posts), and who they mention. */
-export function socialIssueNetwork(issue: { title: string }, authors: IssueAuthorRow[], mentions: SnaRow[]): SnaGraph {
-  const perAuthor = new Map<string, SnaHub & { counts: Record<Tone, number> }>();
+/** Social issue, "Mention" view: every posting account and the accounts it mentions (no limit), like the SNA page. */
+export function mentionNetwork(authors: IssueAuthorRow[], mentions: SnaRow[]): SnaGraph {
+  const hubs = new Map<string, SnaHub>();
   for (const r of authors) {
-    const a = perAuthor.get(r.username) ?? { username: r.username, source: r.source, posts: 0, engagement: 0, counts: emptyCounts() };
-    a.posts += r.n;
-    a.engagement = (a.engagement ?? 0) + r.eng;
-    a.counts[toneOf(r.emotion)] += r.n;
-    perAuthor.set(r.username, a);
+    const h = hubs.get(r.username) ?? { username: r.username, source: r.source, posts: 0, engagement: 0 };
+    h.posts += r.n;
+    h.engagement = (h.engagement ?? 0) + r.eng;
+    hubs.set(r.username, h);
   }
-  const hubs = [...perAuthor.values()];
-  const mentionGraph = buildGraph(hubs, mentions, Number.MAX_SAFE_INTEGER);
-  const posts = hubs.reduce((s, h) => s + h.posts, 0);
-  const issueLinks: SnaLink[] = hubs.map((h) => ({ source: ISSUE_NODE, target: h.username, n: h.posts, tone: dominantTone(h.counts), counts: h.counts }));
-  return {
-    nodes: [{ id: ISSUE_NODE, kind: "issue", title: issue.title, posts, mentions: 0 }, ...mentionGraph.nodes],
-    links: [...issueLinks, ...mentionGraph.links],
-  };
+  return buildGraph([...hubs.values()], mentions, Number.MAX_SAFE_INTEGER);
 }
 
 /** One outlet + journalist pair of a news issue, with the tone of its articles (news sentiment). */

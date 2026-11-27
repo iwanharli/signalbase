@@ -1,21 +1,33 @@
 import { NextResponse } from "next/server";
+import { isProjectId } from "@/lib/activeProject";
+import { parseSnaFlow } from "@/lib/sna";
 import { adminRoute } from "@/lib/server/auth";
 import { sourceErrorResponse } from "@/lib/server/bank/errors";
-import { socialIssueGraph } from "@/lib/server/issueNetwork";
+import { prisma } from "@/lib/server/db";
+import { socialIssueGraph, type SocialIssuePosts } from "@/lib/server/issueNetwork";
 import { overviewView } from "@/lib/server/overviewKey";
 
 type Context = { params: Promise<{ id: string }> };
 
-// Full-screen SNA of one social issue (an early-warning cluster, Isu Media Sosial): every account that posted in it and
-// whom they mention, no node limit. ?project= limits it to the project's posts (users: always their project).
+// Full-screen SNA of one social issue (Isu Media Sosial), every account, no limit. The id is an early-warning alert's
+// cluster (digits, the whole bank) or one of the project's own clusters (UUID, IssueCluster). ?view=isu|mention and
+// ?flow=langsung|mention|rantai|gelombang as on the SNA page; ?project= limits it to the project's posts.
 export const GET = adminRoute(async (req: Request, { params }: Context, _username, user) => {
   const { id } = await params;
-  if (!/^\d{1,18}$/.test(id)) return NextResponse.json({ error: "Isu tidak ditemukan" }, { status: 404 });
+  const notFound = () => NextResponse.json({ error: "Isu tidak ditemukan" }, { status: 404 });
+  if (!/^\d{1,18}$/.test(id) && !isProjectId(id)) return notFound();
   const view = await overviewView(req, user);
   if (view instanceof Response) return view;
   if (view.noKey) return NextResponse.json({ sna: { nodes: [], links: [] } });
+  let posts: SocialIssuePosts = { cluster: id };
+  if (isProjectId(id)) {
+    const cluster = await prisma.issueCluster.findUnique({ where: { id }, select: { projectId: true, title: true, keywords: true, codes: true } });
+    if (!cluster || cluster.projectId !== view.key?.id) return notFound();
+    posts = { title: cluster.title ?? cluster.keywords.slice(0, 4).join(", "), codes: cluster.codes };
+  }
   try {
-    return NextResponse.json({ sna: await socialIssueGraph(id, view.scope) });
+    const q = new URL(req.url).searchParams;
+    return NextResponse.json({ sna: await socialIssueGraph(id, posts, view.scope, q.get("view") === "mention" ? "mention" : "isu", parseSnaFlow(q.get("flow"))) });
   } catch (e) {
     return sourceErrorResponse(e, "ontology/network");
   }

@@ -1,15 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { newsOntology, onlineIssueNetwork, ontologyAsSna, relatedOntology, socialIssueNetwork, ISSUE_NODE } from "../src/lib/issueNetwork";
+import { mentionNetwork, newsOntology, onlineIssueNetwork, ontologyAsSna, relatedOntology } from "../src/lib/issueNetwork";
 import type { OntIssue } from "../src/lib/ontology";
 
-test("social issue network: every posting account hangs on the issue, mentions add the accounts they name, no limit", () => {
-  const authors = Array.from({ length: 300 }, (_, i) => ({ username: `a${i}`, source: "twitter", emotion: i % 2 ? "marah" : "netral", n: 1, eng: i }));
-  const g = socialIssueNetwork({ title: "Isu X" }, authors, [{ hub: "a1", target: "polri", emotion: "marah", n: 3 }, { hub: "a2", target: "a3", emotion: null, n: 1 }]);
+test("social issue, mention view: every posting account (no limit) and the accounts they mention", () => {
+  const authors = Array.from({ length: 300 }, (_, i) => ({ username: `a${i}`, source: "twitter", emotion: "netral", n: 1, eng: i }));
+  const g = mentionNetwork(authors, [{ hub: "a1", target: "polri", emotion: "marah", n: 3 }, { hub: "a2", target: "a3", emotion: null, n: 1 }]);
   assert.equal(g.nodes.filter((n) => n.kind === "hub").length, 300, "all 300 accounts, none cut");
   assert.deepEqual(g.nodes.filter((n) => n.kind === "child").map((n) => n.id), ["polri"], "a mentioned author stays a hub");
-  assert.equal(g.nodes.find((n) => n.id === ISSUE_NODE)?.posts, 300);
-  assert.equal(g.links.filter((l) => l.source === ISSUE_NODE).length, 300);
   assert.equal(g.links.find((l) => l.source === "a1" && l.target === "polri")?.tone, "negative");
 });
 

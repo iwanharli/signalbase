@@ -51,7 +51,7 @@ function Detail({ issue, rank, onEntity, entity, nav, onNetwork }: {
     <button key={`${kind}-${name}`} type="button" className={ews.chip} data-kind={kind} data-on={entity === name.toLowerCase() || undefined} onClick={() => onEntity(entity === name.toLowerCase() ? null : name.toLowerCase())}>{name}</button>
   );
   return (
-    <section className={classes.detail} style={{ "--heat": color } as React.CSSProperties} aria-label="Detail alert">
+    <section className={classes.detail} style={{ "--heat": color } as React.CSSProperties} aria-label="Detail isu">
       <header className={classes.detailHead}>
         <div className={classes.scoreRing} style={{ "--pct": `${Math.max(6, Math.min(100, issue.score))}%` } as React.CSSProperties} title="Skor isu">
           <span><b>{formatNumber(issue.score)}</b><small>skor</small></span>
@@ -123,7 +123,8 @@ export function SocialIssues() {
   const days = parseOntDays(params.get("days")) ?? DEFAULT_ONT_DAYS;
   const issueParam = params.get("issue");
   const [search, setSearch] = useState("");
-  const [off, setOff] = useState<string[]>([]);
+  /** Levels picked in the filter (none = every level). */
+  const [levels, setLevels] = useState<string[]>([]);
   const [entity, setEntity] = useState<string | null>(null);
   const [network, setNetwork] = useState<NetworkTab | null>(null);
   const [sort, setSort] = useState<IssueSort>("skor");
@@ -142,11 +143,11 @@ export function SocialIssues() {
   const rankOf = useMemo(() => new Map(issues.map((i, n) => [i.id, n + 1])), [issues]);
 
   const term = search.trim().toLowerCase();
-  const visible = useMemo(() => sortIssues(issues.filter((i) => !off.includes(i.level) && (!onlyNew || isNew(i))
+  const visible = useMemo(() => sortIssues(issues.filter((i) => (!levels.length || levels.includes(i.level)) && (!onlyNew || isNew(i))
     && (!entity || has(i.actors, entity) || has(i.targets, entity))
-    && (!term || [i.title, i.location ?? "", ...i.actors, ...i.targets].some((s) => s.toLowerCase().includes(term)))), sort), [issues, off, entity, term, onlyNew, sort]);
-  const filtered = !!term || off.length > 0 || !!entity || onlyNew;
-  const resetFilters = () => { setSearch(""); setOff([]); setEntity(null); setOnlyNew(false); };
+    && (!term || [i.title, i.location ?? "", ...i.actors, ...i.targets].some((s) => s.toLowerCase().includes(term)))), sort), [issues, levels, entity, term, onlyNew, sort]);
+  const filtered = !!term || levels.length > 0 || !!entity || onlyNew;
+  const resetFilters = () => { setSearch(""); setLevels([]); setEntity(null); setOnlyNew(false); };
   const index = Math.max(0, visible.findIndex((i) => i.id === issueParam));
   const selected = visible[index] ?? null;
 
@@ -170,7 +171,7 @@ export function SocialIssues() {
 
   const periodLabel = ONT_PERIODS.find((p) => p.days === days)!.label;
   const stats = [
-    { icon: IconBellRinging, value: issues.length, label: "alert" },
+    { icon: IconBellRinging, value: issues.length, label: "isu" },
     { icon: IconFlame, value: issues.filter((i) => i.level === "Critical").length, label: "critical" },
     { icon: IconMessages, value: issues.reduce((t, i) => t + i.postCount, 0), label: "post terkait" },
   ];
@@ -179,13 +180,13 @@ export function SocialIssues() {
     <div className={classes.page}>
       <header className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
-        <IconMessages className={classes.heroIcon} size={150} stroke={1} aria-hidden />
+        <IconMessages className={classes.heroIcon} size={110} stroke={1} aria-hidden />
         <div className={classes.heroText}>
           <span className={classes.badge}><IconMessages size={13} />Media sosial · post &amp; akun</span>
           <h1>Isu Media Sosial <em>{periodLabel}</em> terakhir</h1>
           <p>{keyId
-            ? "Post media sosial proyek ini (X, TikTok, Instagram, Facebook, Threads, YouTube) yang membahas hal yang sama, dikelompokkan tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, post, serta SNA dan ontologinya."
-            : "Post media sosial yang membahas hal yang sama, dikelompokkan tiap jam dan diurutkan dari skor tertinggi. Pilih isu untuk melihat aktor, target, reaksi publik, post, serta SNA dan ontologinya."}</p>
+            ? "Post media sosial proyek ini yang membahas hal yang sama, dikelompokkan tiap jam. Pilih isu untuk melihat aktor, target, reaksi publik, post, SNA, dan ontologinya."
+            : "Post media sosial yang membahas hal yang sama, dikelompokkan tiap jam. Pilih isu untuk melihat aktor, target, reaksi publik, post, SNA, dan ontologinya."}</p>
         </div>
         <div className={classes.stats}>
           {stats.map((s) => <div key={s.label}><s.icon size={16} aria-hidden /><b>{list.data ? formatNumber(s.value) : "—"}</b><span>{s.label}</span></div>)}
@@ -199,17 +200,17 @@ export function SocialIssues() {
         shown={list.data ? visible.length : null} total={list.data ? issues.length : null} onReset={filtered ? resetFilters : null}
         extra={entity && <button type="button" className={ews.filterChip} onClick={() => setEntity(null)} title="Hapus filter aktor/target">{entity}<IconX size={14} /></button>}
         chips={[
-          ...TOGGLE_LEVELS.map((l) => ({ key: l, label: l, color: levelColor(l), on: !off.includes(l), count: list.data ? issues.filter((i) => i.level === l).length : null,
-            onToggle: () => setOff(off.includes(l) ? off.filter((x) => x !== l) : [...off, l]) })),
+          ...TOGGLE_LEVELS.map((l) => ({ key: l, label: l, color: levelColor(l), on: levels.includes(l), title: levels.includes(l) ? `Hapus filter ${l}` : `Hanya isu ${l}`, count: list.data ? issues.filter((i) => i.level === l).length : null,
+            onToggle: () => setLevels(levels.includes(l) ? levels.filter((x) => x !== l) : [...levels, l]) })),
           { key: "new", label: "Baru 24 jam", color: "#22d3ee", on: onlyNew, count: list.data ? issues.filter(isNew).length : null,
-            title: onlyNew ? "Tampilkan semua isu" : "Hanya isu yang dikirim dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
+            title: onlyNew ? "Hapus filter Baru 24 jam" : "Hanya isu yang dikirim dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
         ]} />
 
       {list.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{list.error}<Button size="sm" variant="secondary" onClick={() => void list.reload()}>Coba lagi</Button></div>}
 
       <div className={classes.layout}>
         <nav className={classes.list} aria-label="Daftar alert">
-          <div className={classes.listHead}><IconTrophy size={16} />Peringkat alert<small>↑ ↓ untuk pindah</small></div>
+          <div className={classes.listHead}><IconTrophy size={16} />Peringkat isu<small>↑ ↓ untuk pindah</small></div>
           <div className={classes.listScroll}>
           {!list.data && !list.error && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={96} radius={18} />)}
           {visible.map((issue, n) => {
@@ -239,7 +240,7 @@ export function SocialIssues() {
           {list.data && !visible.length && (
             <div className={classes.empty}>
               <IconRadar2 size={26} />
-              <b>{issues.length ? "Tidak ada alert yang cocok" : `Belum ada alert dalam ${periodLabel} terakhir`}</b>
+              <b>{issues.length ? "Tidak ada isu yang cocok" : `Belum ada isu dalam ${periodLabel} terakhir`}</b>
               {!issues.length && days < 30 && <Button size="sm" variant="secondary" onClick={() => go({ days: String(ONT_PERIODS.find((p) => p.days > days)!.days) })}>Lihat periode lebih panjang</Button>}
             </div>
           )}

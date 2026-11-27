@@ -182,8 +182,9 @@ export function OnlineIssues() {
   const [search, setSearch] = useState("");
   const [network, setNetwork] = useState<NetworkTab | null>(null);
   const [sort, setSort] = useState<IssueSort>("skor");
-  const [hideActive, setHideActive] = useState(false);
-  const [hideQuiet, setHideQuiet] = useState(false);
+  /** Status picked in the filter (none = both). */
+  const [onlyActive, setOnlyActive] = useState(false);
+  const [onlyQuiet, setOnlyQuiet] = useState(false);
   const [onlyNew, setOnlyNew] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
@@ -201,9 +202,9 @@ export function OnlineIssues() {
 
   const term = search.trim().toLowerCase();
   const visible = useMemo(() => sortIssues(issues.filter((i) => (!term || i.title.toLowerCase().includes(term) || i.label?.toLowerCase().includes(term))
-    && !(i.active ? hideActive : hideQuiet) && (!onlyNew || isNew(i))), sort), [issues, term, hideActive, hideQuiet, onlyNew, sort]);
-  const filtered = !!term || hideActive || hideQuiet || onlyNew;
-  const resetFilters = () => { setSearch(""); setHideActive(false); setHideQuiet(false); setOnlyNew(false); };
+    && (onlyActive === onlyQuiet || (i.active ? onlyActive : onlyQuiet)) && (!onlyNew || isNew(i))), sort), [issues, term, onlyActive, onlyQuiet, onlyNew, sort]);
+  const filtered = !!term || onlyActive || onlyQuiet || onlyNew;
+  const resetFilters = () => { setSearch(""); setOnlyActive(false); setOnlyQuiet(false); setOnlyNew(false); };
   const index = Math.max(0, visible.findIndex((i) => i.id === issueParam));
   const selected = visible[index] ?? null;
 
@@ -239,11 +240,11 @@ export function OnlineIssues() {
     <div className={classes.page}>
       <header className={classes.hero}>
         <div className={classes.heroGrid} aria-hidden />
-        <IconWorldWww className={classes.heroIcon} size={150} stroke={1} aria-hidden />
+        <IconWorldWww className={classes.heroIcon} size={110} stroke={1} aria-hidden />
         <div className={classes.heroText}>
           <span className={classes.badge}><IconNews size={13} />Media online · berita portal</span>
           <h1>{topicLabel} <em>{periodLabel || "…"}</em> terakhir</h1>
-          <p>Berita portal online yang sejenis dikelompokkan menjadi satu isu dan diurutkan dari yang paling ramai. Pilih isu untuk melihat berita, media yang memberitakan, serta SNA dan ontologinya.</p>
+          <p>Berita portal online yang sejenis dikelompokkan menjadi satu isu. Pilih isu untuk melihat berita, media yang memberitakan, SNA, dan ontologinya.</p>
         </div>
         <div className={classes.stats}>
           {stats.map((s) => (
@@ -256,10 +257,10 @@ export function OnlineIssues() {
         search={search} onSearch={setSearch} searchRef={searchRef} placeholder="Cari judul isu"
         shown={list.data ? visible.length : null} total={list.data ? issues.length : null} onReset={filtered ? resetFilters : null}
         chips={[
-          { key: "active", label: "Masih berkembang", color: "#fb923c", on: !hideActive, count: list.data ? issues.filter((i) => i.active).length : null, onToggle: () => setHideActive(!hideActive) },
-          { key: "quiet", label: "Mereda", color: "#94a3b8", on: !hideQuiet, count: list.data ? issues.filter((i) => !i.active).length : null, onToggle: () => setHideQuiet(!hideQuiet) },
+          { key: "active", label: "Masih berkembang", color: "#fb923c", on: onlyActive, title: onlyActive ? "Hapus filter Masih berkembang" : "Hanya isu yang masih menerima berita", count: list.data ? issues.filter((i) => i.active).length : null, onToggle: () => setOnlyActive(!onlyActive) },
+          { key: "quiet", label: "Mereda", color: "#94a3b8", on: onlyQuiet, title: onlyQuiet ? "Hapus filter Mereda" : "Hanya isu yang sudah tidak menerima berita", count: list.data ? issues.filter((i) => !i.active).length : null, onToggle: () => setOnlyQuiet(!onlyQuiet) },
           { key: "new", label: "Baru 24 jam", color: "#22d3ee", on: onlyNew, count: list.data ? issues.filter(isNew).length : null,
-            title: onlyNew ? "Tampilkan semua isu" : "Hanya isu yang muncul dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
+            title: onlyNew ? "Hapus filter Baru 24 jam" : "Hanya isu yang muncul dalam 24 jam terakhir", onToggle: () => setOnlyNew(!onlyNew) },
         ]} />
 
       {list.error && <div className={classes.alert} role="alert"><IconAlertTriangle size={17} />{list.error}<Button size="sm" variant="secondary" onClick={() => void list.reload()}>Coba lagi</Button></div>}
